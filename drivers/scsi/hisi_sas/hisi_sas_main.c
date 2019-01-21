@@ -2580,6 +2580,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	hisi_hba = shost_priv(shost);
 
 	INIT_WORK(&hisi_hba->rst_work, hisi_sas_rst_work_handler);
+	INIT_WORK(&hisi_hba->debugfs_work, hisi_sas_debugfs_work_handler);
 	hisi_hba->hw = hw;
 	hisi_hba->dev = dev;
 	hisi_hba->platform_dev = pdev;
@@ -2679,6 +2680,9 @@ int hisi_sas_probe(struct platform_device *pdev,
 		sha->sas_phy[i] = &hisi_hba->phy[i].sas_phy;
 		sha->sas_port[i] = &hisi_hba->port[i].sas_port;
 	}
+
+	if (hisi_sas_debugfs_enable)
+		hisi_sas_debugfs_init(hisi_hba);
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
