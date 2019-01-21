@@ -3522,6 +3522,36 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
+static void debugfs_snapshot_prepare_v2_hw(struct hisi_hba *hisi_hba)
+{
+}
+
+static void debugfs_snapshot_restore_v2_hw(struct hisi_hba *hisi_hba)
+{
+}
+
+
+static const struct hisi_sas_debugfs_reg_lu debugfs_port_reg_lu_v2_hw[] = {
+	{}
+};
+
+static const struct hisi_sas_debugfs_reg debugfs_port_reg_v2_hw = {
+	.lu = debugfs_port_reg_lu_v2_hw,
+	.count = 0x100,
+	.base_off = PORT_BASE,
+	.read_port_reg = hisi_sas_phy_read32,
+};
+
+static const struct hisi_sas_debugfs_reg_lu debugfs_global_reg_lu_v2_hw[] = {
+	{}
+};
+
+static const struct hisi_sas_debugfs_reg debugfs_global_reg_v2_hw = {
+	.lu = debugfs_global_reg_lu_v2_hw,
+	.count = 0x800,
+	.read_global_reg = hisi_sas_read32,
+};
+
 static struct device_attribute *host_attrs_v2_hw[] = {
 	&dev_attr_phy_event_threshold,
 	NULL
@@ -3579,6 +3609,10 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.write_gpio = write_gpio_v2_hw,
 	.wait_cmds_complete_timeout = wait_cmds_complete_timeout_v2_hw,
 	.sht = &sht_v2_hw,
+	.debugfs_reg_array[DEBUGFS_GLOBAL] = &debugfs_global_reg_v2_hw,
+	.debugfs_reg_port = &debugfs_port_reg_v2_hw,
+	.snapshot_prepare = debugfs_snapshot_prepare_v2_hw,
+	.snapshot_restore = debugfs_snapshot_restore_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
