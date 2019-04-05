@@ -2145,19 +2145,27 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 int sas_ex_revalidate_domain(struct domain_device *port_dev)
 {
 	int res;
-	struct domain_device *dev = NULL;
+	struct domain_device *bcast_dev = NULL;
 
-	res = sas_find_bcast_dev(port_dev, &dev);
-	if (res == 0 && dev) {
-		struct expander_device *ex = &dev->ex_dev;
+
+	res = sas_find_bcast_dev(port_dev, &bcast_dev);
+	if (res == 0 && bcast_dev) {
+		struct expander_device *ex = &bcast_dev->ex_dev;
+		struct asd_sas_port *port = bcast_dev->port;
 		int i = 0, phy_id;
+
+		if (port_dev == bcast_dev) {
+			port_dev->min_linkrate = port->min_linkrate;
+			port_dev->max_linkrate = port->max_linkrate;
+			port_dev->linkrate = port->linkrate;
+		}
 
 		do {
 			phy_id = -1;
-			res = sas_find_bcast_phy(dev, &phy_id, i, true);
+			res = sas_find_bcast_phy(bcast_dev, &phy_id, i, true);
 			if (phy_id == -1)
 				break;
-			res = sas_rediscover(dev, phy_id);
+			res = sas_rediscover(bcast_dev, phy_id);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
 	}
