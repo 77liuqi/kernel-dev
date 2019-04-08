@@ -760,6 +760,9 @@ static void sas_ex_get_linkrate(struct domain_device *parent,
 				       struct ex_phy *parent_phy)
 {
 	struct expander_device *parent_ex = &parent->ex_dev;
+	enum sas_linkrate min_linkrate = SAS_LINK_RATE_UNKNOWN,
+			  max_linkrate = SAS_LINK_RATE_UNKNOWN,
+			  phy_min_linkrate = SAS_LINK_RATE_UNKNOWN;
 	struct sas_port *port;
 	int i;
 
@@ -777,15 +780,33 @@ static void sas_ex_get_linkrate(struct domain_device *parent,
 		if (SAS_ADDR(phy->attached_sas_addr) ==
 		    SAS_ADDR(child->sas_addr)) {
 
-			child->min_linkrate = min(parent->min_linkrate,
-						  phy->linkrate);
-			child->max_linkrate = max(parent->max_linkrate,
-						  phy->linkrate);
+			if (min_linkrate == SAS_LINK_RATE_UNKNOWN)
+				min_linkrate = min(parent->min_linkrate,
+						   phy->linkrate);
+			else
+				min_linkrate = min(phy->linkrate,
+						   min_linkrate);
+
+			if (max_linkrate == SAS_LINK_RATE_UNKNOWN)
+				max_linkrate = max(parent->max_linkrate,
+						   phy->linkrate);
+			else
+				max_linkrate = max(phy->linkrate,
+						   max_linkrate);
+
+			if (phy_min_linkrate == SAS_LINK_RATE_UNKNOWN)
+				phy_min_linkrate = phy->linkrate;
+			else
+				phy_min_linkrate = min(phy->linkrate,
+						       phy_min_linkrate);
 			child->pathways++;
 			sas_port_add_phy(port, phy->phy);
 		}
 	}
-	child->linkrate = min(parent_phy->linkrate, child->max_linkrate);
+
+	child->min_linkrate = min_linkrate;
+	child->max_linkrate = max_linkrate;
+	child->linkrate = min(phy_min_linkrate, child->max_linkrate);
 	child->pathways = min(child->pathways, parent->pathways);
 }
 
