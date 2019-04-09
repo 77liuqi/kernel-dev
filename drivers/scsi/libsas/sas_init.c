@@ -331,13 +331,20 @@ int sas_set_phy_speed(struct sas_phy *phy,
 	     rates->maximum_linkrate < phy->minimum_linkrate))
 		return -EINVAL;
 
-	if (rates->minimum_linkrate &&
-	    rates->minimum_linkrate < phy->minimum_linkrate_hw)
-		rates->minimum_linkrate = phy->minimum_linkrate_hw;
+	if (rates->minimum_linkrate) {
+		if (rates->minimum_linkrate < phy->minimum_linkrate_hw)
+			rates->minimum_linkrate = phy->minimum_linkrate_hw;
+	} else {
+		rates->minimum_linkrate = phy->minimum_linkrate;
+	}
 
-	if (rates->maximum_linkrate &&
-	    rates->maximum_linkrate > phy->maximum_linkrate_hw)
-		rates->maximum_linkrate = phy->maximum_linkrate_hw;
+
+	if (rates->maximum_linkrate) {
+		if (rates->maximum_linkrate > phy->maximum_linkrate_hw)
+			rates->maximum_linkrate = phy->maximum_linkrate_hw;
+	} else {
+		rates->maximum_linkrate = phy->maximum_linkrate;
+	}
 
 	if (scsi_is_sas_phy_local(phy)) {
 		struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
