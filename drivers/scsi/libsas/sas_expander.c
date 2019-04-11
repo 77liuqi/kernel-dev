@@ -764,12 +764,9 @@ static void sas_ex_get_linkrate(struct domain_device *parent,
 	enum sas_linkrate min_linkrate = SAS_LINK_RATE_UNKNOWN,
 			  max_linkrate = SAS_LINK_RATE_UNKNOWN,
 			  phy_min_linkrate = SAS_LINK_RATE_UNKNOWN;
-	struct sas_port *port;
 	int i;
 
 	child->pathways = 0;
-
-	port = parent_phy->port;
 
 	for (i = 0; i < parent_ex->num_phys; i++) {
 		struct ex_phy *phy = &parent_ex->ex_phy[i];
@@ -801,7 +798,8 @@ static void sas_ex_get_linkrate(struct domain_device *parent,
 				phy_min_linkrate = min(phy->linkrate,
 						       phy_min_linkrate);
 			child->pathways++;
-			sas_port_add_phy(port, phy->phy);
+			if (parent_phy)
+				sas_port_add_phy(parent_phy->port, phy->phy);
 		}
 	}
 
@@ -2018,6 +2016,42 @@ out:
 	return res;
 }
 
+static void sas_discover_fixup_linkrates(struct domain_device *dev, struct domain_device *child)
+{
+	sas_ex_get_linkrate(dev, child, NULL);
+	if (child->linkrate > dev->min_linkrate && dev_is_sata(child)) {
+		struct expander_device *ex_dev = &dev->ex_dev;
+		struct ex_phy *phy;
+		int child_phy_id = child->phy->number;
+		enum sas_linkrate maximum_linkrate =
+			dev->min_linkrate;
+		enum sas_linkrate minimum_linkrate =
+			min(dev->min_linkrate,
+				child->min_linkrate);
+		struct sas_phy_linkrates rates = {
+			.maximum_linkrate = maximum_linkrate,
+			.minimum_linkrate = minimum_linkrate,
+		};
+		int ret;
+
+		sas_unregister_devs_sas_addr(dev, child_phy_id, true);
+		phy = &ex_dev->ex_phy[child_phy_id];
+		pr_notice("ex %016llx phy%02d SATA device linkrate > min pathway connection rate, attempting to lower device linkrate\n",
+			  SAS_ADDR(dev->sas_addr), child_phy_id);
+		ret = sas_smp_phy_control(dev, child_phy_id,
+					  PHY_FUNC_LINK_RESET, &rates);
+		if (ret)
+			pr_err("ex %016llx phy%02d SATA device could not set linkrate (%d)\n",
+				   SAS_ADDR(dev->sas_addr),
+				   child_phy_id, ret);
+		else
+			pr_notice("ex %016llx phy%02d SATA device set linkrate successfully\n",
+				  SAS_ADDR(dev->sas_addr),
+				  child_phy_id);
+	} else if (dev_is_expander(child->dev_type)) {
+	}
+}
+
 static int sas_discover_new(struct domain_device *dev, int phy_id)
 {
 	struct ex_phy *ex_phy = &dev->ex_dev.ex_phy[phy_id];
@@ -2044,6 +2078,8 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 			break;
 		}
 	}
+	list_for_each_entry(child, &dev->ex_dev.children, siblings)
+		sas_discover_fixup_linkrates(dev, child);
 	return res;
 }
 
@@ -2113,8 +2149,17 @@ static int sas_rediscover_dev(struct domain_device *dev, int phy_id,
 
 		sas_ex_phy_discover(dev, phy_id);
 
-		if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
-			action = ", needs recovery";
+		if (ata_dev) {
+			if (phy->attached_dev_type == SAS_SATA_PENDING)
+				action = ", needs recovery";
+		} else if (phy->attached_dev_type == SAS_END_DEVICE &&
+			   phy->attached_iproto) {
+			struct domain_device *child;
+
+			list_for_each_entry(child, &dev->ex_dev.children, siblings)
+				sas_discover_fixup_linkrates(dev, child);
+		}
+
 		pr_debug("ex %016llx phy%02d broadcast flutter%s\n",
 			 SAS_ADDR(dev->sas_addr), phy_id, action);
 		return res;
