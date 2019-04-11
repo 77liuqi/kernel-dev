@@ -1106,33 +1106,19 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
 			struct sas_phy_linkrates *r)
 {
-	struct sas_phy_linkrates _r;
 
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
-	enum sas_linkrate min, max;
 
 	if (r->minimum_linkrate > SAS_LINK_RATE_1_5_GBPS)
 		return -EINVAL;
 
-	if (r->maximum_linkrate == SAS_LINK_RATE_UNKNOWN) {
-		max = sas_phy->phy->maximum_linkrate;
-		min = r->minimum_linkrate;
-	} else if (r->minimum_linkrate == SAS_LINK_RATE_UNKNOWN) {
-		max = r->maximum_linkrate;
-		min = sas_phy->phy->minimum_linkrate;
-	} else
-		return -EINVAL;
-
-	_r.maximum_linkrate = max;
-	_r.minimum_linkrate = min;
-
-	sas_phy->phy->maximum_linkrate = max;
-	sas_phy->phy->minimum_linkrate = min;
+	sas_phy->phy->maximum_linkrate = r->maximum_linkrate;
+	sas_phy->phy->minimum_linkrate = r->minimum_linkrate;
 
 	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
-	msleep(100);
-	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, &_r);
+	msleep(500);
+	hisi_hba->hw->phy_set_linkrate(hisi_hba, phy_no, r);
 	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
 
 	return 0;
