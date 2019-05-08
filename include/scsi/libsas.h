@@ -251,6 +251,8 @@ struct asd_sas_port {
 	struct list_head destroy_list;
 	struct list_head sas_port_del_list;
 	enum   sas_linkrate linkrate;
+	enum   sas_linkrate min_linkrate;
+	enum   sas_linkrate max_linkrate;
 
 	struct sas_work work;
 	int suspended;

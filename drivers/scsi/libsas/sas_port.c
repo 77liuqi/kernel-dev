@@ -169,8 +169,13 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		port->tproto = phy->tproto;
 		port->oob_mode = phy->oob_mode;
 		port->linkrate = phy->linkrate;
-	} else
-		port->linkrate = max(port->linkrate, phy->linkrate);
+		port->min_linkrate = phy->linkrate;
+		port->max_linkrate = phy->linkrate;
+	} else {
+		port->linkrate = max(port->max_linkrate, phy->linkrate);
+		port->max_linkrate = port->linkrate;
+		port->min_linkrate = min(port->min_linkrate, phy->linkrate);
+	}
 	spin_unlock(&port->phy_list_lock);
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
@@ -180,7 +185,6 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		sas_port_add(port->port);
 	}
 	sas_port_add_phy(port->port, phy->phy);
-
 	pr_debug("%s added to %s, phy_mask:0x%x (%16llx)\n",
 		 dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		 port->phy_mask,
@@ -218,15 +222,17 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	struct asd_sas_port *port = phy->port;
 	struct sas_internal *si =
 		to_sas_internal(sas_ha->core.shost->transportt);
-	struct domain_device *dev;
+	struct domain_device *port_dev;
 	unsigned long flags;
+	enum sas_device_type dev_type;
 
 	if (!port)
 		return;		  /* done by a phy event */
 
-	dev = port->port_dev;
-	if (dev)
-		dev->pathways--;
+	port_dev = port->port_dev;
+	dev_type = port_dev->dev_type;
+	if (port_dev)
+		port_dev->pathways--;
 
 	if (port->num_phys == 1) {
 		sas_unregister_domain_devices(port, gone);
@@ -235,7 +241,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		port->port = NULL;
 	} else {
 		sas_port_delete_phy(port->port, phy->phy);
-		sas_device_set_phy(dev, port->port);
+		sas_device_set_phy(port_dev, port->port);
 	}
 
 	if (si->dft->lldd_port_deformed)
@@ -259,13 +265,25 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		port->tproto = 0;
 		port->oob_mode = 0;
 		port->phy_mask = 0;
+	} else {
+		enum sas_linkrate min_lrate = SAS_LINK_RATE_12_0_GBPS,
+				  max_lrate = SAS_LINK_RATE_1_5_GBPS;
+		struct asd_sas_phy *member_phy;
+
+		list_for_each_entry(member_phy, &port->phy_list, port_phy_el) {
+			min_lrate = min(min_lrate, member_phy->linkrate);
+			max_lrate = max(max_lrate, member_phy->linkrate);
+		}
+		port->max_linkrate = max_lrate;
+		port->min_linkrate = min_lrate;
+		port->linkrate = port->max_linkrate;
 	}
 	spin_unlock(&port->phy_list_lock);
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	/* Only insert revalidate event if the port still has members */
-	if (port->port && dev && dev_is_expander(dev->dev_type)) {
-		struct expander_device *ex_dev = &dev->ex_dev;
+	if (port->port && port_dev && dev_is_expander(port_dev->dev_type)) {
+		struct expander_device *ex_dev = &port_dev->ex_dev;
 
 		ex_dev->ex_change_count = -1;
 		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
