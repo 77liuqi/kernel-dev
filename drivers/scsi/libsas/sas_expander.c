@@ -2049,6 +2049,10 @@ static void sas_discover_fixup_linkrates(struct domain_device *dev, struct domai
 				  SAS_ADDR(dev->sas_addr),
 				  child_phy_id);
 	} else if (dev_is_expander(child->dev_type)) {
+		struct domain_device *ex_child;
+
+		list_for_each_entry(ex_child, &child->ex_dev.children, siblings)
+			sas_discover_fixup_linkrates(child, ex_child);
 	}
 }
 
@@ -2064,8 +2068,10 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 	if (res)
 		return res;
 
-	if (sas_ex_join_wide_port(dev, phy_id))
-		return 0;
+	if (sas_ex_join_wide_port(dev, phy_id)) {
+		res = 0;
+		goto out;
+	}
 
 	res = sas_ex_discover_devices(dev, phy_id);
 	if (res)
@@ -2078,6 +2084,7 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 			break;
 		}
 	}
+out:
 	list_for_each_entry(child, &dev->ex_dev.children, siblings)
 		sas_discover_fixup_linkrates(dev, child);
 	return res;
