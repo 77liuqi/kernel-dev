@@ -276,7 +276,8 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	else
 		memcpy(phy->attached_sas_addr, dr->attached_sas_addr, SAS_ADDR_SIZE);
 	phy->attached_phy_id = dr->attached_phy_id;
-	phy->phy_change_count = dr->change_count;
+	if (phy->phy_change_count == 0) /* Initial discovery only */
+		phy->phy_change_count = dr->change_count;
 	phy->routing_attr = dr->routing_attr;
 	phy->virtual = dr->virtual;
 	phy->last_da_index = -1;
@@ -1793,6 +1794,13 @@ static int sas_get_phy_attached_dev(struct domain_device *dev, int phy_id,
 	return res;
 }
 
+static int increment_phy_change_count(int a)
+{
+	if (a == 0xff)
+		return 1;
+	return ++a;
+}
+
 static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 			      int from_phy, bool update)
 {
@@ -1815,9 +1823,17 @@ static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 		}
 
 		if (phy_change_count != ex->ex_phy[i].phy_change_count) {
-			if (update)
-				ex->ex_phy[i].phy_change_count =
-					phy_change_count;
+			if (update) {
+				if (ex->ex_phy[i].phy_change_count == -1) {
+					ex->ex_phy[i].phy_change_count = phy_change_count;
+				} else {
+					ex->ex_phy[i].phy_change_count =
+						increment_phy_change_count(ex->ex_phy[i].phy_change_count);
+					/* Insurance policy - add events to clear the count */
+					if (ex->ex_phy[i].phy_change_count != phy_change_count)
+						sas_discover_event(dev->port, DISCE_REVALIDATE_DOMAIN);
+				}
+			}
 			*phy_id = i;
 			return 0;
 		}
@@ -1893,13 +1909,15 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 		res = sas_find_bcast_phy(dev, &phy_id, 0, false);
 		if (phy_id != -1) {
 			*src_dev = dev;
-			ex->ex_change_count = ex_change_count;
+			ex->ex_change_count = -1; /* keep processing until cleared */
 			pr_info("ex %016llx phy%02d change count has changed\n",
 				SAS_ADDR(dev->sas_addr), phy_id);
 			return res;
-		} else
+		} else {
+			ex->ex_change_count = ex_change_count;
 			pr_info("ex %016llx phys DID NOT change\n",
 				SAS_ADDR(dev->sas_addr));
+		}
 	}
 	list_for_each_entry(ch, &ex->children, siblings) {
 		if (dev_is_expander(ch->dev_type)) {
