@@ -86,6 +86,8 @@
 #define IDR5_VAX			GENMASK(11, 10)
 #define IDR5_VAX_52_BIT			1
 
+#define ARM_SMMU_IIDR			0x18
+
 #define ARM_SMMU_CR0			0x20
 #define CR0_ATSCHK			(1 << 4)
 #define CR0_CMDQEN			(1 << 3)
@@ -247,6 +249,7 @@
 
 #define STRTAB_STE_1_SHCFG		GENMASK_ULL(45, 44)
 #define STRTAB_STE_1_SHCFG_INCOMING	1UL
+#define STRTAB_STE_1_SHCFG_ISH		3UL
 
 #define STRTAB_STE_2_S2VMID		GENMASK_ULL(15, 0)
 #define STRTAB_STE_2_VTCR		GENMASK_ULL(50, 32)
@@ -374,6 +377,8 @@
 
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
+
+#define UNKNOWN_SID			-1
 
 /*
  * not really modular, but the easiest way to keep compat with existing
@@ -568,6 +573,7 @@ struct arm_smmu_device {
 
 #define ARM_SMMU_OPT_SKIP_PREFETCH	(1 << 0)
 #define ARM_SMMU_OPT_PAGE0_REGS_ONLY	(1 << 1)
+#define ARM_SMMU_OPT_STE_SHCFG_ISH	(1 << 2)
 	u32				options;
 
 	struct arm_smmu_cmdq		cmdq;
@@ -670,6 +676,28 @@ static struct arm_smmu_domain *to_smmu_domain(struct iommu_domain *dom)
 	return container_of(dom, struct arm_smmu_domain, domain);
 }
 
+static void parse_implementation_options(struct arm_smmu_device *smmu)
+{
+	u32 iidr = readl(smmu->base + ARM_SMMU_IIDR);
+	int i;
+	struct arm_smmu_impl_options {
+		u32 iidr;
+		u32 options;
+	} impls [] = {
+		{
+			.iidr = 0x30736, /* HiSilicon hip08 */
+			.options = ARM_SMMU_OPT_STE_SHCFG_ISH,
+		},
+		{}
+	};
+
+	/* Some iidr can be 0, so don't use as sentinel check */
+	for (i = 0; impls[i].options != 0; i++) {
+		if (impls[i].iidr == iidr)
+			smmu->options = impls[i].options;
+	}
+}
+
 static void parse_driver_options(struct arm_smmu_device *smmu)
 {
 	int i = 0;
@@ -682,6 +710,9 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 				arm_smmu_options[i].prop);
 		}
 	} while (arm_smmu_options[++i].opt);
+
+	parse_implementation_options(smmu);
+	dev_notice(smmu->dev, "option mask 0x%x\n", smmu->options);
 }
 
 /* Low-level queue manipulation functions */
@@ -1127,7 +1158,7 @@ static void arm_smmu_sync_ste_for_sid(struct arm_smmu_device *smmu, u32 sid)
 }
 
 static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
-				      __le64 *dst)
+				      __le64 *dst, struct arm_smmu_device *smmu)
 {
 	/*
 	 * This is hideously complicated, but we only really care about
@@ -1147,7 +1178,6 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 	 */
 	u64 val = le64_to_cpu(dst[0]);
 	bool ste_live = false;
-	struct arm_smmu_device *smmu = NULL;
 	struct arm_smmu_s1_cfg *s1_cfg = NULL;
 	struct arm_smmu_s2_cfg *s2_cfg = NULL;
 	struct arm_smmu_domain *smmu_domain = NULL;
@@ -1198,20 +1228,25 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 
 	/* Bypass/fault */
 	if (!smmu_domain || !(s1_cfg || s2_cfg)) {
+		u64 shcfg = STRTAB_STE_1_SHCFG_INCOMING;
+
+		if (smmu->options & ARM_SMMU_OPT_STE_SHCFG_ISH) {
+			shcfg = STRTAB_STE_1_SHCFG_ISH;
+		}
+
 		if (!smmu_domain && disable_bypass)
 			val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT);
 		else
 			val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_BYPASS);
 
 		dst[0] = cpu_to_le64(val);
-		dst[1] = cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
-						STRTAB_STE_1_SHCFG_INCOMING));
+		dst[1] = cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG, shcfg));
 		dst[2] = 0; /* Nuke the VMID */
 		/*
 		 * The SMMU can perform negative caching, so we must sync
 		 * the STE regardless of whether the old value was live.
 		 */
-		if (smmu)
+		if (sid != UNKNOWN_SID)
 			arm_smmu_sync_ste_for_sid(smmu, sid);
 		return;
 	}
@@ -1261,12 +1296,13 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_master *master, u32 sid,
 		arm_smmu_cmdq_issue_cmd(smmu, &prefetch_cmd);
 }
 
-static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
+static void arm_smmu_init_bypass_stes(struct arm_smmu_device *smmu,
+				      u64 *strtab, unsigned int nent)
 {
 	unsigned int i;
 
 	for (i = 0; i < nent; ++i) {
-		arm_smmu_write_strtab_ent(NULL, -1, strtab);
+		arm_smmu_write_strtab_ent(NULL, UNKNOWN_SID, strtab, smmu);
 		strtab += STRTAB_STE_DWORDS;
 	}
 }
@@ -1294,7 +1330,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
 		return -ENOMEM;
 	}
 
-	arm_smmu_init_bypass_stes(desc->l2ptr, 1 << STRTAB_SPLIT);
+	arm_smmu_init_bypass_stes(smmu, desc->l2ptr, 1 << STRTAB_SPLIT);
 	arm_smmu_write_strtab_l1_desc(strtab, desc);
 	return 0;
 }
@@ -1859,7 +1895,7 @@ static void arm_smmu_install_ste_for_dev(struct arm_smmu_master *master)
 		if (j < i)
 			continue;
 
-		arm_smmu_write_strtab_ent(master, sid, step);
+		arm_smmu_write_strtab_ent(master, sid, step, NULL);
 	}
 }
 
@@ -2430,7 +2466,7 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	reg |= FIELD_PREP(STRTAB_BASE_CFG_LOG2SIZE, smmu->sid_bits);
 	cfg->strtab_base_cfg = reg;
 
-	arm_smmu_init_bypass_stes(strtab, cfg->num_l1_ents);
+	arm_smmu_init_bypass_stes(smmu, strtab, cfg->num_l1_ents);
 	return 0;
 }
 
@@ -3024,6 +3060,7 @@ static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
 	/* Retrieve SMMUv3 specific data */
 	iort_smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
 
+	parse_implementation_options(smmu);
 	acpi_smmu_get_options(iort_smmu->model, smmu);
 
 	if (iort_smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE)
@@ -3084,18 +3121,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	smmu->dev = dev;
-
-	if (dev->of_node) {
-		ret = arm_smmu_device_dt_probe(pdev, smmu);
-	} else {
-		ret = arm_smmu_device_acpi_probe(pdev, smmu);
-		if (ret == -ENODEV)
-			return ret;
-	}
-
-	/* Set bypass mode according to firmware probing result */
-	bypass = !!ret;
-
 	/* Base address */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (resource_size(res) + 1 < arm_smmu_resource_size(smmu)) {
@@ -3108,8 +3133,18 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
 
-	/* Interrupt lines */
+	if (dev->of_node) {
+		ret = arm_smmu_device_dt_probe(pdev, smmu);
+	} else {
+		ret = arm_smmu_device_acpi_probe(pdev, smmu);
+		if (ret == -ENODEV)
+			return ret;
+	}
 
+	/* Set bypass mode according to firmware probing result */
+	bypass = !!ret;
+
+	/* Interrupt lines */
 	irq = platform_get_irq_byname(pdev, "combined");
 	if (irq > 0)
 		smmu->combined_irq = irq;
