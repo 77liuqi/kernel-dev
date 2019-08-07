@@ -2188,6 +2188,7 @@ static const struct flash_info *spi_nor_read_id(struct spi_nor *nor)
 
 	for (tmp = 0; tmp < ARRAY_SIZE(spi_nor_ids) - 1; tmp++) {
 		info = &spi_nor_ids[tmp];
+	//	pr_err("%s i=%d info->id=%x %x %x %x %x %x name=%s\n", __func__, tmp, info->id[0], info->id[1], info->id[2], info->id[3], info->id[4], info->id[5], info->name);
 		if (info->id_len) {
 			if (!memcmp(info->id, id, info->id_len))
 				return &spi_nor_ids[tmp];
@@ -2220,10 +2221,13 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 		if (ret == 0) {
 			/* We shouldn't see 0-length reads */
 			ret = -EIO;
+			pr_err_once("%s1 ret=%d len=%ld\n", __func__, ret, len);
 			goto read_err;
 		}
-		if (ret < 0)
+		if (ret < 0) {
+			pr_err_once("%s2 ret=%d len=%ld\n", __func__, ret, len);
 			goto read_err;
+		}
 
 		WARN_ON(ret > len);
 		*retlen += ret;
@@ -2526,10 +2530,14 @@ static int spi_nor_read_raw(struct spi_nor *nor, u32 addr, size_t len, u8 *buf)
 
 	while (len) {
 		ret = nor->read(nor, addr, len, buf);
-		if (!ret || ret > len)
+		if (!ret || ret > len) {
+			pr_err_once("%s3 ret=%d len=%ld\n", __func__, ret, len);
 			return -EIO;
-		if (ret < 0)
+		}
+		if (ret < 0) {
+			pr_err_once("%s4 ret=%d len=%ld\n", __func__, ret, len);
 			return ret;
+		}
 
 		buf += ret;
 		addr += ret;

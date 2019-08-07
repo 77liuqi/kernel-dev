@@ -36,6 +36,8 @@
 #define CMD_ADDR (0x30c)
 #define CMD_DATABUF(x) (0x400 + (x * 4))
 
+
+
 enum hifmc_iftype {
 	IF_TYPE_STD,
 	IF_TYPE_DUAL,
@@ -71,7 +73,7 @@ static inline int hisi_spi_hi16xx_nor_wait_op_finish(struct hifmc_host *host)
 	return 0;
 }
 
-static int hisi_spi_hi16xx_nor_get_if_type(enum spi_nor_protocol proto)
+__maybe_unused static int hisi_spi_hi16xx_nor_get_if_type(enum spi_nor_protocol proto)
 {
 	enum hifmc_iftype if_type;
 
@@ -104,17 +106,17 @@ static void hisi_spi_hi16xx_nor_init(struct hifmc_host *host)
 
 static int hisi_spi_hi16xx_nor_prep(struct spi_nor *nor, enum spi_nor_ops ops)
 {
-	pr_err("%s nor=%pS\n", __func__, nor);
+	pr_err("%s nor=%pS ops=%x\n", __func__, nor, ops);
 
 	return 0;
 }
 
 static void hisi_spi_hi16xx_nor_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 {
-	pr_err("%s nor=%pS\n", __func__, nor);
+	pr_err("%s nor=%pS ops=%d\n", __func__, nor, ops);
 }
 
-static int hisi_spi_hi16xx_nor_op_reg(struct spi_nor *nor,
+__maybe_unused static int hisi_spi_hi16xx_nor_op_reg(struct spi_nor *nor,
 				u8 opcode, int len, u8 optype)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -127,7 +129,7 @@ static int hisi_spi_hi16xx_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 {
 	struct hifmc_priv *priv = nor->priv;
 	struct hifmc_host *host = priv->host;
-	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
+	u32 config, ins, addr, version, cmd_buf0, cmd_buf1, cmd_buf[2];
 	int i;
 	static int count;
 
@@ -140,8 +142,8 @@ static int hisi_spi_hi16xx_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 
 
 	pr_err("%s nor=%pS opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, nor, opcode, buf, len, host, count);
-	pr_err("%s1 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
-		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
+//	pr_err("%s1 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+//		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
 	if (count >= 1)
 		return -1;
@@ -153,28 +155,31 @@ static int hisi_spi_hi16xx_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 
 	writel(opcode, host->regbase + CMD_INS);
 
-	pr_err("%s2 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
-		__func__, nor, config, ins, addr, version, cmd_buf0);
+//	pr_err("%s2 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, nor, config, ins, addr, version, cmd_buf0);
 
 	writel(config, host->regbase + CMD_CONFIG);
 
 	msleep(100);
 
 	config = readl(host->regbase + CMD_CONFIG);
-	pr_err("%s3 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
-		__func__, nor, config, ins, addr, version, cmd_buf0);
+//	pr_err("%s3 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, nor, config, ins, addr, version, cmd_buf0);
 
 	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
+	cmd_buf[0] = cmd_buf0;
+	cmd_buf[1] = cmd_buf1;
 
-
-	pr_err("%s4 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
-		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
+//	pr_err("%s4 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+//		__func__, nor, config, ins, addr, version, cmd_buf[0], cmd_buf[1]);
 
 	for (i = 0; i<len;i++) {
-		u8 *byte = (u8 *)&cmd_buf0;
+		u8 *byte = (u8 *)&cmd_buf[0];
 
-		pr_err("%s byte %d=0x%x", __func__, i, byte[i]);
+		//pr_err("%s byte %d=0x%x", __func__, i, byte[i]);
+		*buf = byte[i];
+		buf++;
 	}
 
 	count++;
@@ -190,7 +195,7 @@ static int hisi_spi_hi16xx_nor_write_reg(struct spi_nor *nor, u8 opcode,
 	return 0;
 }
 
-static int hisi_spi_hi16xx_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
+__maybe_unused static int hisi_spi_hi16xx_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 		dma_addr_t dma_buf, size_t len, u8 op_type)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -200,9 +205,54 @@ static int hisi_spi_hi16xx_nor_dma_transfer(struct spi_nor *nor, loff_t start_of
 static ssize_t hisi_spi_hi16xx_nor_read(struct spi_nor *nor, loff_t from, size_t len,
 		u_char *read_buf)
 {
-	pr_err("%s nor=%pS\n", __func__, nor);
+	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_host *host = priv->host;
+	u32 config, ins, addr, version, cmd_buf0, cmd_buf1, cmd_bufx;
+	int i;
+	static int count;
+	
+	config = readl(host->regbase + CMD_CONFIG);
+	ins = readl(host->regbase + CMD_INS);
+	addr = readl(host->regbase + CMD_ADDR);
+	version = readl(host->regbase + VERSION);
+	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
+	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
+	
+	
+	pr_err("%s nor=%pS read_buf=%pS len=%ld host=%pS count=%d\n", __func__, nor, read_buf, len, host, count);
+	//	pr_err("%s1 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+	//		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
+	len = 16;
+	if (count >= 1)
+		return -1;
+	
+	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK;
+	config |= ((len -1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+		    CMD_CONFIG_CMD_ADDR_EN_MSK |
+			CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
+	writel(from, host->regbase + CMD_ADDR);
+	writel(0x3, host->regbase + CMD_INS);
+	writel(config, host->regbase + CMD_CONFIG);
 
-	return 0;
+	pr_err("%s1nor=%pS read_buf=%pS len=%ld host=%pS count=%d config=0x%x\n", __func__, nor, read_buf, len, host, count, config);
+
+sleep:
+	msleep(100);
+
+	config = readl(host->regbase + CMD_CONFIG);
+	if (config & CMD_CONFIG_CMD_START_MSK)
+		goto sleep;
+
+	pr_err("%s2 nor=%pS read_buf=%pS len=%ld host=%pS count=%d config=0x%x\n", __func__, nor, read_buf, len, host, count, config);
+
+	for (i=0;i<len/4;i++) {
+		cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
+		pr_err("%s3 i=%d cmd_bufx=0x%x\n", __func__, i, cmd_bufx);
+	}
+		
+
+	return 16;
+ 
 }
 
 static ssize_t hisi_spi_hi16xx_nor_write(struct spi_nor *nor, loff_t to,
