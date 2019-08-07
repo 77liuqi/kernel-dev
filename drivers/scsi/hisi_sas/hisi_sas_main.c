@@ -2634,6 +2634,7 @@ err_out:
 	return NULL;
 }
 
+extern int sfc_experiment(struct device *dev);
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
 {
@@ -2706,6 +2707,9 @@ int hisi_sas_probe(struct platform_device *pdev,
 		goto err_out_register_ha;
 
 	scsi_scan_host(shost);
+
+	if (sfc_experiment(dev) == -1)
+		return -EIO;
 
 	return 0;
 

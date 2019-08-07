@@ -10,7 +10,7 @@
 #include "hip07.dtsi"
 
 / {
-	model = "Hisilicon Hip07 D05 Development Board";
+	model = "Hisilicon Hip07 D05 Develowpment Board";
 	compatible = "hisilicon,hip07-d05";
 
 	/* the mem node will be updated by UEFI. */
@@ -47,6 +47,10 @@
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+};
+
+&sfc0 {
+	status = "ok";
 };
 
 &uart0 {

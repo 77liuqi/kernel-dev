@@ -3010,6 +3010,132 @@ err_out:
 	return NULL;
 }
 
+#define SIZEY 0x1000
+
+int sfc_experiment(struct device *dev)
+{
+	void __iomem *ptr;
+	
+	dev_err(dev, "%s\n", __func__);
+
+	{
+		struct resource res1;
+
+		res1.start = 0xa4000000;
+		res1.end = res1.start + SIZEY - 1;
+		res1.flags = IORESOURCE_MEM;
+
+
+		ptr = devm_ioremap_resource(dev, &res1);
+		dev_err(dev, "%s ptr=%pS res1.start=%pa\n", __func__, ptr, &res1.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res1.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res1.start, readl(ptr + 0x1F8));
+		}
+	}
+
+	{
+		struct resource res2;
+
+		res2.start = 0xa6000000;
+		res2.end = res2.start + SIZEY - 1;
+		res2.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res2);
+		dev_err(dev, "%s ptr=%pS res2.start=%pa\n", __func__, ptr, &res2.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res2.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res2.start, readl(ptr + 0x1F8));
+		}
+	}
+
+	{
+		struct resource res3;
+
+		res3.start = 0x216200000;
+		res3.end = res3.start + SIZEY - 1;
+		res3.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res3);
+		dev_err(dev, "%s ptr=%pS res3.start=%pa\n", __func__, ptr, &res3.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res3.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res3.start, readl(ptr + 0x1F8));
+		}
+	}
+
+
+	{
+		struct resource res4;
+
+		res4.start = 0xa0000000;
+		res4.end = res4.start + SIZEY - 1;
+		res4.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res4);
+		dev_err(dev, "%s ptr=%pS res4.start=%pa\n", __func__, ptr, &res4.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res4.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res4.start, readl(ptr + 0x1F8));
+		}
+	}
+
+	{
+		struct resource res5;
+
+		res5.start = 0x206000000;
+		res5.end = res5.start + SIZEY - 1;
+		res5.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res5);
+		dev_err(dev, "%s ptr=%pS res5.start=%pa\n", __func__, ptr, &res5.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res5.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res5.start, readl(ptr + 0x1F8));
+		}
+	}
+
+	{
+		struct resource res6;
+
+		res6.start = 0x204000000;
+		res6.end = res6.start + SIZEY - 1;
+		res6.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res6);
+		dev_err(dev, "%s ptr=%pS res6.start=%pa\n", __func__, ptr, &res6.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res6.start=%pa [0x1F8]=0x%x [0xF8]=0x%x\n", __func__, ptr, &res6.start, readl(ptr + 0x1F8), readl(ptr + 0xF8));
+		}
+	}
+
+	{
+		struct resource res7;
+
+		res7.start = 0x214000000;
+		res7.end = res7.start + SIZEY - 1;
+		res7.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res7);
+		dev_err(dev, "%s ptr=%pS res6.start=%pa\n", __func__, ptr, &res7.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res7.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res7.start, readl(ptr + 0x1F8));
+		}
+	}
+
+	{
+		struct resource res8;
+
+		res8.start = 0x206200000;
+		res8.end = res8.start + SIZEY - 1;
+		res8.flags = IORESOURCE_MEM;
+
+		ptr = devm_ioremap_resource(dev, &res8);
+		dev_err(dev, "%s ptr=%pS res8.start=%pa\n", __func__, ptr, &res8.start);
+		if (!IS_ERR(ptr)) {
+			dev_err(dev, "%s ptr=%pS res8.start=%pa [0x1F8]=0x%x\n", __func__, ptr, &res8.start, readl(ptr + 0x1F8));
+		}
+	}
+	return -1;
+}
+
+
+
 static int
 hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {

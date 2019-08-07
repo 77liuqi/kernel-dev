@@ -1573,6 +1573,18 @@
 					  "hns-roce-common";
 		};
 
+		sfc0: sfc@a0000000 {
+			compatible = "hisilicon,sfc-hi16xx";
+			reg = <0 0xc3000000 0 0x10000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg-names = "reg", "memory";
+			spi-nor@0 {
+				compatible = "jedec,spi-nor";
+				reg = <0>;
+			};
+		};
+
 		sas0: sas@c3000000 {
 			compatible = "hisilicon,hip07-sas-v2";
 			reg = <0 0xc3000000 0 0x10000>;
