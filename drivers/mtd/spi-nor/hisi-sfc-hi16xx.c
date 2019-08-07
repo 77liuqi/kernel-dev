@@ -17,6 +17,25 @@
 
 #define HIFMC_DMA_MAX_LEN		(4096)
 
+#define VERSION (0x1f8)
+
+#define CMD_CONFIG (0x300)
+#define CMD_CONFIG_DATA_CNT_OFF 9
+#define CMD_CONFIG_DATA_CNT_MSK (0xff << CMD_CONFIG_DATA_CNT_OFF)
+#define CMD_CONFIG_CMD_RW_OFF 8
+#define CMD_CONFIG_CMD_RW_MSK (1 << CMD_CONFIG_CMD_RW_OFF)
+#define CMD_CONFIG_CMD_DATA_EN_OFF 7
+#define CMD_CONFIG_CMD_DATA_EN_MSK (1 << CMD_CONFIG_CMD_DATA_EN_OFF)
+#define CMD_CONFIG_CMD_ADDR_EN_OFF 3
+#define CMD_CONFIG_CMD_ADDR_EN_MSK (1 << CMD_CONFIG_CMD_ADDR_EN_OFF)
+#define CMD_CONFIG_CMD_CS_SEL_OFF 1
+#define CMD_CONFIG_CMD_CS_SEL_MSK (1 << CMD_CONFIG_CMD_CS_SEL_OFF)
+#define CMD_CONFIG_CMD_START_OFF 0
+#define CMD_CONFIG_CMD_START_MSK (1 << CMD_CONFIG_CMD_START_OFF)
+#define CMD_INS (0x308)
+#define CMD_ADDR (0x30c)
+#define CMD_DATABUF(x) (0x400 + (x * 4))
+
 enum hifmc_iftype {
 	IF_TYPE_STD,
 	IF_TYPE_DUAL,
@@ -27,7 +46,7 @@ enum hifmc_iftype {
 
 struct hifmc_priv {
 	u32 chipselect;
-	u32 clkrate;
+//	u32 clkrate;
 	struct hifmc_host *host;
 };
 
@@ -46,12 +65,13 @@ struct hifmc_host {
 	u32 num_chip;
 };
 
-static inline int hisi_spi_nor_wait_op_finish(struct hifmc_host *host)
+static inline int hisi_spi_hi16xx_nor_wait_op_finish(struct hifmc_host *host)
 {
 	pr_err("%s host=%pS\n", __func__, host);
+	return 0;
 }
 
-static int hisi_spi_nor_get_if_type(enum spi_nor_protocol proto)
+static int hisi_spi_hi16xx_nor_get_if_type(enum spi_nor_protocol proto)
 {
 	enum hifmc_iftype if_type;
 
@@ -77,24 +97,24 @@ static int hisi_spi_nor_get_if_type(enum spi_nor_protocol proto)
 	return if_type;
 }
 
-static void hisi_spi_nor_init(struct hifmc_host *host)
+static void hisi_spi_hi16xx_nor_init(struct hifmc_host *host)
 {
 	pr_err("%s host=%pS\n", __func__, host);
 }
 
-static int hisi_spi_nor_prep(struct spi_nor *nor, enum spi_nor_ops ops)
+static int hisi_spi_hi16xx_nor_prep(struct spi_nor *nor, enum spi_nor_ops ops)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
 
 	return 0;
 }
 
-static void hisi_spi_nor_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
+static void hisi_spi_hi16xx_nor_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
 }
 
-static int hisi_spi_nor_op_reg(struct spi_nor *nor,
+static int hisi_spi_hi16xx_nor_op_reg(struct spi_nor *nor,
 				u8 opcode, int len, u8 optype)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -102,15 +122,67 @@ static int hisi_spi_nor_op_reg(struct spi_nor *nor,
 	return 0;
 }
 
-static int hisi_spi_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
+static int hisi_spi_hi16xx_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
 		int len)
 {
-	pr_err("%s nor=%pS\n", __func__, nor);
+	struct hifmc_priv *priv = nor->priv;
+	struct hifmc_host *host = priv->host;
+	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
+	int i;
+	static int count;
+
+	config = readl(host->regbase + CMD_CONFIG);
+	ins = readl(host->regbase + CMD_INS);
+	addr = readl(host->regbase + CMD_ADDR);
+	version = readl(host->regbase + VERSION);
+	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
+	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
+
+
+	pr_err("%s nor=%pS opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, nor, opcode, buf, len, host, count);
+	pr_err("%s1 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
+
+	if (count >= 1)
+		return -1;
+
+	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
+			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK;
+	config |= len << CMD_CONFIG_DATA_CNT_OFF | CMD_CONFIG_CMD_DATA_EN_MSK |
+			CMD_CONFIG_CMD_START_MSK;
+
+	writel(opcode, host->regbase + CMD_INS);
+
+	pr_err("%s2 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+		__func__, nor, config, ins, addr, version, cmd_buf0);
+
+	writel(config, host->regbase + CMD_CONFIG);
+
+	msleep(100);
+
+	config = readl(host->regbase + CMD_CONFIG);
+	pr_err("%s3 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+		__func__, nor, config, ins, addr, version, cmd_buf0);
+
+	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
+	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
+
+
+	pr_err("%s4 nor=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+		__func__, nor, config, ins, addr, version, cmd_buf0, cmd_buf1);
+
+	for (i = 0; i<len;i++) {
+		u8 *byte = (u8 *)&cmd_buf0;
+
+		pr_err("%s byte %d=0x%x", __func__, i, byte[i]);
+	}
+
+	count++;
 
 	return 0;
 }
 
-static int hisi_spi_nor_write_reg(struct spi_nor *nor, u8 opcode,
+static int hisi_spi_hi16xx_nor_write_reg(struct spi_nor *nor, u8 opcode,
 				u8 *buf, int len)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -118,14 +190,14 @@ static int hisi_spi_nor_write_reg(struct spi_nor *nor, u8 opcode,
 	return 0;
 }
 
-static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
+static int hisi_spi_hi16xx_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 		dma_addr_t dma_buf, size_t len, u8 op_type)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
 	return 0;
 }
 
-static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
+static ssize_t hisi_spi_hi16xx_nor_read(struct spi_nor *nor, loff_t from, size_t len,
 		u_char *read_buf)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -133,7 +205,7 @@ static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
 	return 0;
 }
 
-static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
+static ssize_t hisi_spi_hi16xx_nor_write(struct spi_nor *nor, loff_t to,
 			size_t len, const u_char *write_buf)
 {
 	pr_err("%s nor=%pS\n", __func__, nor);
@@ -144,7 +216,7 @@ static ssize_t hisi_spi_nor_write(struct spi_nor *nor, loff_t to,
 /**
  * Get spi flash device information and register it as a mtd device.
  */
-static int hisi_spi_nor_register(struct device_node *np,
+static int hisi_spi_hi16xx_nor_register(struct device_node *np,
 				struct hifmc_host *host)
 {
 	const struct spi_nor_hwcaps hwcaps = {
@@ -178,23 +250,26 @@ static int hisi_spi_nor_register(struct device_node *np,
 		return ret;
 	}
 
-	ret = of_property_read_u32(np, "spi-max-frequency",
-			&priv->clkrate);
-	if (ret) {
-		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
-			np);
-		return ret;
-	}
+//	ret = of_property_read_u32(np, "spi-max-frequency",
+//			&priv->clkrate);
+//	if (ret) {
+//		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
+//			np);
+//		return ret;
+//	}
 	priv->host = host;
 	nor->priv = priv;
 
-	nor->prepare = hisi_spi_nor_prep;
-	nor->unprepare = hisi_spi_nor_unprep;
-	nor->read_reg = hisi_spi_nor_read_reg;
-	nor->write_reg = hisi_spi_nor_write_reg;
-	nor->read = hisi_spi_nor_read;
-	nor->write = hisi_spi_nor_write;
+	nor->prepare = hisi_spi_hi16xx_nor_prep;
+	nor->unprepare = hisi_spi_hi16xx_nor_unprep;
+	nor->read_reg = hisi_spi_hi16xx_nor_read_reg;
+	nor->write_reg = hisi_spi_hi16xx_nor_write_reg;
+	nor->read = hisi_spi_hi16xx_nor_read;
+	nor->write = hisi_spi_hi16xx_nor_write;
 	nor->erase = NULL;
+
+	pr_err("%s nor=%pS host=%pS\n", __func__, nor, host);
+	
 	ret = spi_nor_scan(nor, NULL, &hwcaps);
 	if (ret)
 		return ret;
@@ -210,7 +285,7 @@ static int hisi_spi_nor_register(struct device_node *np,
 	return 0;
 }
 
-static void hisi_spi_nor_unregister_all(struct hifmc_host *host)
+static void hisi_spi_hi16xx_nor_unregister_all(struct hifmc_host *host)
 {
 	int i;
 
@@ -218,14 +293,14 @@ static void hisi_spi_nor_unregister_all(struct hifmc_host *host)
 		mtd_device_unregister(&host->nor[i]->mtd);
 }
 
-static int hisi_spi_nor_register_all(struct hifmc_host *host)
+static int hisi_spi_hi16xx_nor_register_all(struct hifmc_host *host)
 {
 	struct device *dev = host->dev;
 	struct device_node *np;
 	int ret;
 
 	for_each_available_child_of_node(dev->of_node, np) {
-		ret = hisi_spi_nor_register(np, host);
+		ret = hisi_spi_hi16xx_nor_register(np, host);
 		if (ret)
 			goto fail;
 
@@ -238,11 +313,11 @@ static int hisi_spi_nor_register_all(struct hifmc_host *host)
 	return 0;
 
 fail:
-	hisi_spi_nor_unregister_all(host);
+	hisi_spi_hi16xx_nor_unregister_all(host);
 	return ret;
 }
 
-static int hisi_spi_nor_probe(struct platform_device *pdev)
+static int hisi_spi_hi16xx_nor_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -281,36 +356,36 @@ static int hisi_spi_nor_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mutex_init(&host->lock);
-	hisi_spi_nor_init(host);
-	ret = hisi_spi_nor_register_all(host);
+	hisi_spi_hi16xx_nor_init(host);
+	ret = hisi_spi_hi16xx_nor_register_all(host);
 
 	return ret;
 }
 
-static int hisi_spi_nor_remove(struct platform_device *pdev)
+static int hisi_spi_hi16xx_nor_remove(struct platform_device *pdev)
 {
 	struct hifmc_host *host = platform_get_drvdata(pdev);
 
-	hisi_spi_nor_unregister_all(host);
+	hisi_spi_hi16xx_nor_unregister_all(host);
 	mutex_destroy(&host->lock);
 	return 0;
 }
 
-static const struct of_device_id hisi_spi_nor_dt_ids[] = {
+static const struct of_device_id hisi_spi_hi16xx_nor_dt_ids[] = {
 	{ .compatible = "hisilicon,sfc-hi16xx"},
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, hisi_spi_nor_dt_ids);
+MODULE_DEVICE_TABLE(of, hisi_spi_hi16xx_nor_dt_ids);
 
-static struct platform_driver hisi_spi_nor_driver = {
+static struct platform_driver hisi_spi_hi16xx_nor_driver = {
 	.driver = {
 		.name	= "hisi-sfc-hi16xx",
-		.of_match_table = hisi_spi_nor_dt_ids,
+		.of_match_table = hisi_spi_hi16xx_nor_dt_ids,
 	},
-	.probe	= hisi_spi_nor_probe,
-	.remove	= hisi_spi_nor_remove,
+	.probe	= hisi_spi_hi16xx_nor_probe,
+	.remove	= hisi_spi_hi16xx_nor_remove,
 };
-module_platform_driver(hisi_spi_nor_driver);
+module_platform_driver(hisi_spi_hi16xx_nor_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("HiSilicon SPI Nor Flash Controller Driver");
