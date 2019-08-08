@@ -269,7 +269,7 @@ sleep:
 		for (i=0;i<2;i++) {
 			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
 			u32 cmd_bufy = __swab32(cmd_bufx);
-			u8 *ptr = (u8 *)&cmd_bufy;
+			u8 *ptr = (u8 *)&cmd_bufx;
 			u8 aa, bb, cc, dd;
 
 			pr_err("%s3.0 i=%d cmd_bufx=0x%x cmd_bufy=0x%x\n", __func__, i, cmd_bufx, cmd_bufy);
