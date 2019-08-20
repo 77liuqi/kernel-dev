@@ -1582,6 +1582,7 @@
 			#size-cells = <0>;
 			spi-nor@0 {
 				compatible = "jedec,spi-nor";
+				spi-max-frequency = <48000000>;
 				reg = <0>;
 			};
 		};
