@@ -3015,6 +3015,7 @@ err_out:
 int sfc_experiment(struct device *dev)
 {
 	void __iomem *ptr;
+	return 0;
 	
 	dev_err(dev, "%s\n", __func__);
 

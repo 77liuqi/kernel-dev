@@ -39,6 +39,8 @@ static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
 	void *scratchbuf;
 	int ret;
 
+	pr_err("%s nor=%pS\n", __func__, nor);
+
 	scratchbuf = kmalloc(len, GFP_KERNEL);
 	if (!scratchbuf)
 		return -ENOMEM;
@@ -65,6 +67,8 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 					  SPI_MEM_OP_DATA_OUT(len, NULL, 1));
 	void *scratchbuf;
 	int ret;
+
+	pr_err("%s nor=%pS\n", __func__, nor);
 
 	scratchbuf = kmemdup(buf, len, GFP_KERNEL);
 	if (!scratchbuf)
@@ -169,6 +173,8 @@ static int m25p_probe(struct spi_mem *spimem)
 	};
 	char *flash_name;
 	int ret;
+
+	pr_err("%s %s\n", __func__, spimem->name);
 
 	data = dev_get_platdata(&spimem->spi->dev);
 
