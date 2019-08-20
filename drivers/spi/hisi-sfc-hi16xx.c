@@ -218,11 +218,9 @@ __maybe_unused static int hisi_spi_hi16xx_spi_dma_transfer(struct spi_spi *spi, 
 
 #define MAX_CMD_WORD 4
 
-#ifdef IDONTCARE
-static ssize_t hisi_spi_hi16xx_spi_read(struct spi_spi *spi, loff_t from, size_t len,
-		u_char *read_buf)
+static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t len,
+		u_char *read_buf, int read_opcode, int read_dummy)
 {
-	struct hifmc_host *host = priv->host;
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
 	int i;
 	static int count;
@@ -236,7 +234,7 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct spi_spi *spi, loff_t from, size_t
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-	pr_err("%s spi=%pS read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x read_dummy=%x\n", __func__, spi, read_buf, len, host, count, spi->read_opcode, addr, spi->read_dummy);
+	pr_err("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, read_opcode, addr);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -257,13 +255,13 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct spi_spi *spi, loff_t from, size_t
 				~CMD_CONFIG_CMD_DATA_EN_OFF;
 		config |= ((read_len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 			    CMD_CONFIG_CMD_ADDR_EN_MSK |
-				(spi->read_dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
+				(read_dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
 				CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
 		writel(from, host->regbase + CMD_ADDR);
-		writel(spi->read_opcode, host->regbase + CMD_INS);
+		writel(read_opcode, host->regbase + CMD_INS);
 		writel(config, host->regbase + CMD_CONFIG);
 
-		pr_err("%s1 spi=%pS read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, spi, read_buf, len, host, count, config, read_len, remaining);
+		pr_err("%s1 read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, read_buf, len, host, count, config, read_len, remaining);
 
 sleep:
 		msleep(100);
@@ -274,7 +272,7 @@ sleep:
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
 
-		pr_err("%s2 spi=%pS read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, spi, read_buf, len, host, count, config, addr);
+		pr_err("%s2 read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, config, addr);
 
 		for (i=0;i<2;i++) {
 			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
@@ -292,9 +290,11 @@ sleep:
 			pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x]\n", __func__, i, cmd_bufx, aa, bb, cc, dd);
 		}
 	}while (0);
-	pr_err("%s out spi=%pS returning len=%ld\n", __func__, spi, len);
+	pr_err("%s out returning len=%ld\n", __func__, len);
 	return len;
 }
+
+#ifdef IDONTCARE
 
 static ssize_t hisi_spi_hi16xx_spi_write(struct spi_spi *spi, loff_t to,
 			size_t len, const u_char *write_buf)
@@ -430,7 +430,7 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->addr.nbytes, op->addr.buswidth, op->addr.val, host);
 	pr_err("%s2 mem=%pS [dummy buswidth=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
 		op->dummy.nbytes, op->dummy.buswidth, host);
-	pr_err("%s3 mem=%pS [data nbytes=0x%x bus in=0x%pS out=%pS dir=%d] host=%pS\n", __func__, mem, 
+	pr_err("%s3 mem=%pS [data nbytes=0x%x buf in=0x%pS out=%pS dir=%d] host=%pS\n", __func__, mem, 
 		op->data.nbytes, op->data.buf.in, op->data.buf.out, op->data.dir, host);
 
 	if (op->addr.nbytes == 0 && op->addr.buswidth == 0 && op->addr.val == 0) {
@@ -443,6 +443,12 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		}
 	} else {
 		/* Read/write */
+		switch (op->data.dir) {
+		case SPI_MEM_DATA_IN:
+			return hisi_spi_hi16xx_spi_read(host, op->addr.val, op->data.nbytes, op->data.buf.in, op->cmd.opcode, op->dummy.nbytes*8);
+		default:
+			break;
+		}
 	}
 	
 	return -ENOTSUPP;

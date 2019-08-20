@@ -2623,6 +2623,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	struct vendor_data *vendor = id->data;
 	int portnr, ret;
 
+	dev_err(&dev->dev, "%s\n", __func__);
 	portnr = pl011_find_free_port();
 	if (portnr < 0)
 		return portnr;
@@ -2651,7 +2652,11 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 
 	amba_set_drvdata(dev, uap);
 
-	return pl011_register_port(uap);
+	ret = pl011_register_port(uap);
+	
+	dev_err(&dev->dev, "%s1 ret=%d\n", __func__, ret);
+
+	return ret;
 }
 
 static int pl011_remove(struct amba_device *dev)
@@ -2693,6 +2698,8 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 	struct resource *r;
 	int portnr, ret;
 	int baudrate;
+
+	dev_err(&pdev->dev, "%s\n", __func__);
 
 	/*
 	 * Check the mandatory baud rate parameter in the DT node early
@@ -2749,7 +2756,11 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, uap);
 
-	return pl011_register_port(uap);
+	ret = pl011_register_port(uap);
+
+	dev_err(&pdev->dev, "%s1 ret=%d\n", __func__, ret);
+
+	return ret;
 }
 
 static int sbsa_uart_remove(struct platform_device *pdev)
