@@ -150,9 +150,9 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 
 
-	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, opcode, buf, len, host, count);
-	pr_err("%s1 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
-		__func__, config, ins, addr, version, cmd_buf0, cmd_buf1);
+//	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, opcode, buf, len, host, count);
+//	pr_err("%s1 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
 	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
 			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK;
@@ -161,16 +161,16 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 
 	writel(opcode, host->regbase + CMD_INS);
 
-	pr_err("%s2 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
-		__func__, config, ins, addr, version, cmd_buf0);
+//	pr_err("%s2 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0);
 
 	writel(config, host->regbase + CMD_CONFIG);
 
 	msleep(100);
 
 	config = readl(host->regbase + CMD_CONFIG);
-	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
-		__func__, config, ins, addr, version, cmd_buf0);
+//	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0);
 
 	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
@@ -181,8 +181,8 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	cmd_buf[2] = le32_to_cpu(cmd_buf2);
 	cmd_buf[3] = le32_to_cpu(cmd_buf3);
 
-	pr_err("%s4 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x\n",
-		__func__, config, ins, addr, version, cmd_buf0, cmd_buf[0]);
+//	pr_err("%s4 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0, cmd_buf[0]);
 
 	for (i = 0; i<len;i++) {
 		u8 *byte = (u8 *)&cmd_buf[0];
@@ -234,7 +234,7 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-	pr_err("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, read_opcode, addr);
+//	pr_err("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, read_opcode, addr);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -261,10 +261,9 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 		writel(read_opcode, host->regbase + CMD_INS);
 		writel(config, host->regbase + CMD_CONFIG);
 
-		pr_err("%s1 read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, read_buf, len, host, count, config, read_len, remaining);
+//		pr_err("%s1 read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, read_buf, len, host, count, config, read_len, remaining);
 
 sleep:
-		msleep(100);
 
 		config = readl(host->regbase + CMD_CONFIG);
 		addr = readl(host->regbase + CMD_ADDR);
@@ -272,7 +271,7 @@ sleep:
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
 
-		pr_err("%s2 read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, config, addr);
+//		pr_err("%s2 read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, config, addr);
 
 		for (i=0;i<2;i++) {
 			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
@@ -280,17 +279,17 @@ sleep:
 			u8 *ptr = (u8 *)&cmd_bufx;
 			u8 aa, bb, cc, dd;
 
-			pr_err("%s3.0 i=%d cmd_bufx=0x%x cmd_bufy=0x%x\n", __func__, i, cmd_bufx, cmd_bufy);
+	//		pr_err("%s3.0 i=%d cmd_bufx=0x%x cmd_bufy=0x%x\n", __func__, i, cmd_bufx, cmd_bufy);
 
 			*read_buf = aa = ptr[0];read_buf++;
 			*read_buf = bb = ptr[1];read_buf++;
 			*read_buf = cc = ptr[2];read_buf++;
 			*read_buf = dd = ptr[3];read_buf++;
 			
-			pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x]\n", __func__, i, cmd_bufx, aa, bb, cc, dd);
+	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x]\n", __func__, i, cmd_bufx, aa, bb, cc, dd);
 		}
 	}while (0);
-	pr_err("%s out returning len=%ld\n", __func__, len);
+//	pr_err("%s out returning len=%ld\n", __func__, len);
 	return len;
 }
 
@@ -405,7 +404,7 @@ static int hi16xx_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
 {
 	struct hifmc_host *host = spi_controller_get_devdata(mem->spi->master);
 
-	pr_err("%s mem=%pS op=%pS host=%pS\n", __func__, mem, op, host);
+	//pr_err("%s mem=%pS op=%pS host=%pS\n", __func__, mem, op, host);
 
 	return 0;
 }
@@ -415,7 +414,7 @@ static bool hi16xx_spi_supports_op(struct spi_mem *mem,
 {
 	struct hifmc_host *host = spi_controller_get_devdata(mem->spi->master);
 
-	pr_err("%s mem=%pS op=%pS [] host=%pS\n", __func__, mem, op, host);
+	//pr_err("%s mem=%pS op=%pS [] host=%pS\n", __func__, mem, op, host);
 
 	return true;
 }
@@ -424,14 +423,14 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	struct hifmc_host *host = spi_controller_get_devdata(mem->spi->master);
 
-	pr_err("%s mem=%pS [cmd opcode=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
-		op->cmd.opcode, op->cmd.buswidth, host);
-	pr_err("%s1 mem=%pS [addr nbytes=0x%x buswidth=0x%x val=0x%llx] host=%pS\n", __func__, mem, 
-		op->addr.nbytes, op->addr.buswidth, op->addr.val, host);
-	pr_err("%s2 mem=%pS [dummy buswidth=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
-		op->dummy.nbytes, op->dummy.buswidth, host);
-	pr_err("%s3 mem=%pS [data nbytes=0x%x buf in=0x%pS out=%pS dir=%d] host=%pS\n", __func__, mem, 
-		op->data.nbytes, op->data.buf.in, op->data.buf.out, op->data.dir, host);
+//	pr_err("%s mem=%pS [cmd opcode=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
+//		op->cmd.opcode, op->cmd.buswidth, host);
+//	pr_err("%s1 mem=%pS [addr nbytes=0x%x buswidth=0x%x val=0x%llx] host=%pS\n", __func__, mem, 
+//		op->addr.nbytes, op->addr.buswidth, op->addr.val, host);
+//	pr_err("%s2 mem=%pS [dummy buswidth=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
+//		op->dummy.nbytes, op->dummy.buswidth, host);
+//	pr_err("%s3 mem=%pS [data nbytes=0x%x buf in=0x%pS out=%pS dir=%d] host=%pS\n", __func__, mem, 
+//		op->data.nbytes, op->data.buf.in, op->data.buf.out, op->data.dir, host);
 
 	if (op->addr.nbytes == 0 && op->addr.buswidth == 0 && op->addr.val == 0) {
 		/* Read/write Reg */
@@ -451,6 +450,8 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		}
 	}
 	
+	pr_err("%s not support mem=%pS [cmd opcode=0x%x buswidth=0x%x] host=%pS\n", __func__, mem, 
+		op->cmd.opcode, op->cmd.buswidth, host);
 	return -ENOTSUPP;
 }
 static const char *hi16xx_spi_get_name(struct spi_mem *mem)
