@@ -77,62 +77,10 @@ static inline int hisi_spi_hi16xx_spi_wait_op_finish(struct hifmc_host *host)
 	return 0;
 }
 
-#ifdef IDONTCARE
-__maybe_unused static int hisi_spi_hi16xx_spi_get_if_type(enum spi_spi_protocol proto)
-{
-	enum hifmc_iftype if_type;
-
-	switch (proto) {
-	case SNOR_PROTO_1_1_2:
-		if_type = IF_TYPE_DUAL;
-		break;
-	case SNOR_PROTO_1_2_2:
-		if_type = IF_TYPE_DIO;
-		break;
-	case SNOR_PROTO_1_1_4:
-		if_type = IF_TYPE_QUAD;
-		break;
-	case SNOR_PROTO_1_4_4:
-		if_type = IF_TYPE_QIO;
-		break;
-	case SNOR_PROTO_1_1_1:
-	default:
-		if_type = IF_TYPE_STD;
-		break;
-	}
-
-	return if_type;
-}
-#endif
-
 static void hisi_spi_hi16xx_spi_init(struct hifmc_host *host)
 {
 	pr_err("%s host=%pS\n", __func__, host);
 }
-
-#ifdef IDONTCARE
-
-static int hisi_spi_hi16xx_spi_prep(struct spi_spi *spi, enum spi_spi_ops ops)
-{
-//	pr_err("%s spi=%pS ops=%x\n", __func__, spi, ops);
-
-	return 0;
-}
-
-static void hisi_spi_hi16xx_spi_unprep(struct spi_spi *spi, enum spi_spi_ops ops)
-{
-//	pr_err("%s spi=%pS ops=%d\n", __func__, spi, ops);
-}
-
-__maybe_unused static int hisi_spi_hi16xx_spi_op_reg(struct spi_spi *spi,
-				u8 opcode, int len, u8 optype)
-{
-	pr_err("%s spi=%pS\n", __func__, spi);
-
-	return 0;
-}
-
-#endif
 
 static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *buf,
 		int len)
@@ -196,25 +144,6 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 
 	return 0;
 }
-
-
-#ifdef IDONTCARE
-
-static int hisi_spi_hi16xx_spi_write_reg(struct spi_spi *spi, u8 opcode,
-				u8 *buf, int len)
-{
-	pr_err("%s spi=%pS\n", __func__, spi);
-
-	return 0;
-}
-
-__maybe_unused static int hisi_spi_hi16xx_spi_dma_transfer(struct spi_spi *spi, loff_t start_off,
-		dma_addr_t dma_buf, size_t len, u8 op_type)
-{
-	pr_err("%s spi=%pS\n", __func__, spi);
-	return 0;
-}
-#endif
 
 #define MAX_CMD_WORD 4
 
@@ -293,111 +222,6 @@ sleep:
 	return len;
 }
 
-#ifdef IDONTCARE
-
-static ssize_t hisi_spi_hi16xx_spi_write(struct spi_spi *spi, loff_t to,
-			size_t len, const u_char *write_buf)
-{
-	pr_err("%s spi=%pS\n", __func__, spi);
-
-	return 0;
-}
-
-/**
- * Get spi flash device information and register it as a mtd device.
- */
-static int hisi_spi_hi16xx_spi_register(struct device_node *np,
-				struct hifmc_host *host)
-{
-	const struct spi_nor_hwcaps hwcaps = {
-		.mask = SNOR_HWCAPS_READ |
-			SNOR_HWCAPS_READ_FAST |
-			SNOR_HWCAPS_READ_1_1_2 |
-			SNOR_HWCAPS_READ_1_1_4 |
-			SNOR_HWCAPS_PP,
-	};
-	struct device *dev = host->dev;
-	struct spi_spi *spi;
-	struct hifmc_priv *priv;
-	struct mtd_info *mtd;
-	int ret;
-
-	spi = devm_kzalloc(dev, sizeof(*spi), GFP_KERNEL);
-	if (!spi)
-		return -ENOMEM;
-
-	spi->dev = dev;
-	spi_spi_set_flash_node(spi, np);
-
-	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	ret = of_property_read_u32(np, "reg", &priv->chipselect);
-	if (ret) {
-		dev_err(dev, "There's no reg property for %pOF\n",
-			np);
-		return ret;
-	}
-
-//	ret = of_property_read_u32(np, "spi-max-frequency",
-//			&priv->clkrate);
-//	if (ret) {
-//		dev_err(dev, "There's no spi-max-frequency property for %pOF\n",
-//			np);
-//		return ret;
-//	}
-	priv->host = host;
-
-	pr_err("%s spi=%pS host=%pS\n", __func__, spi, host);
-	
-	ret = spi_spi_scan(spi, NULL, &hwcaps);
-	if (ret)
-		return ret;
-
-	mtd = &spi->mtd;
-	mtd->name = np->name;
-	ret = mtd_device_register(mtd, NULL, 0);
-	if (ret)
-		return ret;
-
-	host->num_chip++;
-	return 0;
-}
-
-static void hisi_spi_hi16xx_spi_unregister_all(struct hifmc_host *host)
-{
-	int i;
-
-	for (i = 0; i < host->num_chip; i++)
-		mtd_device_unregister(&host->spi[i]->mtd);
-}
-
-static int hisi_spi_hi16xx_spi_register_all(struct hifmc_host *host)
-{
-	struct device *dev = host->dev;
-	struct device_node *np;
-	int ret;
-
-	for_each_available_child_of_node(dev->of_node, np) {
-		ret = hisi_spi_hi16xx_spi_register(np, host);
-		if (ret)
-			goto fail;
-
-		if (host->num_chip == HIFMC_MAX_CHIP_NUM) {
-			dev_warn(dev, "Flash device number exceeds the maximum chipselect number\n");
-			break;
-		}
-	}
-
-	return 0;
-
-fail:
-	hisi_spi_hi16xx_spi_unregister_all(host);
-	return ret;
-}
-
-#endif
 
 
 static int hi16xx_spi_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -500,7 +324,6 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 //	}
 
 	platform_set_drvdata(pdev, host);
-
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
 	host->regbase = devm_ioremap_resource(dev, res);
