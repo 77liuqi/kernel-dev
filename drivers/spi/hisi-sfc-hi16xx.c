@@ -166,8 +166,7 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
-	if (count >= 1)
-		return -1;
+
 
 	do {
 		int read_len;
@@ -188,6 +187,8 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 		writel(from, host->regbase + CMD_ADDR);
 		writel(read_opcode, host->regbase + CMD_INS);
 		writel(config, host->regbase + CMD_CONFIG);
+
+		from += read_len;
 
 //		pr_err("%s1 read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, read_buf, len, host, count, config, read_len, remaining);
 
