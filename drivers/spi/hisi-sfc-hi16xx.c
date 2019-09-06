@@ -97,8 +97,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 
-
-//	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, opcode, buf, len, host, count);
+	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d\n", __func__, opcode, buf, len, host, count);
 //	pr_err("%s1 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 //		__func__, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -202,9 +201,9 @@ sleep:
 
 //		pr_err("%s2 read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, config, addr);
 
-		for (i=0;i<2;i++) {
+		for (i=0;i<(read_len + MAX_CMD_WORD - 1)/MAX_CMD_WORD;i++) {
 			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
-			u32 cmd_bufy = __swab32(cmd_bufx);
+	//		u32 cmd_bufy = __swab32(cmd_bufx);
 			u8 *ptr = (u8 *)&cmd_bufx;
 			u8 aa, bb, cc, dd;
 
@@ -215,9 +214,9 @@ sleep:
 			*read_buf = cc = ptr[2];read_buf++;
 			*read_buf = dd = ptr[3];read_buf++;
 			
-	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x]\n", __func__, i, cmd_bufx, aa, bb, cc, dd);
+		//	pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d\n", __func__, i, cmd_bufx, aa, bb, cc, dd, remaining);
 		}
-	}while (0);
+	}while (remaining);
 //	pr_err("%s out returning len=%ld\n", __func__, len);
 	return len;
 }
@@ -289,8 +288,8 @@ static const char *hi16xx_spi_get_name(struct spi_mem *mem)
 
 
 static const struct spi_controller_mem_ops hi16xx_spi_mem_ops = {
-	.adjust_op_size = hi16xx_spi_adjust_op_size,
-	.supports_op = hi16xx_spi_supports_op,
+//	.adjust_op_size = hi16xx_spi_adjust_op_size,
+//	.supports_op = hi16xx_spi_supports_op,
 	.exec_op = hi16xx_spi_exec_op,
 	.get_name = hi16xx_spi_get_name,
 };
@@ -309,7 +308,7 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 	ctlr = spi_alloc_master(&pdev->dev, sizeof(*host));
 	if (!ctlr)
 		return -ENOMEM;
-
+	
 	ctlr->mode_bits = SPI_RX_DUAL | SPI_RX_QUAD |
 			  SPI_TX_DUAL | SPI_TX_QUAD;
 
