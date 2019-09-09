@@ -400,7 +400,7 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = np;
 
 	ctlr->bus_num = -1;
-	ctlr->num_chipselect = 2;
+	ctlr->num_chipselect = 1;
 	ctlr->mem_ops = &hi16xx_spi_mem_ops;
 
 	ret = devm_spi_register_controller(dev, ctlr);
