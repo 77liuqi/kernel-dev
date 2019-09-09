@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
  */
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -65,7 +66,7 @@ struct hifmc_host {
 	void __iomem *regbase;
 	void __iomem *iobase;
 //	struct clk *clk;
-	void *buffer;
+//	void *buffer;
 	dma_addr_t dma_buffer;
 
 	u32 num_chip;
@@ -162,7 +163,7 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-//	pr_err("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, read_opcode, addr);
+	pr_err_ratelimited("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, read_opcode, addr);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -302,6 +303,7 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 	struct hifmc_host *host;
 	struct spi_controller *ctlr;
 	struct device_node *np = dev->of_node;
+	int version;
 	int ret;
 
 	dev_err(dev, "%s np=%pS\n", __func__, np);
@@ -329,6 +331,9 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 	host->regbase = devm_ioremap_resource(dev, res);
 	if (IS_ERR(host->regbase))
 		return PTR_ERR(host->regbase);
+	version = readl(host->regbase + VERSION);
+	dev_err(dev, "%s host->regbase=%p\n", __func__, host->regbase);
+	dev_err(dev, "%s version=0x%x\n", __func__, version);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "memory");
 	host->iobase = devm_ioremap_resource(dev, res);
@@ -336,11 +341,6 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 		return PTR_ERR(host->iobase);
 
 
-	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
-	if (ret) {
-		dev_warn(dev, "Unable to set dma mask\n");
-		return ret;
-	}
 
 	host->buffer = dmam_alloc_coherent(dev, HIFMC_DMA_MAX_LEN,
 			&host->dma_buffer, GFP_KERNEL);
@@ -356,7 +356,7 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 	ctlr->mem_ops = &hi16xx_spi_mem_ops;
 
 	ret = devm_spi_register_controller(dev, ctlr);
-	dev_err(dev, "%s3 ret=%d\n", __func__, ret);
+	dev_err(dev, "%s ret=%d\n", __func__, ret);
 
 	return ret;
 }
@@ -376,15 +376,135 @@ static const struct of_device_id hisi_spi_hi16xx_spi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, hisi_spi_hi16xx_spi_dt_ids);
 
+static const struct acpi_device_id hisi_spi_hi16xx_spi_acpi_ids[] = {
+	{"HISI0999", 0},
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, hisi_spi_hi16xx_spi_acpi_ids);
+
+#define HI16XX_SFC_NAME "hisi-sfc-hi16xx"
+
+
+
+
+static const struct platform_device_id hi16xx_sfc_match[] = {
+	{ HI16XX_SFC_NAME, 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, hi16xx_sfc_match);
+
+
 static struct platform_driver hisi_spi_hi16xx_spi_driver = {
+	.id_table = hi16xx_sfc_match,
 	.driver = {
-		.name	= "hisi-sfc-hi16xx",
+		.name	= HI16XX_SFC_NAME,
 		.of_match_table = hisi_spi_hi16xx_spi_dt_ids,
+		.acpi_match_table = ACPI_PTR(hisi_spi_hi16xx_spi_acpi_ids),
 	},
 	.probe	= hisi_spi_hi16xx_spi_probe,
 	.remove	= hisi_spi_hi16xx_spi_remove,
 };
-module_platform_driver(hisi_spi_hi16xx_spi_driver);
+//module_platform_driver(hisi_spi_hi16xx_spi_driver);
+
+static struct resource hi16xx_sfc_hi1616_resources[] = {
+	{
+		/* irq */
+		.flags          = IORESOURCE_MEM,
+		.name = "reg",
+		.start = 0xa6000000,
+		.end = 0xa6000000 + 0x10000 -1,
+	},
+	{
+		/* irq */
+		.flags          = IORESOURCE_MEM,
+		.name = "memory",
+		.start = 0xa4000000,
+		.end = 0xa4000000 + 0x10000 -1,
+	},
+};
+
+
+static struct platform_device hi1616_spi_dev = {
+	.name = HI16XX_SFC_NAME,
+	.id = -1,
+	.resource = hi16xx_sfc_hi1616_resources,
+	.num_resources = ARRAY_SIZE(hi16xx_sfc_hi1616_resources)
+};
+	
+static struct resource hi16xx_sfc_hi1620_resources[] = {
+	{
+		/* irq */
+		.flags          = IORESOURCE_MEM,
+		.name = "reg",
+		.start = 0x206200000,
+		.end = 0x206200000 + 0x10000 -1,
+	},
+	{
+		/* irq */
+		.flags          = IORESOURCE_MEM,
+		.name = "memory",
+		.start = 0x206250000,
+		.end = 0x206250000 + 0x10000 -1,
+	},
+};
+
+
+static struct platform_device hi1620_spi_dev = {
+	.name = HI16XX_SFC_NAME,
+	.id = -1,
+	.resource = hi16xx_sfc_hi1620_resources,
+	.num_resources = ARRAY_SIZE(hi16xx_sfc_hi1620_resources)
+};
+
+#define read_cpuid(reg)			read_sysreg_s(SYS_ ## reg)
+
+static int __init hisi_spi_hi16xx_spi_module_init(void)
+{
+	int ret;
+	struct platform_device *pdev;
+	u32 midr = read_cpuid_id();
+
+	pr_err("%s acpi_disabled=%d midr=0x%x\n", __func__, acpi_disabled, midr);
+
+	ret = platform_driver_register(&hisi_spi_hi16xx_spi_driver);
+	if (ret)
+		return ret;
+
+	if (acpi_disabled)
+		return 0;
+
+	switch (midr) {
+	case 0:
+	ret = platform_device_register(&hi1616_spi_dev);
+	if (ret) {
+		pr_err("%s could not register hi1616_spi_dev pdev ret=%d\n", __func__, ret);
+		return ret;
+	}
+	break;
+	case 0x480fd010:
+	ret = platform_device_register(&hi1620_spi_dev);
+	if (ret) {
+		pr_err("%s could not register hi1620_spi_dev pdev ret=%d\n", __func__, ret);
+		return ret;
+	}
+	break;
+	default:
+		break;
+	}
+	
+	pr_err("%s registered pdev\n", __func__);
+	
+	return 0;	
+}
+module_init(hisi_spi_hi16xx_spi_module_init);
+
+static void __exit hisi_spi_hi16xx_spi_module_remove(void)
+{
+
+}
+module_exit(hisi_spi_hi16xx_spi_module_remove);
+
+
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("HiSilicon SPI spi Flash Controller Driver");
