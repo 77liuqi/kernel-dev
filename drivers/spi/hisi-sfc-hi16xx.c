@@ -103,9 +103,9 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 
-	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x\n",
-		__func__, opcode, buf, len, host, count, chip_select, config, bus_cfg1, bus_cfg2);
-	pr_err("%s bus_flash_size=0x%x\n", __func__, bus_flash_size);
+//	pr_err("%s opcode=0x%x buf=%pS len=%d host=%pS count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x\n",
+//		__func__, opcode, buf, len, host, count, chip_select, config, bus_cfg1, bus_cfg2);
+//	pr_err("%s bus_flash_size=0x%x\n", __func__, bus_flash_size);
 
 //	pr_err("%s1 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 //		__func__, config, ins, addr, version, cmd_buf0, cmd_buf1);
@@ -140,8 +140,8 @@ sleep:
 	cmd_buf[2] = le32_to_cpu(cmd_buf2);
 	cmd_buf[3] = le32_to_cpu(cmd_buf3);
 
-	pr_err("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x count=%d\n",
-		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1], count);
+//	pr_err("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x count=%d\n",
+//		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1], count);
 
 	for (i = 0; i<len;i++) {
 		u8 *byte = (u8 *)&cmd_buf[0];
@@ -228,8 +228,8 @@ sleep:
 			*read_buf = cc = ptr[2];read_buf++;
 			*read_buf = dd = ptr[3];read_buf++;
 			
-			pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
-				__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
+	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
+	//			__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
 		}
 	}while (remaining);
 //	pr_err("%s out returning len=%ld\n", __func__, len);
