@@ -90,7 +90,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 		int len, int chip_select)
 {
 	u32 config, version;
-	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[5], bus_cfg1, bus_cfg2;
+	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2;
 	int i;
 	int count = 0;
 	int bus_flash_size;
@@ -105,10 +105,13 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 
 	pr_err("%s opcode=0x%x buf=%pS len=%d count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x\n",
 		__func__, opcode, buf, len, count, chip_select, config, bus_cfg1, bus_cfg2);
-//	pr_err("%s bus_flash_size=0x%x\n", __func__, bus_flash_size);
 
-//	pr_err("%s1 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
-//		__func__, config, ins, addr, version, cmd_buf0, cmd_buf1);
+
+	if (len > sizeof(cmd_buf)) {
+		pr_err("%s1 opcode=0x%x buf=%pS len=%d count=%d chip_select=%d len not supported\n",
+			__func__, opcode, buf, len, count, chip_select);
+		return -ENOTSUPP;
+	}
 
 	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
 			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK;
@@ -158,21 +161,64 @@ sleep:
 
 
 
-static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, u8 *buf,
+static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, const u8 *buf,
 		int len, int chip_select)
 {
+	u32 config, version;//, cmd_buf0, cmd_buf1;
+	int count = 0;
+
 	pr_err("%s opcode=0x%x buf=%pS len=%d chip_select=%d\n",
 		__func__, opcode, buf, len, chip_select);
 
+	if (opcode != 0x6) {
+		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as opcode not supported yet\n",
+			__func__, opcode, buf, len, chip_select);
 
-	return -1;
+		return -ENOTSUPP;
+	}
+	
+	if (len != 0) {
+		pr_err("%s2 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as len not supported yet\n",
+			__func__, opcode, buf, len, chip_select);
+
+		return -ENOTSUPP;
+	}
+
+	config = readl(host->regbase + CMD_CONFIG);
+	version = readl(host->regbase + VERSION);
+
+	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
+			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK &
+			~CMD_CONFIG_CMD_DATA_EN_MSK;
+	config = 0;
+	config |= ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
+			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF;
+
+	if (len)
+		config |= CMD_CONFIG_CMD_DATA_EN_MSK;
+
+	writel(opcode, host->regbase + CMD_INS);
+	
+//	pr_err("%s2 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0);
+
+	writel(config, host->regbase + CMD_CONFIG);
+sleep:
+	count++;
+	config = readl(host->regbase + CMD_CONFIG);
+	if (config & CMD_CONFIG_CMD_START_MSK)
+		goto sleep;
+//	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
+//		__func__, config, ins, addr, version, cmd_buf0);
+
+	return 0;
 }
 
 
-#define MAX_CMD_WORD 4
+#define MAX_CMD_DWORD 1
 
 static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t len,
-		u_char *read_buf, int read_opcode, int read_dummy, int chip_select)
+		u_char *buf, int opcode, int dummy, int chip_select)
 {
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
 	int i;
@@ -187,18 +233,21 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-//	pr_err_ratelimited("%s read_buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
-//		read_buf, len, host, count, read_opcode, addr, chip_select);
+	dev_dbg(host->dev, "%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
+		buf, len, host, count, opcode, addr, chip_select);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
-
+	if (len & 0x3) {
+		pr_err("%s1 len=%zu unsupported\n",
+			__func__, len);
+	}
 
 	do {
 		int read_len;
 
-		if (remaining > MAX_CMD_WORD * 4)
-			read_len = MAX_CMD_WORD * 4;
+		if (remaining > MAX_CMD_DWORD * 4)
+			read_len = MAX_CMD_DWORD * 4;
 		else
 			read_len = remaining;
 
@@ -208,15 +257,15 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 				~CMD_CONFIG_CMD_DATA_EN_OFF;
 		config |= ((read_len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 			    CMD_CONFIG_CMD_ADDR_EN_MSK |
-				(read_dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
+				(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
 				CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
 		writel(from, host->regbase + CMD_ADDR);
-		writel(read_opcode, host->regbase + CMD_INS);
+		writel(opcode, host->regbase + CMD_INS);
 		writel(config, host->regbase + CMD_CONFIG);
 
 		from += read_len;
 
-//		pr_err("%s1 read_buf=%pS len=%ld host=%pS count=%d config=0x%x read_len=%x remaining=%d\n", __func__, read_buf, len, host, count, config, read_len, remaining);
+	dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x read_len=%x remaining=%d\n", __func__, buf, len, count, config, read_len, remaining);
 
 sleep:
 		count++;
@@ -226,38 +275,116 @@ sleep:
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
 
-//		pr_err("%s2 read_buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, read_buf, len, host, count, config, addr);
+		dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x read_len=%d\n", __func__, buf, len, host, count, config, addr, read_len);
 
-		for (i=0;i<(read_len + MAX_CMD_WORD - 1)/MAX_CMD_WORD;i++) {
+		for (i=0;i<read_len/4;i++) {
 			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
 	//		u32 cmd_bufy = __swab32(cmd_bufx);
 			u8 *ptr = (u8 *)&cmd_bufx;
 			u8 aa, bb, cc, dd;
 
-	//		pr_err("%s3.0 i=%d cmd_bufx=0x%x cmd_bufy=0x%x\n", __func__, i, cmd_bufx, cmd_bufy);
+			dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x \n", __func__, i, cmd_bufx);
 
-			*read_buf = aa = ptr[0];read_buf++;
-			*read_buf = bb = ptr[1];read_buf++;
-			*read_buf = cc = ptr[2];read_buf++;
-			*read_buf = dd = ptr[3];read_buf++;
+			*buf = aa = ptr[0];buf++;
+			*buf = bb = ptr[1];buf++;
+			*buf = cc = ptr[2];buf++;
+			*buf = dd = ptr[3];buf++;
 			
 	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
 	//			__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
 		}
 	}while (remaining);
-//	pr_err("%s out returning len=%ld\n", __func__, len);
-	return len;
+	dev_dbg(host->dev, "%s out returning len=%ld\n", __func__, len);
+	return 0;
 }
 
 
 static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, size_t len,
-		u_char *write_buf, int write_opcode, int write_dummy, int chip_select)
+		u_char *buf, int opcode, int dummy, int chip_select)
 {
-	
-	pr_err("%s write_buf=%pS len=%ld read write_opcode=0x%x chip_select=%d from=0x%llx\n", __func__, 
-		write_buf, len, write_opcode, chip_select, from);
+	u32 config, ins, addr, version;
+	int i;
+	int count = 0;
+	int remaining = len;
 
-	return -1;
+	pr_err("%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
+		buf, len, opcode, chip_select, from, dummy);
+
+	if (opcode != 0x2) {
+		pr_err("%s1 opcode=0x%x buf=%pS len=%zu chip_select=%d rejected as opcode not supported yet\n",
+			__func__, opcode, buf, len, chip_select);
+
+		return -ENOTSUPP;
+	}
+	
+	if (len == 0 || len & 3) {
+		pr_err("%s2 opcode=0x%x buf=%pS len=%zu chip_select=%d rejected as len not supported yet\n",
+			__func__, opcode, buf, len, chip_select);
+
+		return -ENOTSUPP;
+	}
+
+	//WARN_ON_ONCE(1);
+	config = readl(host->regbase + CMD_CONFIG);
+	ins = readl(host->regbase + CMD_INS);
+	addr = readl(host->regbase + CMD_ADDR);
+	version = readl(host->regbase + VERSION);		
+		
+//	pr_err_ratelimited("%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
+//		buf, len, host, count, opcode, addr, chip_select);
+	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
+	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
+	
+	do {
+		int write_len;
+
+		if (remaining > MAX_CMD_DWORD * 4)
+			write_len = MAX_CMD_DWORD * 4;
+		else
+			write_len = remaining;
+
+		remaining -= write_len;
+
+		config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
+				~CMD_CONFIG_CMD_DATA_EN_OFF;
+		config |= ((write_len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+				CMD_CONFIG_CMD_ADDR_EN_MSK |
+				(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
+				CMD_CONFIG_CMD_START_MSK;
+		writel(from, host->regbase + CMD_ADDR);
+		writel(opcode, host->regbase + CMD_INS);
+
+
+		for (i=0;i<write_len/4;i++) {
+			u32 cmd_bufx = 0;
+
+			cmd_bufx |= *buf << 0;
+			buf++;
+			cmd_bufx |= *buf << 8;
+			buf++;
+			cmd_bufx |= *buf << 16;
+			buf++;
+			cmd_bufx |= *buf << 24;
+			buf++;
+	
+			pr_err("%s1 buf=%pS len=%ld count=%d config=0x%x read_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
+				__func__, buf, len, count, config, write_len, remaining, i, cmd_bufx, from);
+
+			writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
+		}
+		from += write_len;
+sleep:
+		count++;
+		config = readl(host->regbase + CMD_CONFIG);
+		addr = readl(host->regbase + CMD_ADDR);
+		writel(config, host->regbase + CMD_CONFIG);
+
+		if (config & CMD_CONFIG_CMD_START_MSK)
+			goto sleep;
+		msleep(100);
+	}while (remaining);
+
+	return 0;
 }
 
 
@@ -296,14 +423,14 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 //		op->data.nbytes, op->data.buf.in, op->data.buf.out, op->data.dir, host);
 
 	if (op->addr.nbytes == 0 && op->addr.buswidth == 0 && op->addr.val == 0) {
-		pr_err("%s [cmd opcode=0x%x buswidth=0x%x, addr.nbytes=%d buswidth=%d val=0x%llx, dummy nbytes=%d buswidth=%d, data.buswidth=%d buf=%pS]\n", __func__,  
-		op->cmd.opcode, op->cmd.buswidth, op->addr.nbytes, op->addr.buswidth, op->addr.val, op->dummy.nbytes, op->dummy.buswidth, op->data.buswidth, op->data.buf.in);
 		/* Read/write Reg */
 		switch (op->data.dir) {
 		case SPI_MEM_DATA_IN:
 			return hisi_spi_hi16xx_spi_read_reg(host, op->cmd.opcode, op->data.buf.in, op->data.nbytes, chip_select);
 		case SPI_MEM_DATA_OUT:
-			return hisi_spi_hi16xx_spi_write_reg(host, op->cmd.opcode, op->data.buf.in, op->data.nbytes, chip_select);
+			pr_err("%s [cmd opcode=0x%x buswidth=0x%x, addr.nbytes=%d buswidth=%d val=0x%llx, dummy nbytes=%d buswidth=%d, data.buswidth=%d buf=%pS nbytes=%d]\n", __func__,  
+			op->cmd.opcode, op->cmd.buswidth, op->addr.nbytes, op->addr.buswidth, op->addr.val, op->dummy.nbytes, op->dummy.buswidth, op->data.buswidth, op->data.buf.in, op->data.nbytes);
+			return hisi_spi_hi16xx_spi_write_reg(host, op->cmd.opcode, op->data.buf.out, op->data.nbytes, chip_select);
 		default:
 			break;
 		}
