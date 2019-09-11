@@ -19,6 +19,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi-mem.h>
 
+#define GLOBAL_CFG (0x100)
+
+#define BUS_CFG1 (0x200)
+#define BUS_CFG2 (0x204)
+#define BUS_FLASH_SIZE (0x210)
+
 #define HIFMC_DMA_MAX_LEN		(4096)
 
 #define VERSION (0x1f8)
@@ -40,9 +46,6 @@
 #define CMD_CONFIG_CMD_START_MSK (1 << CMD_CONFIG_CMD_START_OFF)
 #define CMD_INS (0x308)
 #define CMD_ADDR (0x30c)
-#define BUS_FLASH_SIZE (0x210)
-#define BUS_CFG1 (0x200)
-#define BUS_CFG2 (0x204)
 #define CMD_DATABUF(x) (0x400 + (x * 4))
 
 
@@ -90,7 +93,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 		int len, int chip_select)
 {
 	u32 config, version;
-	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2;
+	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2, global_cfg;
 	int i;
 	int count = 0;
 	int bus_flash_size;
@@ -102,9 +105,10 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	bus_flash_size = readl(host->regbase + BUS_FLASH_SIZE);
 	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
+	global_cfg = readl(host->regbase + GLOBAL_CFG);
 
-	pr_err("%s opcode=0x%x buf=%pS len=%d count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x\n",
-		__func__, opcode, buf, len, count, chip_select, config, bus_cfg1, bus_cfg2);
+	pr_err("%s opcode=0x%x buf=%pS len=%d count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x bus_flash_size=0x%x global_cfg=0x%x\n",
+		__func__, opcode, buf, len, count, chip_select, config, bus_cfg1, bus_cfg2, bus_flash_size, global_cfg);
 
 
 	if (len > sizeof(cmd_buf)) {
@@ -388,16 +392,17 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 			writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
 		}
 		from += write_len;
+		writel(config, host->regbase + CMD_CONFIG);
+		count = 0;
 sleep:
 		count++;
 		config = readl(host->regbase + CMD_CONFIG);
-		addr = readl(host->regbase + CMD_ADDR);
-		writel(config, host->regbase + CMD_CONFIG);
 
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
 		res = hisi_spi_hi16xx_spi_read_reg(host, SPINOR_OP_RDSR, &rdsr, 1, chip_select);
-		pr_err("%s3 res=%d rdsr=0x%x\n", __func__, res, rdsr);
+		pr_err("%s3 res=%d rdsr=0x%x count=%dn", __func__, res, rdsr, count);
+		msleep(100);
 	}while (remaining);
 
 	return 0;
