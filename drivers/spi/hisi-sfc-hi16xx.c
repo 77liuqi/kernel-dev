@@ -182,12 +182,12 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 		return -ENOTSUPP;
 	}
 	
-	if (len != 0) {
+	if (len > 0) {
 		//pr_err("%s2 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as len not supported yet\n",
 	//		__func__, opcode, buf, len, chip_select);
 
-		for (i = 0; i < 3; i++) {
-			erase_addr |= buf[i] << ((2-i)*8);
+		for (i = 0; i < len; i++) {
+			erase_addr |= buf[i] << ((len - i - 1) * 8);
 		}
 		pr_err("%s2.0 opcode=0x%x erase_addr=0x%x\n",
 			__func__, opcode, erase_addr);
