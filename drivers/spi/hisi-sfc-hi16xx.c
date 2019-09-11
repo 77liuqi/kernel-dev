@@ -143,8 +143,8 @@ sleep:
 	cmd_buf[2] = le32_to_cpu(cmd_buf2);
 	cmd_buf[3] = le32_to_cpu(cmd_buf3);
 
-//	pr_err("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x count=%d\n",
-//		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1], count);
+	pr_err("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x count=%d\n",
+		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1], count);
 
 	for (i = 0; i<len;i++) {
 		u8 *byte = (u8 *)&cmd_buf[0];
@@ -165,12 +165,13 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 		int len, int chip_select)
 {
 	u32 config, version;//, cmd_buf0, cmd_buf1;
-	int count = 0;
+	int count = 0, i;
+	u32 erase_addr = 0;
 
 	pr_err("%s opcode=0x%x buf=%pS len=%d chip_select=%d\n",
 		__func__, opcode, buf, len, chip_select);
 
-	if (opcode != 0x6) {
+	if (opcode != 0x6 && opcode != 0x20 && opcode != 0x4) {
 		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as opcode not supported yet\n",
 			__func__, opcode, buf, len, chip_select);
 
@@ -178,10 +179,21 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	}
 	
 	if (len != 0) {
-		pr_err("%s2 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as len not supported yet\n",
-			__func__, opcode, buf, len, chip_select);
+		//pr_err("%s2 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as len not supported yet\n",
+	//		__func__, opcode, buf, len, chip_select);
 
-		return -ENOTSUPP;
+		for (i = 0; i < 3; i++) {
+			erase_addr |= buf[i] << ((2-i)*8);
+		}
+		pr_err("%s2.0 opcode=0x%x erase_addr=0x%x\n",
+			__func__, opcode, erase_addr);
+//	[	34.487982] hisi_spi_hi16xx_spi_write_reg2 opcode=0x20 buf=0xffff801f97bd4800 len=3 chip_select=0 rejected as len not supported yet
+//	[	34.499798] hisi_spi_hi16xx_spi_write_reg2.0 opcode=0x20 buf[0]=0xe4
+//	[	34.506144] hisi_spi_hi16xx_spi_write_reg2.0 opcode=0x20 buf[1]=0x0
+//	[	34.512405] hisi_spi_hi16xx_spi_write_reg2.0 opcode=0x20 buf[2]=0x0
+
+
+	//	return -ENOTSUPP;
 	}
 
 	config = readl(host->regbase + CMD_CONFIG);
@@ -194,8 +206,10 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	config |= ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
 			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF;
 
-	if (len)
-		config |= CMD_CONFIG_CMD_DATA_EN_MSK;
+	if (opcode == 0x20) {
+		writel(erase_addr, host->regbase + CMD_ADDR);
+		config |= CMD_CONFIG_CMD_ADDR_EN_MSK;
+	}
 
 	writel(opcode, host->regbase + CMD_INS);
 	
@@ -208,8 +222,8 @@ sleep:
 	config = readl(host->regbase + CMD_CONFIG);
 	if (config & CMD_CONFIG_CMD_START_MSK)
 		goto sleep;
-//	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
-//		__func__, config, ins, addr, version, cmd_buf0);
+	pr_err("%s done count=%d\n",
+		__func__, count);
 
 	return 0;
 }
@@ -298,7 +312,6 @@ sleep:
 	return 0;
 }
 
-
 static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, size_t len,
 		u_char *buf, int opcode, int dummy, int chip_select)
 {
@@ -337,6 +350,8 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 	
 	do {
 		int write_len;
+		u8 rdsr = 0;
+		int res;
 
 		if (remaining > MAX_CMD_DWORD * 4)
 			write_len = MAX_CMD_DWORD * 4;
@@ -367,7 +382,7 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 			cmd_bufx |= *buf << 24;
 			buf++;
 	
-			pr_err("%s1 buf=%pS len=%ld count=%d config=0x%x read_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
+			pr_err("%s1 buf=%pS len=%ld count=%d config=0x%x write_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
 				__func__, buf, len, count, config, write_len, remaining, i, cmd_bufx, from);
 
 			writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
@@ -381,7 +396,8 @@ sleep:
 
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
-		msleep(100);
+		res = hisi_spi_hi16xx_spi_read_reg(host, SPINOR_OP_RDSR, &rdsr, 1, chip_select);
+		pr_err("%s3 res=%d rdsr=0x%x\n", __func__, res, rdsr);
 	}while (remaining);
 
 	return 0;
