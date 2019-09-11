@@ -50,6 +50,8 @@
 
 
 
+#define MAX_CMD_DWORD 16
+
 enum hifmc_iftype {
 	IF_TYPE_STD,
 	IF_TYPE_DUAL,
@@ -233,9 +235,6 @@ sleep:
 
 	return 0;
 }
-
-
-#define MAX_CMD_DWORD 16
 
 static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t len,
 		u_char *buf, int opcode, int dummy, int chip_select)
