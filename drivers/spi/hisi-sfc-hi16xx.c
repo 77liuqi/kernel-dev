@@ -213,7 +213,9 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	if (opcode == 0x20) {
 		writel(erase_addr, host->regbase + CMD_ADDR);
 		config |= CMD_CONFIG_CMD_ADDR_EN_MSK;
+		config &= ~CMD_CONFIG_DATA_CNT_MSK;
 	}
+
 
 	writel(opcode, host->regbase + CMD_INS);
 	
@@ -251,7 +253,7 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-	dev_dbg(host->dev, "%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
+	dev_err(host->dev, "%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
 		buf, len, host, count, opcode, addr, chip_select);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
@@ -323,6 +325,8 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 	int i;
 	int count = 0;
 	int remaining = len;
+		u8 rdsr = -1;
+		int res = -1;
 
 	pr_err("%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
 		buf, len, opcode, chip_select, from, dummy);
@@ -341,21 +345,21 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 		return -ENOTSUPP;
 	}
 
-	//WARN_ON_ONCE(1);
 	config = readl(host->regbase + CMD_CONFIG);
 	ins = readl(host->regbase + CMD_INS);
 	addr = readl(host->regbase + CMD_ADDR);
 	version = readl(host->regbase + VERSION);		
-		
+
+	res = hisi_spi_hi16xx_spi_read_reg(host, SPINOR_OP_RDSR, &rdsr, 1, chip_select);
+	pr_err("%s2.2 res=%d rdsr=0x%x\n", __func__, res, rdsr);
+
 //	pr_err_ratelimited("%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
 //		buf, len, host, count, opcode, addr, chip_select);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
-	
+
 	do {
 		int write_len;
-		u8 rdsr = 0;
-		int res;
 
 		if (remaining > MAX_CMD_DWORD * 4)
 			write_len = MAX_CMD_DWORD * 4;
@@ -365,7 +369,7 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 		remaining -= write_len;
 
 		config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-				~CMD_CONFIG_CMD_DATA_EN_OFF;
+				~CMD_CONFIG_CMD_DATA_EN_OFF & ~CMD_CONFIG_CMD_RW_MSK;
 		config |= ((write_len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 				CMD_CONFIG_CMD_ADDR_EN_MSK |
 				(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
@@ -386,8 +390,8 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 			cmd_bufx |= *buf << 24;
 			buf++;
 	
-			pr_err("%s1 buf=%pS len=%ld count=%d config=0x%x write_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
-				__func__, buf, len, count, config, write_len, remaining, i, cmd_bufx, from);
+			pr_err("%s1 buf=%pS len=%ld config=0x%x write_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
+				__func__, buf, len, config, write_len, remaining, i, cmd_bufx, from);
 
 			writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
 		}
@@ -401,7 +405,9 @@ sleep:
 		if (config & CMD_CONFIG_CMD_START_MSK)
 			goto sleep;
 		res = hisi_spi_hi16xx_spi_read_reg(host, SPINOR_OP_RDSR, &rdsr, 1, chip_select);
-		pr_err("%s3 res=%d rdsr=0x%x count=%dn", __func__, res, rdsr, count);
+		pr_err("%s3 res=%d rdsr=0x%x count=%d\n", __func__, res, rdsr, count);
+		res = hisi_spi_hi16xx_spi_write_reg(host, SPINOR_OP_WREN, NULL, 0, 0);
+		pr_err("%s4 res=%d\n", __func__, res);
 		msleep(100);
 	}while (remaining);
 
