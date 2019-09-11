@@ -187,8 +187,9 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	//		__func__, opcode, buf, len, chip_select);
 
 		for (i = 0; i < len; i++) {
-			erase_addr |= buf[i] << ((len - i - 1) * 8);
+			erase_addr |= buf[i] << ((len - i - 1) *8);
 		}
+
 		pr_err("%s2.0 opcode=0x%x erase_addr=0x%x\n",
 			__func__, opcode, erase_addr);
 //	[	34.487982] hisi_spi_hi16xx_spi_write_reg2 opcode=0x20 buf=0xffff801f97bd4800 len=3 chip_select=0 rejected as len not supported yet
@@ -213,7 +214,6 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	if (opcode == 0x20) {
 		writel(erase_addr, host->regbase + CMD_ADDR);
 		config |= CMD_CONFIG_CMD_ADDR_EN_MSK;
-		config &= ~CMD_CONFIG_DATA_CNT_MSK;
 	}
 
 
