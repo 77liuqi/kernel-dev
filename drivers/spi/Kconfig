@@ -283,7 +283,7 @@ config SPI_FSL_QUADSPI
 config SPI_HISI_SFC_HI16XX
 	tristate "Hisilicon HI16XX SPI-NOR Flash Controller(SFC)"
 	depends on ARCH_HISI || COMPILE_TEST
-	depends on HAS_IOMEM
+	select CONFIG_MTD_M25P80
 	help
 	  This enables support for hisilicon SPI-NOR flash controller.
 

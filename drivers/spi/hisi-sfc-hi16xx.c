@@ -99,7 +99,6 @@ static void hisi_spi_hi16xx_spi_init(struct hifmc_host *host)
 static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *buf,
 		int len, int chip_select)
 {
-	u32 config, version;
 	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2, global_cfg;
 	int i;
 	int res;
@@ -124,10 +123,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 		return -ENOTSUPP;
 	}
 
-	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK;
-	config = 0;
-	config |= ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+	config = ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF
 			 | CMD_CONFIG_CMD_RW_MSK;
 
@@ -172,7 +168,6 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, const u8 *buf,
 		int len, int chip_select)
 {
-	u32 config, version;//, cmd_buf0, cmd_buf1;
 	int i;
 	u32 erase_addr = 0;
 
@@ -208,11 +203,8 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 	config = readl(host->regbase + CMD_CONFIG);
 	version = readl(host->regbase + VERSION);
 
-	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-			~CMD_CONFIG_CMD_ADDR_EN_MSK & ~CMD_CONFIG_CMD_RW_MSK &
-			~CMD_CONFIG_CMD_DATA_EN_MSK;
-	config = 0;
-	config |= ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
+
+	config = ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
 			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF;
 
 	if (opcode == 0x20) {
@@ -238,13 +230,6 @@ static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
 	int res;
 	//WARN_ON_ONCE(1);
-	config = readl(host->regbase + CMD_CONFIG);
-	ins = readl(host->regbase + CMD_INS);
-	addr = readl(host->regbase + CMD_ADDR);
-	version = readl(host->regbase + VERSION);
-	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
-	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
-	
 	
 	dev_dbg(host->dev, "%s buf=%pS len=%ld host=%pS read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
 		buf, len, host, opcode, addr, chip_select);
@@ -256,9 +241,8 @@ static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t
 			__func__, len);
 	}
 
-	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-			~CMD_CONFIG_CMD_DATA_EN_OFF;
-	config |= ((len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+
+	config = ((len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 		    CMD_CONFIG_CMD_ADDR_EN_MSK |
 			(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
 			CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
@@ -317,10 +301,7 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
-
-	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-			~CMD_CONFIG_CMD_DATA_EN_OFF & ~CMD_CONFIG_CMD_RW_MSK;
-	config |= ((len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+	config = ((len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 			CMD_CONFIG_CMD_ADDR_EN_MSK |
 			(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
 			CMD_CONFIG_CMD_START_MSK;
