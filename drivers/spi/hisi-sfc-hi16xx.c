@@ -100,8 +100,8 @@ void hisi_spi_hi16xx_spi_memcpy_from_databuf(struct hifmc_host *host, u8 *to, un
 {
 	int i;
 
-	for (i = 0; i < roundup(len, 4) / 4; i++) {
-		u32 val = readl_relaxed(host->regbase + CMD_DATABUF(i));
+	for (i = 0; i < DIV_ROUND_UP(len, 4); i++) {
+		u32 val = __raw_readl(host->regbase + CMD_DATABUF(i));
 		int j;
 
 		for (j = 0; j < 4 && (j + (i * 4) < len); to++, val >>= 8, j++)
@@ -113,13 +113,13 @@ void hisi_spi_hi16xx_spi_memcpy_from_databuf(struct hifmc_host *host, u8 *to, un
 {
 	int i;
 
-	for (i = 0; i < roundup(len, 4) / 4; i++) {
+	for (i = 0; i < DIV_ROUND_UP(len, 4); i++) {
 		u32 val = 0;
 		int j;
 
 		for (j = 0; j < 4 && (j + (i * 4) < len); from++, j++)
 			val |= *from << (j * 8);
-		writel_relaxed(val, host->regbase + CMD_DATABUF(i));
+		__raw_writel(val, host->regbase + CMD_DATABUF(i));
 	}
 }
 
