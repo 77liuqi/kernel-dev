@@ -243,7 +243,6 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
 	int i;
 	int count = 0;
-	int remaining = len;
 	//WARN_ON_ONCE(1);
 	config = readl(host->regbase + CMD_CONFIG);
 	ins = readl(host->regbase + CMD_INS);
@@ -263,57 +262,47 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 			__func__, len);
 	}
 
-	do {
-		int read_len;
-
-		if (remaining > MAX_CMD_DWORD * 4)
-			read_len = MAX_CMD_DWORD * 4;
-		else
-			read_len = remaining;
-
-		remaining -= read_len;
-
-		config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
-				~CMD_CONFIG_CMD_DATA_EN_OFF;
-		config |= ((read_len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
-			    CMD_CONFIG_CMD_ADDR_EN_MSK |
-				(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
-				CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
-		writel(from, host->regbase + CMD_ADDR);
-		writel(opcode, host->regbase + CMD_INS);
-		writel(config, host->regbase + CMD_CONFIG);
+	config &= ~CMD_CONFIG_DATA_CNT_MSK & ~CMD_CONFIG_CMD_CS_SEL_MSK &
+			~CMD_CONFIG_CMD_DATA_EN_OFF;
+	config |= ((len + 1) << CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
+		    CMD_CONFIG_CMD_ADDR_EN_MSK |
+			(dummy / 8) << CMD_CONFIG_CMD_DUMMY_CNT_OFF |
+			CMD_CONFIG_CMD_START_MSK | CMD_CONFIG_CMD_RW_MSK;// 1: READ
+	writel(from, host->regbase + CMD_ADDR);
+	writel(opcode, host->regbase + CMD_INS);
+	writel(config, host->regbase + CMD_CONFIG);
 
 
-		dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x read_len=%x remaining=%d\n", __func__, buf, len, count, config, read_len, remaining);
+	dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x\n", __func__, buf, len, count, config);
 
 sleep:
-		count++;
-		config = readl(host->regbase + CMD_CONFIG);
-		addr = readl(host->regbase + CMD_ADDR);
+	count++;
+	config = readl(host->regbase + CMD_CONFIG);
+	addr = readl(host->regbase + CMD_ADDR);
 
-		if (config & CMD_CONFIG_CMD_START_MSK)
-			goto sleep;
+	if (config & CMD_CONFIG_CMD_START_MSK)
+		goto sleep;
 
-		dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x read_len=%d\n", __func__, buf, len, host, count, config, addr, read_len);
+	dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, buf, len, host, count, config, addr);
 
-		for (i=0;i<read_len/4;i++) {
-			u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
+	for (i=0;i<len/4;i++) {
+		u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
 	//		u32 cmd_bufy = __swab32(cmd_bufx);
-			u8 *ptr = (u8 *)&cmd_bufx;
-			u8 aa, bb, cc, dd;
+		u8 *ptr = (u8 *)&cmd_bufx;
+		u8 aa, bb, cc, dd;
 
-			dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x from=0x%llx\n", __func__, i, cmd_bufx, from);
+		dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x from=0x%llx\n", __func__, i, cmd_bufx, from);
 
-			*buf = aa = ptr[0];buf++;
-			*buf = bb = ptr[1];buf++;
-			*buf = cc = ptr[2];buf++;
-			*buf = dd = ptr[3];buf++;
+		*buf = aa = ptr[0];buf++;
+		*buf = bb = ptr[1];buf++;
+		*buf = cc = ptr[2];buf++;
+		*buf = dd = ptr[3];buf++;
 			
 	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
 	//			__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
-		}
-		from += read_len;
-	}while (remaining);
+	}
+
+
 	dev_dbg(host->dev, "%s out returning len=%ld\n", __func__, len);
 	return 0;
 }
