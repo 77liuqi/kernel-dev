@@ -109,21 +109,18 @@ void hisi_spi_hi16xx_spi_memcpy_from_databuf(struct hifmc_host *host, u8 *to, un
 	}
 }
 
-__maybe_unused void hisi_spi_hi16xx_spi_memcpy_to_databuf(struct hifmc_host *host, u8 *from, unsigned int len)
+ void hisi_spi_hi16xx_spi_memcpy_to_databuf(struct hifmc_host *host, u8 *from, unsigned int len)
 {
-#if 0
-	int buf = 0;
+	int i;
 
-	while (len) {
+	for (i = 0; i < roundup(len, 4) / 4; i++) {
 		u32 val = 0;
-		int i;
+		int j;
 
-		for (i = 0; i < 4 && len; i++, val >>= 4, from++)
-		
-		writel_relaxed(val, readl_relaxed(host->regbase + CMD_DATABUF(buf)));
-		buf++;
+		for (j = 0; j < 4 && (j + (i * 4) < len); from++, j++)
+			val |= *from << (j * 8);
+		writel_relaxed(val, host->regbase + CMD_DATABUF(i));
 	}
-#endif
 }
 
 static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *buf,
@@ -162,7 +159,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 //		__func__, config, ins, addr, version, cmd_buf0);
 	hisi_spi_hi16xx_spi_memcpy_from_databuf(host, buf, len);
 	for (i=0;i<len;i++)
-		pr_err("%s buf[%d]=0x%x CMD_BUF(%d)=0x%x\n", __func__, i, buf[i], i, readl(host->regbase + CMD_DATABUF(i)));
+		pr_debug("%s buf[%d]=0x%x CMD_BUF(%d)=0x%x\n", __func__, i, buf[i], i, readl(host->regbase + CMD_DATABUF(i)));
 
 	pr_debug("%s4 config=0x%x opcode=0x%x\n",
 		__func__, config, opcode);
@@ -307,7 +304,7 @@ static int hisi_spi_hi16xx_spi_write(struct hifmc_host *host, u64 from, unsigned
 	writel(from, host->regbase + CMD_ADDR);
 	writel(opcode, host->regbase + CMD_INS);
 
-	memcpy_toio(host->regbase + CMD_DATABUF(0), buf, len);
+	hisi_spi_hi16xx_spi_memcpy_to_databuf(host, buf, len);
 
 	writel(config, host->regbase + CMD_CONFIG);
 
