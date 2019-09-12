@@ -241,7 +241,6 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 		u_char *buf, int opcode, int dummy, int chip_select)
 {
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
-	int i;
 	int count = 0;
 	//WARN_ON_ONCE(1);
 	config = readl(host->regbase + CMD_CONFIG);
@@ -285,22 +284,7 @@ sleep:
 
 	dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, buf, len, host, count, config, addr);
 
-	for (i=0;i<len/4;i++) {
-		u32 cmd_bufx = readl(host->regbase + CMD_DATABUF(i));
-	//		u32 cmd_bufy = __swab32(cmd_bufx);
-		u8 *ptr = (u8 *)&cmd_bufx;
-		u8 aa, bb, cc, dd;
-
-		dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x from=0x%llx\n", __func__, i, cmd_bufx, from);
-
-		*buf = aa = ptr[0];buf++;
-		*buf = bb = ptr[1];buf++;
-		*buf = cc = ptr[2];buf++;
-		*buf = dd = ptr[3];buf++;
-			
-	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
-	//			__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
-	}
+	memcpy_fromio(buf, host->regbase + CMD_DATABUF(0), len);
 
 
 	dev_dbg(host->dev, "%s out returning len=%ld\n", __func__, len);
