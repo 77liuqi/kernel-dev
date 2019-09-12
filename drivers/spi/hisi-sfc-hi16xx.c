@@ -295,10 +295,8 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 		u_char *buf, int opcode, int dummy, int chip_select)
 {
 	u32 config, ins, addr, version;
-	int i;
 	int count = 0;
-//		u8 rdsr = -1;
-//		int res = -1;
+
 
 	dev_dbg(host->dev, "%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
 		buf, len, opcode, chip_select, from, dummy);
@@ -340,24 +338,7 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 	writel(from, host->regbase + CMD_ADDR);
 	writel(opcode, host->regbase + CMD_INS);
 
-
-	for (i=0;i<len/4;i++) {
-		u32 cmd_bufx = 0;
-
-		cmd_bufx |= *buf << 0;
-		buf++;
-		cmd_bufx |= *buf << 8;
-		buf++;
-		cmd_bufx |= *buf << 16;
-		buf++;
-		cmd_bufx |= *buf << 24;
-		buf++;
-	
-		dev_dbg(host->dev, "%s5 buf=%pS len=%ld config=0x%x i=%d cmd_bufx=0x%x from=0x%llx\n",
-			__func__, buf, len, config, i, cmd_bufx, from);
-
-		writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
-	}
+	memcpy_toio(host->regbase + CMD_DATABUF(0), buf, len);
 
 	writel(config, host->regbase + CMD_CONFIG);
 	count = 0;
