@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon SPI Nor Flash Controller Driver
  *
@@ -80,11 +80,15 @@ struct hifmc_host {
 
 	u32 num_chip;
 };
+#define FMC_WAIT_TIMEOUT_US		1000000
+#define FMC_WAIT_POLL_INTERVAL_US		10
 
-static inline int hisi_spi_hi16xx_spi_wait_op_finish(struct hifmc_host *host)
+static int hisi_spi_hi16xx_spi_wait_cmd_idle(struct hifmc_host *host)
 {
-	pr_err("%s host=%pS\n", __func__, host);
-	return 0;
+	u32 reg;
+
+	return readl_poll_timeout(host->regbase + CMD_CONFIG, reg,
+		!(reg & CMD_CONFIG_CMD_START_MSK), FMC_WAIT_POLL_INTERVAL_US, FMC_WAIT_TIMEOUT_US);
 }
 
 static void hisi_spi_hi16xx_spi_init(struct hifmc_host *host)
@@ -98,7 +102,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	u32 config, version;
 	__le32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2, global_cfg;
 	int i;
-	int count = 0;
+	int res;
 	int bus_flash_size;
 
 	config = readl(host->regbase + CMD_CONFIG);
@@ -110,13 +114,13 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	global_cfg = readl(host->regbase + GLOBAL_CFG);
 
-	pr_debug("%s opcode=0x%x buf=%pS len=%d count=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x bus_flash_size=0x%x global_cfg=0x%x\n",
-		__func__, opcode, buf, len, count, chip_select, config, bus_cfg1, bus_cfg2, bus_flash_size, global_cfg);
+	pr_debug("%s opcode=0x%x buf=%pS len=%d chip_select=%d config=0x%x bus_cfg1=0x%x bus_cfg2=0x%x bus_flash_size=0x%x global_cfg=0x%x\n",
+		__func__, opcode, buf, len, chip_select, config, bus_cfg1, bus_cfg2, bus_flash_size, global_cfg);
 
 
 	if (len > sizeof(cmd_buf)) {
-		pr_err("%s1 opcode=0x%x buf=%pS len=%d count=%d chip_select=%d len not supported\n",
-			__func__, opcode, buf, len, count, chip_select);
+		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d len not supported\n",
+			__func__, opcode, buf, len, chip_select);
 		return -ENOTSUPP;
 	}
 
@@ -133,11 +137,10 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 //		__func__, config, ins, addr, version, cmd_buf0);
 
 	writel(config, host->regbase + CMD_CONFIG);
-sleep:
-	count++;
-	config = readl(host->regbase + CMD_CONFIG);
-	if (config & CMD_CONFIG_CMD_START_MSK)
-		goto sleep;
+	res = hisi_spi_hi16xx_spi_wait_cmd_idle(host);
+	if (res)
+		return res;
+
 //	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
 //		__func__, config, ins, addr, version, cmd_buf0);
 
@@ -150,8 +153,8 @@ sleep:
 	cmd_buf[2] = le32_to_cpu(cmd_buf2);
 	cmd_buf[3] = le32_to_cpu(cmd_buf3);
 
-	pr_debug("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x count=%d\n",
-		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1], count);
+	pr_debug("%s4 config=0x%x opcode=0x%x version=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x\n",
+		__func__, config, opcode, version, cmd_buf0, cmd_buf[0 ], cmd_buf[1]);
 
 	for (i = 0; i<len;i++) {
 		u8 *byte = (u8 *)&cmd_buf[0];
@@ -160,8 +163,6 @@ sleep:
 		*buf = byte[i];
 		buf++;
 	}
-
-	count++;
 
 	return 0;
 }
@@ -172,7 +173,7 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 		int len, int chip_select)
 {
 	u32 config, version;//, cmd_buf0, cmd_buf1;
-	int count = 0, i;
+	int i;
 	u32 erase_addr = 0;
 
 	pr_debug("%s opcode=0x%x buf=%pS len=%d chip_select=%d\n",
@@ -226,22 +227,16 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 //		__func__, config, ins, addr, version, cmd_buf0);
 
 	writel(config, host->regbase + CMD_CONFIG);
-sleep:
-	count++;
-	config = readl(host->regbase + CMD_CONFIG);
-	if (config & CMD_CONFIG_CMD_START_MSK)
-		goto sleep;
-	pr_debug("%s done count=%d\n",
-		__func__, count);
 
-	return 0;
+
+	return hisi_spi_hi16xx_spi_wait_cmd_idle(host);
 }
 
-static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t len,
+static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, size_t len,
 		u_char *buf, int opcode, int dummy, int chip_select)
 {
 	u32 config, ins, addr, version, cmd_buf0, cmd_buf1;
-	int count = 0;
+	int res;
 	//WARN_ON_ONCE(1);
 	config = readl(host->regbase + CMD_CONFIG);
 	ins = readl(host->regbase + CMD_INS);
@@ -251,8 +246,8 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	
 	
-	dev_dbg(host->dev, "%s buf=%pS len=%ld host=%pS count=%d read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
-		buf, len, host, count, opcode, addr, chip_select);
+	dev_dbg(host->dev, "%s buf=%pS len=%ld host=%pS read opcode=0x%x addr=0x%x chip_select=%d\n", __func__, 
+		buf, len, host, opcode, addr, chip_select);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -272,17 +267,13 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 	writel(config, host->regbase + CMD_CONFIG);
 
 
-	dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x\n", __func__, buf, len, count, config);
+	dev_dbg(host->dev, "%s2 buf=%pS len=%ld config=0x%x\n", __func__, buf, len, config);
 
-sleep:
-	count++;
-	config = readl(host->regbase + CMD_CONFIG);
-	addr = readl(host->regbase + CMD_ADDR);
+	res = hisi_spi_hi16xx_spi_wait_cmd_idle(host);
+	if (res)
+		return res;
 
-	if (config & CMD_CONFIG_CMD_START_MSK)
-		goto sleep;
-
-	dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS count=%d config=0x%x addr=0x%x\n", __func__, buf, len, host, count, config, addr);
+	dev_dbg(host->dev, "%s3 buf=%pS len=%ld host=%pS config=0x%x addr=0x%x\n", __func__, buf, len, host, config, addr);
 
 	memcpy_fromio(buf, host->regbase + CMD_DATABUF(0), len);
 
@@ -295,8 +286,6 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 		u_char *buf, int opcode, int dummy, int chip_select)
 {
 	u32 config, ins, addr, version;
-	int count = 0;
-
 
 	dev_dbg(host->dev, "%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
 		buf, len, opcode, chip_select, from, dummy);
@@ -341,23 +330,10 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 	memcpy_toio(host->regbase + CMD_DATABUF(0), buf, len);
 
 	writel(config, host->regbase + CMD_CONFIG);
-	count = 0;
-sleep:
-	count++;
-	config = readl(host->regbase + CMD_CONFIG);
 
-	if (config & CMD_CONFIG_CMD_START_MSK)
-		goto sleep;
-//		res = hisi_spi_hi16xx_spi_read_reg(host, SPINOR_OP_RDSR, &rdsr, 1, chip_select);
-//		pr_err("%s3 res=%d rdsr=0x%x count=%d\n", __func__, res, rdsr, count);
-//		if (res == 0 && rdsr & SR_WIP)
-	//		goto wait_idle;
-//		else
-//			msleep(100);
-	//	res = hisi_spi_hi16xx_spi_write_reg(host, SPINOR_OP_WREN, NULL, 0, 0);
 	dev_dbg(host->dev, "%s4\n", __func__);
 	
-	return 0;
+	return hisi_spi_hi16xx_spi_wait_cmd_idle(host);
 }
 
 
@@ -699,5 +675,6 @@ module_exit(hisi_spi_hi16xx_spi_module_remove);
 
 
 
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
 MODULE_DESCRIPTION("HiSilicon SPI spi Flash Controller Driver");
