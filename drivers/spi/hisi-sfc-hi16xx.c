@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
  */
+ #define DEBUG 1
 #include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -50,7 +51,7 @@
 
 
 
-#define MAX_CMD_DWORD 16
+#define MAX_CMD_DWORD 8
 
 enum hifmc_iftype {
 	IF_TYPE_STD,
@@ -282,9 +283,8 @@ static ssize_t hisi_spi_hi16xx_spi_read(struct hifmc_host *host, loff_t from, si
 		writel(opcode, host->regbase + CMD_INS);
 		writel(config, host->regbase + CMD_CONFIG);
 
-		from += read_len;
 
-	dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x read_len=%x remaining=%d\n", __func__, buf, len, count, config, read_len, remaining);
+		dev_dbg(host->dev, "%s2 buf=%pS len=%ld count=%d config=0x%x read_len=%x remaining=%d\n", __func__, buf, len, count, config, read_len, remaining);
 
 sleep:
 		count++;
@@ -302,7 +302,7 @@ sleep:
 			u8 *ptr = (u8 *)&cmd_bufx;
 			u8 aa, bb, cc, dd;
 
-			dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x \n", __func__, i, cmd_bufx);
+			dev_dbg(host->dev, "%s4 i=%d cmd_bufx=0x%x from=0x%llx\n", __func__, i, cmd_bufx, from);
 
 			*buf = aa = ptr[0];buf++;
 			*buf = bb = ptr[1];buf++;
@@ -312,6 +312,7 @@ sleep:
 	//		pr_err("%s3.1 i=%d cmd_bufx=0x%x [%02x %02x %02x %02x] remaining=%d count=%d\n", 
 	//			__func__, i, cmd_bufx, aa, bb, cc, dd, remaining, count);
 		}
+		from += read_len;
 	}while (remaining);
 	dev_dbg(host->dev, "%s out returning len=%ld\n", __func__, len);
 	return 0;
@@ -327,7 +328,7 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 //		u8 rdsr = -1;
 //		int res = -1;
 
-	pr_debug("%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
+	dev_dbg(host->dev, "%s write_buf=%pS len=%ld write_opcode=0x%x chip_select=%d from=0x%llx dummy=%d\n", __func__, 
 		buf, len, opcode, chip_select, from, dummy);
 
 	if (opcode != 0x2) {
@@ -389,8 +390,8 @@ static ssize_t hisi_spi_hi16xx_spi_write(struct hifmc_host *host, loff_t from, s
 			cmd_bufx |= *buf << 24;
 			buf++;
 	
-		//	pr_err("%s1 buf=%pS len=%ld config=0x%x write_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
-		//		__func__, buf, len, config, write_len, remaining, i, cmd_bufx, from);
+			dev_dbg(host->dev, "%s5 buf=%pS len=%ld config=0x%x write_len=0x%x remaining=%d i=%d cmd_bufx=0x%x from=0x%llx\n",
+				__func__, buf, len, config, write_len, remaining, i, cmd_bufx, from);
 
 			writel(cmd_bufx, host->regbase + CMD_DATABUF(i));
 		}
@@ -411,7 +412,7 @@ sleep:
 //		else
 //			msleep(100);
 	//	res = hisi_spi_hi16xx_spi_write_reg(host, SPINOR_OP_WREN, NULL, 0, 0);
-		pr_debug("%s4\n", __func__);
+		dev_dbg(host->dev, "%s4\n", __func__);
 	}while (remaining);
 
 	return 0;
@@ -465,7 +466,7 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		case SPI_MEM_DATA_IN:
 			return hisi_spi_hi16xx_spi_read_reg(host, op->cmd.opcode, op->data.buf.in, op->data.nbytes, chip_select);
 		case SPI_MEM_DATA_OUT:
-			pr_err("%s [cmd opcode=0x%x buswidth=0x%x, addr.nbytes=%d buswidth=%d val=0x%llx, dummy nbytes=%d buswidth=%d, data.buswidth=%d buf=%pS nbytes=%d]\n", __func__,  
+			pr_debug("%s [cmd opcode=0x%x buswidth=0x%x, addr.nbytes=%d buswidth=%d val=0x%llx, dummy nbytes=%d buswidth=%d, data.buswidth=%d buf=%pS nbytes=%d]\n", __func__,  
 			op->cmd.opcode, op->cmd.buswidth, op->addr.nbytes, op->addr.buswidth, op->addr.val, op->dummy.nbytes, op->dummy.buswidth, op->data.buswidth, op->data.buf.in, op->data.nbytes);
 			return hisi_spi_hi16xx_spi_write_reg(host, op->cmd.opcode, op->data.buf.out, op->data.nbytes, chip_select);
 		default:
