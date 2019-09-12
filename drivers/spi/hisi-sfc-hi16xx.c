@@ -96,31 +96,53 @@ static void hisi_spi_hi16xx_spi_init(struct hifmc_host *host)
 	pr_err("%s host=%pS\n", __func__, host);
 }
 
+void hisi_spi_hi16xx_spi_memcpy_from_databuf(struct hifmc_host *host, u8 *to, unsigned int len)
+{
+	int i;
+
+	for (i = 0; i < roundup(len, 4) / 4; i++) {
+		u32 val = readl_relaxed(host->regbase + CMD_DATABUF(i));
+		int j;
+
+		for (j = 0; j < 4 && (j + (i * 4) < len); to++, val >>= 8, j++)
+			*to = val & 0xff;
+	}
+}
+
+__maybe_unused void hisi_spi_hi16xx_spi_memcpy_to_databuf(struct hifmc_host *host, u8 *from, unsigned int len)
+{
+#if 0
+	int buf = 0;
+
+	while (len) {
+		u32 val = 0;
+		int i;
+
+		for (i = 0; i < 4 && len; i++, val >>= 4, from++)
+		
+		writel_relaxed(val, readl_relaxed(host->regbase + CMD_DATABUF(buf)));
+		buf++;
+	}
+#endif
+}
+
 static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *buf,
 		unsigned int len, u8 chip_select)
 {
-	u32 cmd_buf0, cmd_buf1, cmd_buf2, cmd_buf3,  cmd_buf[4], bus_cfg1, bus_cfg2, global_cfg;
-	int i;
+	u32 bus_cfg1, bus_cfg2, global_cfg;
 	int res;
 	int bus_flash_size;
 	u32 config;
+	int i;
 
 	bus_cfg1 = readl(host->regbase + BUS_CFG1);
 	bus_cfg2 = readl(host->regbase + BUS_CFG2);
 	bus_flash_size = readl(host->regbase + BUS_FLASH_SIZE);
-	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
-	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
 	global_cfg = readl(host->regbase + GLOBAL_CFG);
 
-	pr_debug("%s opcode=0x%x buf=%pS len=%d chip_select=%d bus_cfg1=0x%x bus_cfg2=0x%x bus_flash_size=0x%x global_cfg=0x%x\n",
-		__func__, opcode, buf, len, chip_select, bus_cfg1, bus_cfg2, bus_flash_size, global_cfg);
+	pr_debug("%s opcode=0x%x buf=%pS len=%d bus_cfg1=0x%x bus_cfg2=0x%x bus_flash_size=0x%x global_cfg=0x%x\n",
+		__func__, opcode, buf, len, bus_cfg1, bus_cfg2, bus_flash_size, global_cfg);
 
-
-	if (len > sizeof(cmd_buf)) {
-		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d len not supported\n",
-			__func__, opcode, buf, len, chip_select);
-		return -ENOTSUPP;
-	}
 
 	config = ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | CMD_CONFIG_CMD_DATA_EN_MSK |
 			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF
@@ -138,26 +160,12 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 
 //	pr_err("%s3 config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x\n",
 //		__func__, config, ins, addr, version, cmd_buf0);
+	hisi_spi_hi16xx_spi_memcpy_from_databuf(host, buf, len);
+	for (i=0;i<len;i++)
+		pr_err("%s buf[%d]=0x%x CMD_BUF(%d)=0x%x\n", __func__, i, buf[i], i, readl(host->regbase + CMD_DATABUF(i)));
 
-	cmd_buf0 = readl(host->regbase + CMD_DATABUF(0));
-	cmd_buf1 = readl(host->regbase + CMD_DATABUF(1));
-	cmd_buf2 = readl(host->regbase + CMD_DATABUF(2));
-	cmd_buf3 = readl(host->regbase + CMD_DATABUF(3));
-	cmd_buf[0] = le32_to_cpu(cmd_buf0);
-	cmd_buf[1] = le32_to_cpu(cmd_buf1);
-	cmd_buf[2] = le32_to_cpu(cmd_buf2);
-	cmd_buf[3] = le32_to_cpu(cmd_buf3);
-
-	pr_debug("%s4 config=0x%x opcode=0x%x cmd_buf0=0x%x cmd_buf[0]=0x%x  cmd_buf[1]=0x%x\n",
-		__func__, config, opcode, cmd_buf0, cmd_buf[0 ], cmd_buf[1]);
-
-	for (i = 0; i<len;i++) {
-		u8 *byte = (u8 *)&cmd_buf[0];
-
-		//pr_err("%s byte %d=0x%x", __func__, i, byte[i]);
-		*buf = byte[i];
-		buf++;
-	}
+	pr_debug("%s4 config=0x%x opcode=0x%x\n",
+		__func__, config, opcode);
 
 	return 0;
 }
@@ -255,8 +263,7 @@ static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, u64 from, unsigned 
 
 	dev_dbg(host->dev, "%s3 buf=%pS len=%u host=%pS config=0x%x\n", __func__, buf, len, host, config);
 
-	memcpy_fromio(buf, host->regbase + CMD_DATABUF(0), len);
-
+	hisi_spi_hi16xx_spi_memcpy_from_databuf(host, buf, len);
 
 	dev_dbg(host->dev, "%s out returning len=%u\n", __func__, len);
 	return 0;
@@ -452,11 +459,6 @@ static int hisi_spi_hi16xx_spi_probe(struct platform_device *pdev)
 
 	host = spi_controller_get_devdata(ctlr);
 	host->dev = dev;
-//	host->devtype_data = of_device_get_match_data(dev);
-//	if (!host->devtype_data) {
-//		ret = -ENODEV;
-//		goto err_put_ctrl;
-//	}
 
 	platform_set_drvdata(pdev, host);
 
