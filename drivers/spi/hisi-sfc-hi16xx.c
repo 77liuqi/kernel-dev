@@ -109,7 +109,7 @@ void hisi_spi_hi16xx_spi_memcpy_from_databuf(struct hifmc_host *host, u8 *to, un
 	}
 }
 
- void hisi_spi_hi16xx_spi_memcpy_to_databuf(struct hifmc_host *host, u8 *from, unsigned int len)
+ void hisi_spi_hi16xx_spi_memcpy_to_databuf(struct hifmc_host *host, const u8 *from, unsigned int len)
 {
 	int i;
 
@@ -173,20 +173,24 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 		unsigned int len, u8 chip_select)
 {
 	int i;
-	u32 erase_addr = 0;
 	u32 config;
 
 	pr_debug("%s opcode=0x%x buf=%pS len=%d chip_select=%d\n",
 		__func__, opcode, buf, len, chip_select);
 
-	if (opcode != 0x6 && opcode != 0x20 && opcode != 0x4) {
+	if (opcode != 0x6 && opcode != 0x20 && opcode != 0x4 && opcode != SPINOR_OP_WRSR) {
 		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as opcode not supported yet\n",
 			__func__, opcode, buf, len, chip_select);
 
 		return -ENOTSUPP;
 	}
 	
-	if (len > 0) {
+	config = ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
+			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF;
+
+	if (opcode == 0x20) {
+		u32 erase_addr = 0;
+	
 		//pr_err("%s2 opcode=0x%x buf=%pS len=%d chip_select=%d rejected as len not supported yet\n",
 	//		__func__, opcode, buf, len, chip_select);
 
@@ -203,15 +207,21 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 
 
 	//	return -ENOTSUPP;
-	}
-
-	config = ((len +1 )<< CMD_CONFIG_DATA_CNT_OFF) | 
-			CMD_CONFIG_CMD_START_MSK | chip_select << CMD_CONFIG_CMD_CS_SEL_OFF;
-
-	if (opcode == 0x20) {
 		writel(erase_addr, host->regbase + CMD_ADDR);
 		config |= CMD_CONFIG_CMD_ADDR_EN_MSK;
+	} else if (opcode == SPINOR_OP_WRSR) {
+		hisi_spi_hi16xx_spi_memcpy_to_databuf(host, buf, len);
+		config |= CMD_CONFIG_CMD_DATA_EN_MSK;
+		config &= ~CMD_CONFIG_DATA_CNT_MSK;
+	} else if (len > 0) {
+
+		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d rejected don't know how to handle len\n",
+			__func__, opcode, buf, len, chip_select);
+
+		return -EOPNOTSUPP;
 	}
+
+
 
 
 	writel(opcode, host->regbase + CMD_INS);
