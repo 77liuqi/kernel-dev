@@ -398,15 +398,6 @@ static int hi16xx_spi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		op->cmd.opcode, op->cmd.buswidth, op->addr.val);
 	return -ENOTSUPP;
 }
-__maybe_unused static const char *hi16xx_spi_get_name(struct spi_mem *mem)
-{
-	struct hifmc_host *host = spi_controller_get_devdata(mem->spi->master);
-
-	pr_err("%s mem=%pS host=%pS\n", __func__, mem, host);
-
-	return "snake";
-}
-
 
 static const struct spi_controller_mem_ops hi16xx_spi_mem_ops = {
 	.adjust_op_size = hi16xx_spi_adjust_op_size,

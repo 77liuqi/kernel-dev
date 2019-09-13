@@ -39,7 +39,7 @@ static int m25p80_read_reg(struct spi_nor *nor, u8 code, u8 *val, int len)
 	void *scratchbuf;
 	int ret;
 
-	pr_err("%s nor=%pS\n", __func__, nor);
+//	pr_err("%s nor=%pS\n", __func__, nor);
 
 	scratchbuf = kmalloc(len, GFP_KERNEL);
 	if (!scratchbuf)
@@ -68,7 +68,6 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	void *scratchbuf;
 	int ret;
 
-	pr_err("%s nor=%pS\n", __func__, nor);
 
 	scratchbuf = kmemdup(buf, len, GFP_KERNEL);
 	if (!scratchbuf)
