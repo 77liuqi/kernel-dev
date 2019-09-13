@@ -159,7 +159,7 @@ static int hisi_spi_hi16xx_spi_read_reg(struct hifmc_host *host, u8 opcode, u8 *
 //		__func__, config, ins, addr, version, cmd_buf0);
 	hisi_spi_hi16xx_spi_memcpy_from_databuf(host, buf, len);
 	for (i=0;i<len;i++)
-		pr_debug("%s buf[%d]=0x%x CMD_BUF(%d)=0x%x\n", __func__, i, buf[i], i, readl(host->regbase + CMD_DATABUF(i)));
+		pr_debug("%s2 buf[%d]=0x%x CMD_BUF(%d)=0x%x\n", __func__, i, buf[i], i, readl(host->regbase + CMD_DATABUF(i)));
 
 	pr_debug("%s4 config=0x%x opcode=0x%x\n",
 		__func__, config, opcode);
@@ -210,9 +210,13 @@ static int hisi_spi_hi16xx_spi_write_reg(struct hifmc_host *host, u8 opcode, con
 		writel(erase_addr, host->regbase + CMD_ADDR);
 		config |= CMD_CONFIG_CMD_ADDR_EN_MSK;
 	} else if (opcode == SPINOR_OP_WRSR) {
+		u32 DATABUF0 = readl(host->regbase + CMD_DATABUF(0));
+	//	pr_err("%s before DATABUF0=0x%x\n", __func__, DATABUF0);
 		hisi_spi_hi16xx_spi_memcpy_to_databuf(host, buf, len);
+		DATABUF0 = readl(host->regbase + CMD_DATABUF(0));
 		config |= CMD_CONFIG_CMD_DATA_EN_MSK;
 		config &= ~CMD_CONFIG_DATA_CNT_MSK;
+	//	pr_err("%s after DATABUF0=0x%x config=0x%x\n", __func__, DATABUF0, config);
 	} else if (len > 0) {
 
 		pr_err("%s1 opcode=0x%x buf=%pS len=%d chip_select=%d rejected don't know how to handle len\n",
@@ -242,8 +246,8 @@ static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, u64 from, unsigned 
 	int res;
 
 	
-	dev_dbg(host->dev, "%s buf=%pS len=%u host=%pS read opcode=0x%x chip_select=%d\n", __func__, 
-		buf, len, host, opcode, chip_select);
+//	dev_dbg(host->dev, "%s buf=%pS len=%u host=%pS read opcode=0x%x chip_select=%d\n", __func__, 
+//		buf, len, host, opcode, chip_select);
 	//	pr_err("%s1 spi=%pS config=0x%x ins=0x%x addr=0x%x version=0x%x cmd_buf0=0x%x cmd_buf1=0x%x\n",
 	//		__func__, spi, config, ins, addr, version, cmd_buf0, cmd_buf1);
 
@@ -262,17 +266,17 @@ static int hisi_spi_hi16xx_spi_read(struct hifmc_host *host, u64 from, unsigned 
 	writel(config, host->regbase + CMD_CONFIG);
 
 
-	dev_dbg(host->dev, "%s2 buf=%pS len=%u config=0x%x\n", __func__, buf, len, config);
+//	dev_dbg(host->dev, "%s2 buf=%pS len=%u config=0x%x\n", __func__, buf, len, config);
 
 	res = hisi_spi_hi16xx_spi_wait_cmd_idle(host);
 	if (res)
 		return res;
 
-	dev_dbg(host->dev, "%s3 buf=%pS len=%u host=%pS config=0x%x\n", __func__, buf, len, host, config);
+//	dev_dbg(host->dev, "%s3 buf=%pS len=%u host=%pS config=0x%x\n", __func__, buf, len, host, config);
 
 	hisi_spi_hi16xx_spi_memcpy_from_databuf(host, buf, len);
 
-	dev_dbg(host->dev, "%s out returning len=%u\n", __func__, len);
+//	dev_dbg(host->dev, "%s out returning len=%u\n", __func__, len);
 	return 0;
 }
 
@@ -281,8 +285,8 @@ static int hisi_spi_hi16xx_spi_write(struct hifmc_host *host, u64 from, unsigned
 {
 	u32 config;
 
-	dev_dbg(host->dev, "%s write_buf=%pS len=%u write_opcode=0x%x chip_select=%d from=0x%llx dummy_bytes=%d\n", __func__, 
-		buf, len, opcode, chip_select, from, dummy_bytes);
+//	dev_dbg(host->dev, "%s write_buf=%pS len=%u write_opcode=0x%x chip_select=%d from=0x%llx dummy_bytes=%d\n", __func__, 
+//		buf, len, opcode, chip_select, from, dummy_bytes);
 
 	if (opcode != 0x2) {
 		pr_err("%s1 opcode=0x%x buf=%pS len=%u chip_select=%d rejected as opcode not supported yet\n",
@@ -318,7 +322,7 @@ static int hisi_spi_hi16xx_spi_write(struct hifmc_host *host, u64 from, unsigned
 
 	writel(config, host->regbase + CMD_CONFIG);
 
-	dev_dbg(host->dev, "%s4\n", __func__);
+//	dev_dbg(host->dev, "%s4\n", __func__);
 	
 	return hisi_spi_hi16xx_spi_wait_cmd_idle(host);
 }
