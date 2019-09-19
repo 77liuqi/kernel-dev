@@ -521,11 +521,7 @@ static const struct of_device_id hisi_spi_hi16xx_spi_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, hisi_spi_hi16xx_spi_dt_ids);
 
-static const struct acpi_device_id hisi_spi_hi16xx_spi_acpi_ids[] = {
-	{"HISI0999", 0},
-	{},
-};
-MODULE_DEVICE_TABLE(acpi, hisi_spi_hi16xx_spi_acpi_ids);
+
 
 #define HI16XX_SFC_NAME "hisi-sfc-hi16xx"
 
@@ -544,7 +540,6 @@ static struct platform_driver hisi_spi_hi16xx_spi_driver = {
 	.driver = {
 		.name	= HI16XX_SFC_NAME,
 		.of_match_table = hisi_spi_hi16xx_spi_dt_ids,
-		.acpi_match_table = ACPI_PTR(hisi_spi_hi16xx_spi_acpi_ids),
 	},
 	.probe	= hisi_spi_hi16xx_spi_probe,
 	.remove	= hisi_spi_hi16xx_spi_remove,
