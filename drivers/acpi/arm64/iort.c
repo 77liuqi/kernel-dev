@@ -1455,7 +1455,7 @@ static __init const struct iort_dev_config *iort_get_dev_cfg(
  * Returns: 0 on success, <0 failure
  */
 static int __init iort_add_platform_device(struct acpi_iort_node *node,
-					   const struct iort_dev_config *ops)
+					   const struct iort_dev_config *ops, struct device *parent)
 {
 	struct fwnode_handle *fwnode;
 	struct platform_device *pdev;
@@ -1465,6 +1465,8 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 	pdev = platform_device_alloc(ops->name, PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
+
+	pdev->dev.parent = parent;
 
 	if (ops->dev_set_proximity) {
 		ret = ops->dev_set_proximity(&pdev->dev, node);
@@ -1573,6 +1575,11 @@ static void __init iort_enable_acs(struct acpi_iort_node *iort_node)
 static inline void iort_enable_acs(struct acpi_iort_node *iort_node) { }
 #endif
 
+static int iort_fwnode_match(struct device *dev, const void *fwnode)
+{
+	return dev->fwnode == fwnode;
+}
+
 static void __init iort_init_platform_devices(void)
 {
 	struct acpi_iort_node *iort_node, *iort_end;
@@ -1594,11 +1601,34 @@ static void __init iort_init_platform_devices(void)
 				iort_table->length);
 
 	for (i = 0; i < iort->node_count; i++) {
+		struct device *parent = NULL;
+
 		if (iort_node >= iort_end) {
 			pr_err("iort node pointer overflows, bad table\n");
 			return;
 		}
 
+		/* Fixme: handle parent declared in IORT after PMCG */
+		if (iort_node->type == ACPI_IORT_NODE_PMCG) {
+			struct acpi_iort_node *iort_assoc_node;
+			struct acpi_iort_pmcg *pmcg;
+			u32 node_reference;
+
+			pmcg = (struct acpi_iort_pmcg *)iort_node->node_data;
+
+			node_reference = pmcg->node_reference;
+			iort_assoc_node = ACPI_ADD_PTR(struct acpi_iort_node, iort,
+				 node_reference);
+
+			if (iort_assoc_node->type == ACPI_IORT_NODE_SMMU_V3) {
+				struct fwnode_handle *assoc_fwnode;
+
+				assoc_fwnode = iort_get_fwnode(iort_assoc_node);
+
+				parent = bus_find_device(&platform_bus_type, NULL,
+				      assoc_fwnode, iort_fwnode_match);
+			}
+		}
 		iort_enable_acs(iort_node);
 
 		ops = iort_get_dev_cfg(iort_node);
@@ -1609,7 +1639,7 @@ static void __init iort_init_platform_devices(void)
 
 			iort_set_fwnode(iort_node, fwnode);
 
-			ret = iort_add_platform_device(iort_node, ops);
+			ret = iort_add_platform_device(iort_node, ops, parent);
 			if (ret) {
 				iort_delete_fwnode(iort_node);
 				acpi_free_fwnode_static(fwnode);
