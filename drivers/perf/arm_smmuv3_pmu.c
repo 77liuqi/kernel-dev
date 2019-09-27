@@ -132,6 +132,8 @@ SMMU_PMU_EVENT_ATTR_EXTRACTOR(filter_stream_id, config1, 0, 31);
 SMMU_PMU_EVENT_ATTR_EXTRACTOR(filter_span, config1, 32, 32);
 SMMU_PMU_EVENT_ATTR_EXTRACTOR(filter_enable, config1, 33, 33);
 
+#define PARENT_SMMU_IIDR_HISI_HIP08 (0x30736)
+
 static inline void smmu_pmu_enable(struct pmu *pmu)
 {
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(pmu);
@@ -505,6 +507,21 @@ static struct attribute *smmu_pmu_events[] = {
 	NULL
 };
 
+SMMU_EVENT_ATTR(l1_tlb, 0x8a);
+
+static struct attribute *smmu_pmu_events_hip08[] = {
+	&smmu_event_attr_cycles.attr.attr,
+	&smmu_event_attr_transaction.attr.attr,
+	&smmu_event_attr_tlb_miss.attr.attr,
+	&smmu_event_attr_config_cache_miss.attr.attr,
+	&smmu_event_attr_trans_table_walk_access.attr.attr,
+	&smmu_event_attr_config_struct_access.attr.attr,
+	&smmu_event_attr_pcie_ats_trans_rq.attr.attr,
+	&smmu_event_attr_pcie_ats_trans_passed.attr.attr,
+	&smmu_event_attr_l1_tlb.attr.attr,
+	NULL
+};
+
 static umode_t smmu_pmu_event_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int unused)
 {
@@ -514,7 +531,10 @@ static umode_t smmu_pmu_event_is_visible(struct kobject *kobj,
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr.attr);
 
-	if (test_bit(pmu_attr->id, smmu_pmu->supported_events))
+	if (pmu_attr->id < SMMU_PMCG_ARCH_MAX_EVENTS &&
+	    test_bit(pmu_attr->id, smmu_pmu->supported_events))
+		return attr->mode;
+	else if (pmu_attr->id >= SMMU_PMCG_ARCH_MAX_EVENTS)
 		return attr->mode;
 
 	return 0;
@@ -523,6 +543,12 @@ static umode_t smmu_pmu_event_is_visible(struct kobject *kobj,
 static struct attribute_group smmu_pmu_events_group = {
 	.name = "events",
 	.attrs = smmu_pmu_events,
+	.is_visible = smmu_pmu_event_is_visible,
+};
+
+static struct attribute_group smmu_pmu_events_group_hip08 = {
+	.name = "events",
+	.attrs = smmu_pmu_events_hip08,
 	.is_visible = smmu_pmu_event_is_visible,
 };
 
@@ -552,8 +578,34 @@ static const struct attribute_group *smmu_pmu_attr_grps[] = {
 	NULL
 };
 
+static const struct attribute_group *smmu_pmu_attr_grps_hip08[] = {
+	&smmu_pmu_cpumask_group,
+	&smmu_pmu_events_group_hip08,
+	&smmu_pmu_format_group,
+	NULL
+};
+
+struct smmu_pmu_attr_grps_custom {
+	u32 parent_smmu_iidr;
+	const struct attribute_group **attr_grps;
+} smmu_pmu_attr_custom_grps[] = {
+	{
+		.parent_smmu_iidr = PARENT_SMMU_IIDR_HISI_HIP08,
+		.attr_grps = smmu_pmu_attr_grps_hip08,
+	},
+};
+
 static const struct attribute_group **smmu_pmu_lookup_attr_groups(u32 parent_smmu_iidr)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(smmu_pmu_attr_custom_grps); i++) {
+		struct smmu_pmu_attr_grps_custom *c = &smmu_pmu_attr_custom_grps[i];
+
+		if (c->parent_smmu_iidr == parent_smmu_iidr)
+			return c->attr_grps;
+	}
+
 	return smmu_pmu_attr_grps;
 }
 
