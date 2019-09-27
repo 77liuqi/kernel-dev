@@ -70,6 +70,8 @@
 #define IDR1_SSIDSIZE			GENMASK(10, 6)
 #define IDR1_SIDSIZE			GENMASK(5, 0)
 
+#define ARM_SMMU_IIDR                  0x18
+
 #define ARM_SMMU_IDR5			0x14
 #define IDR5_STALL_MAX			GENMASK(31, 16)
 #define IDR5_GRAN64K			(1 << 6)
@@ -546,6 +548,7 @@ struct arm_smmu_strtab_cfg {
 
 /* An SMMUv3 instance */
 struct arm_smmu_device {
+	u32						iidr; /* must be first member */
 	struct device			*dev;
 	void __iomem			*base;
 
@@ -3152,6 +3155,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 
 	iommu_device_set_ops(&smmu->iommu, &arm_smmu_ops);
 	iommu_device_set_fwnode(&smmu->iommu, dev->fwnode);
+
+	smmu->iidr = readl(smmu->base + ARM_SMMU_IIDR);
 
 	ret = iommu_device_register(&smmu->iommu);
 	if (ret) {
