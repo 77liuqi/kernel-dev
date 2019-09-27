@@ -115,6 +115,7 @@ struct smmu_pmu {
 	bool global_filter;
 	u32 global_filter_span;
 	u32 global_filter_sid;
+	u32 parent_iidr;
 };
 
 #define to_smmu_pmu(p) (container_of(p, struct smmu_pmu, pmu))
@@ -551,6 +552,11 @@ static const struct attribute_group *smmu_pmu_attr_grps[] = {
 	NULL
 };
 
+static const struct attribute_group **smmu_pmu_lookup_attr_groups(u32 parent_smmu_iidr)
+{
+	return smmu_pmu_attr_grps;
+}
+
 /*
  * Generic device handlers
  */
@@ -706,10 +712,20 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	int irq, err;
 	char *name;
 	struct device *dev = &pdev->dev;
+	struct device *parent = dev->parent;
 
 	smmu_pmu = devm_kzalloc(dev, sizeof(*smmu_pmu), GFP_KERNEL);
 	if (!smmu_pmu)
 		return -ENOMEM;
+
+	if (parent) {
+		void *parent_drvdata;
+
+		parent_drvdata = platform_get_drvdata(to_platform_device(parent));
+		if (!parent_drvdata)
+			return -EPROBE_DEFER;
+		smmu_pmu->parent_iidr = *(u32 *)parent_drvdata;
+	}
 
 	smmu_pmu->dev = dev;
 	platform_set_drvdata(pdev, smmu_pmu);
@@ -724,7 +740,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		.start		= smmu_pmu_event_start,
 		.stop		= smmu_pmu_event_stop,
 		.read		= smmu_pmu_event_read,
-		.attr_groups	= smmu_pmu_attr_grps,
+		.attr_groups	= smmu_pmu_lookup_attr_groups(smmu_pmu->parent_iidr),
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
