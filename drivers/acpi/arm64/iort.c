@@ -1377,27 +1377,6 @@ static void __init arm_smmu_v3_pmcg_init_resources(struct resource *res,
 				       ACPI_EDGE_SENSITIVE, &res[2]);
 }
 
-static struct acpi_platform_list pmcg_plat_info[] __initdata = {
-	/* HiSilicon Hip08 Platform */
-	{"HISI  ", "HIP08   ", 0, ACPI_SIG_IORT, greater_than_or_equal,
-	 "Erratum #162001800", IORT_SMMU_V3_PMCG_HISI_HIP08},
-	{ }
-};
-
-static int __init arm_smmu_v3_pmcg_add_platdata(struct platform_device *pdev)
-{
-	u32 model;
-	int idx;
-
-	idx = acpi_match_platform_list(pmcg_plat_info);
-	if (idx >= 0)
-		model = pmcg_plat_info[idx].data;
-	else
-		model = IORT_SMMU_V3_PMCG_GENERIC;
-
-	return platform_device_add_data(pdev, &model, sizeof(model));
-}
-
 struct iort_dev_config {
 	const char *name;
 	int (*dev_init)(struct acpi_iort_node *node);
@@ -1408,7 +1387,6 @@ struct iort_dev_config {
 				     struct acpi_iort_node *node);
 	int (*dev_set_proximity)(struct device *dev,
 				    struct acpi_iort_node *node);
-	int (*dev_add_platdata)(struct platform_device *pdev);
 };
 
 static const struct iort_dev_config iort_arm_smmu_v3_cfg __initconst = {
@@ -1430,7 +1408,6 @@ static const struct iort_dev_config iort_arm_smmu_v3_pmcg_cfg __initconst = {
 	.name = "arm-smmu-v3-pmcg",
 	.dev_count_resources = arm_smmu_v3_pmcg_count_resources,
 	.dev_init_resources = arm_smmu_v3_pmcg_init_resources,
-	.dev_add_platdata = arm_smmu_v3_pmcg_add_platdata,
 };
 
 static __init const struct iort_dev_config *iort_get_dev_cfg(
@@ -1494,17 +1471,7 @@ static int __init iort_add_platform_device(struct acpi_iort_node *node,
 	if (ret)
 		goto dev_put;
 
-	/*
-	 * Platform devices based on PMCG nodes uses platform_data to
-	 * pass the hardware model info to the driver. For others, add
-	 * a copy of IORT node pointer to platform_data to be used to
-	 * retrieve IORT data information.
-	 */
-	if (ops->dev_add_platdata)
-		ret = ops->dev_add_platdata(pdev);
-	else
-		ret = platform_device_add_data(pdev, &node, sizeof(node));
-
+	ret = platform_device_add_data(pdev, &node, sizeof(node));
 	if (ret)
 		goto dev_put;
 
