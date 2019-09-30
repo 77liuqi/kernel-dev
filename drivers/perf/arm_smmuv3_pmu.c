@@ -739,14 +739,10 @@ static void smmu_pmu_reset(struct smmu_pmu *smmu_pmu)
 		       smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
 }
 
-static void smmu_pmu_get_acpi_options(struct smmu_pmu *smmu_pmu)
+static void smmu_pmu_get_implementation_options(struct smmu_pmu *smmu_pmu)
 {
-	u32 model;
-
-	model = *(u32 *)dev_get_platdata(smmu_pmu->dev);
-
-	switch (model) {
-	case IORT_SMMU_V3_PMCG_HISI_HIP08:
+	switch (smmu_pmu->parent_iidr) {
+	case PARENT_SMMU_IIDR_HISI_HIP08:
 		/* HiSilicon Erratum 162001800 */
 		smmu_pmu->options |= SMMU_PMCG_EVCNTR_RDONLY;
 		break;
@@ -844,7 +840,7 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	smmu_pmu_get_acpi_options(smmu_pmu);
+	smmu_pmu_get_implementation_options(smmu_pmu);
 
 	/* Pick one CPU to be the preferred one to use */
 	smmu_pmu->on_cpu = raw_smp_processor_id();
