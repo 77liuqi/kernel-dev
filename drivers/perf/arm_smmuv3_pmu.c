@@ -507,7 +507,22 @@ static struct attribute *smmu_pmu_events[] = {
 	NULL
 };
 
-SMMU_EVENT_ATTR(l1_tlb, 0x8a);
+/* HiSi hip08 IMP DEF events */
+SMMU_EVENT_ATTR(sp_receive_write_command, 0x80);
+SMMU_EVENT_ATTR(sp_receive_read_command, 0x81);
+SMMU_EVENT_ATTR(tp_receive_write_command, 0x82);
+SMMU_EVENT_ATTR(tp_receive_read_command, 0x83);
+SMMU_EVENT_ATTR(sp_send_command, 0x84);
+SMMU_EVENT_ATTR(tp_send_command, 0x85);
+SMMU_EVENT_ATTR(sp_send_write_command, 0x86);
+SMMU_EVENT_ATTR(sp_send_read_command, 0x87);
+SMMU_EVENT_ATTR(tp_send_write_command, 0x88);
+SMMU_EVENT_ATTR(tp_send_read_command, 0x89);
+SMMU_EVENT_ATTR(l1_tlb_receive_command, 0x8a);
+SMMU_EVENT_ATTR(l2_tlb_receive_command, 0x8b);
+SMMU_EVENT_ATTR(l1_tlb_hit, 0x8c);
+SMMU_EVENT_ATTR(l2_tlb_hit, 0x8d);
+SMMU_EVENT_ATTR(sp_retry_command, 0x8e);
 
 static struct attribute *smmu_pmu_events_hip08[] = {
 	&smmu_event_attr_cycles.attr.attr,
@@ -518,7 +533,21 @@ static struct attribute *smmu_pmu_events_hip08[] = {
 	&smmu_event_attr_config_struct_access.attr.attr,
 	&smmu_event_attr_pcie_ats_trans_rq.attr.attr,
 	&smmu_event_attr_pcie_ats_trans_passed.attr.attr,
-	&smmu_event_attr_l1_tlb.attr.attr,
+	&smmu_event_attr_sp_receive_write_command.attr.attr,
+	&smmu_event_attr_sp_receive_read_command.attr.attr,
+	&smmu_event_attr_tp_receive_write_command.attr.attr,
+	&smmu_event_attr_tp_receive_read_command.attr.attr,
+	&smmu_event_attr_sp_send_command.attr.attr,
+	&smmu_event_attr_tp_send_command.attr.attr,
+	&smmu_event_attr_sp_send_write_command.attr.attr,
+	&smmu_event_attr_sp_send_read_command.attr.attr,
+	&smmu_event_attr_tp_send_write_command.attr.attr,
+	&smmu_event_attr_tp_send_read_command.attr.attr,
+	&smmu_event_attr_l1_tlb_receive_command.attr.attr,
+	&smmu_event_attr_l2_tlb_receive_command.attr.attr,
+	&smmu_event_attr_l1_tlb_hit.attr.attr,
+	&smmu_event_attr_l2_tlb_hit.attr.attr,
+	&smmu_event_attr_sp_retry_command.attr.attr,
 	NULL
 };
 
