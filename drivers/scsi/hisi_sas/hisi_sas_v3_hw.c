@@ -3007,7 +3007,7 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 		/* some preparations before bist test */
 		hisi_sas_bist_test_prep_v3_hw(hisi_hba);
 
-		/* set linkrate of bit test*/
+		/* set linkrate of bit test */
 		reg_val = hisi_sas_phy_read32(hisi_hba, phy_id,
 					      PROG_PHY_LINK_RATE);
 		reg_val &= ~CFG_PROG_PHY_LINK_RATE_MSK;
