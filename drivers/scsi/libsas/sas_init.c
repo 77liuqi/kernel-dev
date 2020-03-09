@@ -14,6 +14,7 @@
 #include <scsi/sas_ata.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_sas.h>
 
@@ -37,17 +38,21 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(gfp_t flags)
+struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 {
 	struct sas_task *task = sas_alloc_task(flags);
-	struct sas_task_slow *slow = kmalloc(sizeof(*slow), flags);
+	struct sas_task_slow *slow;
 
-	if (!task || !slow) {
-		if (task)
-			kmem_cache_free(sas_task_cache, task);
-		kfree(slow);
+	if (!task)
 		return NULL;
-	}
+
+	slow = kzalloc(sizeof(*slow), flags);
+	if (!slow)
+		goto out_err_slow;
+
+	slow->scmd = scsi_get_internal_cmd(sha->shost_sdev, DMA_NONE, REQ_NOWAIT);
+	if (!slow->scmd)
+		goto out_err_scmd;
 
 	task->slow_task = slow;
 	slow->task = task;
@@ -55,13 +60,26 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	init_completion(&slow->completion);
 
 	return task;
+
+out_err_scmd:
+	kfree(slow);
+out_err_slow:
+	kmem_cache_free(sas_task_cache, task);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
 
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
-		kfree(task->slow_task);
+		/*
+		 * It could be good to just introduce separate sas_free_slow_task() to
+		 * avoid the following in the fastpath.
+		 */
+		if (task->slow_task) {
+			scsi_put_internal_cmd(task->slow_task->scmd);
+			kfree(task->slow_task);
+		}
 		kmem_cache_free(sas_task_cache, task);
 	}
 }
@@ -140,11 +158,17 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	if (!sas_ha->disco_q)
 		goto Undo_event_q;
 
+	sas_ha->shost_sdev = scsi_get_host_dev(sas_ha->core.shost);
+	if (!sas_ha->shost_sdev)
+		goto Undo_disco_q;
+
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
 	return 0;
 
+Undo_disco_q:
+	destroy_workqueue(sas_ha->disco_q);
 Undo_event_q:
 	destroy_workqueue(sas_ha->event_q);
 Undo_ports:
