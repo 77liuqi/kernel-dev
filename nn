@@ -1,0 +1,969 @@
+ Percent |	Source code & Disassembly of vmlinux for cycles (1325754 samples, percent: local period)
+--------------------------------------------------------------------------------------------------------
+         :
+         :
+         :
+         :                      Disassembly of section .text:
+         :
+         :                      ffff800010708a20 <arm_smmu_cmdq_issue_cmdlist>:
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      *   insert their own list of commands then all of the commands from one
+         :                      *   CPU will appear before any of the commands from the other CPU.
+         :                      */
+         :                      static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
+         :                      u64 *cmds, int n, bool sync)
+         :                      {
+    0.00 :   ffff800010708a20:       stp     x29, x30, [sp, #-496]!
+    0.00 :   ffff800010708a24:       mov     x29, sp
+    0.00 :   ffff800010708a28:       add     x5, x29, #0xcf
+    0.03 :   ffff800010708a2c:       stp     x25, x26, [sp, #64]
+    0.00 :   ffff800010708a30:       and     x26, x5, #0xffffffffffffffc0
+    0.02 :   ffff800010708a34:       stp     x23, x24, [sp, #48]
+    0.01 :   ffff800010708a38:       stp     x27, x28, [sp, #80]
+         :                      u64 cmd_sync[CMDQ_ENT_DWORDS];
+         :                      u32 prod;
+         :                      unsigned long flags;
+         :                      bool owner;
+         :                      struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
+         :                      struct arm_smmu_ll_queue llq = {
+    0.00 :   ffff800010708a3c:       add     x23, x26, #0x80
+         :                      .max_n_shift = cmdq->q.llq.max_n_shift,
+    0.00 :   ffff800010708a40:       add     x27, x0, #0x40
+         :                      {
+    0.01 :   ffff800010708a44:       stp     x19, x20, [sp, #16]
+    0.01 :   ffff800010708a48:       stp     x21, x22, [sp, #32]
+    0.00 :   ffff800010708a4c:       mov     x28, x0
+         :                      struct arm_smmu_ll_queue llq = {
+    0.01 :   ffff800010708a50:       stp     xzr, xzr, [x23, #16]
+         :                      {
+    0.00 :   ffff800010708a54:       adrp    x0, ffff800011899000 <page_wait_table+0x1500>
+         :                      struct arm_smmu_ll_queue llq = {
+    0.02 :   ffff800010708a58:       stp     xzr, xzr, [x23, #32]
+         :                      {
+    0.00 :   ffff800010708a5c:       add     x0, x0, #0x8c8
+         :                      struct arm_smmu_ll_queue llq = {
+    0.01 :   ffff800010708a60:       stp     xzr, xzr, [x23, #48]
+    0.01 :   ffff800010708a64:       stp     xzr, xzr, [x23, #64]
+         :                      .max_n_shift = cmdq->q.llq.max_n_shift,
+    0.01 :   ffff800010708a68:       ldr     w19, [x27, #64]
+         :                      {
+    0.06 :   ffff800010708a6c:       str     x1, [x29, #96]
+    0.00 :   ffff800010708a70:       and     w1, w3, #0xff
+         :                      }, head = llq;
+    0.00 :   ffff800010708a74:       str     w19, [x26, #192]
+         :                      {
+    0.01 :   ffff800010708a78:       str     w1, [x29, #108]
+    0.00 :   ffff800010708a7c:       ldr     x1, [x0]
+    0.01 :   ffff800010708a80:       str     x1, [x29, #488]
+    0.00 :   ffff800010708a84:       mov     x1, #0x0                        // #0
+    0.00 :   ffff800010708a88:       str     w2, [x29, #104]
+         :                      }, head = llq;
+    0.00 :   ffff800010708a8c:       mov     x1, x23
+         :                      struct arm_smmu_ll_queue llq = {
+    0.01 :   ffff800010708a90:       stp     xzr, xzr, [x26, #128]
+         :                      }, head = llq;
+    0.00 :   ffff800010708a94:       mov     x2, #0x80                       // #128
+         :                      struct arm_smmu_ll_queue llq = {
+    0.01 :   ffff800010708a98:       stp     xzr, xzr, [x23, #80]
+         :                      }, head = llq;
+    0.00 :   ffff800010708a9c:       mov     x0, x26
+         :                      struct arm_smmu_ll_queue llq = {
+    0.01 :   ffff800010708aa0:       stp     xzr, xzr, [x23, #96]
+    0.01 :   ffff800010708aa4:       stp     xzr, xzr, [x23, #112]
+         :                      }, head = llq;
+    0.00 :   ffff800010708aa8:       bl      ffff800010c92540 <__memcpy>
+         :                      arch_local_save_flags():
+         :                      */
+         :                      static inline unsigned long arch_local_save_flags(void)
+         :                      {
+         :                      unsigned long flags;
+         :
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708aac:       mrs     x8, daif
+    0.00 :   ffff800010708ab0:       mov     x21, x8
+         :                      arch_irqs_disabled_flags():
+         :
+         :                      static inline int arch_irqs_disabled_flags(unsigned long flags)
+         :                      {
+         :                      int res;
+         :
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708ab4:       and     w0, w8, #0x80
+         :                      arch_local_irq_save():
+         :
+         :                      /*
+         :                      * There are too many states with IRQs disabled, just keep the current
+         :                      * state if interrupts are already disabled/masked.
+         :                      */
+         :                      if (!arch_irqs_disabled_flags(flags))
+    0.00 :   ffff800010708ab8:       cbnz    w0, ffff800010708ac4 <arm_smmu_cmdq_issue_cmdlist+0xa4>
+         :                      arch_local_irq_disable():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708abc:       mov     x0, #0x60                       // #96
+    0.04 :   ffff800010708ac0:       msr     daifset, #0x2
+         :                      __read_once_size():
+         :                      })
+         :
+         :                      static __always_inline
+         :                      void __read_once_size(const volatile void *p, void *res, int size)
+         :                      {
+         :                      __READ_ONCE_SIZE;
+    0.00 :   ffff800010708ac4:       ldr     x0, [x28, #64]
+         :                      queue_has_space():
+         :                      prod = Q_IDX(q, q->prod);
+    0.00 :   ffff800010708ac8:       mov     w1, #0x1                        // #1
+    0.00 :   ffff800010708acc:       ldr     w2, [x29, #104]
+    0.00 :   ffff800010708ad0:       lsl     w19, w1, w19
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      int ret = 0;
+         :
+         :                      /* 1. Allocate some space in the queue */
+         :                      local_irq_save(flags);
+         :                      llq.val = READ_ONCE(cmdq->q.llq.val);
+    0.00 :   ffff800010708ad4:       str     x0, [x26, #128]
+         :                      u64 old;
+         :
+         :                      while (!queue_has_space(&llq, n + sync)) {
+         :                      local_irq_restore(flags);
+         :                      if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+         :                      dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+    0.00 :   ffff800010708ad8:       adrp    x1, ffff800010eac000 <arm_smmu_of_match+0x98>
+    0.00 :   ffff800010708adc:       ldr     w0, [x29, #108]
+         :                      queue_has_space():
+         :                      prod = Q_IDX(q, q->prod);
+    0.00 :   ffff800010708ae0:       sub     w22, w19, #0x1
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+    0.00 :   ffff800010708ae4:       add     x1, x1, #0x708
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708ae8:       orr     w20, w22, w19
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+    0.00 :   ffff800010708aec:       add     x24, x1, #0x20
+    0.00 :   ffff800010708af0:       add     w25, w0, w2
+    0.00 :   ffff800010708af4:       nop
+         :                      while (!queue_has_space(&llq, n + sync)) {
+    0.00 :   ffff800010708af8:       ldp     w1, w4, [x26, #128]
+         :                      queue_has_space():
+         :                      cons = Q_IDX(q, q->cons);
+    0.00 :   ffff800010708afc:       and     w0, w4, w22
+         :                      prod = Q_IDX(q, q->prod);
+    0.00 :   ffff800010708b00:       and     w3, w1, w22
+         :                      space = (1 << q->max_n_shift) - (prod - cons);
+    0.00 :   ffff800010708b04:       add     w2, w0, w19
+         :                      if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons))
+    0.00 :   ffff800010708b08:       eor     w9, w4, w1
+         :                      space = (1 << q->max_n_shift) - (prod - cons);
+    0.00 :   ffff800010708b0c:       tst     w9, w19
+    0.00 :   ffff800010708b10:       sub     w2, w2, w3
+    0.00 :   ffff800010708b14:       sub     w0, w0, w3
+    0.00 :   ffff800010708b18:       csel    w0, w0, w2, ne  // ne = any
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      while (!queue_has_space(&llq, n + sync)) {
+    0.00 :   ffff800010708b1c:       cmp     w0, w25
+    0.00 :   ffff800010708b20:       b.cc    ffff800010708ca4 <arm_smmu_cmdq_issue_cmdlist+0x284>  // b.lo, b.ul, b.last
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708b24:       and     w3, w1, w20
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010708b28:       and     w0, w1, #0x80000000
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708b2c:       add     w3, w3, w25
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :
+         :                      head.cons = llq.cons;
+         :                      head.prod = queue_inc_prod_n(&llq, n + sync) |
+         :                      CMDQ_PROD_OWNED_FLAG;
+         :
+         :                      old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+    0.00 :   ffff800010708b30:       ldr     x1, [x23]
+         :                      queue_inc_prod_n():
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010708b34:       and     w3, w3, w20
+    0.00 :   ffff800010708b38:       orr     w3, w3, w0
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      head.prod = queue_inc_prod_n(&llq, n + sync) |
+    0.00 :   ffff800010708b3c:       orr     w0, w3, #0x80000000
+         :                      head.cons = llq.cons;
+    0.00 :   ffff800010708b40:       stp     w0, w4, [x26]
+         :                      old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+    0.00 :   ffff800010708b44:       ldr     x2, [x26]
+         :                      arch_static_branch_jump():
+         :                      }
+         :
+         :                      static __always_inline bool arch_static_branch_jump(struct static_key *key,
+         :                      bool branch)
+         :                      {
+         :                      asm_volatile_goto(
+    0.00 :   ffff800010708b48:       b       ffff800010708b74 <arm_smmu_cmdq_issue_cmdlist+0x154>
+    0.00 :   ffff800010708b4c:       b       ffff800010708b74 <arm_smmu_cmdq_issue_cmdlist+0x154>
+         :                      __lse__cmpxchg_case_64():
+         :                      }
+         :
+         :                      __CMPXCHG_CASE(w, b,     ,  8,   )
+         :                      __CMPXCHG_CASE(w, h,     , 16,   )
+         :                      __CMPXCHG_CASE(w,  ,     , 32,   )
+         :                      __CMPXCHG_CASE(x,  ,     , 64,   )
+    0.00 :   ffff800010708b50:       mov     x0, x27
+    0.00 :   ffff800010708b54:       mov     x4, x1
+    0.00 :   ffff800010708b58:       cas     x4, x2, [x27]
+    0.00 :   ffff800010708b5c:       mov     x0, x4
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      if (old == llq.val)
+    0.00 :   ffff800010708b60:       ldr     x1, [x23]
+    0.00 :   ffff800010708b64:       cmp     x1, x0
+    0.00 :   ffff800010708b68:       b.eq    ffff800010708b84 <arm_smmu_cmdq_issue_cmdlist+0x164>  // b.none
+         :                      break;
+         :
+         :                      llq.val = old;
+    0.00 :   ffff800010708b6c:       str     x0, [x23]
+         :                      do {
+    0.00 :   ffff800010708b70:       b       ffff800010708af8 <arm_smmu_cmdq_issue_cmdlist+0xd8>
+         :                      __ll_sc__cmpxchg_case_64():
+         :                      * constraint for 32 bit operations.
+         :                      */
+         :                      __CMPXCHG_CASE(w, b,     ,  8,        ,  ,  ,         , K)
+         :                      __CMPXCHG_CASE(w, h,     , 16,        ,  ,  ,         , K)
+         :                      __CMPXCHG_CASE(w,  ,     , 32,        ,  ,  ,         , K)
+         :                      __CMPXCHG_CASE( ,  ,     , 64,        ,  ,  ,         , L)
+    0.00 :   ffff800010708b74:       b       ffff80001070b738 <arm_smmu_device_probe+0x11c8>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      if (old == llq.val)
+    0.00 :   ffff800010708b78:       ldr     x1, [x23]
+    0.00 :   ffff800010708b7c:       cmp     x1, x0
+    0.00 :   ffff800010708b80:       b.ne    ffff800010708b6c <arm_smmu_cmdq_issue_cmdlist+0x14c>  // b.any
+         :                      } while (1);
+         :                      owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
+    0.00 :   ffff800010708b84:       ldr     w25, [x23]
+         :                      head.prod &= ~CMDQ_PROD_OWNED_FLAG;
+    0.00 :   ffff800010708b88:       and     w0, w3, #0x7fffffff
+    0.00 :   ffff800010708b8c:       str     w0, [x26]
+         :                      llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+    0.00 :   ffff800010708b90:       and     w12, w25, #0x7fffffff
+         :                      arm_smmu_cmdq_write_entries():
+         :                      for (i = 0; i < n; ++i) {
+    0.00 :   ffff800010708b94:       ldr     w0, [x29, #104]
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+    0.00 :   ffff800010708b98:       str     w12, [x23]
+         :                      arm_smmu_cmdq_write_entries():
+         :                      .max_n_shift    = cmdq->q.llq.max_n_shift,
+    0.00 :   ffff800010708b9c:       ldr     w2, [x27, #64]
+         :                      for (i = 0; i < n; ++i) {
+    0.00 :   ffff800010708ba0:       cmp     w0, #0x0
+    0.00 :   ffff800010708ba4:       b.le    ffff800010708c14 <arm_smmu_cmdq_issue_cmdlist+0x1f4>
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708ba8:       mov     w13, #0x1                       // #1
+    0.00 :   ffff800010708bac:       sub     w10, w0, #0x1
+    0.00 :   ffff800010708bb0:       lsl     w0, w13, w2
+    0.00 :   ffff800010708bb4:       sub     w11, w0, #0x1
+    0.00 :   ffff800010708bb8:       orr     w11, w11, w0
+    0.00 :   ffff800010708bbc:       ldr     x24, [x29, #96]
+    0.00 :   ffff800010708bc0:       and     w1, w12, w11
+    0.00 :   ffff800010708bc4:       add     w10, w10, w1
+    0.00 :   ffff800010708bc8:       b       ffff800010708bd4 <arm_smmu_cmdq_issue_cmdlist+0x1b4>
+    0.00 :   ffff800010708bcc:       ldr     w2, [x27, #64]
+    0.00 :   ffff800010708bd0:       add     w1, w1, #0x1
+         :                      arm_smmu_cmdq_write_entries():
+         :                      queue_write(Q_ENT(&cmdq->q, prod), cmd, CMDQ_ENT_DWORDS);
+    0.00 :   ffff800010708bd4:       ldr     x3, [x27, #160]
+    0.00 :   ffff800010708bd8:       lsl     w0, w13, w2
+    0.00 :   ffff800010708bdc:       sub     w0, w0, #0x1
+    0.00 :   ffff800010708be0:       ldr     x4, [x27, #136]
+    0.00 :   ffff800010708be4:       and     w0, w0, w11
+         :                      queue_write():
+         :                      *dst++ = cpu_to_le64(*src++);
+    0.00 :   ffff800010708be8:       ldr     x9, [x24]
+         :                      arm_smmu_cmdq_write_entries():
+         :                      queue_write(Q_ENT(&cmdq->q, prod), cmd, CMDQ_ENT_DWORDS);
+    0.00 :   ffff800010708bec:       lsl     x2, x3, #3
+    0.00 :   ffff800010708bf0:       and     w0, w0, w1
+    0.00 :   ffff800010708bf4:       add     x24, x24, #0x10
+         :                      for (i = 0; i < n; ++i) {
+    0.00 :   ffff800010708bf8:       cmp     w1, w10
+         :                      queue_write(Q_ENT(&cmdq->q, prod), cmd, CMDQ_ENT_DWORDS);
+    0.00 :   ffff800010708bfc:       mul     x0, x0, x2
+    0.00 :   ffff800010708c00:       add     x2, x4, x0
+         :                      queue_write():
+         :                      *dst++ = cpu_to_le64(*src++);
+    0.00 :   ffff800010708c04:       str     x9, [x4, x0]
+    0.00 :   ffff800010708c08:       ldur    x0, [x24, #-8]
+    0.00 :   ffff800010708c0c:       str     x0, [x2, #8]
+         :                      arm_smmu_cmdq_write_entries():
+         :                      for (i = 0; i < n; ++i) {
+    0.00 :   ffff800010708c10:       b.ne    ffff800010708bcc <arm_smmu_cmdq_issue_cmdlist+0x1ac>  // b.any
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      /*
+         :                      * 2. Write our commands into the queue
+         :                      * Dependency ordering from the cmpxchg() loop above.
+         :                      */
+         :                      arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+         :                      if (sync) {
+    0.00 :   ffff800010708c14:       ldr     w0, [x29, #108]
+    0.00 :   ffff800010708c18:       cbnz    w0, ffff800010708f8c <arm_smmu_cmdq_issue_cmdlist+0x56c>
+         :                      */
+         :                      arm_smmu_cmdq_shared_lock(cmdq);
+         :                      }
+         :
+         :                      /* 3. Mark our slots as valid, ensuring commands are visible first */
+         :                      dma_wmb();
+    0.00 :   ffff800010708c1c:       dmb     oshst
+         :                      arm_smmu_cmdq_set_valid_map():
+         :                      __arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, true);
+    0.00 :   ffff800010708c20:       ldr     w3, [x26]
+    0.00 :   ffff800010708c24:       add     x5, x28, #0x100
+    0.00 :   ffff800010708c28:       ldr     w0, [x28, #128]
+    0.00 :   ffff800010708c2c:       mov     w4, #0x1                        // #1
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
+    0.00 :   ffff800010708c30:       ldr     w24, [x26, #128]
+         :                      arm_smmu_cmdq_set_valid_map():
+         :                      __arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, true);
+    0.00 :   ffff800010708c34:       mov     x1, x5
+    0.00 :   ffff800010708c38:       str     x5, [x29, #96]
+    0.00 :   ffff800010708c3c:       mov     w2, w24
+    0.00 :   ffff800010708c40:       bl      ffff8000107080c8 <__arm_smmu_cmdq_poll_set_valid_map.isra.32>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :
+         :                      /* 4. If we are the owner, take control of the SMMU hardware */
+         :                      if (owner) {
+    0.00 :   ffff800010708c44:       tbnz    w25, #31, ffff800010708df8 <arm_smmu_cmdq_issue_cmdlist+0x3d8>
+         :                      __read_once_size():
+    0.00 :   ffff800010708c48:       ldr     w0, [x28, #264]
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      /* a. Wait for previous owner to finish */
+         :                      atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
+    0.00 :   ffff800010708c4c:       add     x1, x28, #0x108
+    0.00 :   ffff800010708c50:       ldr     x5, [x29, #96]
+    0.00 :   ffff800010708c54:       cmp     w24, w0
+    0.00 :   ffff800010708c58:       b.eq    ffff800010708c8c <arm_smmu_cmdq_issue_cmdlist+0x26c>  // b.none
+    0.00 :   ffff800010708c5c:       nop
+    0.00 :   ffff800010708c60:       sxtw    x0, w0
+         :                      __cmpwait_case_32():
+         :                      : [val] "r" (val));                                             \
+         :                      }
+         :
+         :                      __CMPWAIT_CASE(w, b, 8);
+         :                      __CMPWAIT_CASE(w, h, 16);
+         :                      __CMPWAIT_CASE(w,  , 32);
+    0.00 :   ffff800010708c64:       sevl
+    0.00 :   ffff800010708c68:       wfe
+    0.00 :   ffff800010708c6c:       ldxr    w2, [x1]
+    0.00 :   ffff800010708c70:       eor     w2, w2, w0
+    0.00 :   ffff800010708c74:       cbnz    w2, ffff800010708c7c <arm_smmu_cmdq_issue_cmdlist+0x25c>
+    0.00 :   ffff800010708c78:       wfe
+         :                      __read_once_size():
+    0.00 :   ffff800010708c7c:       ldr     w0, [x28, #264]
+         :                      arm_smmu_cmdq_issue_cmdlist():
+    0.00 :   ffff800010708c80:       ldr     w2, [x23]
+    0.00 :   ffff800010708c84:       cmp     w2, w0
+    0.00 :   ffff800010708c88:       b.ne    ffff800010708c60 <arm_smmu_cmdq_issue_cmdlist+0x240>  // b.any
+         :                      arch_static_branch_jump():
+    0.00 :   ffff800010708c8c:       b       ffff800010708dc0 <arm_smmu_cmdq_issue_cmdlist+0x3a0>
+    0.00 :   ffff800010708c90:       b       ffff800010708dc0 <arm_smmu_cmdq_issue_cmdlist+0x3a0>
+         :                      __lse_atomic_fetch_andnot_relaxed():
+         :                      ATOMIC_FETCH_OPS(andnot, ldclr)
+    0.00 :   ffff800010708c94:       mov     w24, #0x80000000                // #-2147483648
+    0.00 :   ffff800010708c98:       add     x0, x28, #0x40
+    0.00 :   ffff800010708c9c:       ldclr   w24, w24, [x0]
+    0.00 :   ffff800010708ca0:       b       ffff800010708dcc <arm_smmu_cmdq_issue_cmdlist+0x3ac>
+         :                      arch_local_irq_restore():
+         :                      /*
+         :                      * restore saved IRQ state
+         :                      */
+         :                      static inline void arch_local_irq_restore(unsigned long flags)
+         :                      {
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708ca4:       msr     daif, x21
+         :                      arch_local_save_flags():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708ca8:       mrs     x4, daif
+         :                      arch_irqs_disabled_flags():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708cac:       and     w0, w4, #0x80
+         :                      arch_local_irq_save():
+         :                      if (!arch_irqs_disabled_flags(flags))
+    0.00 :   ffff800010708cb0:       cbnz    w0, ffff800010708cbc <arm_smmu_cmdq_issue_cmdlist+0x29c>
+         :                      arch_local_irq_disable():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708cb4:       mov     x0, #0x60                       // #96
+    0.00 :   ffff800010708cb8:       msr     daifset, #0x2
+         :                      atomic_cmpxchg_relaxed():
+         :                      #if defined(arch_atomic_cmpxchg_relaxed)
+         :                      static inline int
+         :                      atomic_cmpxchg_relaxed(atomic_t *v, int old, int new)
+         :                      {
+         :                      kasan_check_write(v, sizeof(*v));
+         :                      return arch_atomic_cmpxchg_relaxed(v, old, new);
+    0.00 :   ffff800010708cbc:       add     x3, x28, #0x10c
+         :                      arch_static_branch_jump():
+    0.00 :   ffff800010708cc0:       b       ffff800010708d24 <arm_smmu_cmdq_issue_cmdlist+0x304>
+    0.00 :   ffff800010708cc4:       b       ffff800010708d24 <arm_smmu_cmdq_issue_cmdlist+0x304>
+         :                      __lse__cmpxchg_case_32():
+         :                      __CMPXCHG_CASE(w,  ,     , 32,   )
+    0.00 :   ffff800010708cc8:       mov     w1, #0x0                        // #0
+    0.00 :   ffff800010708ccc:       mov     x0, x3
+    0.00 :   ffff800010708cd0:       mov     w2, #0x80000000                 // #-2147483648
+    0.00 :   ffff800010708cd4:       mov     w5, w1
+    0.00 :   ffff800010708cd8:       cas     w5, w2, [x3]
+    0.00 :   ffff800010708cdc:       mov     w0, w5
+         :                      arm_smmu_cmdq_poll_until_not_full():
+         :                      if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
+    0.00 :   ffff800010708ce0:       cbnz    w0, ffff800010708d38 <arm_smmu_cmdq_issue_cmdlist+0x318>
+         :                      __raw_readl():
+         :
+         :                      #define __raw_readl __raw_readl
+         :                      static inline u32 __raw_readl(const volatile void __iomem *addr)
+         :                      {
+         :                      u32 val;
+         :                      asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+    0.00 :   ffff800010708ce4:       ldr     x1, [x27, #176]
+    0.00 :   ffff800010708ce8:       ldr     w1, [x1]
+         :                      __write_once_size():
+         :                      static __always_inline void __write_once_size(volatile void *p, void *res, int size)
+         :                      {
+         :                      switch (size) {
+         :                      case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
+         :                      case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
+         :                      case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
+    0.00 :   ffff800010708cec:       str     w1, [x28, #68]
+         :                      atomic_set_release():
+         :
+         :                      #ifndef atomic_set_release
+         :                      static inline void
+         :                      atomic_set_release(atomic_t *v, int i)
+         :                      {
+         :                      smp_store_release(&(v)->counter, i);
+    0.00 :   ffff800010708cf0:       add     x1, x28, #0x10c
+    0.00 :   ffff800010708cf4:       stlr    w0, [x1]
+         :                      arch_local_irq_restore():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708cf8:       msr     daif, x4
+         :                      __read_once_size():
+         :                      __READ_ONCE_SIZE;
+    0.00 :   ffff800010708cfc:       ldr     x0, [x28, #64]
+         :                      arm_smmu_cmdq_poll_until_not_full():
+         :                      llq->val = READ_ONCE(cmdq->q.llq.val);
+    0.00 :   ffff800010708d00:       str     x0, [x23]
+    0.00 :   ffff800010708d04:       nop
+         :                      arch_local_save_flags():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708d08:       mrs     x8, daif
+    0.00 :   ffff800010708d0c:       mov     x21, x8
+         :                      arch_irqs_disabled_flags():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708d10:       and     w0, w8, #0x80
+         :                      arch_local_irq_save():
+         :                      if (!arch_irqs_disabled_flags(flags))
+    0.00 :   ffff800010708d14:       cbnz    w0, ffff800010708af8 <arm_smmu_cmdq_issue_cmdlist+0xd8>
+         :                      arch_local_irq_disable():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708d18:       mov     x0, #0x60                       // #96
+    0.00 :   ffff800010708d1c:       msr     daifset, #0x2
+    0.00 :   ffff800010708d20:       b       ffff800010708af8 <arm_smmu_cmdq_issue_cmdlist+0xd8>
+         :                      __ll_sc__cmpxchg_case_32():
+         :                      __CMPXCHG_CASE(w,  ,     , 32,        ,  ,  ,         , K)
+    0.00 :   ffff800010708d24:       mov     x1, #0x0                        // #0
+    0.00 :   ffff800010708d28:       mov     w2, #0x80000000                 // #-2147483648
+    0.00 :   ffff800010708d2c:       add     x5, x28, #0x10c
+    0.00 :   ffff800010708d30:       b       ffff80001070b754 <arm_smmu_device_probe+0x11e4>
+         :                      arm_smmu_cmdq_poll_until_not_full():
+         :                      if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
+    0.00 :   ffff800010708d34:       cbz     w0, ffff800010708ce4 <arm_smmu_cmdq_issue_cmdlist+0x2c4>
+         :                      arch_local_irq_restore():
+         :                      asm volatile(ALTERNATIVE(
+    0.00 :   ffff800010708d38:       msr     daif, x4
+         :                      queue_poll_init():
+         :                      qp->wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+    0.00 :   ffff800010708d3c:       ldr     w0, [x28, #16]
+         :                      qp->delay = 1;
+    0.00 :   ffff800010708d40:       mov     x1, #0x1                        // #1
+    0.00 :   ffff800010708d44:       str     x1, [x29, #120]
+         :                      qp->wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+    0.00 :   ffff800010708d48:       ubfx    x0, x0, #6, #1
+    0.00 :   ffff800010708d4c:       strb    w0, [x29, #128]
+         :                      qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+    0.00 :   ffff800010708d50:       bl      ffff80001016ad10 <ktime_get>
+         :                      ktime_add_us():
+         :                      return ktime_to_ms(ktime_sub(later, earlier));
+         :                      }
+         :
+         :                      static inline ktime_t ktime_add_us(const ktime_t kt, const u64 usec)
+         :                      {
+         :                      return ktime_add_ns(kt, usec * NSEC_PER_USEC);
+    0.00 :   ffff800010708d54:       mov     x1, #0xca00                     // #51712
+    0.00 :   ffff800010708d58:       movk    x1, #0x3b9a, lsl #16
+    0.00 :   ffff800010708d5c:       add     x0, x0, x1
+         :                      queue_poll_init():
+    0.00 :   ffff800010708d60:       str     x0, [x29, #112]
+    0.00 :   ffff800010708d64:       nop
+         :                      __read_once_size():
+    0.00 :   ffff800010708d68:       ldr     x0, [x28, #64]
+         :                      arm_smmu_cmdq_poll_until_not_full():
+         :                      llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
+    0.00 :   ffff800010708d6c:       str     x0, [x23]
+         :                      queue_full():
+         :                      return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
+    0.00 :   ffff800010708d70:       lsr     x1, x0, #32
+    0.00 :   ffff800010708d74:       eor     w0, w0, w1
+    0.00 :   ffff800010708d78:       tst     w22, w0
+    0.00 :   ffff800010708d7c:       b.ne    ffff800010708d08 <arm_smmu_cmdq_issue_cmdlist+0x2e8>  // b.any
+    0.00 :   ffff800010708d80:       tst     w19, w0
+    0.00 :   ffff800010708d84:       b.eq    ffff800010708d08 <arm_smmu_cmdq_issue_cmdlist+0x2e8>  // b.none
+         :                      arm_smmu_cmdq_poll_until_not_full():
+         :                      ret = queue_poll(&qp);
+    0.00 :   ffff800010708d88:       add     x0, x29, #0x70
+    0.00 :   ffff800010708d8c:       bl      ffff800010707f10 <queue_poll>
+         :                      } while (!ret);
+    0.00 :   ffff800010708d90:       cbz     w0, ffff800010708d68 <arm_smmu_cmdq_issue_cmdlist+0x348>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+    0.00 :   ffff800010708d94:       adrp    x0, ffff800011a0f000 <input_pool+0x18>
+    0.00 :   ffff800010708d98:       add     x0, x0, #0xf40
+    0.00 :   ffff800010708d9c:       mov     x1, x24
+    0.00 :   ffff800010708da0:       add     x0, x0, #0x138
+    0.00 :   ffff800010708da4:       bl      ffff800010c9eac8 <___ratelimit>
+    0.00 :   ffff800010708da8:       cbz     w0, ffff800010708d08 <arm_smmu_cmdq_issue_cmdlist+0x2e8>
+    0.00 :   ffff800010708dac:       ldr     x0, [x28]
+    0.00 :   ffff800010708db0:       adrp    x1, ffff800011229000 <kallsyms_token_index+0xaf330>
+    0.00 :   ffff800010708db4:       add     x1, x1, #0x10
+    0.00 :   ffff800010708db8:       bl      ffff800010718e00 <_dev_err>
+    0.00 :   ffff800010708dbc:       b       ffff800010708d08 <arm_smmu_cmdq_issue_cmdlist+0x2e8>
+         :                      __ll_sc_atomic_fetch_andnot_relaxed():
+         :                      ATOMIC_OPS(andnot, bic, )
+    0.00 :   ffff800010708dc0:       mov     w0, #0x80000000                 // #-2147483648
+    0.00 :   ffff800010708dc4:       add     x3, x28, #0x40
+    0.00 :   ffff800010708dc8:       b       ffff80001070b770 <arm_smmu_device_probe+0x1200>
+         :                      arm_smmu_cmdq_poll_valid_map():
+         :                      __arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, false);
+    0.00 :   ffff800010708dcc:       ldr     w0, [x28, #128]
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :
+         :                      /* b. Stop gathering work by clearing the owned flag */
+         :                      prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
+         :                      &cmdq->q.llq.atomic.prod);
+         :                      prod &= ~CMDQ_PROD_OWNED_FLAG;
+    0.00 :   ffff800010708dd0:       and     w24, w24, #0x7fffffff
+         :                      arm_smmu_cmdq_poll_valid_map():
+         :                      __arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, false);
+    0.00 :   ffff800010708dd4:       ldr     w2, [x26, #128]
+    0.00 :   ffff800010708dd8:       mov     w4, #0x0                        // #0
+    0.00 :   ffff800010708ddc:       mov     w3, w24
+    0.00 :   ffff800010708de0:       mov     x1, x5
+    0.00 :   ffff800010708de4:       bl      ffff8000107080c8 <__arm_smmu_cmdq_poll_set_valid_map.isra.32>
+         :                      __raw_writel():
+         :                      asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
+    0.00 :   ffff800010708de8:       ldr     x0, [x27, #168]
+    0.00 :   ffff800010708dec:       str     w24, [x0]
+         :                      atomic_set_release():
+    0.00 :   ffff800010708df0:       add     x0, x28, #0x108
+    0.00 :   ffff800010708df4:       stlr    w24, [x0]
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      */
+         :                      atomic_set_release(&cmdq->owner_prod, prod);
+         :                      }
+         :
+         :                      /* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
+         :                      if (sync) {
+    0.00 :   ffff800010708df8:       ldr     w0, [x29, #108]
+         :                      int ret = 0;
+    0.00 :   ffff800010708dfc:       mov     w24, #0x0                       // #0
+         :                      if (sync) {
+    0.00 :   ffff800010708e00:       cbnz    w0, ffff800010708e40 <arm_smmu_cmdq_issue_cmdlist+0x420>
+         :                      arch_local_irq_restore():
+    0.00 :   ffff800010708e04:       msr     daif, x21
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      }
+         :                      }
+         :
+         :                      local_irq_restore(flags);
+         :                      return ret;
+         :                      }
+   99.46 :   ffff800010708e08:       adrp    x0, ffff800011899000 <page_wait_table+0x1500>
+    0.00 :   ffff800010708e0c:       add     x21, x0, #0x8c8
+    0.02 :   ffff800010708e10:       ldr     x2, [x29, #488]
+    0.13 :   ffff800010708e14:       ldr     x1, [x21]
+    0.00 :   ffff800010708e18:       eor     x1, x2, x1
+    0.00 :   ffff800010708e1c:       mov     w0, w24
+    0.00 :   ffff800010708e20:       cbnz    x1, ffff800010709194 <arm_smmu_cmdq_issue_cmdlist+0x774>
+    0.00 :   ffff800010708e24:       ldp     x19, x20, [sp, #16]
+    0.03 :   ffff800010708e28:       ldp     x21, x22, [sp, #32]
+    0.00 :   ffff800010708e2c:       ldp     x23, x24, [sp, #48]
+    0.01 :   ffff800010708e30:       ldp     x25, x26, [sp, #64]
+    0.00 :   ffff800010708e34:       ldp     x27, x28, [sp, #80]
+    0.01 :   ffff800010708e38:       ldp     x29, x30, [sp], #496
+    0.00 :   ffff800010708e3c:       ret
+         :                      llq.prod = queue_inc_prod_n(&llq, n);
+    0.00 :   ffff800010708e40:       ldr     w2, [x26, #128]
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708e44:       ldr     w3, [x29, #104]
+    0.00 :   ffff800010708e48:       and     w0, w2, w20
+         :                      arm_smmu_cmdq_poll_until_sync():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708e4c:       ldr     w1, [x28, #16]
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708e50:       add     w3, w0, w3
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010708e54:       and     w2, w2, #0x80000000
+    0.00 :   ffff800010708e58:       and     w3, w3, w20
+         :                      arm_smmu_cmdq_poll_until_sync():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708e5c:       and     w0, w1, #0x180
+         :                      queue_inc_prod_n():
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010708e60:       orr     w25, w3, w2
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      llq.prod = queue_inc_prod_n(&llq, n);
+    0.00 :   ffff800010708e64:       str     w25, [x26, #128]
+    0.00 :   ffff800010708e68:       ubfx    x1, x1, #6, #1
+         :                      arm_smmu_cmdq_poll_until_sync():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708e6c:       cmp     w0, #0x180
+    0.00 :   ffff800010708e70:       b.eq    ffff8000107090b4 <arm_smmu_cmdq_issue_cmdlist+0x694>  // b.none
+         :                      queue_poll_init():
+         :                      qp->delay = 1;
+    0.00 :   ffff800010708e74:       mov     x0, #0x1                        // #1
+    0.00 :   ffff800010708e78:       str     x0, [x29, #120]
+         :                      qp->wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+    0.00 :   ffff800010708e7c:       strb    w1, [x29, #128]
+    0.00 :   ffff800010708e80:       and     w20, w22, w25
+         :                      qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+    0.00 :   ffff800010708e84:       bl      ffff80001016ad10 <ktime_get>
+         :                      __read_once_size():
+    0.00 :   ffff800010708e88:       ldr     x1, [x28, #64]
+         :                      ktime_add_us():
+    0.00 :   ffff800010708e8c:       mov     x2, #0xca00                     // #51712
+         :                      __arm_smmu_cmdq_poll_until_consumed():
+         :                      llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
+    0.00 :   ffff800010708e90:       str     x1, [x26, #128]
+         :                      ktime_add_us():
+    0.00 :   ffff800010708e94:       movk    x2, #0x3b9a, lsl #16
+    0.00 :   ffff800010708e98:       add     x0, x0, x2
+         :                      queue_poll_init():
+         :                      qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+    0.00 :   ffff800010708e9c:       str     x0, [x29, #112]
+    0.00 :   ffff800010708ea0:       lsr     x1, x1, #32
+    0.00 :   ffff800010708ea4:       nop
+         :                      queue_consumed():
+         :                      return ((Q_WRP(q, q->cons) == Q_WRP(q, prod)) &&
+    0.00 :   ffff800010708ea8:       eor     w0, w25, w1
+    0.00 :   ffff800010708eac:       and     w1, w22, w1
+         :                      (Q_IDX(q, q->cons) > Q_IDX(q, prod))) ||
+    0.00 :   ffff800010708eb0:       tst     w0, w19
+    0.00 :   ffff800010708eb4:       b.eq    ffff800010708ef4 <arm_smmu_cmdq_issue_cmdlist+0x4d4>  // b.none
+         :                      ((Q_WRP(q, q->cons) != Q_WRP(q, prod)) &&
+    0.00 :   ffff800010708eb8:       cmp     w1, w20
+    0.00 :   ffff800010708ebc:       b.hi    ffff800010708efc <arm_smmu_cmdq_issue_cmdlist+0x4dc>  // b.pmore
+         :                      __arm_smmu_cmdq_poll_until_consumed():
+    0.00 :   ffff800010708ec0:       mov     w24, #0x0                       // #0
+         :                      __read_once_size():
+    0.00 :   ffff800010708ec4:       ldr     w1, [x28, #268]
+    0.00 :   ffff800010708ec8:       add     x0, x28, #0x10c
+         :                      arm_smmu_cmdq_shared_tryunlock():
+         :                      if (atomic_read(&cmdq->lock) == 1)
+    0.00 :   ffff800010708ecc:       cmp     w1, #0x1
+    0.00 :   ffff800010708ed0:       b.eq    ffff80001070914c <arm_smmu_cmdq_issue_cmdlist+0x72c>  // b.none
+         :                      arch_static_branch_jump():
+    0.00 :   ffff800010708ed4:       b       ffff800010708f7c <arm_smmu_cmdq_issue_cmdlist+0x55c>
+    0.00 :   ffff800010708ed8:       b       ffff800010708f7c <arm_smmu_cmdq_issue_cmdlist+0x55c>
+         :                      __lse_atomic_sub_return_release():
+         :                      ATOMIC_OP_SUB_RETURN(_release,  l, "memory")
+    0.00 :   ffff800010708edc:       mov     w1, #0x1                        // #1
+    0.00 :   ffff800010708ee0:       add     x3, x28, #0x10c
+    0.00 :   ffff800010708ee4:       neg     w1, w1
+    0.00 :   ffff800010708ee8:       ldaddl  w1, w2, [x3]
+    0.00 :   ffff800010708eec:       add     w1, w1, w2
+    0.00 :   ffff800010708ef0:       b       ffff800010708e04 <arm_smmu_cmdq_issue_cmdlist+0x3e4>
+         :                      queue_consumed():
+         :                      return ((Q_WRP(q, q->cons) == Q_WRP(q, prod)) &&
+    0.00 :   ffff800010708ef4:       cmp     w1, w20
+    0.00 :   ffff800010708ef8:       b.hi    ffff800010708ec0 <arm_smmu_cmdq_issue_cmdlist+0x4a0>  // b.pmore
+         :                      __arm_smmu_cmdq_poll_until_consumed():
+         :                      ret = queue_poll(&qp);
+    0.00 :   ffff800010708efc:       add     x0, x29, #0x70
+    0.00 :   ffff800010708f00:       bl      ffff800010707f10 <queue_poll>
+         :                      __raw_readl():
+         :                      asm volatile(ALTERNATIVE("ldr %w0, [%1]",
+    0.00 :   ffff800010708f04:       ldr     x1, [x27, #176]
+         :                      __arm_smmu_cmdq_poll_until_consumed():
+    0.00 :   ffff800010708f08:       mov     w24, w0
+         :                      __raw_readl():
+    0.00 :   ffff800010708f0c:       ldr     w1, [x1]
+         :                      __arm_smmu_cmdq_poll_until_consumed():
+         :                      llq->cons = readl(cmdq->q.cons_reg);
+    0.00 :   ffff800010708f10:       dmb     oshld
+    0.00 :   ffff800010708f14:       mov     w0, w1
+    0.00 :   ffff800010708f18:       eor     x0, x0, x0
+    0.00 :   ffff800010708f1c:       cbnz    x0, ffff800010708f1c <arm_smmu_cmdq_issue_cmdlist+0x4fc>
+    0.00 :   ffff800010708f20:       str     w1, [x23, #4]
+         :                      } while (!ret);
+    0.00 :   ffff800010708f24:       cbz     w24, ffff800010708ea8 <arm_smmu_cmdq_issue_cmdlist+0x488>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      dev_err_ratelimited(smmu->dev,
+    0.00 :   ffff800010708f28:       adrp    x1, ffff800010eac000 <arm_smmu_of_match+0x98>
+    0.00 :   ffff800010708f2c:       adrp    x0, ffff800011a0f000 <input_pool+0x18>
+    0.00 :   ffff800010708f30:       add     x1, x1, #0x708
+    0.00 :   ffff800010708f34:       add     x0, x0, #0xf40
+    0.00 :   ffff800010708f38:       add     x1, x1, #0x20
+    0.00 :   ffff800010708f3c:       add     x0, x0, #0x110
+    0.00 :   ffff800010708f40:       bl      ffff800010c9eac8 <___ratelimit>
+    0.00 :   ffff800010708f44:       cbz     w0, ffff800010708ec4 <arm_smmu_cmdq_issue_cmdlist+0x4a4>
+    0.00 :   ffff800010708f48:       ldr     x7, [x28]
+    0.00 :   ffff800010708f4c:       ldr     w2, [x26, #128]
+    0.00 :   ffff800010708f50:       ldr     x0, [x27, #168]
+    0.00 :   ffff800010708f54:       bl      ffff800010707540 <__raw_readl>
+    0.00 :   ffff800010708f58:       mov     w3, w0
+    0.00 :   ffff800010708f5c:       ldr     x0, [x27, #176]
+    0.00 :   ffff800010708f60:       bl      ffff800010707540 <__raw_readl>
+    0.00 :   ffff800010708f64:       mov     w4, w0
+    0.00 :   ffff800010708f68:       adrp    x1, ffff800011229000 <kallsyms_token_index+0xaf330>
+    0.00 :   ffff800010708f6c:       mov     x0, x7
+    0.00 :   ffff800010708f70:       add     x1, x1, #0x20
+    0.00 :   ffff800010708f74:       bl      ffff800010718e00 <_dev_err>
+    0.00 :   ffff800010708f78:       b       ffff800010708ec4 <arm_smmu_cmdq_issue_cmdlist+0x4a4>
+         :                      __ll_sc_atomic_sub_return_release():
+         :                      ATOMIC_OPS(sub, sub, J)
+    0.00 :   ffff800010708f7c:       mov     w0, #0x1                        // #1
+    0.00 :   ffff800010708f80:       add     x3, x28, #0x10c
+    0.00 :   ffff800010708f84:       b       ffff80001070b788 <arm_smmu_device_probe+0x1218>
+    0.00 :   ffff800010708f88:       b       ffff800010708e04 <arm_smmu_cmdq_issue_cmdlist+0x3e4>
+         :                      arm_smmu_cmdq_build_sync_cmd():
+         :                      struct arm_smmu_cmdq_ent ent = {
+    0.00 :   ffff800010708f8c:       mov     w1, #0x46                       // #70
+    0.00 :   ffff800010708f90:       stp     xzr, xzr, [x29, #112]
+    0.00 :   ffff800010708f94:       strb    w1, [x29, #112]
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708f98:       and     w9, w12, w20
+         :                      arm_smmu_cmdq_build_sync_cmd():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708f9c:       ldr     w0, [x28, #16]
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708fa0:       ldr     w1, [x29, #104]
+         :                      arm_smmu_cmdq_build_sync_cmd():
+         :                      struct arm_smmu_cmdq_ent ent = {
+    0.00 :   ffff800010708fa4:       stp     xzr, xzr, [x29, #128]
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708fa8:       and     w0, w0, #0x180
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010708fac:       add     w9, w9, w1
+         :                      arm_smmu_cmdq_build_sync_cmd():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708fb0:       cmp     w0, #0x180
+         :                      queue_inc_prod_n():
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010708fb4:       and     w9, w9, w20
+         :                      arm_smmu_cmdq_build_sync_cmd():
+         :                      if (smmu->features & ARM_SMMU_FEAT_MSI &&
+    0.00 :   ffff800010708fb8:       b.ne    ffff800010708fe4 <arm_smmu_cmdq_issue_cmdlist+0x5c4>  // b.any
+         :                      ent.sync.msiaddr = q->base_dma + Q_IDX(&q->llq, prod) *
+    0.00 :   ffff800010708fbc:       ldr     w3, [x27, #64]
+    0.00 :   ffff800010708fc0:       mov     w0, #0x1                        // #1
+         :                      q->ent_dwords * 8;
+    0.00 :   ffff800010708fc4:       ldr     x1, [x27, #160]
+         :                      ent.sync.msiaddr = q->base_dma + Q_IDX(&q->llq, prod) *
+    0.00 :   ffff800010708fc8:       ldr     x2, [x27, #144]
+    0.00 :   ffff800010708fcc:       lsl     w0, w0, w3
+    0.00 :   ffff800010708fd0:       sub     w0, w0, #0x1
+    0.00 :   ffff800010708fd4:       and     w0, w0, w9
+         :                      q->ent_dwords * 8;
+    0.00 :   ffff800010708fd8:       lsl     x1, x1, #3
+         :                      ent.sync.msiaddr = q->base_dma + Q_IDX(&q->llq, prod) *
+    0.00 :   ffff800010708fdc:       madd    x0, x0, x1, x2
+    0.00 :   ffff800010708fe0:       str     x0, [x29, #120]
+         :                      arm_smmu_cmdq_build_cmd(cmd, &ent);
+    0.00 :   ffff800010708fe4:       add     x1, x29, #0x70
+    0.00 :   ffff800010708fe8:       add     x0, x29, #0x1d8
+    0.00 :   ffff800010708fec:       bl      ffff8000107079c0 <arm_smmu_cmdq_build_cmd>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+    0.00 :   ffff800010708ff0:       ldr     w4, [x27, #64]
+    0.00 :   ffff800010708ff4:       mov     w0, #0x1                        // #1
+    0.00 :   ffff800010708ff8:       ldr     x1, [x27, #160]
+    0.00 :   ffff800010708ffc:       ldr     x2, [x27, #136]
+    0.00 :   ffff800010709000:       lsl     w0, w0, w4
+    0.00 :   ffff800010709004:       sub     w0, w0, #0x1
+    0.00 :   ffff800010709008:       lsl     x1, x1, #3
+    0.00 :   ffff80001070900c:       and     w0, w0, w9
+         :                      queue_write():
+         :                      *dst++ = cpu_to_le64(*src++);
+    0.00 :   ffff800010709010:       ldr     x3, [x29, #472]
+         :                      arm_smmu_cmdq_shared_lock():
+         :                      if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
+    0.00 :   ffff800010709014:       add     x4, x28, #0x10c
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+    0.00 :   ffff800010709018:       mul     x0, x0, x1
+    0.00 :   ffff80001070901c:       add     x1, x2, x0
+         :                      queue_write():
+         :                      *dst++ = cpu_to_le64(*src++);
+    0.00 :   ffff800010709020:       str     x3, [x2, x0]
+    0.00 :   ffff800010709024:       ldr     x0, [x29, #480]
+    0.00 :   ffff800010709028:       str     x0, [x1, #8]
+         :                      arch_static_branch_jump():
+    0.00 :   ffff80001070902c:       b       ffff80001070909c <arm_smmu_cmdq_issue_cmdlist+0x67c>
+    0.00 :   ffff800010709030:       b       ffff80001070909c <arm_smmu_cmdq_issue_cmdlist+0x67c>
+         :                      __lse_atomic_fetch_add_relaxed():
+         :                      ATOMIC_FETCH_OPS(add, ldadd)
+    0.00 :   ffff800010709034:       mov     w0, #0x1                        // #1
+    0.00 :   ffff800010709038:       ldadd   w0, w0, [x4]
+         :                      arm_smmu_cmdq_shared_lock():
+         :                      if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
+    0.00 :   ffff80001070903c:       tbz     w0, #31, ffff800010708c1c <arm_smmu_cmdq_issue_cmdlist+0x1fc>
+         :                      __read_once_size():
+    0.00 :   ffff800010709040:       ldr     w3, [x28, #268]
+         :                      arm_smmu_cmdq_shared_lock():
+         :                      val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
+    0.00 :   ffff800010709044:       tbz     w3, #31, ffff80001070906c <arm_smmu_cmdq_issue_cmdlist+0x64c>
+    0.00 :   ffff800010709048:       sxtw    x3, w3
+         :                      __cmpwait_case_32():
+    0.00 :   ffff80001070904c:       sevl
+    0.00 :   ffff800010709050:       wfe
+    0.00 :   ffff800010709054:       ldxr    w0, [x4]
+    0.00 :   ffff800010709058:       eor     w0, w0, w3
+    0.00 :   ffff80001070905c:       cbnz    w0, ffff800010709064 <arm_smmu_cmdq_issue_cmdlist+0x644>
+    0.00 :   ffff800010709060:       wfe
+         :                      __read_once_size():
+    0.00 :   ffff800010709064:       ldr     w3, [x28, #268]
+         :                      arm_smmu_cmdq_shared_lock():
+    0.00 :   ffff800010709068:       tbnz    w3, #31, ffff800010709048 <arm_smmu_cmdq_issue_cmdlist+0x628>
+         :                      atomic_cmpxchg_relaxed():
+    0.00 :   ffff80001070906c:       sxtw    x1, w3
+         :                      arm_smmu_cmdq_shared_lock():
+         :                      } while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
+    0.00 :   ffff800010709070:       add     w2, w3, #0x1
+         :                      arch_static_branch_jump():
+    0.00 :   ffff800010709074:       b       ffff8000107090ac <arm_smmu_cmdq_issue_cmdlist+0x68c>
+    0.00 :   ffff800010709078:       b       ffff8000107090ac <arm_smmu_cmdq_issue_cmdlist+0x68c>
+         :                      __lse__cmpxchg_case_32():
+         :                      __CMPXCHG_CASE(w,  ,     , 32,   )
+    0.00 :   ffff80001070907c:       mov     x0, x4
+    0.00 :   ffff800010709080:       mov     w1, w3
+    0.00 :   ffff800010709084:       mov     w5, w1
+    0.00 :   ffff800010709088:       cas     w5, w2, [x4]
+    0.00 :   ffff80001070908c:       mov     w0, w5
+         :                      arm_smmu_cmdq_shared_lock():
+    0.00 :   ffff800010709090:       cmp     w3, w0
+    0.00 :   ffff800010709094:       b.ne    ffff800010709064 <arm_smmu_cmdq_issue_cmdlist+0x644>  // b.any
+    0.00 :   ffff800010709098:       b       ffff800010708c1c <arm_smmu_cmdq_issue_cmdlist+0x1fc>
+         :                      __ll_sc_atomic_fetch_add_relaxed():
+         :                      ATOMIC_OPS(add, add, I)
+    0.00 :   ffff80001070909c:       add     x3, x28, #0x10c
+    0.00 :   ffff8000107090a0:       b       ffff80001070b7a0 <arm_smmu_device_probe+0x1230>
+         :                      arm_smmu_cmdq_shared_lock():
+         :                      if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
+    0.00 :   ffff8000107090a4:       tbz     w0, #31, ffff800010708c1c <arm_smmu_cmdq_issue_cmdlist+0x1fc>
+    0.00 :   ffff8000107090a8:       b       ffff800010709040 <arm_smmu_cmdq_issue_cmdlist+0x620>
+         :                      __ll_sc__cmpxchg_case_32():
+         :                      __CMPXCHG_CASE(w,  ,     , 32,        ,  ,  ,         , K)
+    0.00 :   ffff8000107090ac:       b       ffff80001070b7b8 <arm_smmu_device_probe+0x1248>
+    0.00 :   ffff8000107090b0:       b       ffff800010709090 <arm_smmu_cmdq_issue_cmdlist+0x670>
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod));
+    0.00 :   ffff8000107090b4:       ldr     w2, [x27, #64]
+    0.00 :   ffff8000107090b8:       mov     w19, #0x1                       // #1
+    0.00 :   ffff8000107090bc:       ldr     x0, [x27, #160]
+         :                      queue_poll_init():
+         :                      qp->delay = 1;
+    0.00 :   ffff8000107090c0:       mov     x3, #0x1                        // #1
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod));
+    0.00 :   ffff8000107090c4:       ldr     x24, [x27, #136]
+    0.00 :   ffff8000107090c8:       lsl     w19, w19, w2
+    0.00 :   ffff8000107090cc:       sub     w19, w19, #0x1
+    0.00 :   ffff8000107090d0:       lsl     x0, x0, #3
+    0.00 :   ffff8000107090d4:       and     w19, w19, w25
+         :                      queue_poll_init():
+         :                      qp->delay = 1;
+    0.00 :   ffff8000107090d8:       str     x3, [x29, #120]
+         :                      qp->wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
+    0.00 :   ffff8000107090dc:       strb    w1, [x29, #128]
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod));
+    0.00 :   ffff8000107090e0:       mul     x19, x19, x0
+         :                      queue_poll_init():
+         :                      qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+    0.00 :   ffff8000107090e4:       bl      ffff80001016ad10 <ktime_get>
+         :                      ktime_add_us():
+    0.00 :   ffff8000107090e8:       mov     x1, #0xca00                     // #51712
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      qp.wfe = false;
+    0.00 :   ffff8000107090ec:       strb    wzr, [x29, #128]
+         :                      ktime_add_us():
+    0.00 :   ffff8000107090f0:       movk    x1, #0x3b9a, lsl #16
+    0.00 :   ffff8000107090f4:       add     x0, x0, x1
+         :                      queue_poll_init():
+         :                      qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
+    0.00 :   ffff8000107090f8:       str     x0, [x29, #112]
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod));
+    0.00 :   ffff8000107090fc:       add     x22, x24, x19
+         :                      __read_once_size():
+    0.00 :   ffff800010709100:       ldr     w19, [x24, x19]
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      smp_cond_load_relaxed(cmd, !VAL || (ret = queue_poll(&qp)));
+    0.00 :   ffff800010709104:       cbnz    w19, ffff800010709130 <arm_smmu_cmdq_issue_cmdlist+0x710>
+    0.00 :   ffff800010709108:       b       ffff800010709174 <arm_smmu_cmdq_issue_cmdlist+0x754>
+    0.00 :   ffff80001070910c:       mov     w19, w19
+         :                      __cmpwait_case_32():
+    0.00 :   ffff800010709110:       sevl
+    0.00 :   ffff800010709114:       wfe
+    0.00 :   ffff800010709118:       ldxr    w0, [x22]
+    0.00 :   ffff80001070911c:       eor     w0, w0, w19
+    0.00 :   ffff800010709120:       cbnz    w0, ffff800010709128 <arm_smmu_cmdq_issue_cmdlist+0x708>
+    0.00 :   ffff800010709124:       wfe
+         :                      __read_once_size():
+    0.00 :   ffff800010709128:       ldr     w19, [x22]
+         :                      __arm_smmu_cmdq_poll_until_msi():
+    0.00 :   ffff80001070912c:       cbz     w19, ffff800010709170 <arm_smmu_cmdq_issue_cmdlist+0x750>
+    0.00 :   ffff800010709130:       add     x0, x29, #0x70
+    0.00 :   ffff800010709134:       bl      ffff800010707f10 <queue_poll>
+    0.00 :   ffff800010709138:       mov     w24, w0
+    0.00 :   ffff80001070913c:       cbz     w0, ffff80001070910c <arm_smmu_cmdq_issue_cmdlist+0x6ec>
+         :                      llq->cons = ret ? llq->prod : queue_inc_prod_n(llq, 1);
+    0.00 :   ffff800010709140:       ldr     w0, [x26, #128]
+    0.00 :   ffff800010709144:       str     w0, [x23, #4]
+    0.00 :   ffff800010709148:       b       ffff800010708f28 <arm_smmu_cmdq_issue_cmdlist+0x508>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+    0.00 :   ffff80001070914c:       ldr     w1, [x23, #4]
+         :                      __write_once_size():
+         :                      case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
+    0.00 :   ffff800010709150:       str     w1, [x28, #68]
+         :                      arch_static_branch_jump():
+    0.00 :   ffff800010709154:       b       ffff800010708f7c <arm_smmu_cmdq_issue_cmdlist+0x55c>
+    0.00 :   ffff800010709158:       b       ffff800010708f7c <arm_smmu_cmdq_issue_cmdlist+0x55c>
+         :                      __lse_atomic_sub_return_release():
+         :                      ATOMIC_OP_SUB_RETURN(_release,  l, "memory")
+    0.00 :   ffff80001070915c:       mov     w1, #0x1                        // #1
+    0.00 :   ffff800010709160:       neg     w1, w1
+    0.00 :   ffff800010709164:       ldaddl  w1, w2, [x0]
+    0.00 :   ffff800010709168:       add     w1, w1, w2
+    0.00 :   ffff80001070916c:       b       ffff800010708e04 <arm_smmu_cmdq_issue_cmdlist+0x3e4>
+    0.00 :   ffff800010709170:       ldr     w25, [x26, #128]
+         :                      queue_inc_prod_n():
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff800010709174:       and     w0, w20, w25
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010709178:       and     w22, w25, #0x80000000
+         :                      u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
+    0.00 :   ffff80001070917c:       add     w0, w0, #0x1
+         :                      __arm_smmu_cmdq_poll_until_msi():
+    0.00 :   ffff800010709180:       mov     w24, #0x0                       // #0
+         :                      queue_inc_prod_n():
+         :                      return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+    0.00 :   ffff800010709184:       and     w20, w0, w20
+    0.00 :   ffff800010709188:       orr     w22, w20, w22
+         :                      __arm_smmu_cmdq_poll_until_msi():
+         :                      llq->cons = ret ? llq->prod : queue_inc_prod_n(llq, 1);
+    0.00 :   ffff80001070918c:       str     w22, [x23, #4]
+    0.00 :   ffff800010709190:       b       ffff800010708ec4 <arm_smmu_cmdq_issue_cmdlist+0x4a4>
+         :                      arm_smmu_cmdq_issue_cmdlist():
+         :                      }
+    0.00 :   ffff800010709194:       bl      ffff8000100e5630 <__stack_chk_fail>
