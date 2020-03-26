@@ -515,6 +515,8 @@ static int topology_get_acpi_cpu_tag(struct acpi_table_header *table,
 		if (level == 0 ||
 		    cpu_node->flags & ACPI_PPTT_ACPI_PROCESSOR_ID_VALID)
 			return cpu_node->acpi_processor_id;
+		if (flag & ACPI_PPTT_PHYSICAL_PACKAGE)
+			pr_notice_once("Physical package node Processor ID valid not set, will use table offset as substitute\n");
 		return ACPI_PTR_DIFF(cpu_node, table);
 	}
 	pr_warn_once("PPTT table found, but unable to locate core %d (%d)\n",
