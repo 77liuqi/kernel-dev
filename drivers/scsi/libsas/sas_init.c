@@ -51,7 +51,7 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 	if (!slow)
 		goto out_err_slow;
 
-	if (shost->reserved_cmd_q) {
+	if (shost->_sdev) {
 		slow->scmd = scsi_get_reserved_cmd(shost);
 		if (!slow->scmd)
 			goto out_err_scmd;
@@ -119,6 +119,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];
 	int error = 0;
+	struct Scsi_Host *shost;
 
 	mutex_init(&sas_ha->disco_mutex);
 	spin_lock_init(&sas_ha->phy_port_lock);
@@ -164,6 +165,14 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
+
+	shost = sas_ha->core.shost;
+	if (shost->nr_reserved_cmds) {
+		shost->_sdev = scsi_get_host_dev(shost);
+		pr_err("%s _sdev=%pS\n", __func__, shost->_sdev);
+		if (IS_ERR_OR_NULL(shost->_sdev))
+			return PTR_ERR(shost->_sdev);
+	}
 
 	return 0;
 

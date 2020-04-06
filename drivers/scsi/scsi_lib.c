@@ -1876,7 +1876,7 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	ret = blk_mq_alloc_tag_set(&shost->tag_set);
 	if (ret)
 		return ret;
-
+#if 0
 	if (shost->nr_reserved_cmds) {
 		shost->reserved_cmd_q = blk_mq_init_queue(&shost->tag_set);
 		if (IS_ERR(shost->reserved_cmd_q)) {
@@ -1885,13 +1885,16 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 			shost->reserved_cmd_q = NULL;
 		}
 	}
+#endif
 	return ret;
 }
 
 void scsi_mq_destroy_tags(struct Scsi_Host *shost)
 {
+#if 0
 	if (shost->reserved_cmd_q)
 		blk_cleanup_queue(shost->reserved_cmd_q);
+#endif
 	blk_mq_free_tag_set(&shost->tag_set);
 }
 
@@ -1900,10 +1903,10 @@ struct scsi_cmnd *scsi_get_reserved_cmd(struct Scsi_Host *shost)
 	struct scsi_cmnd *scmd;
 	struct request *rq;
 
-	if (WARN_ON(!shost->reserved_cmd_q))
+	if (WARN_ON(!shost->_sdev))
 		return NULL;
 
-	rq = blk_mq_alloc_request(shost->reserved_cmd_q,
+	rq = blk_mq_alloc_request(shost->_sdev->request_queue,
 				  REQ_OP_DRV_OUT | REQ_NOWAIT,
 				  BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))

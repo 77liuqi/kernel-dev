@@ -541,6 +541,8 @@ struct Scsi_Host {
 	/* Area to keep a shared tag map */
 	struct blk_mq_tag_set	tag_set;
 
+	struct scsi_device *_sdev;
+
 	atomic_t host_blocked;
 
 	unsigned int host_failed;	   /* commands that failed.
@@ -604,7 +606,6 @@ struct Scsi_Host {
 	 * Number of reserved commands, if any.
 	 */
 	unsigned nr_reserved_cmds;
-	struct request_queue *reserved_cmd_q;
 
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;

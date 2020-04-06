@@ -794,6 +794,8 @@ int sas_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 {
 	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
+	if (!shost)
+		return NULL;
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct domain_device *found_dev = NULL;
 	int i;
@@ -826,7 +828,7 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
 
 	if (!found_dev)
-		return -ENODEV;
+		return 0;
 
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
