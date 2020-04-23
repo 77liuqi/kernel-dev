@@ -434,7 +434,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent, /*gendev for
 	dev->bus = &scsi_bus_type;
 	dev->type = &scsi_target_type;
 
-	dev_err(parent, "%s parent=%pS (%s)\n", __func__, parent, dev_name(parent));
+//	dev_err(parent, "%s parent=%pS (%s)\n", __func__, parent, dev_name(parent));
 
 	starget->id = id;
 	starget->channel = channel;

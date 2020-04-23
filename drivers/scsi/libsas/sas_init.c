@@ -55,7 +55,7 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 
 //	pr_err("%s2 shost->_sdev=%pS\n", __func__, shost->_sdev);
 
-	if (shost->_sdev) {
+	if (shost->nr_reserved_cmds) {
 		slow->scmd = scsi_get_reserved_cmd(shost);
 		if (!slow->scmd)
 			goto out_err_scmd;
@@ -69,10 +69,10 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 	return task;
 
 out_err_scmd:
-	pr_err("%s out_err_scmd shost->_sdev=%pS\n", __func__, shost->_sdev);
+	pr_err("%s out_err_scmd\n", __func__);
 	kfree(slow);
 out_err_slow:
-	pr_err("%s out_err_slow shost->_sdev=%pS\n", __func__, shost->_sdev);
+	pr_err("%s out_err_slow\n", __func__);
 	kmem_cache_free(sas_task_cache, task);
 	return NULL;
 }
@@ -173,12 +173,6 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
 	shost = sas_ha->core.shost;
-	if (shost->nr_reserved_cmds) {
-		shost->_sdev = scsi_get_host_dev(shost);
-		pr_err("%s _sdev=%pS\n", __func__, shost->_sdev);
-		if (IS_ERR_OR_NULL(shost->_sdev))
-			return PTR_ERR(shost->_sdev);
-	}
 
 	return 0;
 

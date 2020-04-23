@@ -541,8 +541,6 @@ struct Scsi_Host {
 	/* Area to keep a shared tag map */
 	struct blk_mq_tag_set	tag_set;
 
-	struct scsi_device *_sdev;
-
 	atomic_t host_blocked;
 
 	unsigned int host_failed;	   /* commands that failed.

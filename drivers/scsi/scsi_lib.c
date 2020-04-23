@@ -1902,11 +1902,12 @@ struct scsi_cmnd *scsi_get_reserved_cmd(struct Scsi_Host *shost)
 {
 	struct scsi_cmnd *scmd;
 	struct request *rq;
+	struct scsi_device *sdev = scsi_get_host_dev(shost);
 
-	if (WARN_ON(!shost->_sdev))
+	if (!sdev)
 		return NULL;
 
-	rq = blk_mq_alloc_request(shost->_sdev->request_queue,
+	rq = blk_mq_alloc_request(sdev->request_queue,
 				  REQ_OP_DRV_OUT | REQ_NOWAIT,
 				  BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq))
