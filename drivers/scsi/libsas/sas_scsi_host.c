@@ -840,17 +840,17 @@ int sas_target_alloc(struct scsi_target *starget)
 {
 	struct device *parent = starget->dev.parent;
 
-	pr_err("%s starget=%pS parent=%pS type=%pS bus=%pS release=%pS scsi_is_sas_rphy(parent)=%d parent->release=%pS\n",
-		__func__, starget, parent, parent->type, parent->bus, parent->release, scsi_is_sas_rphy(parent), parent->release);
+//	pr_err("%s starget=%pS parent=%pS type=%pS bus=%pS release=%pS scsi_is_sas_rphy(parent)=%d parent->release=%pS\n",
+//		__func__, starget, parent, parent->type, parent->bus, parent->release, scsi_is_sas_rphy(parent), parent->release);
 
 	if (scsi_is_host_device(parent))
 		return 0;
 
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
-	pr_err("%s2 starget=%pS starget->dev.parent=%pS rphy=%pS\n", __func__, starget, starget->dev.parent, rphy);
+//	pr_err("%s2 starget=%pS starget->dev.parent=%pS rphy=%pS\n", __func__, starget, starget->dev.parent, rphy);
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
 
-	pr_err("%s3 starget=%pS starget->dev.parent=%pS rphy=%pS found_dev=%pS\n", __func__, starget, starget->dev.parent, rphy, found_dev);
+//	pr_err("%s3 starget=%pS starget->dev.parent=%pS rphy=%pS found_dev=%pS\n", __func__, starget, starget->dev.parent, rphy, found_dev);
 
 	if (!found_dev)
 		return 0;

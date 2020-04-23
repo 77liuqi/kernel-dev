@@ -605,7 +605,7 @@ void scsi_exit_hosts(void)
 
 int scsi_is_host_device(const struct device *dev)
 {
-	dev_err(dev, "%s dev=%pS type=%pS\n", __func__, dev, dev->type);
+//	dev_err(dev, "%s dev=%pS type=%pS\n", __func__, dev, dev->type);
 
 	return dev->type == &scsi_host_type;
 }
