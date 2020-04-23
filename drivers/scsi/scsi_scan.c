@@ -406,7 +406,7 @@ static void scsi_target_reap_ref_put(struct scsi_target *starget)
  * The target is returned with an incremented reference, so the caller
  * is responsible for both reaping and doing a last put
  */
-static struct scsi_target *scsi_alloc_target(struct device *parent,
+static struct scsi_target *scsi_alloc_target(struct device *parent, /*gendev for libsas */
 					     int channel, uint id)
 {
 	struct Scsi_Host *shost = dev_to_shost(parent);
@@ -427,9 +427,15 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	device_initialize(dev);
 	kref_init(&starget->reap_ref);
 	dev->parent = get_device(parent);
+
+	
+	
 	dev_set_name(dev, "target%d:%d:%d", shost->host_no, channel, id);
 	dev->bus = &scsi_bus_type;
 	dev->type = &scsi_target_type;
+
+	dev_err(parent, "%s parent=%pS (%s)\n", __func__, parent, dev_name(parent));
+
 	starget->id = id;
 	starget->channel = channel;
 	starget->can_queue = 0;

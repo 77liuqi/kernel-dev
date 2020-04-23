@@ -467,6 +467,7 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 		shost->virt_boundary_mask = sht->virt_boundary_mask;
 
 	device_initialize(&shost->shost_gendev);
+	pr_err("%s shost=%pS &shost->shost_gendev=%pS\n", __func__, shost, &shost->shost_gendev);
 	dev_set_name(&shost->shost_gendev, "host%d", shost->host_no);
 	shost->shost_gendev.bus = &scsi_bus_type;
 	shost->shost_gendev.type = &scsi_host_type;
@@ -604,6 +605,8 @@ void scsi_exit_hosts(void)
 
 int scsi_is_host_device(const struct device *dev)
 {
+	dev_err(dev, "%s dev=%pS type=%pS\n", __func__, dev, dev->type);
+
 	return dev->type == &scsi_host_type;
 }
 EXPORT_SYMBOL(scsi_is_host_device);

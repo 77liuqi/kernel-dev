@@ -44,12 +44,16 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 	struct Scsi_Host *shost = sha->core.shost;
 	struct sas_task_slow *slow;
 
+	pr_err("%s shost=%pS\n", __func__, shost);
+
 	if (!task)
 		return NULL;
 
 	slow = kzalloc(sizeof(*slow), flags);
 	if (!slow)
 		goto out_err_slow;
+
+	pr_err("%s2 shost->_sdev=%pS\n", __func__, shost->_sdev);
 
 	if (shost->_sdev) {
 		slow->scmd = scsi_get_reserved_cmd(shost);
@@ -65,8 +69,10 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags, struct sas_ha_struct *sha)
 	return task;
 
 out_err_scmd:
+	pr_err("%s out_err_scmd shost->_sdev=%pS\n", __func__, shost->_sdev);
 	kfree(slow);
 out_err_slow:
+	pr_err("%s out_err_slow shost->_sdev=%pS\n", __func__, shost->_sdev);
 	kmem_cache_free(sas_task_cache, task);
 	return NULL;
 }

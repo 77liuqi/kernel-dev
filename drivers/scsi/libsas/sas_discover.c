@@ -54,6 +54,8 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	struct domain_device *dev;
 	int rc = -ENODEV;
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	dev = sas_alloc_device();
 	if (!dev)
 		return -ENOMEM;
@@ -111,14 +113,17 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		/* fall through */
 	case SAS_END_DEVICE:
 		rphy = sas_end_device_alloc(port->port);
+		pr_err("%s1 SAS_END_DEVICE port=%pS rphy=%pS\n", __func__, port, rphy);
 		break;
 	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(port->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
+		pr_err("%s1 SAS_EDGE_EXPANDER_DEVICE port=%pS rphy=%pS\n", __func__, port, rphy);
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(port->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
+		pr_err("%s1 SAS_FANOUT_EXPANDER_DEVICE port=%pS rphy=%pS\n", __func__, port, rphy);
 		break;
 	default:
 		pr_warn("ERROR: Unidentified device type %d\n", dev->dev_type);

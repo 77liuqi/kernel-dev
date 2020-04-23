@@ -2621,6 +2621,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	int rc, phy_nr, port_nr, i;
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
+	dev_err(dev, "%s dev=%pS shost=%pS\n", __func__, dev, shost);
 	if (!shost)
 		return -ENOMEM;
 

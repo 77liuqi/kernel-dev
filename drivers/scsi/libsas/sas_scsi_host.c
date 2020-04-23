@@ -793,10 +793,24 @@ int sas_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 
 struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 {
-	struct Scsi_Host *shost = dev_to_shost(rphy->dev.parent);
-	if (!shost)
+	pr_err("%s rphy=%pS\n", __func__, rphy);
+ 
+	struct Scsi_Host *shost;
+
+	pr_err("%s1 scsi_is_sas_rphy(rphy->dev.parent)=%d type=%pS release=%pS scsi_is_host_device(rphy->dev.parent)=%d\n",
+		__func__, scsi_is_sas_rphy(rphy->dev.parent), rphy->dev.parent->type, rphy->dev.parent->release, scsi_is_host_device(rphy->dev.parent));
+
+	if (scsi_is_host_device(rphy->dev.parent)) {
+		WARN_ON(1);
 		return NULL;
+	}
+
+	shost = dev_to_shost(rphy->dev.parent);
+
+	pr_err("%s2 shost=%pS\n", __func__, shost);
+
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	pr_err("%s3 ha=%pS\n", __func__, ha);
 	struct domain_device *found_dev = NULL;
 	int i;
 	unsigned long flags;
@@ -824,8 +838,19 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 
 int sas_target_alloc(struct scsi_target *starget)
 {
+	struct device *parent = starget->dev.parent;
+
+	pr_err("%s starget=%pS parent=%pS type=%pS bus=%pS release=%pS scsi_is_sas_rphy(parent)=%d parent->release=%pS\n",
+		__func__, starget, parent, parent->type, parent->bus, parent->release, scsi_is_sas_rphy(parent), parent->release);
+
+	if (scsi_is_host_device(parent))
+		return 0;
+
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
+	pr_err("%s2 starget=%pS starget->dev.parent=%pS rphy=%pS\n", __func__, starget, starget->dev.parent, rphy);
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
+
+	pr_err("%s3 starget=%pS starget->dev.parent=%pS rphy=%pS found_dev=%pS\n", __func__, starget, starget->dev.parent, rphy, found_dev);
 
 	if (!found_dev)
 		return 0;

@@ -850,6 +850,8 @@ static struct domain_device *sas_ex_discover_end_dev(
 			goto out_free;
 		rphy->identify.phy_identifier = phy_id;
 
+		pr_err("%s phyid%d parent=%pS rphy=%pS\n", __func__, phy_id, parent, rphy);
+
 		child->rphy = rphy;
 		get_device(&rphy->dev);
 
