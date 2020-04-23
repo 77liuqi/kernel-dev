@@ -1904,6 +1904,11 @@ struct scsi_cmnd *scsi_get_reserved_cmd(struct Scsi_Host *shost)
 	struct request *rq;
 	struct scsi_device *sdev = scsi_get_host_dev(shost);
 
+	static int count;
+
+	count++;
+
+
 	if (!sdev)
 		return NULL;
 
@@ -1916,6 +1921,12 @@ struct scsi_cmnd *scsi_get_reserved_cmd(struct Scsi_Host *shost)
 	scmd = blk_mq_rq_to_pdu(rq);
 	scmd->request = rq;
 
+	if (count < 10) {
+		pr_err("%s scmd=%pS scmd->device=%pS sdev=%pS\n", __func__, scmd, scmd->device, sdev);
+	}
+
+	scmd->device = sdev;
+
 	return scmd;
 }
 EXPORT_SYMBOL_GPL(scsi_get_reserved_cmd);
@@ -1924,8 +1935,19 @@ void scsi_put_reserved_cmd(struct scsi_cmnd *scmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(scmd);
 
-	if (blk_mq_rq_is_reserved(rq))
+	static int count;
+
+	count++;
+
+	if (count < 10) {
+		pr_err("%s scmd=%pS scmd->device=%pS\n", __func__, scmd, scmd->device);
+	}
+
+	if (blk_mq_rq_is_reserved(rq)) {
+		struct scsi_device *sdev = scmd->device;
 		blk_mq_free_request(rq);
+		scsi_free_host_dev(sdev);
+	}
 }
 EXPORT_SYMBOL_GPL(scsi_put_reserved_cmd);
 
