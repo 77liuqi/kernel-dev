@@ -52,6 +52,7 @@
 #include <linux/smp.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
+#include <linux/sched/clock.h>
 
 #define SMMU_PMCG_EVCNTR0               0x0
 #define SMMU_PMCG_EVCNTR(n, stride)     (SMMU_PMCG_EVCNTR0 + (n) * (stride))
@@ -108,8 +109,6 @@ struct smmu_pmu {
 	struct pmu pmu;
 	unsigned int num_counters;
 	struct device *dev;
-	void __iomem *reg_base;
-	void __iomem *reloc_base;
 	u64 counter_mask;
 	u32 options;
 	bool global_filter;
@@ -134,89 +133,108 @@ static inline void smmu_pmu_enable(struct pmu *pmu)
 {
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(pmu);
 
-	writel(SMMU_PMCG_IRQ_CTRL_IRQEN,
-	       smmu_pmu->reg_base + SMMU_PMCG_IRQ_CTRL);
-	writel(SMMU_PMCG_CR_ENABLE, smmu_pmu->reg_base + SMMU_PMCG_CR);
+	dev_info(smmu_pmu->dev, "%s\n", __func__);
+
+//	writel(SMMU_PMCG_IRQ_CTRL_IRQEN,
+//	       smmu_pmu->reg_base + SMMU_PMCG_IRQ_CTRL);
+//	writel(SMMU_PMCG_CR_ENABLE, smmu_pmu->reg_base + SMMU_PMCG_CR);
 }
 
 static inline void smmu_pmu_disable(struct pmu *pmu)
 {
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(pmu);
 
-	writel(0, smmu_pmu->reg_base + SMMU_PMCG_CR);
-	writel(0, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CTRL);
+	dev_info(smmu_pmu->dev, "%s\n", __func__);
+
+//	writel(0, smmu_pmu->reg_base + SMMU_PMCG_CR);
+//	writel(0, smmu_pmu->reg_base + SMMU_PMCG_IRQ_CTRL);
 }
 
 static inline void smmu_pmu_counter_set_value(struct smmu_pmu *smmu_pmu,
 					      u32 idx, u64 value)
 {
-	if (smmu_pmu->counter_mask & BIT(32))
-		writeq(value, smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 8));
-	else
-		writel(value, smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 4));
+	dev_info(smmu_pmu->dev, "%s idx=%d value=0x%llx\n", __func__, idx, value);
+	
+//	if (smmu_pmu->counter_mask & BIT(32))
+//		writeq(value, smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 8));
+//	else
+//		writel(value, smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 4));
 }
 
 static inline u64 smmu_pmu_counter_get_value(struct smmu_pmu *smmu_pmu, u32 idx)
 {
-	u64 value;
 
-	if (smmu_pmu->counter_mask & BIT(32))
-		value = readq(smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 8));
-	else
-		value = readl(smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 4));
+	dev_info(smmu_pmu->dev, "%s idx=%d\n",__func__,  idx);
 
-	return value;
+//	if (smmu_pmu->counter_mask & BIT(32))
+//		value = readq(smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 8));
+//	else
+//		value = readl(smmu_pmu->reloc_base + SMMU_PMCG_EVCNTR(idx, 4));
+
+	return 0;
 }
 
 static inline void smmu_pmu_counter_enable(struct smmu_pmu *smmu_pmu, u32 idx)
 {
-	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_CNTENSET0);
+	dev_info(smmu_pmu->dev, "%s idx=%d\n", __func__, idx);
+//	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_CNTENSET0);
 }
 
 static inline void smmu_pmu_counter_disable(struct smmu_pmu *smmu_pmu, u32 idx)
 {
-	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_CNTENCLR0);
+	dev_info(smmu_pmu->dev, "%s idx=%d\n", __func__, idx);
+//	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_CNTENCLR0);
 }
 
 static inline void smmu_pmu_interrupt_enable(struct smmu_pmu *smmu_pmu, u32 idx)
 {
-	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_INTENSET0);
+	dev_info(smmu_pmu->dev, "%s idx=%d\n",__func__, idx);
+//	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_INTENSET0);
 }
 
 static inline void smmu_pmu_interrupt_disable(struct smmu_pmu *smmu_pmu,
 					      u32 idx)
 {
-	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_INTENCLR0);
+	dev_info(smmu_pmu->dev, "%s idx=%d\n", __func__, idx);
+//	writeq(BIT(idx), smmu_pmu->reg_base + SMMU_PMCG_INTENCLR0);
 }
 
 static inline void smmu_pmu_set_evtyper(struct smmu_pmu *smmu_pmu, u32 idx,
 					u32 val)
 {
-	writel(val, smmu_pmu->reg_base + SMMU_PMCG_EVTYPER(idx));
+	dev_info(smmu_pmu->dev, "%s idx=%d\n",__func__,  idx);
+//	writel(val, smmu_pmu->reg_base + SMMU_PMCG_EVTYPER(idx));
 }
 
 static inline void smmu_pmu_set_smr(struct smmu_pmu *smmu_pmu, u32 idx, u32 val)
 {
-	writel(val, smmu_pmu->reg_base + SMMU_PMCG_SMR(idx));
+	dev_info(smmu_pmu->dev, "%s idx=%d\n", __func__, idx);
+//	writel(val, smmu_pmu->reg_base + SMMU_PMCG_SMR(idx));
 }
 
 static void smmu_pmu_event_update(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct smmu_pmu *smmu_pmu = to_smmu_pmu(event->pmu);
-	u64 delta, prev, now;
+//	u64 delta, prev, now;
 	u32 idx = hwc->idx;
+	int rand = local_clock() % 30;
+	static int count;
 
-	do {
-		prev = local64_read(&hwc->prev_count);
-		now = smmu_pmu_counter_get_value(smmu_pmu, idx);
-	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
+	count = (count + 1) % 3;
+
+	dev_info(smmu_pmu->dev, "%s idx=%d\n", __func__, idx);
+
+//	do {
+//		prev = local64_read(&hwc->prev_count);
+//		now = smmu_pmu_counter_get_value(smmu_pmu, idx);
+//	} while (local64_cmpxchg(&hwc->prev_count, prev, now) != prev);
 
 	/* handle overflow. */
-	delta = now - prev;
-	delta &= smmu_pmu->counter_mask;
+//	delta = now - prev;
+//	delta &= smmu_pmu->counter_mask;
 
-	local64_add(delta, &event->count);
+	local64_add((idx*50) + count + rand, &event->count);
 }
 
 static void smmu_pmu_set_period(struct smmu_pmu *smmu_pmu,
@@ -631,11 +649,11 @@ static irqreturn_t smmu_pmu_handle_irq(int irq_num, void *data)
 	u64 ovsr;
 	unsigned int idx;
 
-	ovsr = readq(smmu_pmu->reloc_base + SMMU_PMCG_OVSSET0);
-	if (!ovsr)
-		return IRQ_NONE;
+//	ovsr = readq(smmu_pmu->reloc_base + SMMU_PMCG_OVSSET0);
+//	if (!ovsr)
+//		return IRQ_NONE;
 
-	writeq(ovsr, smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
+//	writeq(ovsr, smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
 
 	for_each_set_bit(idx, (unsigned long *)&ovsr, smmu_pmu->num_counters) {
 		struct perf_event *event = smmu_pmu->events[idx];
@@ -662,17 +680,17 @@ static void smmu_pmu_free_msis(void *data)
 
 static void smmu_pmu_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
 {
-	phys_addr_t doorbell;
-	struct device *dev = msi_desc_to_dev(desc);
-	struct smmu_pmu *pmu = dev_get_drvdata(dev);
+//	phys_addr_t doorbell;
+//	struct device *dev = msi_desc_to_dev(desc);
+//	struct smmu_pmu *pmu = dev_get_drvdata(dev);
 
-	doorbell = (((u64)msg->address_hi) << 32) | msg->address_lo;
-	doorbell &= MSI_CFG0_ADDR_MASK;
+//	doorbell = (((u64)msg->address_hi) << 32) | msg->address_lo;
+//	doorbell &= MSI_CFG0_ADDR_MASK;
 
-	writeq_relaxed(doorbell, pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
-	writel_relaxed(msg->data, pmu->reg_base + SMMU_PMCG_IRQ_CFG1);
-	writel_relaxed(MSI_CFG2_MEMATTR_DEVICE_nGnRE,
-		       pmu->reg_base + SMMU_PMCG_IRQ_CFG2);
+//	writeq_relaxed(doorbell, pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
+//	writel_relaxed(msg->data, pmu->reg_base + SMMU_PMCG_IRQ_CFG1);
+//	writel_relaxed(MSI_CFG2_MEMATTR_DEVICE_nGnRE,
+//		       pmu->reg_base + SMMU_PMCG_IRQ_CFG2);
 }
 
 static void smmu_pmu_setup_msi(struct smmu_pmu *pmu)
@@ -682,11 +700,11 @@ static void smmu_pmu_setup_msi(struct smmu_pmu *pmu)
 	int ret;
 
 	/* Clear MSI address reg */
-	writeq_relaxed(0, pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
+//	writeq_relaxed(0, pmu->reg_base + SMMU_PMCG_IRQ_CFG0);
 
 	/* MSI supported or not */
-	if (!(readl(pmu->reg_base + SMMU_PMCG_CFGR) & SMMU_PMCG_CFGR_MSI))
-		return;
+//	if (!(readl(pmu->reg_base + SMMU_PMCG_CFGR) & SMMU_PMCG_CFGR_MSI))
+//		return;
 
 	ret = platform_msi_domain_alloc_irqs(dev, 1, smmu_pmu_write_msi_msg);
 	if (ret) {
@@ -718,34 +736,33 @@ static int smmu_pmu_setup_irq(struct smmu_pmu *pmu)
 
 static void smmu_pmu_reset(struct smmu_pmu *smmu_pmu)
 {
-	u64 counter_present_mask = GENMASK_ULL(smmu_pmu->num_counters - 1, 0);
+//	u64 counter_present_mask = GENMASK_ULL(smmu_pmu->num_counters - 1, 0);
 
 	smmu_pmu_disable(&smmu_pmu->pmu);
 
 	/* Disable counter and interrupt */
-	writeq_relaxed(counter_present_mask,
-		       smmu_pmu->reg_base + SMMU_PMCG_CNTENCLR0);
-	writeq_relaxed(counter_present_mask,
-		       smmu_pmu->reg_base + SMMU_PMCG_INTENCLR0);
-	writeq_relaxed(counter_present_mask,
-		       smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
+//	writeq_relaxed(counter_present_mask,
+//		       smmu_pmu->reg_base + SMMU_PMCG_CNTENCLR0);
+//	writeq_relaxed(counter_present_mask,
+//		       smmu_pmu->reg_base + SMMU_PMCG_INTENCLR0);
+//	writeq_relaxed(counter_present_mask,
+//		       smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
 }
 
 static void smmu_pmu_get_acpi_options(struct smmu_pmu *smmu_pmu)
 {
 	u32 model;
 
-	model = *(u32 *)dev_get_platdata(smmu_pmu->dev);
+//	model = *(u32 *)dev_get_platdata(smmu_pmu->dev);
 
-	switch (model) {
-	case IORT_SMMU_V3_PMCG_HISI_HIP08:
-		/* HiSilicon Erratum 162001800 */
-		smmu_pmu->options |= SMMU_PMCG_EVCNTR_RDONLY;
-		smmu_pmu->identifier = "hip08";
-		break;
-	default:
-		smmu_pmu->identifier = "none";
-	}
+	smmu_pmu->identifier = "hip08";
+
+//	switch (model) {
+//	case IORT_SMMU_V3_PMCG_HISI_HIP08:
+//		/* HiSilicon Erratum 162001800 */
+//		smmu_pmu->options |= SMMU_PMCG_EVCNTR_RDONLY;
+//		break;
+//	}
 
 	dev_notice(smmu_pmu->dev, "option mask 0x%x\n", smmu_pmu->options);
 }
@@ -782,44 +799,48 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 	};
 
 	res_0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	smmu_pmu->reg_base = devm_ioremap_resource(dev, res_0);
-	if (IS_ERR(smmu_pmu->reg_base))
-		return PTR_ERR(smmu_pmu->reg_base);
+//	smmu_pmu->reg_base = devm_ioremap_resource(dev, res_0);
+//	if (IS_ERR(smmu_pmu->reg_base))
+//		return PTR_ERR(smmu_pmu->reg_base);
 
-	cfgr = readl_relaxed(smmu_pmu->reg_base + SMMU_PMCG_CFGR);
+//	cfgr = readl_relaxed(smmu_pmu->reg_base + SMMU_PMCG_CFGR);
 
 	/* Determine if page 1 is present */
 	if (cfgr & SMMU_PMCG_CFGR_RELOC_CTRS) {
-		smmu_pmu->reloc_base = devm_platform_ioremap_resource(pdev, 1);
-		if (IS_ERR(smmu_pmu->reloc_base))
-			return PTR_ERR(smmu_pmu->reloc_base);
+	//	smmu_pmu->reloc_base = devm_platform_ioremap_resource(pdev, 1);
+	//	if (IS_ERR(smmu_pmu->reloc_base))
+	//		return PTR_ERR(smmu_pmu->reloc_base);
 	} else {
-		smmu_pmu->reloc_base = smmu_pmu->reg_base;
+//		smmu_pmu->reloc_base = smmu_pmu->reg_base;
 	}
 
 	irq = platform_get_irq_optional(pdev, 0);
 	if (irq > 0)
 		smmu_pmu->irq = irq;
 
-	ceid_64[0] = readq_relaxed(smmu_pmu->reg_base + SMMU_PMCG_CEID0);
-	ceid_64[1] = readq_relaxed(smmu_pmu->reg_base + SMMU_PMCG_CEID1);
+	ceid_64[0] = ~0ULL;
+	ceid_64[1] = ~0ULL;
 	bitmap_from_arr32(smmu_pmu->supported_events, (u32 *)ceid_64,
 			  SMMU_PMCG_ARCH_MAX_EVENTS);
 
-	smmu_pmu->num_counters = FIELD_GET(SMMU_PMCG_CFGR_NCTR, cfgr) + 1;
+	smmu_pmu->num_counters = 10;//FIELD_GET(SMMU_PMCG_CFGR_NCTR, cfgr) + 1;
 
-	smmu_pmu->global_filter = !!(cfgr & SMMU_PMCG_CFGR_SID_FILTER_TYPE);
+	smmu_pmu->global_filter = false;
 
-	reg_size = FIELD_GET(SMMU_PMCG_CFGR_SIZE, cfgr);
+	reg_size = 4;
 	smmu_pmu->counter_mask = GENMASK_ULL(reg_size, 0);
 
 	smmu_pmu_reset(smmu_pmu);
 
+	dev_err(dev, "%s0\n", __func__);
+
 	err = smmu_pmu_setup_irq(smmu_pmu);
 	if (err) {
 		dev_err(dev, "Setup irq failed, PMU @%pa\n", &res_0->start);
-		return err;
+	//	return err;
 	}
+
+	dev_err(dev, "%s1\n", __func__);
 
 	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "smmuv3_pmcg_%llx",
 			      (res_0->start) >> SMMU_PMCG_PA_SHIFT);
@@ -827,13 +848,16 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 		dev_err(dev, "Create name failed, PMU @%pa\n", &res_0->start);
 		return -EINVAL;
 	}
+	dev_err(dev, "%s2\n", __func__);
 
 	smmu_pmu_get_acpi_options(smmu_pmu);
 
 	/* Pick one CPU to be the preferred one to use */
 	smmu_pmu->on_cpu = raw_smp_processor_id();
-	WARN_ON(irq_set_affinity_hint(smmu_pmu->irq,
-				      cpumask_of(smmu_pmu->on_cpu)));
+//	WARN_ON(irq_set_affinity_hint(smmu_pmu->irq,
+//				      cpumask_of(smmu_pmu->on_cpu)));
+
+	dev_err(dev, "%s3\n", __func__);
 
 	err = cpuhp_state_add_instance_nocalls(cpuhp_state_num,
 					       &smmu_pmu->node);
@@ -842,6 +866,8 @@ static int smmu_pmu_probe(struct platform_device *pdev)
 			err, &res_0->start);
 		return err;
 	}
+
+	dev_err(dev, "%s4\n", __func__);
 
 	err = perf_pmu_register(&smmu_pmu->pmu, name, -1);
 	if (err) {
@@ -878,8 +904,19 @@ static void smmu_pmu_shutdown(struct platform_device *pdev)
 
 	smmu_pmu_disable(&smmu_pmu->pmu);
 }
+static const struct platform_device_id amatch[] = {
+	{ "pmcg0", 0},
+	{ "pmcg1", 0},
+	{ "pmcg2", 0},
+	{ "pmcg3", 0},
+	{ "pmcg4", 0},
+	{ "pmcg5", 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, amatch);
 
 static struct platform_driver smmu_pmu_driver = {
+	.id_table = amatch,
 	.driver = {
 		.name = "arm-smmu-v3-pmcg",
 	},
@@ -887,6 +924,116 @@ static struct platform_driver smmu_pmu_driver = {
 	.remove = smmu_pmu_remove,
 	.shutdown = smmu_pmu_shutdown,
 };
+
+#if 0
+
+
+static struct resource spe_resources[] = {
+	{
+		/* irq */
+		.flags          = IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device spe_dev = {
+	.name = ARMV8_SPE_PDEV_NAME,
+	.id = -1,
+	.resource = spe_resources,
+	.num_resources = ARRAY_SIZE(spe_resources)
+};
+
+#endif
+
+static struct resource p0r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x00000,
+		.end = 0x00000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p0 = {
+	.name = "pmcg0",
+	.id = -1,
+	.resource = p0r,
+	.num_resources = ARRAY_SIZE(p0r),
+};
+
+static struct resource p1r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x10000,
+		.end = 0x10000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p1 = {
+	.name = "pmcg1",
+	.id = -1,
+	.resource = p1r,
+	.num_resources = ARRAY_SIZE(p1r),
+};
+
+static struct resource p2r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x20000,
+		.end = 0x20000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p2 = {
+	.name = "pmcg2",
+	.id = -1,
+	.resource = p2r,
+	.num_resources = ARRAY_SIZE(p2r),
+};
+
+static struct resource p3r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x30000,
+		.end = 0x30000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p3 = {
+	.name = "pmcg3",
+	.id = -1,
+	.resource = p3r,
+	.num_resources = ARRAY_SIZE(p3r),
+};
+
+static struct resource p4r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x40000,
+		.end = 0x40000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p4 = {
+	.name = "pmcg4",
+	.id = -1,
+	.resource = p4r,
+	.num_resources = ARRAY_SIZE(p4r),
+};
+
+static struct resource p5r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x50000,
+		.end = 0x50000 + 0x1000 -1,
+	}
+};
+
+struct platform_device p5 = {
+	.name = "pmcg5",
+	.id = -1,
+	.resource = p5r,
+	.num_resources = ARRAY_SIZE(p5r),
+};
+
 
 static int __init arm_smmu_pmu_init(void)
 {
@@ -896,6 +1043,14 @@ static int __init arm_smmu_pmu_init(void)
 						  smmu_pmu_offline_cpu);
 	if (cpuhp_state_num < 0)
 		return cpuhp_state_num;
+
+	platform_device_register(&p0);
+	platform_device_register(&p1);
+	platform_device_register(&p2);
+	platform_device_register(&p3);
+	platform_device_register(&p4);
+	platform_device_register(&p5);
+
 
 	return platform_driver_register(&smmu_pmu_driver);
 }
