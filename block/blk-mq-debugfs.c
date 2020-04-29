@@ -823,8 +823,12 @@ void blk_mq_debugfs_register(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
+	pr_err("%s q=%pS kobj name=%s\n", __func__, q, kobject_name(q->kobj.parent));
+
 	q->debugfs_dir = debugfs_create_dir(kobject_name(q->kobj.parent),
 					    blk_debugfs_root);
+
+	pr_err("%s1 q=%pS kobj name=%s q->debugfs_dir=%pS\n", __func__, q, kobject_name(q->kobj.parent), q->debugfs_dir);
 
 	debugfs_create_files(q->debugfs_dir, q, blk_mq_debugfs_queue_attrs);
 
@@ -856,6 +860,9 @@ void blk_mq_debugfs_register(struct request_queue *q)
 
 void blk_mq_debugfs_unregister(struct request_queue *q)
 {
+
+	pr_err("%s1 q=%pS q->debugfs_dir=%pS\n", __func__, q, q->debugfs_dir);
+
 	debugfs_remove_recursive(q->debugfs_dir);
 	q->sched_debugfs_dir = NULL;
 	q->debugfs_dir = NULL;

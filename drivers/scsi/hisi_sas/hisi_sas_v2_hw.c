@@ -3592,6 +3592,8 @@ static int hisi_sas_v2_probe(struct platform_device *pdev)
 	 */
 	int ret = platform_get_irq(pdev, 0);
 
+	dev_err(&pdev->dev, "%s\n", __func__);
+
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(&pdev->dev, "cannot obtain irq\n");
@@ -3603,7 +3605,15 @@ static int hisi_sas_v2_probe(struct platform_device *pdev)
 
 static int hisi_sas_v2_remove(struct platform_device *pdev)
 {
-	return hisi_sas_remove(pdev);
+	int ret;
+
+	dev_err(&pdev->dev, "%s\n", __func__);
+
+	ret =hisi_sas_remove(pdev);
+	
+	dev_err(&pdev->dev, "%s2 out\n", __func__);
+
+	return ret;
 }
 
 static const struct of_device_id sas_v2_of_match[] = {
