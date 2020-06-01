@@ -532,6 +532,8 @@ struct arm_smmu_ll_queue {
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
+	u32				max_cmd_per_batch;
+	u32				owner_count_shift;
 };
 
 struct arm_smmu_queue {
@@ -1515,7 +1517,10 @@ static void arm_smmu_cmdq_batch_add(struct arm_smmu_device *smmu,
 				    struct arm_smmu_cmdq_batch *cmds,
 				    struct arm_smmu_cmdq_ent *cmd)
 {
-	if (cmds->num == CMDQ_BATCH_ENTRIES) {
+	struct arm_smmu_cmdq *q = &smmu->cmdq;
+	struct arm_smmu_ll_queue *llq = &q->q.llq;
+
+	if (cmds->num == llq->max_cmd_per_batch) {
 		arm_smmu_cmdq_issue_cmdlist(smmu, cmds->cmds, cmds->num, false);
 		cmds->num = 0;
 	}
@@ -3141,8 +3146,24 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   unsigned long cons_off,
 				   size_t dwords, const char *name)
 {
+	int cpus = num_possible_cpus();
 	size_t qsz;
 
+	/*
+	 * We can get the number of bits required for owner counting by
+	 * log2(nr possible cpus) + 1, but we have to take into account that he
+	 * wrap+prod could overflow before the owner zeroes, so add 1
+	 * more (to cpus) for bits_for_cmdq_owner calculation.
+	 */
+	int bits_for_cmdq_owner = ilog2(cpus + 1) + 1;
+	/* 1-bit for overflow, 1-bit for wrap */
+	int bits_available_for_prod = 32 - 2 - bits_for_cmdq_owner;
+	int entries_for_prod;
+
+	if (bits_available_for_prod < 1) /* this would be insane - how many CPUs? */
+		return -ENOMEM;
+
+	q->llq.max_n_shift = min_t(int, q->llq.max_n_shift, bits_available_for_prod);
 	do {
 		qsz = ((1 << q->llq.max_n_shift) * dwords) << 3;
 		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
@@ -3152,6 +3173,18 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 
 		q->llq.max_n_shift--;
 	} while (1);
+	entries_for_prod = 1 << q->llq.max_n_shift;
+
+	/*
+	 * We need at least 2 commands in a batch (1 x CMD_SYNC and 1 x whatever else).
+	 * Assuming orig max_n_shift >= 17, this would mean ~16K CPUs max.
+	 */
+	if (entries_for_prod < 2 * cpus)
+		return -ENOMEM;
+
+	/* when finding max_cmd_per_batch, deduct 1 entry per batch for the CMD_SYNC */
+	q->llq.max_cmd_per_batch = min_t(u32, (entries_for_prod - cpus) / cpus, CMDQ_BATCH_ENTRIES);
+	q->llq.owner_count_shift = q->llq.max_n_shift + 1;
 
 	if (!q->base) {
 		dev_err(smmu->dev,
