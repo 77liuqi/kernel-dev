@@ -3522,7 +3522,30 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
+extern void smmu_test_core(int cpus);
+
+
+extern void smmu_test_core(int cpus);
+
+static ssize_t smmu_test_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	u32 cpus;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &cpus);
+	if (ret)
+		return ret;
+
+	smmu_test_core(cpus);
+	return count;
+}
+
+
+static DEVICE_ATTR_WO(smmu_test);
+
 static struct device_attribute *host_attrs_v2_hw[] = {
+	&dev_attr_smmu_test,
 	&dev_attr_phy_event_threshold,
 	NULL
 };
@@ -3581,13 +3604,19 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.sht = &sht_v2_hw,
 };
 
+extern struct device *hisi_sas_dev;
+
 static int hisi_sas_v2_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	/*
 	 * Check if we should defer the probe before we probe the
 	 * upper layer, as it's hard to defer later on.
 	 */
 	int ret = platform_get_irq(pdev, 0);
+
+	if (!hisi_sas_dev)
+		hisi_sas_dev = dev;
 
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
