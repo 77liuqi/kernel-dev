@@ -17,3 +17,9 @@ config SCSI_HISI_SAS_PCI
 	depends on PCI
 	help
 		This driver supports HiSilicon's SAS HBA based on PCI device
+
+config SCSI_HISI_SAS_SMMU_TEST
+	tristate "HiSilicon SAS on PCI bus SMMU test"
+	depends on SCSI_HISI_SAS_PCI
+	help
+		None
