@@ -724,6 +724,13 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
+
+static DEFINE_PER_CPU(ktime_t, cmdlist);
+
+static atomic64_t tries;
+static atomic64_t cmpxchg_tries;
+
+
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
@@ -736,12 +743,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq;
 	int ret = 0;
+	ktime_t initial, final, *t;
+	int cpu;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	cpu = smp_processor_id();
+	t = &per_cpu(cmdlist, cpu);
+	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
+	atomic64_inc(&tries);
 	do {
 		u64 old;
+
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
@@ -755,8 +769,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					     CMDQ_PROD_OWNED_FLAG;
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
+		
 
 		llq.val = old;
 	} while (1);
@@ -840,8 +856,56 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
+	final = ktime_get();
+	*t += final - initial;
+	
 	local_irq_restore(flags);
 	return ret;
+}
+
+ktime_t arm_smmu_cmdq_get_average_time(void)
+{
+	int cpu, cpus;
+	ktime_t total = 0;
+
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cmdlist, cpu);
+
+		if (*t > 100) {
+			total += *t;
+			cpus++;
+		}
+	}
+
+	return total / cpus;
+}
+
+
+u64 arm_smmu_cmdq_get_tries(void)
+{
+	return atomic64_read(&tries);
+}
+
+u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
+{
+	return atomic64_read(&cmpxchg_tries);
+}
+
+void arm_smmu_cmdq_zero_cmpxchg(void)
+{
+	atomic64_set(&tries, 0);
+	atomic64_set(&cmpxchg_tries, 0);
+}
+
+void arm_smmu_cmdq_zero_times(void)
+{
+	int cpu;
+	
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cmdlist, cpu);
+	
+		*t = 0;
+	}
 }
 
 static int arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
