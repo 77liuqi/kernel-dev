@@ -6,6 +6,10 @@
 #include "hisi_sas.h"
 #define DRV_NAME "hisi_sas_v3_hw"
 
+struct device *hisi_sas_dev;
+EXPORT_SYMBOL(hisi_sas_dev);
+
+
 /* global registers need init */
 #define DLVRY_QUEUE_ENABLE		0x0
 #define IOST_BASE_ADDR_LO		0x8
@@ -2637,6 +2641,29 @@ static void wait_cmds_complete_timeout_v3_hw(struct hisi_hba *hisi_hba,
 	dev_dbg(dev, "wait commands complete %dms\n", time);
 }
 
+
+extern void smmu_test_core(int cpus);
+
+
+extern void smmu_test_core(int cpus);
+
+static ssize_t smmu_test_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	u32 cpus;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &cpus);
+	if (ret)
+		return ret;
+
+	smmu_test_core(cpus);
+	return count;
+}
+
+
+static DEVICE_ATTR_WO(smmu_test);
+
 static ssize_t intr_conv_v3_hw_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -2745,6 +2772,7 @@ static DEVICE_ATTR_RW(intr_coal_count_v3_hw);
 static struct device_attribute *host_attrs_v3_hw[] = {
 	&dev_attr_phy_event_threshold,
 	&dev_attr_intr_conv_v3_hw,
+	&dev_attr_smmu_test,
 	&dev_attr_intr_coal_ticks_v3_hw,
 	&dev_attr_intr_coal_count_v3_hw,
 	NULL
@@ -3184,6 +3212,9 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct asd_sas_port **arr_port;
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
+
+	if (!hisi_sas_dev)
+		hisi_sas_dev = dev;
 
 	rc = pci_enable_device(pdev);
 	if (rc)
