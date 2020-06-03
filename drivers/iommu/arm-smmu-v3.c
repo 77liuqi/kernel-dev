@@ -1383,6 +1383,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n)
 {
+	const bool poll_msi = supports_poll_msi(smmu);
 	u64 cmd_sync[CMDQ_ENT_DWORDS];
 	const int sync = 1;
 	u32 prod, prodx;
@@ -1400,16 +1401,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 
-	llq.val = READ_ONCE(cmdq->q.llq.val);
-	/*
-	 * There should always be space, but maybe cons has not been updated
-	 * recently.
-	 */
-	if (!queue_has_space(&llq, n + sync)) {
-		local_irq_restore(flags);
-		if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-		local_irq_save(flags);
+	if (!poll_msi) {
+		/* For polling MSI mode, we don't need to update cons or lock */
+		llq.val = READ_ONCE(cmdq->q.llq.val);
+		/*
+		 * There should always be space, but maybe cons has not been
+		 * updated recently.
+		 */
+		if (!queue_has_space(&llq, n + sync)) {
+			local_irq_restore(flags);
+			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+			local_irq_save(flags);
+		}
 	}
 
 	prodx = atomic_fetch_add(n + sync + owner_val,
@@ -1428,13 +1432,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
-	/*
-	 * In order to determine completion of our CMD_SYNC, we must
-	 * ensure that the queue can't wrap twice without us noticing.
-	 * We achieve that by taking the cmdq lock as shared before
-	 * marking our slot as valid.
-	 */
-	arm_smmu_cmdq_shared_lock(cmdq);
+	if (!poll_msi) {
+		/*
+		 * In order to determine completion of our CMD_SYNC for non-MSI
+		 * polling mode, we must ensure that the queue can't wrap twice
+		 * without us noticing.
+		 * We achieve that by taking the cmdq lock as shared before
+		 * marking our slot as valid.
+		 */
+		arm_smmu_cmdq_shared_lock(cmdq);
+	}
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
@@ -1479,13 +1486,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				    readl_relaxed(cmdq->q.cons_reg));
 	}
 
-	/*
-	 * Try to unlock the cmq lock. This will fail if we're the last reader,
-	 * in which case we can safely update cmdq->q.llq.cons
-	 */
-	if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
-		arm_smmu_cmdq_shared_unlock(cmdq);
+	if (!poll_msi) {
+		/*
+		 * Try to unlock the cmq lock. This will fail if we're the
+		 * last reader, in which case we can safely update
+		 * cmdq->q.llq.cons
+		 */
+		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
+			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+			arm_smmu_cmdq_shared_unlock(cmdq);
+		}
 	}
 
 	local_irq_restore(flags);
