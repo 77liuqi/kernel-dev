@@ -1382,7 +1382,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 {
 	u64 cmd_sync[CMDQ_ENT_DWORDS];
 	const int sync = 1;
-	u32 prod;
+	u32 prod, prodx;
 	unsigned long flags;
 	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
@@ -1390,33 +1390,30 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq;
 	int ret = 0;
+	u32 owner_val = 1 << cmdq->q.llq.owner_count_shift;
+	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
+	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
-	llq.val = READ_ONCE(cmdq->q.llq.val);
-	do {
-		u64 old;
 
-		while (!queue_has_space(&llq, n + sync)) {
-			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-			local_irq_save(flags);
-		}
+	prodx = atomic_fetch_add(n + sync + owner_val,
+				 &cmdq->q.llq.atomic.prod);
+	owner = !(prodx & owner_mask);
+	llq.prod = prod_mask & prodx;
+	head.prod = queue_inc_prod_n(&llq, n + sync);
 
-		head.cons = llq.cons;
-		head.prod = queue_inc_prod_n(&llq, n + sync) |
-					     CMDQ_PROD_OWNED_FLAG;
+	/*
+	 * In order to determine completion of our CMD_SYNC, we must
+	 * ensure that the queue can't wrap twice without us noticing.
+	 * We achieve that by taking the cmdq lock as shared before
+	 * marking our slot as valid.
+	 */
+	arm_smmu_cmdq_shared_lock(cmdq);
 
-		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
-		if (old == llq.val)
-			break;
-
-		llq.val = old;
-	} while (1);
-	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
-	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
-	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+	/* Ensure it's safe to write the entries. */
+	while (!__arm_smmu_cmdq_poll_until_consumed(smmu, &head)) //fixme
+		dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1428,14 +1425,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
-	/*
-	 * In order to determine completion of our CMD_SYNC, we must
-	 * ensure that the queue can't wrap twice without us noticing.
-	 * We achieve that by taking the cmdq lock as shared before
-	 * marking our slot as valid.
-	 */
-	arm_smmu_cmdq_shared_lock(cmdq);
-
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
@@ -1445,11 +1434,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
-		/* b. Stop gathering work by clearing the owned flag */
-		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
+		/* b. Stop gathering work by clearing the owned mask */
+		prod = atomic_fetch_andnot_relaxed(owner_mask,
 						   &cmdq->q.llq.atomic.prod);
-		prod &= ~CMDQ_PROD_OWNED_FLAG;
-
+		prod &= prod_mask;
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
 		 * Note that we read our own entries so that we have the control
