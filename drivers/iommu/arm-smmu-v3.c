@@ -1430,10 +1430,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			int not_full;
 	//		if (count < 20) pr_err("%s1.2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
 	//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
-			not_full = arm_smmu_cmdq_poll_until_not_full(smmu, &space);
-			if (!not_full)
-				break;
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+			if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
+				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 	//		if (count < 20) pr_err("%s1.3 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
 	//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
 			space.cons = READ_ONCE(cmdq->q.llq.cons);
