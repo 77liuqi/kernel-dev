@@ -1407,36 +1407,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
 
-//	if (count < 20) pr_err("%s cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x n=%d\n",
-//		__func__, cpu, prodx, owner, llq.prod, head.prod, n);
-
-//	if (count < 20) pr_err("%s1 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
-//		__func__, cpu, prodx, owner, llq.prod, head.prod);
-
-	/* Ensure it's safe to write the entries. */	
-	space.cons = READ_ONCE(cmdq->q.llq.cons);
-	space.prod = llq.prod;
-//	if (count < 20) pr_err("%s1.1 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
-//		__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
-	while (!queue_has_space(&space, n + sync)) {
-		int not_full;
-//		if (count < 20) pr_err("%s1.2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
-//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
-		not_full = arm_smmu_cmdq_poll_until_not_full(smmu, &space);
-		if (!not_full)
-			break;
-		dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-//		if (count < 20) pr_err("%s1.3 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
-//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
-		space.cons = READ_ONCE(cmdq->q.llq.cons);
-		space.prod = llq.prod;
-//		if (count < 20) pr_err("%s1.4 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
-//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
-	}
-
-//	if (count < 20) pr_err("%s2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
-//		__func__, cpu, prodx, owner, llq.prod, head.prod);
-
 	/*
 	 * In order to determine completion of our CMD_SYNC, we must
 	 * ensure that the queue can't wrap twice without us noticing.
@@ -1444,6 +1414,36 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * marking our slot as valid.
 	 */
 	arm_smmu_cmdq_shared_lock(cmdq);
+
+	//	if (count < 20) pr_err("%s cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x n=%d\n",
+	//		__func__, cpu, prodx, owner, llq.prod, head.prod, n);
+	
+	//	if (count < 20) pr_err("%s1 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
+	//		__func__, cpu, prodx, owner, llq.prod, head.prod);
+	
+		/* Ensure it's safe to write the entries. */	
+		space.cons = READ_ONCE(cmdq->q.llq.cons);
+		space.prod = llq.prod;
+	//	if (count < 20) pr_err("%s1.1 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
+	//		__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
+		while (!queue_has_space(&space, n + sync)) {
+			int not_full;
+	//		if (count < 20) pr_err("%s1.2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
+	//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
+			not_full = arm_smmu_cmdq_poll_until_not_full(smmu, &space);
+			if (!not_full)
+				break;
+			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+	//		if (count < 20) pr_err("%s1.3 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
+	//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
+			space.cons = READ_ONCE(cmdq->q.llq.cons);
+			space.prod = llq.prod;
+	//		if (count < 20) pr_err("%s1.4 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x space prod=0x%x cons=0x%x\n",
+	//			__func__, cpu, prodx, owner, llq.prod, head.prod, space.prod, space.cons);
+		}
+	
+	//	if (count < 20) pr_err("%s2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
+	//		__func__, cpu, prodx, owner, llq.prod, head.prod);
 
 	/*
 	 * 2. Write our commands into the queue
