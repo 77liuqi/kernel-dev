@@ -1190,7 +1190,7 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		mask = GENMASK(limit - 1, sbidx);
 
 		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(500)))
-			pr_err_once("%s set=%d cpu=%d\n", __func__, set, smp_processor_id());
+			pr_err_once("%s set=%d cpu=%d sprod=0x%x eprod=0x%xd\n", __func__, set, smp_processor_id(), sprod, eprod);
 
 		/*
 		 * The valid bit is the inverse of the wrap bit. This means
@@ -1419,7 +1419,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		int not_full;
 
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+			dev_err(smmu->dev, "CMDQ timeout\n");
 
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
@@ -1433,6 +1433,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_shared_lock(cmdq);
 
+	if ((llq.prod & prod_mask) != llq.prod)
+		pr_err ("%sp llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+
+
 	/*
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
@@ -1440,19 +1444,27 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
 
 	prod = queue_inc_prod_n(&llq, n);
+	if ((prod & prod_mask) != prod)
+		pr_err ("%sy prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
+	if ((llq.prod & prod_mask) != llq.prod)
+		pr_err ("%sx llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+	if ((head.prod & prod_mask) != head.prod)
+		pr_err ("%sy head.prod=0x%x prod_mask=0x%x\n", __func__, head.prod, prod_mask);
+	if ((prod & prod_mask) != prod)
+		pr_err ("%sy prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		/* a. Wait for previous owner to finish */
 		ktime_t initial_time = ktime_get();
-		ktime_t timeout_time = initial_time + ms_to_ktime(500);
+		ktime_t timeout_time = initial_time + ms_to_ktime(800);
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || ktime_after(ktime_get(), timeout_time));
 
 		if (ktime_after(ktime_get(), timeout_time))
@@ -1485,6 +1497,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 5. Since we always insert a CMD_SYNC, we must wait for it to complete */
 	llq.prod = queue_inc_prod_n(&llq, n);
+	if ((llq.prod & prod_mask) != llq.prod)
+		pr_err ("%si llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 	if (ret) {
 		dev_err_ratelimited(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
