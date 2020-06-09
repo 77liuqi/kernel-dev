@@ -1388,20 +1388,27 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq;
+	}, head = llq, space = llq;
 	int ret = 0;
 	u32 owner_val = 1 << cmdq->q.llq.owner_count_shift;
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
+	static int count;
+	int cpu;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	cpu = smp_processor_id();
 
 	prodx = atomic_fetch_add(n + sync + owner_val,
 				 &cmdq->q.llq.atomic.prod);
+
 	owner = !(prodx & owner_mask);
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
+
+	if (count < 20) pr_err("%s cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x n=%d\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod, n);
 
 	/*
 	 * In order to determine completion of our CMD_SYNC, we must
@@ -1411,9 +1418,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_shared_lock(cmdq);
 
+	if (count < 20) pr_err("%s1 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod);
+
 	/* Ensure it's safe to write the entries. */
-	while (!__arm_smmu_cmdq_poll_until_consumed(smmu, &head)) //fixme
+	space.prod = head.prod;
+	while (!__arm_smmu_cmdq_poll_until_consumed(smmu, &space)) //fixme
 		dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+
+	if (count < 20) pr_err("%s2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod);
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1425,12 +1439,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
+	if (count < 20) pr_err("%s3 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod, prod);
+
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
+		if (count < 20) pr_err("%s4 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x owner=%d\n",
+			__func__, cpu, prodx, owner, llq.prod, head.prod, prod, owner);
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
@@ -1444,6 +1463,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * dependency required by (d).
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		
+		if (count < 20) pr_err("%s5 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x\n",
+			__func__, cpu, prodx, owner, llq.prod, head.prod, prod);
 
 		/*
 		 * d. Advance the hardware prod pointer
@@ -1459,6 +1481,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_set_release(&cmdq->owner_prod, prod);
 	}
 
+	if (count < 20) pr_err("%s6 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod, prod);
+
 	/* 5. Since we always insert a CMD_SYNC, we must wait for it to complete */
 	llq.prod = queue_inc_prod_n(&llq, n);
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
@@ -1468,6 +1493,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				    readl_relaxed(cmdq->q.cons_reg));
 	}
 
+	if (count < 20) pr_err("%s7 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod, prod);
+
 	/*
 	 * Try to unlock the cmdq lock. This will fail if we're the last reader,
 	 * in which case we can safely update cmdq->q.llq.cons
@@ -1476,7 +1504,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 		arm_smmu_cmdq_shared_unlock(cmdq);
 	}
-
+	if (count < 20) pr_err("%s8 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x prod=0x%x\n",
+		__func__, cpu, prodx, owner, llq.prod, head.prod, prod);
+	count++;
 	local_irq_restore(flags);
 	return ret;
 }
