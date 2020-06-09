@@ -1407,13 +1407,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
 
-	/*
-	 * In order to determine completion of our CMD_SYNC, we must
-	 * ensure that the queue can't wrap twice without us noticing.
-	 * We achieve that by taking the cmdq lock as shared before
-	 * marking our slot as valid.
-	 */
-	arm_smmu_cmdq_shared_lock(cmdq);
 
 	//	if (count < 20) pr_err("%s cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x n=%d\n",
 	//		__func__, cpu, prodx, owner, llq.prod, head.prod, n);
@@ -1442,6 +1435,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	
 	//	if (count < 20) pr_err("%s2 cpu%d prodx=0x%x owner=%d llq.prod=0x%x head.prod=0x%x\n",
 	//		__func__, cpu, prodx, owner, llq.prod, head.prod);
+
+	/*
+	 * In order to determine completion of our CMD_SYNC, we must
+	 * ensure that the queue can't wrap twice without us noticing.
+	 * We achieve that by taking the cmdq lock as shared before
+	 * marking our slot as valid.
+	 */
+	arm_smmu_cmdq_shared_lock(cmdq);
 
 	/*
 	 * 2. Write our commands into the queue
