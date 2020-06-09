@@ -1478,9 +1478,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod = queue_inc_prod_n(&llq, n);
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 	if (ret) {
-		dev_err_ratelimited(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] \n", cpu,
+		dev_err_ratelimited(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
 				    llq.prod, readl_relaxed(cmdq->q.prod_reg),
-				    readl_relaxed(cmdq->q.cons_reg));
+				    readl_relaxed(cmdq->q.cons_reg), owner);
 	}
 
 	/*
