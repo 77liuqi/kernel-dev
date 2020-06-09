@@ -1399,6 +1399,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
 	static int count;
 	int cpu;
+	ktime_t intial_space;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1414,9 +1415,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* Ensure it's safe to write the entries. */	
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
 	space.prod = llq.prod;
+	intial_space = ktime_get();
 
-	while (0){//!queue_has_space(&space, n + sync)) {
+	while (!queue_has_space(&space, n + sync)) {
 		int not_full;
+
+		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(400))) {
+			pr_err("%s cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x\n",
+				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock));
+			break;
+		}
 
 	//	if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 	//		dev_err(smmu->dev, "CMDQ timeout\n");
