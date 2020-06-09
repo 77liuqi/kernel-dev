@@ -1169,6 +1169,7 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		.max_n_shift	= cmdq->q.llq.max_n_shift,
 		.prod		= sprod,
 	};
+	ktime_t initial_time = ktime_get();
 
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
@@ -1187,6 +1188,9 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 			limit = ebidx;
 
 		mask = GENMASK(limit - 1, sbidx);
+
+		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(500)))
+			pr_err_once("%s set=%d cpu=%d\n", __func__, set, smp_processor_id());
 
 		/*
 		 * The valid bit is the inverse of the wrap bit. This means
@@ -1447,7 +1451,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
+		ktime_t initial_time = ktime_get();
+		ktime_t timeout_time = initial_time + ms_to_ktime(500);
+		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || ktime_after(ktime_get(), timeout_time));
+
+		if (ktime_after(ktime_get(), timeout_time))
+			pr_err_once("%s timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));
 
 		/* b. Stop gathering work by clearing the owned mask */
 		prod = atomic_fetch_andnot_relaxed(owner_mask,
