@@ -1403,6 +1403,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	
+	space.val = READ_ONCE(cmdq->q.llq.val);
+
+	while (!queue_has_space(&space, n + sync + 1500)) {
+		local_irq_restore(flags);
+		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
+			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+		local_irq_save(flags);
+	}
+	
 	cpu = smp_processor_id();
 
 	prodx = atomic_fetch_add(n + sync + owner_val,
