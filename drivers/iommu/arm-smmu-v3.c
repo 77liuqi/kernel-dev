@@ -1087,7 +1087,7 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
 		return;
 
-	pr_err_once("%s should not get here lock=0x%x/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
+	pr_err_once("%s should not get here lock=0x%x/%d INT_MIN=0x%d/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), INT_MIN, INT_MIN);
 	initial_time = ktime_get();
 
 	do {
