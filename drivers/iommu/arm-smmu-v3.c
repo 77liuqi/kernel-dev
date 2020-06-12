@@ -1483,6 +1483,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 inter;
 		u32 special_mask;
 		int owner_count;
+		static int corruption;
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || ktime_after(ktime_get(), timeout_time));
 		
 
@@ -1498,6 +1499,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		owner_count = inter & owner_mask;
 		owner_count >>= cmdq->q.llq.owner_count_shift;
+
+		if (corruption == 0) {
+			if (owner_count == 8) {
+				owner_count = 7;
+				corruption = 1;
+			}
+
+		}
 
 		if (inter & owner_mask)
 			pr_err_once("%s1 owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
