@@ -1442,6 +1442,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
 	space.prod = llq.prod;
 	intial_space = ktime_get();
+	int lock;
 
 	while (!queue_has_space(&space, n + sync)) {
 		int not_full;
@@ -1585,9 +1586,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * Try to unlock the cmdq lock. This will fail if we're the last reader,
 	 * in which case we can safely update cmdq->q.llq.cons
 	 */
+	lock = atomic_read(&cmdq->lock);
 	if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
+		int lock2;
 		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 		arm_smmu_cmdq_shared_unlock(cmdq);
+		lock2 = atomic_read(&cmdq->lock);
+		if (lock >= 0 && lock2 < 0)
+			pr_err_once("%s14 lock has gone negative lock=%d lock2=%d\n", __func__, lock, lock2);
 	}
 
 	local_irq_restore(flags);
