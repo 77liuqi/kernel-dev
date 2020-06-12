@@ -1248,7 +1248,7 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
-		pr_err_once("%s exclusive trylock\n", __func__);
+		pr_err_once("%s exclusive trylock INT_MIN=0x%x/%d\n", __func__, INT_MIN, INT_MIN);
 		return 0;
 	}
 
