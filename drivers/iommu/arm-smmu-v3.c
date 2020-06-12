@@ -1509,6 +1509,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		owner_count = inter & owner_mask;
 		owner_count >>= cmdq->q.llq.owner_count_shift;
 
+		
+		if (owner_count == 0)
+			pr_err_once("%s9.0 interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_count=%d\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask, owner_count);
+
 		if (corruption == 0) {
 			if (owner_count == 8) {
 			//	owner_count = 7;
@@ -1518,7 +1522,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		if (inter & owner_mask)
-			pr_err_once("%s9 owner count=%d inter=0x%x n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
+			pr_err_once("%s9.1 owner count=%d inter=0x%x n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
 
 
 		if (owner_count > 2)
