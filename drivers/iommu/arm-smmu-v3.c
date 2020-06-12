@@ -1087,12 +1087,12 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
 		return;
 
-	pr_err_once("%s should not get here\n", __func__);
+	pr_err_once("%s should not get here lock=0x%x/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
 	initial_time = ktime_get();
 
 	do {
-		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(500)))
-			pr_err_once("%s count=%d\n", __func__, count);
+		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(2500)))
+			pr_err_once("%s count=%d lock=0x%x/%d\n", __func__, count, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
 }
@@ -1207,7 +1207,7 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 
 		mask = GENMASK(limit - 1, sbidx);
 
-		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(500)))
+		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(2000)))
 			pr_err_once("%s set=%d cpu=%d sprod=0x%x eprod=0x%xd\n", __func__, set, smp_processor_id(), sprod, eprod);
 
 		/*
@@ -1446,10 +1446,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	while (!queue_has_space(&space, n + sync)) {
 		int not_full;
 
-		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(400))) {
+		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
 			pr_err_ratelimited("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x/%d\n",
 				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
-		//	break;
 		}
 
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
@@ -1491,11 +1490,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (owner) {
 		/* a. Wait for previous owner to finish */
 		ktime_t initial_time = ktime_get();
-		ktime_t timeout_time = initial_time + ms_to_ktime(5000);
+		ktime_t timeout_time = initial_time + ms_to_ktime(1500);
 		u32 inter;
 		u32 special_mask;
 		int owner_count;
 		static int corruption;
+		static int max_owner;
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || poll_leader(timeout_time));
 		
 
@@ -1518,7 +1518,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		if (inter & owner_mask)
-			pr_err_once("%s9 owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
+			pr_err_once("%s9 owner count=%d inter=0x%x n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
 
 
 		if (owner_count > 2)
@@ -1543,6 +1543,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * marking our slot as valid.
 		 */
 		arm_smmu_cmdq_shared_lock(cmdq, owner_count);
+
+		if (owner_count > max_owner) {
+
+			max_owner = owner_count;
+			pr_err("%s max owner=%d\n", __func__, max_owner);
+		}
 
 		if ((prod & prod_mask) != prod)
 			pr_err ("%s12 why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
