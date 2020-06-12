@@ -100,6 +100,11 @@ void smmu_test_core(int cpus)
 
 	ways = cpus;
 
+	if (ways > num_possible_cpus()) {
+		ways = num_possible_cpus();
+		pr_err("limiting ways to %d\n", ways);
+	}
+
 	for(i=0;i<ways;i++) {
 		mappings[i] = 0;
 		tsk = kthread_create_on_cpu(testthread, &sem[i], i,  "map_test");
