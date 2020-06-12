@@ -1497,7 +1497,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err_once("%s timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));
 
 		/* b. Stop gathering work by clearing the owned mask */
-		inter = prod = atomic_fetch_andnot_relaxed(owner_mask,
+		inter = prod = atomic_fetch_andnot_relaxed(~prod_mask,
 						   &cmdq->q.llq.atomic.prod);
 		prod &= prod_mask;
 
@@ -1507,16 +1507,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		owner_count >>= cmdq->q.llq.owner_count_shift;
 
 		if (inter & owner_mask)
-			pr_err_once("%s owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
+			pr_err_once("%s1 owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
 
 
 		if (owner_count > 2)
-			pr_err_once("%s interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_mask=0x%x owner_count=%d\n", 
-			__func__, inter, prod, prod_mask, prod_mask_full, special_mask, owner_mask, owner_count);
+			pr_err_once("%s2 interesteding=0x%x llq.prod=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_mask=0x%x owner_count=%d\n", 
+			__func__, inter, llq.prod, prod, prod_mask, prod_mask_full, special_mask, owner_mask, owner_count);
 
 		
 		if (prod & special_mask)
-			pr_err_once("%s interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask);
+			pr_err_once("%s3 interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
