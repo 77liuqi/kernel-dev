@@ -1447,13 +1447,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(400))) {
-			pr_err("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x\n",
-				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock));
-			break;
+			pr_err_ratelimited("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x/%d\n",
+				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
+		//	break;
 		}
 
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err(smmu->dev, "CMDQ timeout lock=%d\n", atomic_read(&cmdq->lock));
+			dev_err_ratelimited(smmu->dev, "CMDQ timeout lock=0x%x/%d\n", atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
 
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
