@@ -1086,6 +1086,8 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
 		return;
 
+	pr_err_once("%s should not get here\n", __func__);
+
 	do {
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
@@ -1440,8 +1442,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			break;
 		}
 
-	//	if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-	//		dev_err(smmu->dev, "CMDQ timeout\n");
+		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
+			dev_err(smmu->dev, "CMDQ timeout lock=%d\n", atomic_read(&cmdq->lock));
 
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
