@@ -29,7 +29,7 @@ struct semaphore sem[NR_CPUS];
 
 extern struct device *get_zip_dev(void);
 
-#define COMPLETIONS_SIZE 50
+#define COMPLETIONS_SIZE 200
 
 static noinline dma_addr_t test_mapsingle(struct device *dev, void *buf, int size)
 {
