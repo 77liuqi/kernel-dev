@@ -1401,6 +1401,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int cpu;
 	ktime_t intial_space;
 
+
+	pr_err_once("%s prod_mask=0x%x owner_val=0x%x owner_mask=0x%x\n", __func__, prod_mask, owner_val, owner_mask);
+
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	
@@ -3194,9 +3197,9 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	 * wrap+prod could overflow before the owner zeroes, so add 1
 	 * more (to cpus) for bits_for_cmdq_owner calculation.
 	 */
-	int bits_for_cmdq_owner = ilog2(cpus + 1) + 1;
-	/* 1-bit for overflow, 1-bit for wrap */
-	int bits_available_for_prod = 32 - 2 - bits_for_cmdq_owner;
+	int bits_for_cmdq_owner = ilog2(cpus) + 1;
+	/* 1-bit for overflow, 1-bit for wrap, 1-bit extra to ensure prod+wrap does not overflow into cpu count */
+	int bits_available_for_prod = 32 - 3 - bits_for_cmdq_owner;
 	int entries_for_prod;
 
 	if (bits_available_for_prod < 1) /* this would be insane - how many CPUs? */
