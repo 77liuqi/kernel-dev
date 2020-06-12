@@ -1073,7 +1073,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
  *   fails if the caller appears to be the last lock holder (yes, this is
  *   racy). All successful UNLOCK routines have RELEASE semantics.
  */
-static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
+static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 {
 	int val;
 
@@ -1083,7 +1083,7 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
 	 * to INT_MIN so these increments won't hurt as the value will remain
 	 * negative.
 	 */
-	if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
+	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
 		return;
 
 	do {
@@ -1447,13 +1447,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		space.prod = llq.prod;
 	}
 
-	/*
-	 * In order to determine completion of our CMD_SYNC, we must
-	 * ensure that the queue can't wrap twice without us noticing.
-	 * We achieve that by taking the cmdq lock as shared before
-	 * marking our slot as valid.
-	 */
-	arm_smmu_cmdq_shared_lock(cmdq);
 
 	if ((llq.prod & prod_mask) != llq.prod)
 		pr_err ("%sp llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
@@ -1524,6 +1517,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * dependency required by (d).
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		
+		/*
+		 * In order to determine completion of our CMD_SYNC, we must
+		 * ensure that the queue can't wrap twice without us noticing.
+		 * We achieve that by taking the cmdq lock as shared before
+		 * marking our slot as valid.
+		 */
+		arm_smmu_cmdq_shared_lock(cmdq, owner_count);
 
 		if ((prod & prod_mask) != prod)
 			pr_err ("%s why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
