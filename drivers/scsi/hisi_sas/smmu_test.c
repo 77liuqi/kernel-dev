@@ -109,6 +109,11 @@ void smmu_test_core(int cpus)
 		pr_err("limiting ways to %d\n", ways);
 	}
 
+	if (completions > COMPLETIONS_SIZE) {
+		completions = COMPLETIONS_SIZE;
+		pr_err("limiting completions to %d\n", completions);
+	}
+
 	for(i=0;i<ways;i++) {
 		mappings[i] = 0;
 		tsk = kthread_create_on_cpu(testthread, &sem[i], i,  "map_test");
