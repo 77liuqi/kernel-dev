@@ -1410,7 +1410,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	ktime_t intial_space;
 
 
-	pr_err_once("%s prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
+	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1435,7 +1435,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(400))) {
-			pr_err("%s cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x\n",
+			pr_err("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x\n",
 				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock));
 			break;
 		}
@@ -1449,7 +1449,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err ("%sp llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err ("%s3 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 
 
 	/*
@@ -1460,7 +1460,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	prod = queue_inc_prod_n(&llq, n);
 	if ((prod & prod_mask) != prod)
-		pr_err ("%sy prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+		pr_err ("%s4 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
@@ -1468,11 +1468,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err ("%sx llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err ("%s5 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 	if ((head.prod & prod_mask) != head.prod)
-		pr_err ("%sy head.prod=0x%x prod_mask=0x%x\n", __func__, head.prod, prod_mask);
+		pr_err ("%s6 head.prod=0x%x prod_mask=0x%x\n", __func__, head.prod, prod_mask);
 	if ((prod & prod_mask) != prod)
-		pr_err ("%sy prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+		pr_err ("%s7 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
@@ -1488,7 +1488,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 
 		if (ktime_after(ktime_get(), timeout_time))
-			pr_err_once("%s timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));
+			pr_err_once("%s8 timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));
 
 		/* b. Stop gathering work by clearing the owned mask */
 		inter = prod = atomic_fetch_andnot_relaxed(~prod_mask,
@@ -1509,16 +1509,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		if (inter & owner_mask)
-			pr_err_once("%s1 owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
+			pr_err_once("%s9 owner count=%d inter=0x%d n+sync=%d llq.prod=0x%x prod=0x%x owner_count=%d\n", __func__, inter & owner_mask, inter, n+sync, llq.prod, prod, owner_count);
 
 
 		if (owner_count > 2)
-			pr_err_once("%s2 interesteding=0x%x llq.prod=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_mask=0x%x owner_count=%d\n", 
+			pr_err_once("%s10 interesteding=0x%x llq.prod=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_mask=0x%x owner_count=%d\n", 
 			__func__, inter, llq.prod, prod, prod_mask, prod_mask_full, special_mask, owner_mask, owner_count);
 
 		
 		if (prod & special_mask)
-			pr_err_once("%s3 interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask);
+			pr_err_once("%s11 interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
@@ -1536,7 +1536,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		arm_smmu_cmdq_shared_lock(cmdq, owner_count);
 
 		if ((prod & prod_mask) != prod)
-			pr_err ("%s why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+			pr_err ("%s12 why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
@@ -1554,7 +1554,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 5. Since we always insert a CMD_SYNC, we must wait for it to complete */
 	llq.prod = queue_inc_prod_n(&llq, n);
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err ("%si llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err ("%s13 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 	if (ret) {
 		dev_err_ratelimited(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
