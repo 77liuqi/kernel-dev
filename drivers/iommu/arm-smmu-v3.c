@@ -1396,13 +1396,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	u32 owner_val = 1 << cmdq->q.llq.owner_count_shift;
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
+	u32 prod_mask_full = GENMASK(cmdq->q.llq.max_n_shift + 1, 0);
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
 	static int count;
 	int cpu;
 	ktime_t intial_space;
 
 
-	pr_err_once("%s prod_mask=0x%x owner_val=0x%x owner_mask=0x%x\n", __func__, prod_mask, owner_val, owner_mask);
+	pr_err_once("%s prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1502,6 +1503,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 
+		if ((prod & prod_mask) != prod)
+			pr_err ("%s why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
