@@ -23,6 +23,10 @@ module_param(ways, int, S_IRUGO);
 static int seconds = 20;
 module_param(seconds, int, S_IRUGO);
 
+static int completions = 20;
+module_param(completions, int, S_IRUGO);
+
+
 int mappings[NR_CPUS];
 struct semaphore sem[NR_CPUS];
 
@@ -59,30 +63,30 @@ static int testthread(void *data)
 	int i, cpu = smp_processor_id();
 	struct semaphore *sem = data;
 
-	for (i = 0; i < COMPLETIONS_SIZE; i++) {
+	for (i = 0; i < completions; i++) {
 		inputs[i] = kzalloc(4096, GFP_KERNEL);
 		if (!inputs[i])
 			return -ENOMEM;
 	}
 
-	for (i = 0; i < COMPLETIONS_SIZE; i++) {
+	for (i = 0; i < completions; i++) {
 		outputs[i] = kzalloc(4096, GFP_KERNEL);
 		if (!outputs[i])
 			return -ENOMEM;
 	}
 
 	while (time_before(jiffies, stop)) {
-		for (i = 0; i < COMPLETIONS_SIZE; i++) {
+		for (i = 0; i < completions; i++) {
 			dma_addr[i] = test_mapsingle(dev, inputs[i], 4096);
 			test_memcpy(outputs[i], inputs[i], 4096);
 		}
-		for (i = 0; i < COMPLETIONS_SIZE; i++) {
+		for (i = 0; i < completions; i++) {
 			test_unmapsingle(dev, inputs[i], 4096, dma_addr[i]);
 		}
-		mappings[cpu] += COMPLETIONS_SIZE;
+		mappings[cpu] += completions;
 	}
 
-	for (i = 0; i < COMPLETIONS_SIZE; i++) {
+	for (i = 0; i < completions; i++) {
 		kfree(outputs[i]);
 		kfree(inputs[i]);
 	}
