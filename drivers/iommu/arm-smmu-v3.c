@@ -1479,7 +1479,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (owner) {
 		/* a. Wait for previous owner to finish */
 		ktime_t initial_time = ktime_get();
-		ktime_t timeout_time = initial_time + ms_to_ktime(1800);
+		ktime_t timeout_time = initial_time + ms_to_ktime(5000);
 		u32 inter;
 		u32 special_mask;
 		int owner_count;
