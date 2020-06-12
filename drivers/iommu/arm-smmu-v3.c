@@ -1502,7 +1502,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		if (corruption == 0) {
 			if (owner_count == 8) {
-				owner_count = 7;
+			//	owner_count = 7;
 				corruption = 1;
 			}
 
