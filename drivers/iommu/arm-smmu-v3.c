@@ -1128,6 +1128,18 @@ static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
 })
 
 
+#define poll_leader(timeout)		\
+({									\
+	\
+	if (ktime_after(ktime_get(), timeout))\
+		pr_err_once("%s8 timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, \
+		smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));\
+\
+	0;								\
+})
+
+
+
 /*
  * Command queue insertion.
  * This is made fiddly by our attempts to achieve some sort of scalability
@@ -1484,11 +1496,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 special_mask;
 		int owner_count;
 		static int corruption;
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || ktime_after(ktime_get(), timeout_time));
+		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod || poll_leader(timeout_time));
 		
-
-		if (ktime_after(ktime_get(), timeout_time))
-			pr_err_once("%s8 timeout cpu%d llq.prod=0x%x cmdq->owner_prod=0x%x\n", __func__, smp_processor_id(), llq.prod, atomic_read(&cmdq->owner_prod));
 
 		/* b. Stop gathering work by clearing the owned mask */
 		inter = prod = atomic_fetch_andnot_relaxed(~prod_mask,
