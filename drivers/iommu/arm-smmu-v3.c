@@ -3229,7 +3229,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 
 	/* when finding max_cmd_per_batch, deduct 1 entry per batch for the CMD_SYNC */
 	q->llq.max_cmd_per_batch = min_t(u32, (entries_for_prod - cpus) / cpus, CMDQ_BATCH_ENTRIES);
-	q->llq.owner_count_shift = q->llq.max_n_shift + 1;
+	q->llq.owner_count_shift = q->llq.max_n_shift + 2;
 
 	if (!q->base) {
 		dev_err(smmu->dev,
