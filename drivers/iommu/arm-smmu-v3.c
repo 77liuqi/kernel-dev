@@ -1076,6 +1076,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 {
 	int val;
+	ktime_t initial_time;
 
 	/*
 	 * We can try to avoid the cmpxchg() loop by simply incrementing the
@@ -1087,10 +1088,13 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 		return;
 
 	pr_err_once("%s should not get here\n", __func__);
+	initial_time = ktime_get();
 
 	do {
+		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(500)))
+			pr_err_once("%s count=%d\n", __func__, count);
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
-	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
+	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
 }
 
 static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
@@ -1244,6 +1248,7 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
+		pr_err_once("%s exclusive trylock\n", __func__);
 		return 0;
 	}
 
@@ -1412,13 +1417,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	
 	space.val = READ_ONCE(cmdq->q.llq.val);
 
-	while (!queue_has_space(&space, n + sync + 1500)) {
-		local_irq_restore(flags);
-		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-		local_irq_save(flags);
-	}
-	
 	cpu = smp_processor_id();
 
 	prodx = atomic_fetch_add(n + sync + owner_val,
