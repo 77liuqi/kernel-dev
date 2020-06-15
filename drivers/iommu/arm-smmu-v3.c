@@ -776,9 +776,13 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
 
-	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons))
+	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
+		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
+			pr_err_once("%s wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+		//	return false;
+		}
 		space = (1 << q->max_n_shift) - (prod - cons);
-	else {
+	} else {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
 			pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
 			return false;
@@ -1276,7 +1280,7 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 		u32 val = readl_relaxed(cmdq->q.cons_reg);
 
 		if (Q_WRP(llq, val) != Q_WRP(llq, cmdq->q.llq.cons))
-			atomic64_inc(&cmdq->prod_cycle);
+			atomic64_inc(&cmdq->cons_cycle);
 		WRITE_ONCE(cmdq->q.llq.cons, val);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
