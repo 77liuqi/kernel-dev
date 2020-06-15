@@ -781,7 +781,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 	else {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
 			pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-			//return false;
+			return false;
 		}
 		space = cons - prod;
 	}
