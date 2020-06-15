@@ -562,8 +562,8 @@ struct arm_smmu_cmdq {
 	atomic_long_t			*valid_map;
 	atomic_t			owner_prod;
 	atomic_t			lock;
-	atomic64_t				prod_cycle;
-	atomic64_t				cons_cycle;
+	atomic_t				prod_cycle;
+	atomic_t				cons_cycle;
 };
 
 struct arm_smmu_cmdq_batch {
@@ -767,32 +767,39 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq)
+static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, u32 prod_cycle, u32 cons_cycle)
 {
-	u32 space, prod, cons;
-	u64 prod_cycle = atomic64_read(&cmdq->prod_cycle);
-	u64 cons_cycle = atomic64_read(&cmdq->cons_cycle);
+	u32 prod, cons;
+	int space;
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
 	
 	if (prod_cycle - cons_cycle >= 2) {
-		pr_err_once("%s too big prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-		return false;
+	//	pr_err_once("%s too big prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+	//	return false;
 	}
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
-			pr_err_once("%s wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+		//	pr_err_once("%s wrp prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
 		//	return false;
 		}
 		space = (1 << q->max_n_shift) - (prod - cons);
+	
+	
+		if (cons > prod)
+			pr_err_once("%s wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d (max=%d)\n", __func__, prod, q->prod, cons, q->cons, space, 1 << q->max_n_shift);
+
 	} else {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
-			pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-			return false;
+		//	pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+		//	return false;
 		}
 		space = cons - prod;
+
+		if (space < 0)
+			pr_err_once("%s !wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d\n", __func__, prod, q->prod, cons, q->cons, space);
 	}
 
 	return space >= n;
@@ -1285,7 +1292,7 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 		u32 val = readl_relaxed(cmdq->q.cons_reg);
 
 		if (Q_WRP(llq, val) != Q_WRP(llq, cmdq->q.llq.cons))
-			atomic64_inc(&cmdq->cons_cycle);
+			atomic_inc(&cmdq->cons_cycle);
 		WRITE_ONCE(cmdq->q.llq.cons, val);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
@@ -1446,11 +1453,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	u32 prod_mask_full = GENMASK(cmdq->q.llq.max_n_shift + 1, 0);
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
-	static int count;
+	//static int count;
 	int cpu;
 	u32 cons_orig;
 	ktime_t intial_space;
-
+	u32 prod_cycle;
+	u32 cons_cycle;
+	int wrapped;
+	int lock;
+	int loops = 0;
 
 	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
 
@@ -1467,16 +1478,22 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !(prodx & owner_mask);
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
-	
+
 	/* Ensure it's safe to write the entries. */	
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
 	space.prod = llq.prod;
 	intial_space = ktime_get();
-	int lock;
-	int loops = 0;
 
-	while (!queue_has_space(&space, n + sync, cmdq)) {
-		int not_full;
+	wrapped = Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod);
+
+	if (wrapped)
+		atomic_inc(&cmdq->prod_cycle);
+
+	prod_cycle = atomic_read(&cmdq->prod_cycle);
+	cons_cycle = atomic_read(&cmdq->cons_cycle);
+
+	while (!queue_has_space(&space, n + sync, cmdq, prod_cycle, cons_cycle)) {
+//		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
 			pr_err_once("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x/%d\n",
@@ -1491,15 +1508,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		loops++;
 	}
 
-	if (Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod))
-		atomic64_inc(&cmdq->prod_cycle);
-
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%llx cons 0x%llx)\n",
-		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic64_read(&cmdq->prod_cycle), atomic64_read(&cmdq->cons_cycle));
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%x cons 0x%x)\n",
+		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic_read(&cmdq->prod_cycle), atomic_read(&cmdq->cons_cycle));
 
 	space.prod = llq.prod;
-
 
 	if ((llq.prod & prod_mask) != llq.prod)
 		pr_err_once ("%s3 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
@@ -1531,8 +1544,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		/* a. Wait for previous owner to finish */
-		ktime_t initial_time = ktime_get();
-		ktime_t timeout_time = initial_time + ms_to_ktime(1500);
+//		ktime_t initial_time = ktime_get();
+		//ktime_t timeout_time = initial_time + ms_to_ktime(1500);
 		u32 inter;
 		u32 special_mask;
 		int owner_count;
@@ -1636,7 +1649,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		val_from_unlock = arm_smmu_cmdq_shared_unlock(cmdq);
 		if (val_from_unlock == 0) {
 			if (Q_WRP(&llq, cons_orig) != Q_WRP(&llq, llq.cons))
-				atomic64_inc(&cmdq->cons_cycle);
+				atomic_inc(&cmdq->cons_cycle);
 		}
 			
 		lock2 = atomic_read(&cmdq->lock);
