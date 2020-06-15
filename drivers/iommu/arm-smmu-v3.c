@@ -1448,6 +1448,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.prod = llq.prod;
 	intial_space = ktime_get();
 	int lock;
+	int loops = 0;
 
 	while (!queue_has_space(&space, n + sync)) {
 		int not_full;
@@ -1462,11 +1463,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
+		loops++;
 	}
-	space.prod = llq.prod;
 
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed\n", __func__);
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x\n", __func__, loops, space.prod, space.cons, n+sync, llq.prod);
+
+	space.prod = llq.prod;
 
 
 	if ((llq.prod & prod_mask) != llq.prod)
