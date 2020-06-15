@@ -1441,6 +1441,8 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  * - A CMD_SYNC is always inserted, ensuring that any CPU does not issue
  *   more than the permitted amount commands at once.
  */
+#define HACK
+					
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n)
 {
@@ -1469,6 +1471,23 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int loops = 0;
 	int da_space = 0;
 	static int max_len = 0;
+	
+	#ifdef HACK
+	int i;
+	struct arm_smmu_cmdq_batch cmds_local = {};
+	struct arm_smmu_cmdq *q = &smmu->cmdq;
+	struct arm_smmu_ll_queue *llq2 = &q->q.llq;
+	u64 *cmds2 = &cmds_local.cmds[0];
+	n = llq2->max_cmd_per_batch;
+	
+	for (i=0;i<n;i++) {
+		u64 *tmpp = &cmds_local.cmds[i];
+		memcpy(tmpp, cmds, CMDQ_ENT_DWORDS * sizeof(u64));
+	}
+	
+	#else
+	u64 *cmds2 = cmds;
+	#endif
 
 	if (n > max_len) {
 		max_len = n;
@@ -1534,7 +1553,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds2, llq.prod, n);
 
 	prod = queue_inc_prod_n(&llq, n);
 	if ((prod & prod_mask) != prod)
