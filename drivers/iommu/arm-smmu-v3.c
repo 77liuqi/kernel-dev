@@ -1101,7 +1101,10 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 
 static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
 {
-	(void)atomic_dec_return_release(&cmdq->lock);
+	int val = atomic_dec_return_release(&cmdq->lock);
+
+	if (val < 0)
+		pr_err_once("%s cmdq got negative val=%d\n", __func__, val);
 }
 
 static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
@@ -1460,6 +1463,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
 	}
+	space.prod = llq.prod;
+
+	if (!owner && queue_consumed(&space, llq.prod))
+		pr_err_once("%s already consumed\n", __func__);
 
 
 	if ((llq.prod & prod_mask) != llq.prod)
@@ -1514,7 +1521,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		
 		if (owner_count == 0)
-			pr_err_once("%s9.0 interesteding=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_count=%d\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask, owner_count);
+			pr_err_once("%s9.0 interesting=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_count=%d\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask, owner_count);
 
 		if (corruption == 0) {
 			if (owner_count == 8) {
