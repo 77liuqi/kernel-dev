@@ -1468,6 +1468,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int lock;
 	int loops = 0;
 	int da_space = 0;
+	static int max_len = 0;
+
+	if (n > max_len) {
+		max_len = n;
+		pr_err("%s max_len=%d\n", __func__, max_len);
+	}
 
 	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
 
