@@ -775,6 +775,11 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
+	
+	if (prod_cycle - cons_cycle >= 2) {
+		pr_err_once("%s too big prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+		return false;
+	}
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
@@ -1462,10 +1467,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !(prodx & owner_mask);
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
-
-	if (Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod))
-		atomic64_inc(&cmdq->prod_cycle);
-
 	
 	/* Ensure it's safe to write the entries. */	
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
@@ -1489,6 +1490,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		space.prod = llq.prod;
 		loops++;
 	}
+
+	if (Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod))
+		atomic64_inc(&cmdq->prod_cycle);
 
 	if (!owner && queue_consumed(&space, llq.prod))
 		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%llx cons 0x%llx)\n",
