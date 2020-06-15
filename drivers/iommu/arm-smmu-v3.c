@@ -1416,7 +1416,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq, space = llq;
+	}, head = llq, space = llq, initial = llq;
 	int ret = 0;
 	u32 owner_val = 1 << cmdq->q.llq.owner_count_shift;
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
@@ -1432,7 +1432,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	
-	space.val = READ_ONCE(cmdq->q.llq.val);
+	initial.val = space.val = READ_ONCE(cmdq->q.llq.val);
 
 	cpu = smp_processor_id();
 
@@ -1467,7 +1467,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x\n", __func__, loops, space.prod, space.cons, n+sync, llq.prod);
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x)\n", __func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons);
 
 	space.prod = llq.prod;
 
