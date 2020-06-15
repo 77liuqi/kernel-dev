@@ -1077,6 +1077,7 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 {
 	int val;
 	ktime_t initial_time;
+	int returned;
 
 	/*
 	 * We can try to avoid the cmpxchg() loop by simply incrementing the
@@ -1084,15 +1085,16 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	 * to INT_MIN so these increments won't hurt as the value will remain
 	 * negative.
 	 */
-	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
+	returned = atomic_fetch_add_relaxed(count, &cmdq->lock);
+	if (returned >= 0)
 		return;
 
-	pr_err_once("%s exclusive lock=0x%x/%d INT_MIN=0x%d/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), INT_MIN, INT_MIN);
+	pr_err_once("%s exclusive lock=0x%x/%d INT_MIN=0x%d/%d count=%d returned=%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), INT_MIN, INT_MIN, count, returned);
 	initial_time = ktime_get();
 
 	do {
 		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(2500)))
-			pr_err_once("%s count=%d lock=0x%x/%d\n", __func__, count, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
+			pr_err_once("%s count=%d lock=0x%x/%d val=%d\n", __func__, count, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), val);
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
 }
