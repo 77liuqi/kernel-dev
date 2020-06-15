@@ -1087,7 +1087,7 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
 		return;
 
-	pr_err_once("%s should not get here lock=0x%x/%d INT_MIN=0x%d/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), INT_MIN, INT_MIN);
+	pr_err_once("%s exclusive lock=0x%x/%d INT_MIN=0x%d/%d\n", __func__, atomic_read(&cmdq->lock), atomic_read(&cmdq->lock), INT_MIN, INT_MIN);
 	initial_time = ktime_get();
 
 	do {
@@ -1448,12 +1448,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
-			pr_err_ratelimited("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x/%d\n",
+			pr_err_once("%s2 cpu%d owner=%d prodx=0x%x llq.prod=0x%x space (prod=0x%x, cons=0x%x) cons reg=0x%x lock=0x%x/%d\n",
 				__func__, smp_processor_id(), owner, prodx, llq.prod, space.prod, space.cons, readl_relaxed(cmdq->q.cons_reg), atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
 		}
 
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout lock=0x%x/%d\n", atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
+			dev_err_once(smmu->dev, "CMDQ timeout lock=0x%x/%d\n", atomic_read(&cmdq->lock), atomic_read(&cmdq->lock));
 
 		space.cons = READ_ONCE(cmdq->q.llq.cons);
 		space.prod = llq.prod;
@@ -1461,7 +1461,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err_ratelimited ("%s3 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err_once ("%s3 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 
 
 	/*
@@ -1472,7 +1472,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	prod = queue_inc_prod_n(&llq, n);
 	if ((prod & prod_mask) != prod)
-		pr_err_ratelimited ("%s4 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+		pr_err_once ("%s4 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
@@ -1480,11 +1480,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err_ratelimited("%s5 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err_once("%s5 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 	if ((head.prod & prod_mask) != head.prod)
-		pr_err_ratelimited ("%s6 head.prod=0x%x prod_mask=0x%x\n", __func__, head.prod, prod_mask);
+		pr_err_once ("%s6 head.prod=0x%x prod_mask=0x%x\n", __func__, head.prod, prod_mask);
 	if ((prod & prod_mask) != prod)
-		pr_err_ratelimited ("%s7 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+		pr_err_once ("%s7 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
@@ -1556,7 +1556,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		if ((prod & prod_mask) != prod)
-			pr_err_ratelimited ("%s12 why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+			pr_err_once ("%s12 why prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
@@ -1574,10 +1574,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 5. Since we always insert a CMD_SYNC, we must wait for it to complete */
 	llq.prod = queue_inc_prod_n(&llq, n);
 	if ((llq.prod & prod_mask) != llq.prod)
-		pr_err_ratelimited ("%s13 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+		pr_err_once ("%s13 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 	if (ret) {
-		dev_err_ratelimited(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
+		dev_err_once(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
 				    llq.prod, readl_relaxed(cmdq->q.prod_reg),
 				    readl_relaxed(cmdq->q.cons_reg), owner);
 	}
