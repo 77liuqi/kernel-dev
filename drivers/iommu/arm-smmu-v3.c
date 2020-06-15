@@ -787,9 +787,10 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 		}
 		space = (1 << q->max_n_shift) - (prod - cons);
 	
-	
-		if (cons > prod)
+		if (cons > prod) {
 			pr_err_once("%s wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d (max=%d)\n", __func__, prod, q->prod, cons, q->cons, space, 1 << q->max_n_shift);
+			return false;
+		}
 
 	} else {
 		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
@@ -798,8 +799,10 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 		}
 		space = cons - prod;
 
-		if (space < 0)
+		if (space < 0) {
 			pr_err_once("%s !wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d\n", __func__, prod, q->prod, cons, q->cons, space);
+			return false;
+		}
 	}
 
 	return space >= n;
