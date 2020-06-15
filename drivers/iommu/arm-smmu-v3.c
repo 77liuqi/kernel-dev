@@ -562,6 +562,8 @@ struct arm_smmu_cmdq {
 	atomic_long_t			*valid_map;
 	atomic_t			owner_prod;
 	atomic_t			lock;
+	atomic64_t				prod_cycle;
+	atomic64_t				cons_cycle;
 };
 
 struct arm_smmu_cmdq_batch {
@@ -765,17 +767,24 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
+static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq)
 {
 	u32 space, prod, cons;
+	u64 prod_cycle = atomic64_read(&cmdq->prod_cycle);
+	u64 cons_cycle = atomic64_read(&cmdq->cons_cycle);
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons))
 		space = (1 << q->max_n_shift) - (prod - cons);
-	else
+	else {
+		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
+			pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%llx cons_cycle=0x%llx n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
+			//return false;
+		}
 		space = cons - prod;
+	}
 
 	return space >= n;
 }
@@ -1099,12 +1108,14 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
 }
 
-static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
+static int arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
 {
 	int val = atomic_dec_return_release(&cmdq->lock);
 
 	if (val < 0)
 		pr_err_once("%s cmdq got negative val=%d\n", __func__, val);
+
+	return val;
 }
 
 static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
@@ -1262,7 +1273,11 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	 * that fails, spin until somebody else updates it for us.
 	 */
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
-		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
+		u32 val = readl_relaxed(cmdq->q.cons_reg);
+
+		if (Q_WRP(llq, val) != Q_WRP(llq, cmdq->q.llq.cons))
+			atomic64_inc(&cmdq->prod_cycle);
+		WRITE_ONCE(cmdq->q.llq.cons, val);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
 		pr_err_once("%s exclusive trylock INT_MIN=0x%x/%d\n", __func__, INT_MIN, INT_MIN);
@@ -1424,6 +1439,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
 	static int count;
 	int cpu;
+	u32 cons_orig;
 	ktime_t intial_space;
 
 
@@ -1442,6 +1458,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !(prodx & owner_mask);
 	llq.prod = prod_mask & prodx;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
+
+	if (Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod))
+		atomic64_inc(&cmdq->prod_cycle);
+
 	
 	/* Ensure it's safe to write the entries. */	
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
@@ -1450,7 +1470,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int lock;
 	int loops = 0;
 
-	while (!queue_has_space(&space, n + sync)) {
+	while (!queue_has_space(&space, n + sync, cmdq)) {
 		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
@@ -1467,7 +1487,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x)\n", __func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons);
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%llx cons 0x%llx)\n",
+		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic64_read(&cmdq->prod_cycle), atomic64_read(&cmdq->cons_cycle));
 
 	space.prod = llq.prod;
 
@@ -1510,7 +1531,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		static int corruption;
 		static int max_owner;
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
-		
+
 
 		/* b. Stop gathering work by clearing the owned mask */
 		inter = prod = atomic_fetch_andnot_relaxed(~prod_mask,
@@ -1521,7 +1542,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		owner_count = inter & owner_mask;
 		owner_count >>= cmdq->q.llq.owner_count_shift;
-
 		
 		if (owner_count == 0)
 			pr_err_once("%s9.0 interesting=0x%x prod=0x%x prod_mask=0x%x prod_mask_full=0x%x special_mask=0x%x owner_count=%d\n", __func__, inter, prod, prod_mask, prod_mask_full, special_mask, owner_count);
@@ -1587,6 +1607,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod = queue_inc_prod_n(&llq, n);
 	if ((llq.prod & prod_mask) != llq.prod)
 		pr_err_once ("%s13 llq.prod=0x%x prod_mask=0x%x\n", __func__, llq.prod, prod_mask);
+	cons_orig = llq.cons;
 	ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 	if (ret) {
 		dev_err_once(smmu->dev, "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n", cpu,
@@ -1601,8 +1622,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	lock = atomic_read(&cmdq->lock);
 	if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
 		int lock2;
+		int val_from_unlock;
+
 		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
-		arm_smmu_cmdq_shared_unlock(cmdq);
+		val_from_unlock = arm_smmu_cmdq_shared_unlock(cmdq);
+		if (val_from_unlock == 0) {
+			if (Q_WRP(&llq, cons_orig) != Q_WRP(&llq, llq.cons))
+				atomic64_inc(&cmdq->cons_cycle);
+		}
+			
 		lock2 = atomic_read(&cmdq->lock);
 		if (lock >= 0 && lock2 < 0)
 			pr_err_once("%s14 lock has gone negative lock=%d lock2=%d\n", __func__, lock, lock2);
