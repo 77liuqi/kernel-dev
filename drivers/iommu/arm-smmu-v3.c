@@ -767,7 +767,7 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, u32 prod_cycle, u32 cons_cycle)
+static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, u32 prod_cycle, u32 cons_cycle, int *da_space)
 {
 	u32 prod, cons;
 	int space;
@@ -786,7 +786,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 		//	return false;
 		}
 		space = (1 << q->max_n_shift) - (prod - cons);
-	
+		*da_space = space;
 		if (cons > prod) {
 			pr_err_once("%s wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d (max=%d)\n", __func__, prod, q->prod, cons, q->cons, space, 1 << q->max_n_shift);
 			return false;
@@ -798,6 +798,8 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 		//	return false;
 		}
 		space = cons - prod;
+
+		*da_space = space;
 
 		if (space < 0) {
 			pr_err_once("%s !wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d\n", __func__, prod, q->prod, cons, q->cons, space);
@@ -1465,6 +1467,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int wrapped;
 	int lock;
 	int loops = 0;
+	int da_space = 0;
 
 	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
 
@@ -1495,7 +1498,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	prod_cycle = atomic_read(&cmdq->prod_cycle);
 	cons_cycle = atomic_read(&cmdq->cons_cycle);
 
-	while (!queue_has_space(&space, n + sync, cmdq, prod_cycle, cons_cycle)) {
+	while (!queue_has_space(&space, n + sync, cmdq, prod_cycle, cons_cycle, &da_space)) {
 //		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
@@ -1512,8 +1515,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%x cons 0x%x)\n",
-		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic_read(&cmdq->prod_cycle), atomic_read(&cmdq->cons_cycle));
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%x cons 0x%x) da_space=%d\n",
+		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic_read(&cmdq->prod_cycle), atomic_read(&cmdq->cons_cycle), da_space);
 
 	space.prod = llq.prod;
 
