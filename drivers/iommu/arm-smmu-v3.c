@@ -770,7 +770,7 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, u32 prod_cycle, u32 cons_cycle, int *da_space)
 {
 	u32 prod, cons;
-	int space;
+	u32 space;
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
@@ -801,7 +801,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 
 		*da_space = space;
 
-		if (space < 0) {
+		if (prod > cons) {
 			pr_err_once("%s !wrp prod=0x%x q->prod=0x%x cons=0x%x q->cons=0x%x space=%d\n", __func__, prod, q->prod, cons, q->cons, space);
 			return false;
 		}
