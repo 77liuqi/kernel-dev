@@ -1442,7 +1442,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   more than the permitted amount commands at once.
  */
 #define HACK
-					
+extern int smmu_test;		
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n)
 {
@@ -1471,6 +1471,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int loops = 0;
 	int da_space = 0;
 	static int max_len = 0;
+	int test = READ_ONCE(smmu_test);
+	int n_orig = n;
 
 
 	
@@ -1478,7 +1480,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int i;
 	struct arm_smmu_cmdq *q = &smmu->cmdq;
 	struct arm_smmu_ll_queue *llq2 = &q->q.llq;
-	n = llq2->max_cmd_per_batch;
+	if (test)
+		n = llq2->max_cmd_per_batch;
 	#endif
 
 	if (n > max_len) {
@@ -1546,19 +1549,23 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
 	#ifdef HACK
-	for (i=n;i<llq2->max_cmd_per_batch;i++) {
-		prod = queue_inc_prod_n(&llq, i);
-		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
-		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
-		memset(cmd_sync, 0x0, sizeof(*cmd_sync));
+	if (test) {
+		for (i=n_orig;i<llq2->max_cmd_per_batch;i++) {
+			prod = queue_inc_prod_n(&llq, i);
+			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
+		}
+		pr_err_once("%s padding up %d commands\n", __func__, llq2->max_cmd_per_batch);
+		prod = queue_inc_prod_n(&llq, llq2->max_cmd_per_batch);
+	} else {
+		prod = queue_inc_prod_n(&llq, n);
 	}
-	pr_err_once("%s padding up %d commands\n", __func__, llq2->max_cmd_per_batch);
-	prod = queue_inc_prod_n(&llq, llq2->max_cmd_per_batch);
 	#else
-	prod = queue_inc_prod_n(&llq, n);	
+	prod = queue_inc_prod_n(&llq, n);
 	#endif
 
 	if ((prod & prod_mask) != prod)

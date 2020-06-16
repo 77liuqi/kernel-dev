@@ -96,11 +96,14 @@ static int testthread(void *data)
 	return 0;
 }  
 
+int smmu_test;
+
 void smmu_test_core(int cpus)
 {
 	struct task_struct *tsk;
 	int i;
 	int total_mappings = 0;
+	smmu_test = 1;
 
 	ways = cpus;
 
@@ -127,6 +130,7 @@ void smmu_test_core(int cpus)
 		down(&sem[i]);
 		total_mappings += mappings[i];
 	}
+	smmu_test = 0;
 
 	printk(KERN_ERR "finished total_mappings=%d (per way=%d) (rate=%d per second per cpu) ways=%d\n", 
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways);
