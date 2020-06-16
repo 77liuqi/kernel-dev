@@ -1114,14 +1114,10 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
 }
 
-static int arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
+static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
 {
-	int val = atomic_dec_return_release(&cmdq->lock);
+	(void)atomic_dec_return_release(&cmdq->lock);
 
-	if (val < 0)
-		pr_err_once("%s cmdq got negative val=%d\n", __func__, val);
-
-	return val;
 }
 
 static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
@@ -1662,14 +1658,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	lock = atomic_read(&cmdq->lock);
 	if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
 		int lock2;
-		int val_from_unlock;
 
 		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
-		val_from_unlock = arm_smmu_cmdq_shared_unlock(cmdq);
+		arm_smmu_cmdq_shared_unlock(cmdq);
 			
 		lock2 = atomic_read(&cmdq->lock);
 		if (lock >= 0 && lock2 < 0)
-			pr_err_once("%s14 lock has gone negative lock=%d lock2=%d\n", __func__, lock, lock2);
+			pr_err_once("%s14 lock has gone negative lock=%d lock2=%d INT_MIN=%d\n", __func__, lock, lock2, INT_MIN);
 	}
 
 	local_irq_restore(flags);
