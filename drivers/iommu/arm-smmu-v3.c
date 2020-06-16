@@ -3336,6 +3336,8 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	if (bits_available_for_prod < 1) /* this would be insane - how many CPUs? */
 		return -ENOMEM;
 
+	pr_err("%s q->llq.max_n_shift=%d bits_available_for_prod=%d name=%s\n", __func__, q->llq.max_n_shift, bits_available_for_prod, name);
+
 	q->llq.max_n_shift = min_t(int, q->llq.max_n_shift, bits_available_for_prod);
 	do {
 		qsz = ((1 << q->llq.max_n_shift) * dwords) << 3;
@@ -3358,6 +3360,8 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	/* when finding max_cmd_per_batch, deduct 1 entry per batch for the CMD_SYNC */
 	q->llq.max_cmd_per_batch = min_t(u32, (entries_for_prod - cpus) / cpus, CMDQ_BATCH_ENTRIES);
 	q->llq.owner_count_shift = q->llq.max_n_shift + 2;
+
+	pr_err("%s2 q->llq.max_n_shift=%d \n", __func__, q->llq.max_n_shift);
 
 	if (!q->base) {
 		dev_err(smmu->dev,
