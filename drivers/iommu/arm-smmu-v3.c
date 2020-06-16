@@ -1471,22 +1471,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int loops = 0;
 	int da_space = 0;
 	static int max_len = 0;
+
+
 	
 	#ifdef HACK
 	int i;
-	struct arm_smmu_cmdq_batch cmds_local = {};
 	struct arm_smmu_cmdq *q = &smmu->cmdq;
 	struct arm_smmu_ll_queue *llq2 = &q->q.llq;
-	u64 *cmds2 = &cmds_local.cmds[0];
 	n = llq2->max_cmd_per_batch;
-	
-	for (i=0;i<n;i++) {
-		u64 *tmpp = &cmds_local.cmds[i];
-		memcpy(tmpp, cmds, CMDQ_ENT_DWORDS * sizeof(u64));
-	}
-	
-	#else
-	u64 *cmds2 = cmds;
 	#endif
 
 	if (n > max_len) {
@@ -1494,7 +1486,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		pr_err("%s max_len=%d\n", __func__, max_len);
 	}
 
-	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d\n", __func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift);
+	pr_err_once("%s1 prod_mask=0x%x owner_val=0x%x owner_mask=0x%x max_n_shift=%d owner_count_shift=%d n=%d\n", 
+	__func__, prod_mask, owner_val, owner_mask, cmdq->q.llq.max_n_shift, cmdq->q.llq.owner_count_shift, n);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1553,13 +1546,28 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds2, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
 
-	prod = queue_inc_prod_n(&llq, n);
+	#ifdef HACK
+	for (i=n;i<llq2->max_cmd_per_batch;i++) {
+		prod = queue_inc_prod_n(&llq, i);
+		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+		memset(cmd_sync, 0x0, sizeof(*cmd_sync));
+	}
+	pr_err_once("%s padding up %d commands\n", __func__, llq2->max_cmd_per_batch);
+	prod = queue_inc_prod_n(&llq, llq2->max_cmd_per_batch);
+	#else
+	prod = queue_inc_prod_n(&llq, n);	
+	#endif
+
 	if ((prod & prod_mask) != prod)
 		pr_err_once ("%s4 prod=0x%x prod_mask=0x%x\n", __func__, prod, prod_mask);
+
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+
+
 
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
