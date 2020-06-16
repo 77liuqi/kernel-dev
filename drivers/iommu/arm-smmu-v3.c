@@ -562,8 +562,6 @@ struct arm_smmu_cmdq {
 	atomic_long_t			*valid_map;
 	atomic_t			owner_prod;
 	atomic_t			lock;
-	atomic_t				prod_cycle;
-	atomic_t				cons_cycle;
 };
 
 struct arm_smmu_cmdq_batch {
@@ -767,24 +765,15 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, u32 prod_cycle, u32 cons_cycle, int *da_space)
+static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_cmdq *cmdq, int *da_space)
 {
 	u32 prod, cons;
 	u32 space;
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
-	
-	if (prod_cycle - cons_cycle >= 2) {
-	//	pr_err_once("%s too big prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-	//	return false;
-	}
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
-		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
-		//	pr_err_once("%s wrp prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-		//	return false;
-		}
 		space = (1 << q->max_n_shift) - (prod - cons);
 		*da_space = space;
 		if (cons > prod) {
@@ -793,10 +782,6 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 		}
 
 	} else {
-		if (prod_cycle > cons_cycle && (prod >= cons + n)) {
-		//	pr_err_once("%s !wrp prod=0x%x cons=0x%x prod_cycle=0x%x cons_cycle=0x%x n=%d\n", __func__, q->prod, q->cons, prod_cycle, cons_cycle, n);
-		//	return false;
-		}
 		space = cons - prod;
 
 		*da_space = space;
@@ -1296,8 +1281,6 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		u32 val = readl_relaxed(cmdq->q.cons_reg);
 
-		if (Q_WRP(llq, val) != Q_WRP(llq, cmdq->q.llq.cons))
-			atomic_inc(&cmdq->cons_cycle);
 		WRITE_ONCE(cmdq->q.llq.cons, val);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
@@ -1464,9 +1447,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int cpu;
 	u32 cons_orig;
 	ktime_t intial_space;
-	u32 prod_cycle;
-	u32 cons_cycle;
-	int wrapped;
 	int lock;
 	int loops = 0;
 	int da_space = 0;
@@ -1511,15 +1491,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.prod = llq.prod;
 	intial_space = ktime_get();
 
-	wrapped = Q_WRP(&llq, llq.prod) != Q_WRP(&llq, head.prod);
 
-	if (wrapped)
-		atomic_inc(&cmdq->prod_cycle);
-
-	prod_cycle = atomic_read(&cmdq->prod_cycle);
-	cons_cycle = atomic_read(&cmdq->cons_cycle);
-
-	while (!queue_has_space(&space, n + sync, cmdq, prod_cycle, cons_cycle, &da_space)) {
+	while (!queue_has_space(&space, n + sync, cmdq, &da_space)) {
 //		int not_full;
 
 		if (ktime_after(ktime_get(), intial_space + ms_to_ktime(1200))) {
@@ -1536,8 +1509,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 	if (!owner && queue_consumed(&space, llq.prod))
-		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x cycle=(prod 0x%x cons 0x%x) da_space=%d\n",
-		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prodx, atomic_read(&cmdq->prod_cycle), atomic_read(&cmdq->cons_cycle), da_space);
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x initial=(prod=0x%x cons=0x%x) prodx=0x%x da_space=%d\n",
+		__func__, loops, space.prod, space.cons, n+sync, llq.prod, initial.prod, initial.cons, prod, da_space);
 
 	space.prod = llq.prod;
 
@@ -1693,10 +1666,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 		val_from_unlock = arm_smmu_cmdq_shared_unlock(cmdq);
-		if (val_from_unlock == 0) {
-			if (Q_WRP(&llq, cons_orig) != Q_WRP(&llq, llq.cons))
-				atomic_inc(&cmdq->cons_cycle);
-		}
 			
 		lock2 = atomic_read(&cmdq->lock);
 		if (lock >= 0 && lock2 < 0)
