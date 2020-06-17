@@ -20,7 +20,7 @@
 static int ways = 64;
 module_param(ways, int, S_IRUGO);
 
-static int seconds = 20;
+static int seconds = 120;
 module_param(seconds, int, S_IRUGO);
 
 static int completions = 20;

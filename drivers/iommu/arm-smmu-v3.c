@@ -1388,6 +1388,8 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   It also makes it easy for the owner to know by how many to increment the
  *   cmdq lock.
  */
+#define HACK
+extern int smmu_test;		
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n)
 {
@@ -1404,7 +1406,23 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	u32 owner_mask = GENMASK(30, cmdq->q.llq.owner_count_shift);
 	int ret = 0;
+	int loops = 0;
+	static int max_len = 0;
+	int test = READ_ONCE(smmu_test);
+	int n_orig = n;
 
+	#ifdef HACK
+	int i;
+	struct arm_smmu_cmdq *q = &smmu->cmdq;
+	struct arm_smmu_ll_queue *llq2 = &q->q.llq;
+	if (test)
+		n = llq2->max_cmd_per_batch;
+	#endif
+
+	if (n > max_len) {
+		max_len = n;
+		pr_err("%s max_len=%d\n", __func__, max_len);
+	}
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 
@@ -1428,13 +1446,31 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		space.prod = llq.prod;
 	}
 
+	if (!owner && queue_consumed(&space, llq.prod))
+		pr_err_once("%s already consumed loops=%d space=(prod=0x%x cons=0x%x) n+sync=%d llq.prod=0x%x prodx=0x%x\n",
+		__func__, loops, space.prod, space.cons, n+sync, llq.prod, prod);
 	/*
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the space-checking while loop, above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
+	#ifdef HACK
+	if (test) {
+		for (i=n_orig;i<llq2->max_cmd_per_batch;i++) {
+			prod = queue_inc_prod_n(&llq, i);
+			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
+		}
+		pr_err_once("%s padding up %d commands\n", __func__, llq2->max_cmd_per_batch);
+		prod = queue_inc_prod_n(&llq, llq2->max_cmd_per_batch);
+	} else {
+		prod = queue_inc_prod_n(&llq, n);
+	}
+	#else
 	prod = queue_inc_prod_n(&llq, n);
+	#endif
 	arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 	queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 
@@ -1446,7 +1482,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (owner) {
 		int owner_count;
 		u32 prod_tmp;
-
+		static int max_owner;
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
@@ -1477,6 +1513,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_shared_lock(cmdq, owner_count);
 
+		if (owner_count > max_owner) {
+
+			max_owner = owner_count;
+			pr_err("%s max owner=%d\n", __func__, max_owner);
+		}
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
@@ -3213,6 +3254,10 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	 */
 	bits_for_cmdq_owner = ilog2(cpus) + 1;
 
+//#define EXTRA_SHIFT 3 //ok
+#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+
+
 	/*
 	 * Add an extra bit to ensure prod(+wrap) do not overflow into
 	 * owner count.
@@ -3223,6 +3268,7 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 		return -ENOMEM;
 
 	q->llq.max_n_shift = min(q->llq.max_n_shift, bits_available_for_prod);
+	q->llq.max_n_shift -= EXTRA_SHIFT;
 
 	ret = arm_smmu_init_one_queue(smmu, q, prod_off, cons_off, dwords,
 				      "cmdq");
@@ -3235,15 +3281,18 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	 * We need at least 2 commands in a batch (1 x CMD_SYNC and 1 x
 	 * whatever else).
 	 */
-	if (entries_for_prod < 2 * cpus)
-		return -ENOMEM;
+	//if (entries_for_prod < 2 * cpus)
+	//	return -ENOMEM;
 
 	/*
 	 * When finding max_cmd_per_batch, deduct 1 entry per batch to take
 	 * account of CMD_SYNC
 	 */
-	q->llq.max_cmd_per_batch = min((entries_for_prod / cpus) - 1,
-				       (u32)CMDQ_BATCH_ENTRIES);
+
+	q->llq.max_cmd_per_batch = CMDQ_BATCH_ENTRIES;
+	pr_err("%s max entries for prod=%d if we ignored CMDQ_BATCH_ENTRIES, max_cmd_per_batch=%d, entries_for_prod=%d, entries required for prod=%d\n", 
+		__func__, (entries_for_prod / cpus) - 1, q->llq.max_cmd_per_batch, entries_for_prod, cpus * (1 + q->llq.max_cmd_per_batch));
+
 	q->llq.owner_count_shift = q->llq.max_n_shift + 2;
 
 	return 0;
