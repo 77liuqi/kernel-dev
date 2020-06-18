@@ -3255,7 +3255,9 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	bits_for_cmdq_owner = ilog2(cpus) + 1;
 
 //#define EXTRA_SHIFT 3 //ok
-#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+//#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+#define EXTRA_SHIFT 0
+
 
 
 	/*
