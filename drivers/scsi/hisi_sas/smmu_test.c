@@ -58,6 +58,7 @@ static noinline void test_memcpy(void *out, void *in, int size)
 
 static int testthread(void *data)
 {  
+	unsigned long start = jiffies;
 	unsigned long stop = jiffies +seconds*HZ;
 	char *inputs[COMPLETIONS_SIZE];
 	char *outputs[COMPLETIONS_SIZE];
@@ -80,6 +81,14 @@ static int testthread(void *data)
 	}
 
 	while (time_before(jiffies, stop)) {
+
+		if (cpu == 0) {
+			if (time_after(jiffies, start + 5*HZ)) {
+				dev_err(dev, ".");
+				start = jiffies;
+			}
+		}
+	
 		for (i = 0; i < completions; i++) {
 			dma_addr[i] = test_mapsingle(dev, inputs[i], 4096);
 			test_memcpy(outputs[i], inputs[i], 4096);
@@ -145,6 +154,10 @@ void smmu_test_core(int cpus)
 	arm_smmu_cmdq_zero_times();
 	arm_smmu_cmdq_zero_cmpxchg();
 
+	if (ways > 200) {
+		seconds = (ways - 200) * 60;
+		pr_err("setting seconds to %d (%d minutes)\n", seconds, seconds/60);
+	}
 	if (ways > num_possible_cpus()) {
 		ways = num_possible_cpus();
 		pr_err("limiting ways to %d\n", ways);
