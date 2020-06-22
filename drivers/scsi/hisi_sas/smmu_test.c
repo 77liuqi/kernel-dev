@@ -107,6 +107,10 @@ void smmu_test_core(int cpus)
 
 	ways = cpus;
 
+	if (ways > 200) {
+		seconds = (ways - 200) * 60;
+		pr_err("setting seconds to %d (%d minutes)\n", seconds, seconds/60);
+	}
 	if (ways > num_possible_cpus()) {
 		ways = num_possible_cpus();
 		pr_err("limiting ways to %d\n", ways);
