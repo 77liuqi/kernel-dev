@@ -822,8 +822,15 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 
 int sas_target_alloc(struct scsi_target *starget)
 {
-	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
-	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
+	struct device *parent = starget->dev.parent;
+	struct domain_device *found_dev;
+	struct sas_rphy *rphy;
+
+	if (scsi_is_host_device(parent))
+		return 0;
+
+	rphy = dev_to_rphy(starget->dev.parent);
+	found_dev = sas_find_dev_by_rphy(rphy);
 
 	if (!found_dev)
 		return -ENODEV;
