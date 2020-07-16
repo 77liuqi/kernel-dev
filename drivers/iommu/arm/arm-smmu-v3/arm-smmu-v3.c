@@ -1396,8 +1396,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (queue_has_space(&llq, n + sync))
 			goto try_cas;
 
-		if (locked)
+		if (locked) {
 			spin_unlock(&cmdq->slock);
+			locked = 0; //new
+		}
 
 		do {
 			local_irq_restore(flags);
@@ -1412,8 +1414,11 @@ try_cas:
 					     CMDQ_PROD_OWNED_FLAG;
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
-		if (old != llq.val)
+		if (old == llq.val) {
+			if (locked)
+				spin_unlock(&cmdq->slock);
 			break;
+		}
 
 		if (!locked) {
 			spin_lock(&cmdq->slock);
