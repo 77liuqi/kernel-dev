@@ -3283,6 +3283,17 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	scsi_scan_host(shost);
 
+	/*
+	 * For the situation that there are ATA disks connected with SAS
+	 * controller, it addtionly creates ata_port which will affect the
+	 * child_count of hisi_hba->dev. Even if suspended all the disks,
+	 * ata_port is still and the child_count of hisi_hba->dev is not 0.
+	 * So use pm_suspend_ignore_children() to ignore the affect to
+	 * hisi_hba->dev.
+	 */
+	pm_suspend_ignore_children(dev, true);
+	pm_runtime_put_noidle(&pdev->dev);
+
 	return 0;
 
 err_out_register_ha:
@@ -3322,6 +3333,7 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	struct Scsi_Host *shost = sha->core.shost;
 
+	pm_runtime_get_noresume(dev);
 	if (timer_pending(&hisi_hba->timer))
 		del_timer(&hisi_hba->timer);
 
@@ -3472,8 +3484,20 @@ static const struct pci_error_handlers hisi_sas_err_handler = {
 	.reset_done	= hisi_sas_reset_done_v3_hw,
 };
 
+static int hisi_sas_v3_runtime_suspend(struct device *dev)
+{
+	return hisi_sas_v3_suspend(dev);
+}
+
+static int hisi_sas_v3_runtime_resume(struct device *dev)
+{
+	return hisi_sas_v3_resume(dev);
+}
+
 static const struct dev_pm_ops hisi_sas_v3_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(hisi_sas_v3_suspend, hisi_sas_v3_resume)
+	SET_RUNTIME_PM_OPS(hisi_sas_v3_runtime_suspend,
+			   hisi_sas_v3_runtime_resume, NULL)
 };
 
 static struct pci_driver sas_v3_pci_driver = {
