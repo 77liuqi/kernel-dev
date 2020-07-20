@@ -519,18 +519,35 @@ struct arm_smmu_cmdq_ent {
 };
 
 struct arm_smmu_ll_queue {
-	union {
-		u64			val;
-		struct {
-			u32		prod;
-			u32		cons;
-		};
-		struct {
-			atomic_t	prod;
-			atomic_t	cons;
-		} atomic;
-		u8			__pad[SMP_CACHE_BYTES];
-	} ____cacheline_aligned_in_smp;
+	struct {
+		union {
+			u64 val;
+			struct {
+				atomic64_t val;
+			} atomic_val;
+			struct {
+				u32		owner;
+				u32		prod;
+			};
+			struct {
+				atomic_t		owner;
+				atomic_t	prod;
+			} atomic;
+			u8			__pad[SMP_CACHE_BYTES];
+		} ____cacheline_aligned_in_smp;
+	} prod;
+
+	struct {
+		union {
+			struct {
+				u32		cons;
+			};
+			struct {
+				atomic_t	cons;
+			} atomic;
+			u8			__pad[SMP_CACHE_BYTES];
+		} ____cacheline_aligned_in_smp;
+	} cons;
 	u32				max_n_shift;
 };
 
@@ -763,39 +780,62 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
+static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 {
 	u32 space, prod, cons;
 
-	prod = Q_IDX(q, q->prod);
-	cons = Q_IDX(q, q->cons);
+#if 0
+	prod = Q_IDX(q, q->prod.prod);
+	cons = Q_IDX(q, q->cons.cons);
 
-	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons))
+	if (Q_WRP(q, q->prod.prod) == Q_WRP(q, q->cons.cons))
 		space = (1 << q->max_n_shift) - (prod - cons);
 	else
 		space = cons - prod;
+#else
+	u32 diff;
+
+	prod = q->prod.prod;
+	cons = q->cons.cons;
+
+	if (prod > cons)
+		diff = prod - cons;
+	else {
+		diff = prod + (0xffffffff - cons);
+		pr_err_once("%s prod wrapped prod=0x%x cons=0x%x diff=0x%x\n", __func__, prod, cons, diff);
+	}
+	
+	if (diff >= 1 << q->max_n_shift) {
+		pr_err_once("%s defo full prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x\n", __func__, prod, cons, diff, 1 << q->max_n_shift);
+		return false;
+	}
+	
+	space = (1 << q->max_n_shift) - diff;
+
+	
+#endif
 
 	return space >= n;
 }
 
 static bool queue_full(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
-	       Q_WRP(q, q->prod) != Q_WRP(q, q->cons);
+	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
+	       Q_WRP(q, q->prod.prod) != Q_WRP(q, q->cons.cons);
 }
 
 static bool queue_empty(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
-	       Q_WRP(q, q->prod) == Q_WRP(q, q->cons);
+	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
+	       Q_WRP(q, q->prod.prod) == Q_WRP(q, q->cons.cons);
 }
 
 static bool queue_consumed(struct arm_smmu_ll_queue *q, u32 prod)
 {
-	return ((Q_WRP(q, q->cons) == Q_WRP(q, prod)) &&
-		(Q_IDX(q, q->cons) > Q_IDX(q, prod))) ||
-	       ((Q_WRP(q, q->cons) != Q_WRP(q, prod)) &&
-		(Q_IDX(q, q->cons) <= Q_IDX(q, prod)));
+	return ((Q_WRP(q, q->cons.cons) == Q_WRP(q, prod)) &&
+		(Q_IDX(q, q->cons.cons) > Q_IDX(q, prod))) ||
+	       ((Q_WRP(q, q->cons.cons) != Q_WRP(q, prod)) &&
+		(Q_IDX(q, q->cons.cons) <= Q_IDX(q, prod)));
 }
 
 static void queue_sync_cons_out(struct arm_smmu_queue *q)
@@ -805,13 +845,13 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 	 * are complete before we update the cons pointer.
 	 */
 	mb();
-	writel_relaxed(q->llq.cons, q->cons_reg);
+	writel_relaxed(q->llq.cons.cons, q->cons_reg);
 }
 
 static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 {
-	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
-	q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+	u32 cons = (Q_WRP(q, q->cons.cons) | Q_IDX(q, q->cons.cons)) + 1;
+	q->cons.cons = Q_OVF(q->cons.cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
 }
 
 static int queue_sync_prod_in(struct arm_smmu_queue *q)
@@ -819,17 +859,17 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 	int ret = 0;
 	u32 prod = readl_relaxed(q->prod_reg);
 
-	if (Q_OVF(prod) != Q_OVF(q->llq.prod))
+	if (Q_OVF(prod) != Q_OVF(q->llq.prod.prod))
 		ret = -EOVERFLOW;
 
-	q->llq.prod = prod;
+	q->llq.prod.prod = prod;
 	return ret;
 }
 
 static u32 queue_inc_prod_n(struct arm_smmu_ll_queue *q, int n)
 {
-	u32 prod = (Q_WRP(q, q->prod) | Q_IDX(q, q->prod)) + n;
-	return Q_OVF(q->prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
+	u32 prod = (Q_WRP(q, q->prod.prod) | Q_IDX(q, q->prod.prod)) + n;
+	return Q_OVF(q->prod.prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
 }
 
 static void queue_poll_init(struct arm_smmu_device *smmu,
@@ -880,7 +920,7 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 	if (queue_empty(&q->llq))
 		return -EAGAIN;
 
-	queue_read(ent, Q_ENT(q, q->llq.cons), q->ent_dwords);
+	queue_read(ent, Q_ENT(q, q->llq.cons.cons), q->ent_dwords);
 	queue_inc_cons(&q->llq);
 	queue_sync_cons_out(q);
 	return 0;
@@ -1165,19 +1205,19 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 	u32 swidx, sbidx, ewidx, ebidx;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift	= cmdq->q.llq.max_n_shift,
-		.prod		= sprod,
+		.prod.prod		= sprod,
 	};
 
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
 
-	while (llq.prod != eprod) {
+	while (llq.prod.prod != eprod) {
 		unsigned long mask;
 		atomic_long_t *ptr;
 		u32 limit = BITS_PER_LONG;
 
-		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
-		sbidx = Q_IDX(&llq, llq.prod) % BITS_PER_LONG;
+		swidx = BIT_WORD(Q_IDX(&llq, llq.prod.prod));
+		sbidx = Q_IDX(&llq, llq.prod.prod) % BITS_PER_LONG;
 
 		ptr = &cmdq->valid_map[swidx];
 
@@ -1197,11 +1237,11 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		} else { /* Poll */
 			unsigned long valid;
 
-			valid = (ULONG_MAX + !!Q_WRP(&llq, llq.prod)) & mask;
+			valid = (ULONG_MAX + !!Q_WRP(&llq, llq.prod.prod)) & mask;
 			atomic_long_cond_read_relaxed(ptr, (VAL & mask) == valid);
 		}
 
-		llq.prod = queue_inc_prod_n(&llq, limit - sbidx);
+		llq.prod.prod = queue_inc_prod_n(&llq, limit - sbidx);
 	}
 }
 
@@ -1220,7 +1260,7 @@ static void arm_smmu_cmdq_poll_valid_map(struct arm_smmu_cmdq *cmdq,
 }
 
 /* Wait for the command queue to become non-full */
-static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
+static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 					     struct arm_smmu_ll_queue *llq)
 {
 	unsigned long flags;
@@ -1233,15 +1273,17 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	 * that fails, spin until somebody else updates it for us.
 	 */
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
-		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
+		WRITE_ONCE(cmdq->q.llq.cons.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
-		llq->val = READ_ONCE(cmdq->q.llq.val);
+//		llq->val = READ_ONCE(cmdq->q.llq.val); fixme
+	pr_err_once("%s fixme1\n", __func__);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
-		llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
+//		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
+	pr_err_once("%s fixme2\n", __func__);
 		if (!queue_full(llq))
 			break;
 
@@ -1261,7 +1303,7 @@ static int __arm_smmu_cmdq_poll_until_msi(struct arm_smmu_device *smmu,
 	int ret = 0;
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
-	u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod));
+	u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod.prod));
 
 	queue_poll_init(smmu, &qp);
 
@@ -1271,7 +1313,7 @@ static int __arm_smmu_cmdq_poll_until_msi(struct arm_smmu_device *smmu,
 	 */
 	qp.wfe = false;
 	smp_cond_load_relaxed(cmd, !VAL || (ret = queue_poll(&qp)));
-	llq->cons = ret ? llq->prod : queue_inc_prod_n(llq, 1);
+	llq->cons.cons = ret ? llq->prod.prod : queue_inc_prod_n(llq, 1);
 	return ret;
 }
 
@@ -1284,11 +1326,12 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 {
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
-	u32 prod = llq->prod;
+	u32 prod = llq->prod.prod;
 	int ret = 0;
 
 	queue_poll_init(smmu, &qp);
-	llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
+	//llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
+	pr_err_once("%s fixme3\n", __func__);
 	do {
 		if (queue_consumed(llq, prod))
 			break;
@@ -1323,7 +1366,7 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 		 *
 		 * Requires us to see CPU 0's shared_lock() acquisition.
 		 */
-		llq->cons = readl(cmdq->q.cons_reg);
+		llq->cons.cons = readl(cmdq->q.cons_reg);
 	} while (!ret);
 
 	return ret;
@@ -1345,7 +1388,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 	int i;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift	= cmdq->q.llq.max_n_shift,
-		.prod		= prod,
+		.prod.prod		= prod,
 	};
 
 	for (i = 0; i < n; ++i) {
@@ -1377,66 +1420,62 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
-
-
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
-	u64 cmd_sync[CMDQ_ENT_DWORDS];
+	u64 cmd_sync[CMDQ_ENT_DWORDS], prod64;
 	u32 prod;
 	unsigned long flags;
 	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq;
-	int ret = 0;
-	ktime_t initial, final, *t;
-	int cpu;
+	}, head = llq, space = llq;
+	//ktime_t initial, final, *t;
+	int ret = 0, cpu;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	t = &per_cpu(cmdlist, cpu);
-	initial = ktime_get();
-	llq.val = READ_ONCE(cmdq->q.llq.val);
-	atomic64_inc(&tries);
-	do {
-		u64 old;
 
+	prod64 = n + sync;
+	prod64 <<= 32;
+	prod64++;
+	pr_err("%s cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx n=%d sync=%d\n", __func__, 
+		cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, n, sync);
+	llq.prod.val = atomic64_fetch_add(prod64, &cmdq->q.llq.prod.atomic_val.val);
 
-		while (!queue_has_space(&llq, n + sync)) {
-			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-			local_irq_save(flags);
-		}
+	owner = !llq.prod.owner;
+	head.prod.prod = llq.prod.prod + n + sync;
 
-		head.cons = llq.cons;
-		head.prod = queue_inc_prod_n(&llq, n + sync) |
-					     CMDQ_PROD_OWNED_FLAG;
+	pr_err("%s2 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x\n",
+	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, llq.prod.prod);
 
-		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
-		atomic64_inc(&cmpxchg_tries);
-		if (old == llq.val)
-			break;
-		
+	/*
+	 * Ensure it's safe to write the entries. For this, we need to ensure
+	 * that there is space in the queue from our prod pointer.
+	 */
+	space.cons.cons = READ_ONCE(cmdq->q.llq.cons.cons);
+	space.prod.prod = llq.prod.prod;
+	while (!queue_has_space(&space, n + sync)) {
+		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
+			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 
-		llq.val = old;
-	} while (1);
-	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
-	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
-	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+		space.prod.prod = llq.prod.prod;
+	}
 
 	/*
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod.prod, n);
 	if (sync) {
 		prod = queue_inc_prod_n(&llq, n);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+		
+		pr_err("%s3 cpu%d prod.val=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x prod=0x%x\n",
+		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, prod);
 
 		/*
 		 * In order to determine completion of our CMD_SYNC, we must
@@ -1444,29 +1483,43 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * We achieve that by taking the cmdq lock as shared before
 		 * marking our slot as valid.
 		 */
-		arm_smmu_cmdq_shared_lock(cmdq);
+	//	arm_smmu_cmdq_shared_lock(cmdq);
 	}
+
+	pr_err("%s4 cpu%d llq.prod=[0x%x 0x%x] head.prod.prod=0x%x owner=%d\n",
+	__func__, cpu, llq.prod.prod, llq.prod.owner, head.prod.prod, owner);
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
-	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
+	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod.prod, head.prod.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
+		u64 msk = 0xffffffff;
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
-
+		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod.prod);
+		
+		pr_err("%s5 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x msk=0x%llx cmdq->q.llq.prod=[0x%x 0x%x]\n",
+		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, msk, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
+		
 		/* b. Stop gathering work by clearing the owned flag */
-		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
-						   &cmdq->q.llq.atomic.prod);
-		prod &= ~CMDQ_PROD_OWNED_FLAG;
+		prod64 = atomic64_fetch_andnot_relaxed(msk,
+						   &cmdq->q.llq.prod.atomic_val.val);
+
+
+		prod = prod64 >> 32;
+
+		pr_err("%s6 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
+		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod, prod64, prod, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
 		 * Note that we read our own entries so that we have the control
 		 * dependency required by (d).
 		 */
-		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod.prod, prod);
+
+		pr_err("%s6.1 cpu%d prod=0x%x\n", __func__, cpu, prod);
 
 		/*
 		 * d. Advance the hardware prod pointer
@@ -1482,14 +1535,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_set_release(&cmdq->owner_prod, prod);
 	}
 
+	pr_err("%s7 cpu%d prod.val=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x sync=%d\n",
+	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, sync);
+
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
-		llq.prod = queue_inc_prod_n(&llq, n);
+		llq.prod.prod += n;//queue_inc_prod_n(&llq, n);
+	pr_err("%s8 cpu%d prod.val=[0x%x 0x%x] cons=0x%x llq.prod.prod=0x%x\n",
+	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
 			dev_err_ratelimited(smmu->dev,
 					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x]\n",
-					    llq.prod,
+					    llq.prod.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
 					    readl_relaxed(cmdq->q.cons_reg));
 		}
@@ -1498,15 +1556,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Try to unlock the cmq lock. This will fail if we're the last
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
-		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
-			arm_smmu_cmdq_shared_unlock(cmdq);
-		}
+//		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
+//			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+//			arm_smmu_cmdq_shared_unlock(cmdq);
+//		}
 	}
 
-	final = ktime_get();
-	*t += final - initial;
-	
+	pr_err("%s9 exit cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x\n",
+	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod);
+
 	local_irq_restore(flags);
 	return ret;
 }
@@ -1555,7 +1613,6 @@ void arm_smmu_cmdq_zero_times(void)
 		*t = 0;
 	}
 }
-
 static int arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
 				   struct arm_smmu_cmdq_ent *ent)
 {
@@ -2071,8 +2128,8 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 	} while (!queue_empty(llq));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	llq->cons = Q_OVF(llq->prod) | Q_WRP(llq, llq->cons) |
-		    Q_IDX(llq, llq->cons);
+	llq->cons.cons = Q_OVF(llq->prod.prod) | Q_WRP(llq, llq->cons.cons) |
+		    Q_IDX(llq, llq->cons.cons);
 	return IRQ_HANDLED;
 }
 
@@ -2130,8 +2187,8 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 	} while (!queue_empty(llq));
 
 	/* Sync our overflow flag, as we believe we're up to speed */
-	llq->cons = Q_OVF(llq->prod) | Q_WRP(llq, llq->cons) |
-		      Q_IDX(llq, llq->cons);
+	llq->cons.cons = Q_OVF(llq->prod.prod) | Q_WRP(llq, llq->cons.cons) |
+		      Q_IDX(llq, llq->cons.cons);
 	queue_sync_cons_out(q);
 	return IRQ_HANDLED;
 }
@@ -3237,7 +3294,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	q->q_base |= q->base_dma & Q_BASE_ADDR_MASK;
 	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->llq.max_n_shift);
 
-	q->llq.prod = q->llq.cons = 0;
+	q->llq.prod.val = q->llq.cons.cons = 0;
 	return 0;
 }
 
@@ -3661,8 +3718,8 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	/* Command queue */
 	writeq_relaxed(smmu->cmdq.q.q_base, smmu->base + ARM_SMMU_CMDQ_BASE);
-	writel_relaxed(smmu->cmdq.q.llq.prod, smmu->base + ARM_SMMU_CMDQ_PROD);
-	writel_relaxed(smmu->cmdq.q.llq.cons, smmu->base + ARM_SMMU_CMDQ_CONS);
+	writel_relaxed(smmu->cmdq.q.llq.prod.prod, smmu->base + ARM_SMMU_CMDQ_PROD);
+	writel_relaxed(smmu->cmdq.q.llq.cons.cons, smmu->base + ARM_SMMU_CMDQ_CONS);
 
 	enables = CR0_CMDQEN;
 	ret = arm_smmu_write_reg_sync(smmu, enables, ARM_SMMU_CR0,
@@ -3689,9 +3746,9 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 
 	/* Event queue */
 	writeq_relaxed(smmu->evtq.q.q_base, smmu->base + ARM_SMMU_EVTQ_BASE);
-	writel_relaxed(smmu->evtq.q.llq.prod,
+	writel_relaxed(smmu->evtq.q.llq.prod.prod,
 		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_PROD, smmu));
-	writel_relaxed(smmu->evtq.q.llq.cons,
+	writel_relaxed(smmu->evtq.q.llq.cons.cons,
 		       arm_smmu_page1_fixup(ARM_SMMU_EVTQ_CONS, smmu));
 
 	enables |= CR0_EVTQEN;
@@ -3706,9 +3763,9 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 	if (smmu->features & ARM_SMMU_FEAT_PRI) {
 		writeq_relaxed(smmu->priq.q.q_base,
 			       smmu->base + ARM_SMMU_PRIQ_BASE);
-		writel_relaxed(smmu->priq.q.llq.prod,
+		writel_relaxed(smmu->priq.q.llq.prod.prod,
 			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_PROD, smmu));
-		writel_relaxed(smmu->priq.q.llq.cons,
+		writel_relaxed(smmu->priq.q.llq.cons.cons,
 			       arm_smmu_page1_fixup(ARM_SMMU_PRIQ_CONS, smmu));
 
 		enables |= CR0_PRIQEN;
