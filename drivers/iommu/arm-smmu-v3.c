@@ -784,7 +784,7 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 {
 	u32 space, prod, cons;
 
-#if 0
+#if 0 
 	prod = Q_IDX(q, q->prod.prod);
 	cons = Q_IDX(q, q->cons.cons);
 
@@ -798,7 +798,7 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 	prod = q->prod.prod;
 	cons = q->cons.cons;
 
-	if (prod > cons)
+	if (prod >= cons)
 		diff = prod - cons;
 	else {
 		diff = prod + (0xffffffff - cons);
@@ -814,6 +814,9 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 
 	
 #endif
+
+	if (space < n)
+		pr_err_once("%s no space prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x\\n", __func__, prod, cons, diff, 1 << q->max_n_shift);
 
 	return space >= n;
 }
