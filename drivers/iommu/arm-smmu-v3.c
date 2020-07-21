@@ -786,7 +786,7 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 	u32 space, prod, cons;
 	u32 diff = -1;
 
-#if 1
+#if 0
 	prod = Q_IDX(q, q->prod.prod);
 	cons = Q_IDX(q, q->cons.cons);
 
@@ -817,7 +817,8 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 #endif
 
 	if (space < n)
-		pr_err_once("%s no space prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x n=%d space=%d\n", __func__, prod, cons, diff, 1 << q->max_n_shift, n, space);
+		pr_err_once("%s no space prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x n=%d space=%d q->prod.prod=0x%x q->cons.cons=0x%x\n",
+		__func__, prod, cons, diff, 1 << q->max_n_shift, n, space, q->prod.prod, q->cons.cons);
 
 	return space >= n;
 }
@@ -1289,9 +1290,18 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	 * that fails, spin until somebody else updates it for us.
 	 */
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
-		WRITE_ONCE(cmdq->q.llq.cons.cons, readl_relaxed(cmdq->q.cons_reg));
+		u32 read_value = readl_relaxed(cmdq->q.cons_reg);
+
+		if (Q_WRP(llq, read_value) != Q_WRP(llq, llq->cons.cons)) {
+			pr_err_once("%s1 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
+			read_value += 1 << (llq->max_n_shift + 1);
+			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
+		}
+
+		pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x llq->cons.cons=0x%x\n", __func__, smp_processor_id(), cmdq->q.llq.cons.cons, read_value, llq->cons.cons);
+
+		WRITE_ONCE(cmdq->q.llq.cons.cons, read_value);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
-		pr_err_once("%s cpu%d cmdq->q.llq.cons.cons=0x%x\n", __func__, smp_processor_id(), cmdq->q.llq.cons.cons);
 //		llq->val = READ_ONCE(cmdq->q.llq.val); fixme
 //	pr_err_once("%s fixme1\n", __func__);
 		return 0;
