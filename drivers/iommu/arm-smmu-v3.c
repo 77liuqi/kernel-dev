@@ -1219,6 +1219,8 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		.prod.prod		= sprod,
 	};
 
+	ktime_t start = ktime_get();
+
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
 
@@ -1251,6 +1253,9 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 			valid = (ULONG_MAX + !!Q_WRP(&llq, llq.prod.prod)) & mask;
 			atomic_long_cond_read_relaxed(ptr, (VAL & mask) == valid);
 		}
+		
+		if (ktime_after(ktime_get(), start+ms_to_ktime(200)))
+			pr_err_once("%s sprod=0x%x eprod=0x%x\n", __func__, sprod, eprod);
 
 		llq.prod.prod = queue_inc_prod_n(&llq, limit - sbidx);
 	}
@@ -1434,6 +1439,25 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  */
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
+					
+#define smp_cond_load_relaxedjohn(ptr, cond_expr)				\
+({									\
+	typeof(ptr) __PTR = (ptr);					\
+	ktime_t start=ktime_get();\
+	__unqual_scalar_typeof(*ptr) VAL;				\
+	for (;;) {							\
+		VAL = READ_ONCE(*__PTR);				\
+		if (cond_expr)						\
+			break;						\
+		__cmpwait_relaxed(__PTR, VAL);				\
+		if (ktime_after(ktime_get(), start+ms_to_ktime(500)))\
+			pr_err_once("%s VAL=0x%x other=0x%x cpu%d\n", __func__, VAL, Q_PROD(&llq, llq.prod.prod), smp_processor_id());\
+	}								\
+	(typeof(*ptr))VAL;						\
+})
+
+
+#define atomic_cond_read_relaxedjohn(v, c) smp_cond_load_relaxedjohn(&(v)->counter, (c))
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -1522,7 +1546,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* a. Wait for previous owner to finish */
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
 			pr_err_once("%s wrongo llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == Q_PROD(&llq, llq.prod.prod));
+		atomic_cond_read_relaxedjohn(&cmdq->owner_prod, VAL == Q_PROD(&llq, llq.prod.prod));
 		
 	//	pr_err("%s5 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x msk=0x%llx cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, msk, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
@@ -1535,9 +1559,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		prod = Q_PROD(&llq, prod64 >> 32);
 	
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s wrongd llq.prod.prod=0x%x\n", __func__, prod);
+			pr_err_once("%s wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
-			pr_err_once("%s wrongU llq.prod.prod=0x%x\n", __func__, llq.prod.prod);
+			pr_err_once("%s wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
 
 	//	pr_err("%s6 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod, prod64, prod, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
@@ -1581,10 +1605,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
 			dev_err_once(smmu->dev,
-					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x]\n",
+					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n",
 					    llq.prod.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg));
+					    readl_relaxed(cmdq->q.cons_reg), owner);
 		}
 
 		/*
