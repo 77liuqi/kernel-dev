@@ -1347,7 +1347,8 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 
 	queue_poll_init(smmu, &qp);
 	//llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
-	pr_err_once("%s fixme3\n", __func__);
+	llq->cons.cons = READ_ONCE(smmu->cmdq.q.llq.cons.cons);
+	pr_err_once("%s fixed?\n", __func__);
 	do {
 		if (queue_consumed(llq, prod))
 			break;
@@ -1484,12 +1485,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, Q_IDX(&llq, llq.prod.prod), n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, Q_PROD(&llq, llq.prod.prod), n);
 	if (sync) {
 		prod = queue_inc_prod_n(&llq, n);
-		if (prod != Q_IDX(&llq, prod))
-			pr_err_once("%s wrongs prod=0x%x Q_IDX(&llq, prod)=0x%x\n", __func__, prod, Q_IDX(&llq, prod));
-		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+		if (prod != Q_PROD(&llq, prod))
+			pr_err_once("%s wrongs prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
+		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, Q_PROD(&llq, prod));
 		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 		
 	//	pr_err("%s3 cpu%d prod.val=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x prod=0x%x\n",
@@ -1509,19 +1510,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
-	if (head.prod.prod != Q_IDX(&llq, head.prod.prod))
-		pr_err_once("%s wrongy head.prod.prod=0x%x Q_IDX(&llq, head.prod.prod)=0x%x\n", __func__, head.prod.prod, Q_IDX(&llq, head.prod.prod));
-	if (llq.prod.prod != Q_IDX(&llq, llq.prod.prod))
-		pr_err_once("%s wronga llq.prod.prod=0x%x Q_IDX(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_IDX(&llq, llq.prod.prod));
-	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod.prod, head.prod.prod);
+	if (head.prod.prod != Q_PROD(&llq, head.prod.prod))
+		pr_err_once("%s wrongy head.prod.prod=0x%x Q_PROD(&llq, head.prod.prod)=0x%x\n", __func__, head.prod.prod, Q_PROD(&llq, head.prod.prod));
+	if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
+		pr_err_once("%s wronga llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+	arm_smmu_cmdq_set_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, head.prod.prod));
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		u64 msk = 0xffffffff;
 		/* a. Wait for previous owner to finish */
-		if (llq.prod.prod != Q_IDX(&llq, llq.prod.prod))
-			pr_err_once("%s wrongo llq.prod.prod=0x%x Q_IDX(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_IDX(&llq, llq.prod.prod));
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod.prod);
+		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
+			pr_err_once("%s wrongo llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == Q_PROD(&llq, llq.prod.prod));
 		
 	//	pr_err("%s5 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x msk=0x%llx cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, msk, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
@@ -1531,12 +1532,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 						   &cmdq->q.llq.prod.atomic_val.val);
 
 
-		prod = Q_IDX(&llq, prod64 >> 32);
+		prod = Q_PROD(&llq, prod64 >> 32);
 	
-		if (prod != Q_IDX(&llq, prod))
+		if (prod != Q_PROD(&llq, prod))
 			pr_err_once("%s wrongd llq.prod.prod=0x%x\n", __func__, prod);
-		if (llq.prod.prod != Q_IDX(&llq, llq.prod.prod))
-			pr_err_once("%s wrongs llq.prod.prod=0x%x\n", __func__, llq.prod.prod);
+		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
+			pr_err_once("%s wrongU llq.prod.prod=0x%x\n", __func__, llq.prod.prod);
 
 	//	pr_err("%s6 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod, prod64, prod, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
@@ -1546,7 +1547,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Note that we read our own entries so that we have the control
 		 * dependency required by (d).
 		 */
-		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod.prod, prod);
+		arm_smmu_cmdq_poll_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, prod));
 
 //		pr_err("%s6.1 cpu%d prod=0x%x\n", __func__, cpu, prod);
 
@@ -1572,8 +1573,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //		llq.prod.prod += n;//queue_inc_prod_n(&llq, n);
 		llq.prod.prod = queue_inc_prod_n(&llq, n);
 
-		if (llq.prod.prod != Q_IDX(&llq, llq.prod.prod))
-			pr_err_once("%s wrong1 llq.prod.prod=0x%x Q_IDX(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_IDX(&llq, llq.prod.prod));
+		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
+			pr_err_once("%s wrong1 llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
 
 //	pr_err("%s8 cpu%d prod.val=[0x%x 0x%x] cons=0x%x llq.prod.prod=0x%x\n",
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod);
