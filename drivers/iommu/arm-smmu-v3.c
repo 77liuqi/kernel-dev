@@ -823,18 +823,19 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 
 static bool queue_full(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
-	       Q_WRP(q, q->prod.prod) != Q_WRP(q, q->cons.cons);
+	return !queue_has_space(q, 1);
 }
 
 static bool queue_empty(struct arm_smmu_ll_queue *q)
 {
+	pr_err_once("%s fixme\n", __func__);
 	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
 	       Q_WRP(q, q->prod.prod) == Q_WRP(q, q->cons.cons);
 }
 
 static bool queue_consumed(struct arm_smmu_ll_queue *q, u32 prod)
 {
+	pr_err_once("%s fixme\n", __func__);
 	return ((Q_WRP(q, q->cons.cons) == Q_WRP(q, prod)) &&
 		(Q_IDX(q, q->cons.cons) > Q_IDX(q, prod))) ||
 	       ((Q_WRP(q, q->cons.cons) != Q_WRP(q, prod)) &&
@@ -853,6 +854,8 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 
 static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 {
+	pr_err_once("%s fixme\n", __func__);
+
 	u32 cons = (Q_WRP(q, q->cons.cons) | Q_IDX(q, q->cons.cons)) + 1;
 	q->cons.cons = Q_OVF(q->cons.cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
 }
@@ -861,6 +864,8 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 {
 	int ret = 0;
 	u32 prod = readl_relaxed(q->prod_reg);
+
+	pr_err_once("%s fixme\n", __func__);
 
 	if (Q_OVF(prod) != Q_OVF(q->llq.prod.prod))
 		ret = -EOVERFLOW;
@@ -871,6 +876,7 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 
 static u32 queue_inc_prod_n(struct arm_smmu_ll_queue *q, int n)
 {
+	pr_err_once("%s fixme\n", __func__);
 	u32 prod = (Q_WRP(q, q->prod.prod) | Q_IDX(q, q->prod.prod)) + n;
 	return Q_OVF(q->prod.prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
 }
