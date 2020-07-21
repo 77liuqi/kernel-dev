@@ -1580,7 +1580,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, llq.prod.prod);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
-			dev_err_ratelimited(smmu->dev,
+			dev_err_once(smmu->dev,
 					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x]\n",
 					    llq.prod.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
