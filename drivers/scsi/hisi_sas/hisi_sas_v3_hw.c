@@ -593,7 +593,7 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, AWQOS_AWCACHE_CFG, 0xf0f0);
 	hisi_sas_write32(hisi_hba, ARQOS_ARCACHE_CFG, 0xf0f0);
 	for (i = 0; i < hisi_hba->queue_count; i++)
-		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK+0x4*i, 0);
+		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK + 0x4 * i, 0);
 
 	hisi_sas_write32(hisi_hba, HYPER_STREAM_ID_EN_CFG, 1);
 
