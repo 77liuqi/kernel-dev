@@ -1279,14 +1279,15 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		WRITE_ONCE(cmdq->q.llq.cons.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 //		llq->val = READ_ONCE(cmdq->q.llq.val); fixme
-	pr_err_once("%s fixme1\n", __func__);
+//	pr_err_once("%s fixme1\n", __func__);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
 //		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
-	pr_err_once("%s fixme2\n", __func__);
+//	pr_err_once("%s fixme2\n", __func__);
+		llq->cons.cons = READ_ONCE(smmu->cmdq.q.llq.cons.cons);
 		if (!queue_full(llq))
 			break;
 
