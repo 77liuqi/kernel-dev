@@ -1318,7 +1318,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		u32 read_value = readl_relaxed(cmdq->q.cons_reg);
 
-		if (Q_WRP(llq, read_value) != Q_WRP(llq, llq->cons.cons)) {
+		if ((Q_WRP(llq, read_value) == 0) && (1== Q_WRP(llq, llq->cons.cons))) {
 			pr_err_once("%s1 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
 			read_value += 1 << (llq->max_n_shift + 1);
 			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
@@ -2234,6 +2234,10 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 	struct arm_smmu_queue *q = &smmu->evtq.q;
 	struct arm_smmu_ll_queue *llq = &q->llq;
 	u64 evt[EVTQ_ENT_DWORDS];
+	static int count = 0;
+
+	if (count++ > 15)
+		panic("for testing4");
 
 	do {
 		while (!queue_remove_raw(q, evt)) {
@@ -2305,6 +2309,11 @@ static irqreturn_t arm_smmu_priq_thread(int irq, void *dev)
 	struct arm_smmu_ll_queue *llq = &q->llq;
 	u64 evt[PRIQ_ENT_DWORDS];
 
+	static int count = 0;
+
+	if (count++ > 15)
+		panic("for testing2");
+
 	do {
 		while (!queue_remove_raw(q, evt))
 			arm_smmu_handle_ppr(smmu, evt);
@@ -2326,6 +2335,11 @@ static irqreturn_t arm_smmu_gerror_handler(int irq, void *dev)
 {
 	u32 gerror, gerrorn, active;
 	struct arm_smmu_device *smmu = dev;
+
+	static int count = 0;
+
+	if (count++ > 15)
+		panic("for testing3");
 
 	gerror = readl_relaxed(smmu->base + ARM_SMMU_GERROR);
 	gerrorn = readl_relaxed(smmu->base + ARM_SMMU_GERRORN);
