@@ -1318,7 +1318,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		u32 read_value = readl_relaxed(cmdq->q.cons_reg);
 
-		if ((Q_WRP(llq, read_value) == 0) && (1== Q_WRP(llq, llq->cons.cons))) {
+		if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, llq->cons.cons))) {
 			pr_err_once("%s1 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
 			read_value += 1 << (llq->max_n_shift + 1);
 			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
@@ -1338,8 +1338,8 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	do {
 //		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
 //	pr_err_once("%s fixme2\n", __func__);
-		llq->cons.cons = READ_ONCE(smmu->cmdq.q.llq.cons.cons);
-		llq->prod.prod = READ_ONCE(smmu->cmdq.q.llq.prod.prod);
+		llq->cons.cons = READ_ONCE(cmdq.q.llq.cons.cons);
+		llq->prod.prod = READ_ONCE(cmdq.q.llq.prod.prod);
 		if (!queue_full(llq))
 			break;
 
@@ -1348,7 +1348,8 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 
 	if (ret)
-		pr_err_once("%s4 ret=%d llq->prod.prod=0x%x llq->cons.cons=0x%x queue_full(llq)=%d\n", __func__, ret, llq->prod.prod, llq->cons.cons, queue_full(llq));
+		pr_err_once("%s4 ret=%d llq->prod.prod=0x%x llq->cons.cons=0x%x queue_full(llq)=%d smmu->cmdq.q.llq.cons.cons=0x%x diff=0x%x\n",
+		__func__, ret, llq->prod.prod, llq->cons.cons, queue_full(llq), smmu->cmdq.q.llq.cons.cons, llq->prod.prod-llq->cons.cons);
 
 	return ret;
 }
@@ -1639,11 +1640,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 //		pr_err("%s6.1 cpu%d prod=0x%x\n", __func__, cpu, prod);
 
+
+		if (prod != Q_PROD(&llq, prod))
+			pr_err_once("%s cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod);
+
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
 		 */
-		writel_relaxed(prod, cmdq->q.prod_reg);
+		writel_relaxed(Q_PROD(&llq, prod), cmdq->q.prod_reg);
 
 	//	if (prod > 0xffc0)
 	//		pr_err("%s3 cpu%d prod=0x%x llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, llq.prod.prod, llq.cons.cons, head.prod.prod);
