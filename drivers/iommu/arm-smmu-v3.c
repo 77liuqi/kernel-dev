@@ -1537,9 +1537,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !llq.prod.owner;
 	head.prod.prod = queue_inc_prod_n(&llq, n + sync);
 
-	if (initial_prod > 0xffc0)
-		pr_err("%s1 cpu%d initial_val=0x%llx llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x owner=%d s=%d n=%d\n",
-		__func__, cpu, initial_val, llq.prod.prod, llq.cons.cons, head.prod.prod, owner, sync, n);
+//	if (initial_prod > 0xffc0)
+//		pr_err("%s1 cpu%d initial_val=0x%llx llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x owner=%d s=%d n=%d\n",
+//		__func__, cpu, initial_val, llq.prod.prod, llq.cons.cons, head.prod.prod, owner, sync, n);
 
 //	pr_err("%s2 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x\n",
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod, llq.prod.prod);
@@ -1616,8 +1616,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		prod = prod64 >> 32;
 	
-		if (prod > 0xffc0)
-			pr_err("%s2 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons.cons, head.prod.prod);
+	//	if (prod > 0xffc0)
+	//		pr_err("%s2 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons.cons, head.prod.prod);
 
 		if (prod != Q_PROD(&llq, prod))
 			pr_err_once("%s wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
@@ -1645,8 +1645,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
-		if (prod > 0xffc0)
-			pr_err("%s3 cpu%d prod=0x%x llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, llq.prod.prod, llq.cons.cons, head.prod.prod);
+	//	if (prod > 0xffc0)
+	//		pr_err("%s3 cpu%d prod=0x%x llq.prod.prod=0x%x llq.cons.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, llq.prod.prod, llq.cons.cons, head.prod.prod);
 
 		/*
 		 * e. Tell the next owner we're done
