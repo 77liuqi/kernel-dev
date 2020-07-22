@@ -781,10 +781,12 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
+static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, u32 *myspace)
 {
 	u32 space, prod, cons;
 	u32 diff = -1;
+
+	*myspace = -1;
 
 #if 0
 	prod = Q_IDX(q, q->prod.prod);
@@ -807,43 +809,68 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 	}
 	
 	if (diff >= 1 << q->max_n_shift) {
-		pr_err_once("%s defo full prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x\n", __func__, prod, cons, diff, 1 << q->max_n_shift);
+	//	pr_err_once("%s defo full prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x\n", __func__, prod, cons, diff, 1 << q->max_n_shift);
 		return false;
 	}
 	
-	space = (1 << q->max_n_shift) - diff;
+	*myspace = space = (1 << q->max_n_shift) - diff;
 
 	
 #endif
 
-	if (space < n)
-		pr_err_once("%s no space prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x n=%d space=%d q->prod.prod=0x%x q->cons.cons=0x%x\n",
-		__func__, prod, cons, diff, 1 << q->max_n_shift, n, space, q->prod.prod, q->cons.cons);
+//	if (space < n)
+//		pr_err_once("%s no space prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x n=%d space=%d q->prod.prod=0x%x q->cons.cons=0x%x\n",
+//		__func__, prod, cons, diff, 1 << q->max_n_shift, n, space, q->prod.prod, q->cons.cons);
 
 	return space >= n;
 }
 
 static bool queue_full(struct arm_smmu_ll_queue *q)
 {
-	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
+	bool first = Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
 	       Q_WRP(q, q->prod.prod) != Q_WRP(q, q->cons.cons);
+	u32 my_space;
+
+	bool second = !queue_has_space(q, 1, &my_space);
+
+
+	if (first != second)
+		pr_err_once("%s first=%d second=%d q->prod.prod=0x%x q->cons.cons=0x%x my_space=%d\n",
+		__func__, first, second, q->prod.prod, q->cons.cons, my_space);
+
+	return second;
 }
 
 static bool queue_empty(struct arm_smmu_ll_queue *q)
 {
-	pr_err_once("%s fixme\n", __func__);
-	return Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
+	bool first = Q_IDX(q, q->prod.prod) == Q_IDX(q, q->cons.cons) &&
 	       Q_WRP(q, q->prod.prod) == Q_WRP(q, q->cons.cons);
+
+
+	bool second = (q->cons.cons == q->prod.prod);
+
+	if (first != second)
+		pr_err_once("%s first=%d second=%d q->prod.prod=0x%x q->cons.cons=0x%x\n",
+		__func__, first, second, q->prod.prod, q->cons.cons);
+
+	return second;		  
 }
 
 static bool queue_consumed(struct arm_smmu_ll_queue *q, u32 prod)
 {
-	pr_err_once("%s fixme\n", __func__);
-	return ((Q_WRP(q, q->cons.cons) == Q_WRP(q, prod)) &&
+	bool first = ((Q_WRP(q, q->cons.cons) == Q_WRP(q, prod)) &&
 		(Q_IDX(q, q->cons.cons) > Q_IDX(q, prod))) ||
 	       ((Q_WRP(q, q->cons.cons) != Q_WRP(q, prod)) &&
 		(Q_IDX(q, q->cons.cons) <= Q_IDX(q, prod)));
+
+	bool second = (q->cons.cons >= prod);
+
+	pr_err("%s first=%d second=%d prod=0x%x q->prod.prod=0x%x q->cons.cons=0x%x\n",
+		__func__, first, second, prod, q->prod.prod, q->cons.cons);
+
+	return second;		
 }
+
 
 static void queue_sync_cons_out(struct arm_smmu_queue *q)
 {
@@ -857,7 +884,7 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 
 static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 {
-	pr_err_once("%s fixme\n", __func__);
+	pr_err("%s fixme\n", __func__);
 
 	u32 cons = (Q_WRP(q, q->cons.cons) | Q_IDX(q, q->cons.cons)) + 1;
 	q->cons.cons = Q_OVF(q->cons.cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
@@ -868,7 +895,7 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 	int ret = 0;
 	u32 prod = readl_relaxed(q->prod_reg);
 
-	pr_err_once("%s fixme\n", __func__);
+	pr_err("%s fixme\n", __func__);
 
 	if (Q_OVF(prod) != Q_OVF(q->llq.prod.prod))
 		ret = -EOVERFLOW;
@@ -879,7 +906,6 @@ static int queue_sync_prod_in(struct arm_smmu_queue *q)
 
 static u32 queue_inc_prod_n(struct arm_smmu_ll_queue *q, int n)
 {
-	pr_err_once("%s fixme\n", __func__);
 	u32 prod = (Q_WRP(q, q->prod.prod) | Q_IDX(q, q->prod.prod)) + n;
 	return Q_OVF(q->prod.prod) | Q_WRP(q, prod) | Q_IDX(q, prod);
 }
@@ -1298,7 +1324,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
 		}
 
-		pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x llq->cons.cons=0x%x\n", __func__, smp_processor_id(), cmdq->q.llq.cons.cons, read_value, llq->cons.cons);
+		pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x cmdq.q.llq.cons.cons=0x%x\n", __func__, smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, cmdq->q.llq.cons.cons);
 
 		WRITE_ONCE(cmdq->q.llq.cons.cons, read_value);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
@@ -1312,11 +1338,16 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 //		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
 //	pr_err_once("%s fixme2\n", __func__);
 		llq->cons.cons = READ_ONCE(smmu->cmdq.q.llq.cons.cons);
+		llq->prod.prod = READ_ONCE(smmu->cmdq.q.llq.prod.prod);
 		if (!queue_full(llq))
 			break;
 
 		ret = queue_poll(&qp);
 	} while (!ret);
+
+
+	if (ret)
+		pr_err_once("%s4 ret=%d llq->prod.prod=0x%x llq->cons.cons=0x%x queue_full(llq)=%d\n", __func__, ret, llq->prod.prod, llq->cons.cons, queue_full(llq));
 
 	return ret;
 }
@@ -1333,8 +1364,8 @@ static int __arm_smmu_cmdq_poll_until_msi(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	u32 *cmd = (u32 *)(Q_ENT(&cmdq->q, llq->prod.prod));
 
-	if (llq->prod.prod != Q_IDX(llq, llq->prod.prod))
-		pr_err_once("%s wrong llq->prod.prod=0x%x Q_IDX(llq, llq->prod.prod)=0x%x\n", __func__, llq->prod.prod, Q_IDX(llq, llq->prod.prod));
+//	if (llq->prod.prod != Q_IDX(llq, llq->prod.prod))
+//		pr_err_once("%s wrong llq->prod.prod=0x%x Q_IDX(llq, llq->prod.prod)=0x%x\n", __func__, llq->prod.prod, Q_IDX(llq, llq->prod.prod));
 
 	queue_poll_init(smmu, &qp);
 
@@ -1460,8 +1491,8 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 		if (cond_expr)						\
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
-		if (ktime_after(ktime_get(), start+ms_to_ktime(500)))\
-			pr_err_once("%s VAL=0x%x other=0x%x cpu%d\n", __func__, VAL, Q_PROD(&llq, llq.prod.prod), smp_processor_id());\
+		if (ktime_after(ktime_get(), start+ms_to_ktime(50)))\
+			pr_err_once("%s VAL=0x%x llq.prod.prod=0x%x cpu%d head.prod.prod=0x%x\n", __func__, VAL, llq.prod.prod, smp_processor_id(), head.prod.prod);\
 	}								\
 	(typeof(*ptr))VAL;						\
 })
@@ -1484,6 +1515,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}, head = llq, space = llq;
 	//ktime_t initial, final, *t;
 	int ret = 0, cpu;
+	u32 myspace;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1508,9 +1540,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	space.cons.cons = READ_ONCE(cmdq->q.llq.cons.cons);
 	space.prod.prod = llq.prod.prod;
-	while (!queue_has_space(&space, n + sync)) {
-		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+	while (!queue_has_space(&space, n + sync, &myspace)) {
+		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space)) {
+			queue_has_space(&space, n + sync, &myspace);
+			dev_err_once(smmu->dev, "CMDQ timeout space.prod.prod=0x%x space.cons.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d\n",
+			space.cons.cons, space.cons.cons, llq.prod.prod, myspace, n, sync);
+		}
 
 		space.prod.prod = llq.prod.prod;
 	}
@@ -1615,10 +1650,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
 			dev_err_once(smmu->dev,
-					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d\n",
+					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d cmdq->owner_prod=0x%x\n",
 					    llq.prod.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg), owner);
+					    readl_relaxed(cmdq->q.cons_reg), owner, atomic_read(&cmdq->owner_prod));
 		}
 
 		/*
