@@ -1329,6 +1329,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		WRITE_ONCE(cmdq->q.llq.cons.cons, read_value);
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 //		llq->val = READ_ONCE(cmdq->q.llq.val); fixme
+		llq->cons.cons = read_value;
 //	pr_err_once("%s fixme1\n", __func__);
 		return 0;
 	}
