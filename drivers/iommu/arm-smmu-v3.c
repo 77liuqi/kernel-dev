@@ -1321,6 +1321,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		const u32 inti_sw_cons = READ_ONCE(llq->cons.cons);
 		bool special = false;
 		u32 wrpplus;
+		u32 orig_hw_prod = readl(cmdq->q.prod_reg);
 
 
 		orig_hw = read_value = readl(cmdq->q.cons_reg);
@@ -1358,8 +1359,8 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		smp_mb();
 
 		if (read_value < inti_sw_cons)
-			panic("cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x\n", 
-			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus);
+			panic("cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x\n", 
+			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod);
 
 		WRITE_ONCE(cmdq->q.llq.cons.cons, read_value);
 		smp_mb();
