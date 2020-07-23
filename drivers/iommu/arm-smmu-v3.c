@@ -1321,6 +1321,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		const u32 inti_sw_cons = READ_ONCE(llq->cons.cons);
 		bool special = false;
 		u32 wrpplus;
+		bool special_wrap = false;
 		u32 orig_hw_prod = readl(cmdq->q.prod_reg);
 
 
@@ -1330,9 +1331,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 		if (Q_WRP(llq, read_value) == Q_WRP(llq, llq->cons.cons)) {
 			if (Q_IDX(llq, llq->cons.cons) > Q_IDX(llq, read_value)) {
-				pr_err("%s0 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x \n", __func__,
-			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons);
-				
+				special_wrap = true;
 			}
 		}
 
@@ -1345,6 +1344,18 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 			read_value |= wrpplus;
 			special = true;
 			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+		} else if (special_wrap) {
+			
+			pr_err("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x \n", __func__,
+			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons);
+			wrpplus = llq->cons.cons >> llq->max_n_shift;
+			wrpplus += 2;
+			wrpplus = wrpplus << llq->max_n_shift;
+			read_value = Q_PROD(llq, read_value);
+			read_value |= wrpplus;
+
+			pr_err("%s3.1 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x\n", __func__,
+		smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod);
 		} else {
 			wrpplus = llq->cons.cons >> llq->max_n_shift;
 			u32 print = false;
@@ -1357,11 +1368,11 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 			
 			if (print)
-				pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x\n", __func__,
+				pr_err_once("%s4 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x\n", __func__,
 			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, wrpplus);
 		}
 
-		pr_err_once("%s4 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x cmdq.q.llq.cons.cons=0x%x special=%d wrpplus=0x%x\n", 
+		pr_err_once("%s5 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x cmdq.q.llq.cons.cons=0x%x special=%d wrpplus=0x%x\n", 
 		__func__, smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, cmdq->q.llq.cons.cons, special, wrpplus);
 
 		smp_mb();
