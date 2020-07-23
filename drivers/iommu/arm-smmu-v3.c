@@ -1316,17 +1316,53 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	 * that fails, spin until somebody else updates it for us.
 	 */
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
-		u32 read_value = readl_relaxed(cmdq->q.cons_reg);
+		u32 orig_hw;
+		u32 read_value;
+		const u32 inti_sw_cons = READ_ONCE(llq->cons.cons);
+		bool special = false;
+		u32 wrpplus;
+
+
+		orig_hw = read_value = readl(cmdq->q.cons_reg);
+
+		smp_mb();
 
 		if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, llq->cons.cons))) {
-			pr_err_once("%s1 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
-			read_value += 1 << (llq->max_n_shift + 1);
-			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value);
+			wrpplus = llq->cons.cons >> llq->max_n_shift;
+			wrpplus++;
+			wrpplus = wrpplus << llq->max_n_shift;
+			pr_err_once("%s1 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+			read_value = Q_PROD(llq, read_value);
+			read_value |= wrpplus;
+			special = true;
+			pr_err_once("%s2 cpu%d cmdq->q.llq.cons.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons.cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+		} else {
+			wrpplus = llq->cons.cons >> llq->max_n_shift;
+			u32 print = false;
+
+			if (wrpplus)
+				print = true;
+
+			wrpplus = wrpplus << llq->max_n_shift;
+			read_value += wrpplus;
+
+			
+			if (print)
+				pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x\n", __func__,
+			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, wrpplus);
 		}
 
-		pr_err_once("%s3 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x cmdq.q.llq.cons.cons=0x%x\n", __func__, smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, cmdq->q.llq.cons.cons);
+		pr_err_once("%s4 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x cmdq.q.llq.cons.cons=0x%x special=%d wrpplus=0x%x\n", 
+		__func__, smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, cmdq->q.llq.cons.cons, special, wrpplus);
+
+		smp_mb();
+
+		if (read_value < inti_sw_cons)
+			panic("cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x\n", 
+			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus);
 
 		WRITE_ONCE(cmdq->q.llq.cons.cons, read_value);
+		smp_mb();
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 //		llq->val = READ_ONCE(cmdq->q.llq.val); fixme
 		llq->cons.cons = read_value;
@@ -1336,10 +1372,11 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 	queue_poll_init(smmu, &qp);
 	do {
+		smp_mb();
 //		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
 //	pr_err_once("%s fixme2\n", __func__);
-		llq->cons.cons = READ_ONCE(cmdq.q.llq.cons.cons);
-		llq->prod.prod = READ_ONCE(cmdq.q.llq.prod.prod);
+		llq->cons.cons = READ_ONCE(cmdq->q.llq.cons.cons);
+		llq->prod.prod = READ_ONCE(cmdq->q.llq.prod.prod);
 		if (!queue_full(llq))
 			break;
 
@@ -1599,7 +1636,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		u64 msk = 0xffffffff;
 		struct arm_smmu_ll_queue mask = {};
 		mask.prod.owner = 0xffffffff;
 		/* a. Wait for previous owner to finish */
