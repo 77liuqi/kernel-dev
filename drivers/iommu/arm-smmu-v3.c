@@ -1552,7 +1552,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq, space = llq;
-	//ktime_t initial, final, *t;
+	ktime_t initial, final, *t;
 	int ret = 0, cpu;
 	u32 myspace;
 	u32 initial_prod;
@@ -1563,6 +1563,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	local_irq_save(flags);
 	cpu = smp_processor_id();
 
+	t = &per_cpu(cmdlist, cpu);
+	initial = ktime_get();
 	prod64 = n + sync;
 	prod64 <<= 32;
 	prod64++;
@@ -1592,8 +1594,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	while (!queue_has_space(&space, n + sync, &myspace)) {
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space)) {
 			queue_has_space(&space, n + sync, &myspace);
-			dev_err_once(smmu->dev, "CMDQ timeout space.prod.prod=0x%x space.cons.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d\n",
-			space.cons.cons, space.cons.cons, llq.prod.prod, myspace, n, sync, cpu);
+			dev_err_once(smmu->dev, 
+			"CMDQ timeout space.prod.prod=0x%x space.cons.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x\n",
+			space.cons.cons, space.cons.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg));
 		}
 
 		space.prod.prod = llq.prod.prod;
@@ -1734,6 +1737,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //	pr_err("%s9 exit cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x\n",
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons.cons, prod64, owner, head.prod.prod);
 
+
+	final = ktime_get();
+	*t += final - initial;
+	
 	local_irq_restore(flags);
 	return ret;
 }
