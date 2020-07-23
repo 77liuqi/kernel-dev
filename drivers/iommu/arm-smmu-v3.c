@@ -1328,6 +1328,14 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 		smp_mb();
 
+		if (Q_WRP(llq, read_value) == Q_WRP(llq, llq->cons.cons)) {
+			if (Q_IDX(llq, llq->cons.cons) > Q_IDX(llq, read_value)) {
+				pr_err("%s0 cpu%d cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x \n", __func__,
+			smp_processor_id(), cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons);
+				
+			}
+		}
+
 		if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, llq->cons.cons))) {
 			wrpplus = llq->cons.cons >> llq->max_n_shift;
 			wrpplus++;
