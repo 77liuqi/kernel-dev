@@ -1631,8 +1631,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			//queue_has_space(&space, n + sync, &myspace);
 		space.prod.prod = llq.prod.prod;
 			dev_err_once(smmu->dev, 
-			"CMDQ timeout cpu%d space.prod.prod=0x%x space.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x\n", cpu,
-			space.cons, space.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg));
+			"CMDQ timeout cpu%d space.prod.prod=0x%x space.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x owner=%d\n", cpu,
+			space.cons, space.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg), owner);
 		}
 
 		space.prod.prod = llq.prod.prod;
@@ -1753,11 +1753,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
 			dev_err_once(smmu->dev,
-					    "CMD_SYNC cpu%d timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] owner=%d cmdq->owner_prod=0x%x\n",
+					    "CMD_SYNC cpu%d timeout at  llq.prod.prod=0x%08x llq.cons=0x%x [hwprod 0x%08x, hwcons 0x%08x] owner=%d cmdq->owner_prod=0x%x owner=%d\n",
 					    cpu,
 					    llq.prod.prod,
+					    llq.cons,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg), owner, atomic_read(&cmdq->owner_prod));
+					    readl_relaxed(cmdq->q.cons_reg), owner, atomic_read(&cmdq->owner_prod), owner);
 		}
 
 		/*
