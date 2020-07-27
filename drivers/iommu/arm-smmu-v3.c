@@ -803,9 +803,10 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, u
 	//	pr_err_once("%s defo full prod=0x%x cons=0x%x diff=0x%x 1 << q->max_n_shift=0x%x\n", __func__, prod, cons, diff, 1 << q->max_n_shift);
 		return false;
 	}
+	space = (1 << q->max_n_shift) - diff;
 
 	if (myspace)
-		*myspace = space = (1 << q->max_n_shift) - diff;
+		*myspace = space;
 
 	
 #endif
@@ -1330,11 +1331,11 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		wrpplus = llq->cons >> llq->max_n_shift;
 		wrpplus++;
 		wrpplus = wrpplus << llq->max_n_shift;
-		pr_err_once("%s1 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+	//	pr_err_once("%s1 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
 		read_value = Q_PROD(llq, read_value);
 		read_value |= wrpplus;
 		special = true;
-		pr_err_once("%s2 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+	//	pr_err_once("%s2 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
 	} else if (special_wrap) {
 		
 		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x \n", __func__,
@@ -1352,8 +1353,8 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		
 		wrpplus = llq->cons >> (llq->max_n_shift + 1);
 	
-		if (wrpplus)
-			print = true;
+	//	if (wrpplus)
+	//		print = true;
 	
 		wrpplus = wrpplus << (llq->max_n_shift + 1);
 		read_value = Q_PROD(llq, read_value);
