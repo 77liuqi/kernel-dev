@@ -1428,7 +1428,7 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 //		llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
 //	pr_err_once("%s fixme2\n", __func__);
 		llq->cons = READ_ONCE(cmdq->q.llq.cons);
-		llq->prod.prod = READ_ONCE(cmdq->q.llq.prod.prod);
+//		llq->prod.prod = READ_ONCE(cmdq->q.llq.prod.prod);
 		if (!queue_full(llq))
 			break;
 
