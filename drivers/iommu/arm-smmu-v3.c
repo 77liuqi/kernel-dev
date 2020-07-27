@@ -1475,6 +1475,7 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	u32 prod = llq->prod.prod;
 	int ret = 0;
+	
 
 	queue_poll_init(smmu, &qp);
 	//llq->val = READ_ONCE(smmu->cmdq.q.llq.val); fixme
@@ -1514,7 +1515,8 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 		 *
 		 * Requires us to see CPU 0's shared_lock() acquisition.
 		 */
-		llq->cons = readl(cmdq->q.cons_reg);
+		llq->cons = arm_smmu_get_cons(llq, cmdq);
+//		readl(cmdq->q.cons_reg);
 	} while (!ret);
 
 	return ret;
