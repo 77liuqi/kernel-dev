@@ -1399,6 +1399,11 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	int ret = 0;
+	u32 cons_orig, prod_orig;
+
+	cons_orig = llq->cons;
+	prod_orig = llq->prod.prod;
+
 
 	/*
 	 * Try to update our copy of cons by grabbing exclusive cmdq access. If
@@ -1432,8 +1437,8 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 
 	if (ret)
-		pr_err_once("%sx cpu%d ret=%d llq->prod.prod=0x%x llq->cons=0x%x queue_full(llq)=%d smmu->cmdq.q.llq.cons=0x%x diff=0x%x\n",
-		__func__, smp_processor_id(), ret, llq->prod.prod, llq->cons, queue_full(llq), smmu->cmdq.q.llq.cons, llq->prod.prod-llq->cons);
+		pr_err_once("%sx cpu%d ret=%d llq->prod.prod=0x%x llq->cons=0x%x queue_full(llq)=%d smmu->cmdq.q.llq.cons=0x%x diff=0x%x prod_orig=0x%x cons_orig=0x%x\n",
+		__func__, smp_processor_id(), ret, llq->prod.prod, llq->cons, queue_full(llq), smmu->cmdq.q.llq.cons, llq->prod.prod-llq->cons, prod_orig, cons_orig);
 
 	return ret;
 }
