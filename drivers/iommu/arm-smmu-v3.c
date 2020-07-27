@@ -1393,7 +1393,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 
 /* Wait for the command queue to become non-full */
 static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
-					     struct arm_smmu_ll_queue *llq)
+					     struct arm_smmu_ll_queue *llq, bool owner)
 {
 	unsigned long flags;
 	struct arm_smmu_queue_poll qp;
@@ -1438,8 +1438,8 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 	if (ret) {
 		u32 hw_cons = readl(cmdq->q.cons_reg);
-		pr_err_once("%sx cpu%d ret=%d llq->prod.prod=0x%x llq->cons=0x%x queue_full(llq)=%d smmu->cmdq.q.llq.cons=0x%x diff=0x%x prod_orig=0x%x cons_orig=0x%x cmdq->q.llq.cons=0x%x hw_cons=0x%x\n",
-		__func__, smp_processor_id(), ret, llq->prod.prod, llq->cons, queue_full(llq), smmu->cmdq.q.llq.cons, llq->prod.prod-llq->cons, prod_orig, cons_orig, cmdq->q.llq.cons, hw_cons);
+		pr_err_once("%sx cpu%d ret=%d llq->prod.prod=0x%x llq->cons=0x%x queue_full(llq)=%d smmu->cmdq.q.llq.cons=0x%x diff=0x%x prod_orig=0x%x cons_orig=0x%x cmdq->q.llq.cons=0x%x hw_cons=0x%x owner=%d\n",
+		__func__, smp_processor_id(), ret, llq->prod.prod, llq->cons, queue_full(llq), smmu->cmdq.q.llq.cons, llq->prod.prod-llq->cons, prod_orig, cons_orig, cmdq->q.llq.cons, hw_cons, owner);
 		}
 
 	return ret;
@@ -1648,7 +1648,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.prod.prod = llq.prod.prod;
 	start = ktime_get();
 	while (!queue_has_space(&space, n + sync, &myspace)) {
-		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space)) {
+		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space, owner)) {
 			//queue_has_space(&space, n + sync, &myspace);
 	//	space.prod.prod = llq.prod.prod;
 			dev_err_once(smmu->dev, 
