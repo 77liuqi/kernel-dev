@@ -1390,9 +1390,11 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 
 		smp_mb();
 
-		if (read_value < inti_sw_cons)
-			panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
-			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
+		if (read_value < inti_sw_cons) {
+			if (!ABOUT_TO_WRAP(inti_sw_cons))
+				panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
+				smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
+		}
 
 		WRITE_ONCE(cmdq->q.llq.cons, read_value);
 		smp_mb();
