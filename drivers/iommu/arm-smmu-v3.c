@@ -1339,9 +1339,13 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 		}
 		cmdq_prod = READ_ONCE(cmdq->q.llq.prod.prod);
 
-		if (inti_sw_cons > cmdq_prod)
-			panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x\n", 
-			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod);
+		#define ABOUT_TO_WRAP(v64) ((v64 & 0xffff0000) ==0xffff0000)
+
+		if (inti_sw_cons > cmdq_prod) {
+			if (!ABOUT_TO_WRAP(inti_sw_cons))
+				panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons.cons=0x%x llq->cons.cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x\n", 
+				smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons.cons, llq->cons.cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod);
+		}
 
 		if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, llq->cons.cons))) { // sw cons was 1, and now cycled, so add
 			wrpplus = llq->cons.cons >> llq->max_n_shift;
