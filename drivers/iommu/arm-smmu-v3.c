@@ -1322,7 +1322,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	#define ABOUT_TO_WRAP(v64) ((v64 & 0xffff0000) ==0xffff0000)
 	
 	if (inti_sw_cons > cmdq_prod) {
-		if (!ABOUT_TO_WRAP(inti_sw_cons))
+		if (1)
 			panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x\n", 
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod);
 	}
@@ -1382,7 +1382,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	smp_mb();
 	
 	if (read_value < inti_sw_cons) {
-		if (!ABOUT_TO_WRAP(inti_sw_cons))
+		if (1)
 			panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
 	}
@@ -1651,9 +1651,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space, owner)) {
 			//queue_has_space(&space, n + sync, &myspace);
 	//	space.prod.prod = llq.prod.prod;
-			dev_err_once(smmu->dev, 
-			"CMDQ timeout cpu%d space.prod.prod=0x%x space.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x owner=%d\n", cpu,
-			space.cons, space.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg), owner);
+			dev_err_ratelimited(smmu->dev, 
+			"CMDQ timeout cpu%d space.prod.prod=0x%x space.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x owner=%d cmdq->q.llq.prod=0x%x\n", cpu,
+			space.cons, space.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg), owner,  READ_ONCE(cmdq->q.llq.prod.prod));
 		}
 
 		space.prod.prod = llq.prod.prod;
