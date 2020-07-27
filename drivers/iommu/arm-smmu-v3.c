@@ -857,7 +857,7 @@ static bool queue_consumed(struct arm_smmu_ll_queue *q, u32 prod)
 
 	bool second = (q->cons >= prod);
 
-	pr_err("%s first=%d second=%d prod=0x%x q->prod.prod=0x%x q->cons=0x%x\n",
+	pr_err_once("%s first=%d second=%d prod=0x%x q->prod.prod=0x%x q->cons=0x%x\n",
 		__func__, first, second, prod, q->prod.prod, q->cons);
 
 	return second;		
