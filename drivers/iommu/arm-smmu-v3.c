@@ -877,10 +877,10 @@ static void queue_sync_cons_out(struct arm_smmu_queue *q)
 
 static void queue_inc_cons(struct arm_smmu_ll_queue *q)
 {
-	pr_err("%s fixme\n", __func__);
 
 	u32 cons = (Q_WRP(q, q->cons) | Q_IDX(q, q->cons)) + 1;
 	q->cons = Q_OVF(q->cons) | Q_WRP(q, cons) | Q_IDX(q, cons);
+	pr_err("%s fixme\n", __func__);
 }
 
 static int queue_sync_prod_in(struct arm_smmu_queue *q)
@@ -1142,7 +1142,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
  *   fails if the caller appears to be the last lock holder (yes, this is
  *   racy). All successful UNLOCK routines have RELEASE semantics.
  */
-static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
+static __maybe_unused void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
 {
 	int val;
 
@@ -1160,12 +1160,12 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
 	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
 }
 
-static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
+static __maybe_unused void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
 {
 	(void)atomic_dec_return_release(&cmdq->lock);
 }
 
-static bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
+static __maybe_unused bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *cmdq)
 {
 	if (atomic_read(&cmdq->lock) == 1)
 		return false;
@@ -1348,8 +1348,9 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		pr_err("%s3.1 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x orig_hw_prod=0x%x\n", __func__,
 	smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod, orig_hw_prod);
 	} else {
-		wrpplus = llq->cons >> (llq->max_n_shift + 1);
 		u32 print = false;
+		
+		wrpplus = llq->cons >> (llq->max_n_shift + 1);
 	
 		if (wrpplus)
 			print = true;
@@ -1385,7 +1386,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
 	}
 
-
+	return read_value;
 }
 
 
