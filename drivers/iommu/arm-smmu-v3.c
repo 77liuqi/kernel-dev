@@ -1744,27 +1744,41 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* a. Wait for previous owner to finish */
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
 			pr_err_once("%s wrongo llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+
+
+		if (llq.prod.prod > 0x25000)
+			pr_err_once("%s6.0 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
+
+		
 		atomic_cond_read_relaxedjohn(&cmdq->owner_prod, VAL == llq.prod.prod);
 		
-	//	pr_err("%s5 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x msk=0x%llx cmdq->q.llq.prod=[0x%x 0x%x]\n",
+		if (llq.prod.prod > 0x25000)
+			pr_err_once("%s6.00 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
+	//	pr_err("%s6.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x msk=0x%llx cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, msk, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
 		
 		/* b. Stop gathering work by clearing the owned flag */
 		prod64 = atomic64_fetch_andnot_relaxed(mask.prod.val,
 						   &cmdq->q.llq.prod.atomic_val.val);
 
+		if (llq.prod.prod > 0x25000)
+			pr_err_once("%s6.01 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
+
 
 		prod = prod64 >> 32;
 	
 	//	if (prod > 0xffc0)
-	//		pr_err("%s2 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons, head.prod.prod);
+	//		pr_err("%s6.2 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons, head.prod.prod);
 
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
+			pr_err_once("%s6.3 wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
-			pr_err_once("%s wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+			pr_err_once("%s6.4 wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
 
-	//	pr_err("%s6 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
+	//	pr_err("%s6.5 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, llq.prod.prod, prod64, prod, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
 
 		/*
@@ -1774,18 +1788,22 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, prod));
 
-//		if (prod > 0xffc0)
-//			pr_err("%s2.1 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons, head.prod.prod);
+		if (llq.prod.prod > 0x25000)
+			pr_err_once("%s6.03 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
 
-//		pr_err("%s6.1 cpu%d prod=0x%x\n", __func__, cpu, prod);
+//		if (prod > 0xffc0)
+//			pr_err("%s6.6 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons, head.prod.prod);
+
+//		pr_err("%s6.7 cpu%d prod=0x%x\n", __func__, cpu, prod);
 
 
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s6.2 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+			pr_err_once("%s6.8 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
 				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
 
 		if (llq.prod.prod > 0x25000)
-			pr_err_once("%s6.3 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
+			pr_err_once("%s6.9 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x initial_prod=0x%x\n",
 				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod, initial_prod);
 			
 
