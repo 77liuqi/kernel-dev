@@ -796,7 +796,7 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, u
 		diff = prod - cons;
 	else {
 		diff = prod + (0xffffffff - cons);
-		pr_err_once("%s cpu%d prod wrapped prod=0x%x cons=0x%x diff=0x%x myspace=%pS\n", __func__, smp_processor_id(), prod, cons, diff, myspace);
+		pr_err_ratelimited("%s cpu%d prod wrapped prod=0x%x cons=0x%x diff=0x%x myspace=%pS\n", __func__, smp_processor_id(), prod, cons, diff, myspace);
 	}
 	
 	if (diff >= 1 << q->max_n_shift) {
@@ -1178,17 +1178,13 @@ static __maybe_unused bool arm_smmu_cmdq_shared_tryunlock(struct arm_smmu_cmdq *
 #define arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)		\
 ({									\
 	bool __ret;							\
-	local_irq_save(flags);						\
 	__ret = !atomic_cmpxchg_relaxed(&cmdq->lock, 0, INT_MIN);	\
-	if (!__ret)							\
-		local_irq_restore(flags);				\
 	__ret;								\
 })
 
 #define arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags)		\
 ({									\
 	atomic_set_release(&cmdq->lock, 0);				\
-	local_irq_restore(flags);					\
 })
 
 
@@ -1396,7 +1392,6 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 					     struct arm_smmu_ll_queue *llq, bool owner)
 {
-	unsigned long flags;
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	int ret = 0;
@@ -1413,6 +1408,9 @@ static __maybe_unused int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_devi
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		u32 read_value = arm_smmu_get_cons(llq, cmdq);
 
+
+		if (read_value < READ_ONCE(cmdq->q.llq.cons))
+			pr_err("%s smaller read_value=0x%x  READ_ONCE(cmdq->q.llq.cons)=0x%x\n", __func__, read_value, READ_ONCE(cmdq->q.llq.cons));
 
 		WRITE_ONCE(cmdq->q.llq.cons, read_value);
 		smp_mb();
@@ -1658,9 +1656,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space, owner)) {
 			//queue_has_space(&space, n + sync, &myspace);
 	//	space.prod.prod = llq.prod.prod;
+			local_irq_restore(flags);
 			dev_err_ratelimited(smmu->dev, 
 			"CMDQ timeout cpu%d space.prod.prod=0x%x space.cons=0x%x llq.prod.prod=0x%x myspace=%d n=%d sync=%d cpu%d prod_reg=0x%x cons_reg=0x%x owner=%d cmdq->q.llq.prod=0x%x\n", cpu,
 			space.cons, space.cons, llq.prod.prod, myspace, n, sync, cpu, readl(cmdq->q.prod_reg), readl(cmdq->q.cons_reg), owner,  READ_ONCE(cmdq->q.llq.prod.prod));
+			local_irq_save(flags);
 		}
 
 		space.prod.prod = llq.prod.prod;
