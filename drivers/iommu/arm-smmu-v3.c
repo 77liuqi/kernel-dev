@@ -1313,8 +1313,8 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	
 	smp_mb();
 	
-	if (Q_WRP(llq, read_value) == Q_WRP(llq, llq->cons)) {
-		if (Q_IDX(llq, llq->cons) > Q_IDX(llq, read_value)) {
+	if (Q_WRP(llq, read_value) == Q_WRP(llq, inti_sw_cons_main)) {
+		if (Q_IDX(llq, inti_sw_cons_main) > Q_IDX(llq, read_value)) {
 			special_wrap = true;
 		}
 	}
@@ -1324,35 +1324,35 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	
 	if (inti_sw_cons > cmdq_prod) {
 		if (1)
-			panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x\n", 
-			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod);
+			panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x inti_sw_cons_main=0x%x\n", 
+			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, inti_sw_cons_main);
 	}
 	
-	if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, llq->cons))) { // sw cons was 1, and now cycled, so add
-		wrpplus = llq->cons >> llq->max_n_shift;
+	if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, inti_sw_cons_main))) { // sw cons was 1, and now cycled, so add
+		wrpplus = inti_sw_cons_main >> llq->max_n_shift;
 		wrpplus++;
 		wrpplus = wrpplus << llq->max_n_shift;
-	//	pr_err_once("%s1 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+		pr_err_once("%s1 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x inti_sw_cons_main=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw, inti_sw_cons_main);
 		read_value = Q_PROD(llq, read_value);
 		read_value |= wrpplus;
 		special = true;
-	//	pr_err_once("%s2 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw);
+		pr_err_once("%s2 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x inti_sw_cons_main=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw, inti_sw_cons_main);
 	} else if (special_wrap) {
 		
-		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x \n", __func__,
-		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons);
-		wrpplus = llq->cons >> llq->max_n_shift;
+		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x inti_sw_cons_main=0x%x\n", __func__,
+		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, inti_sw_cons_main);
+		wrpplus = inti_sw_cons_main >> llq->max_n_shift;
 		wrpplus += 2;
 		wrpplus = wrpplus << llq->max_n_shift;
 		read_value = Q_PROD(llq, read_value);
 		read_value |= wrpplus;
 	
-		pr_err("%s3.1 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x orig_hw_prod=0x%x\n", __func__,
-	smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod, orig_hw_prod);
+		pr_err("%s3.1 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x orig_hw_prod=0x%x inti_sw_cons_main=0x%x\n", __func__,
+	smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod, orig_hw_prod, inti_sw_cons_main);
 	} else {
 		u32 print = false;
 		
-		wrpplus = llq->cons >> (llq->max_n_shift + 1);
+		wrpplus = inti_sw_cons_main >> (llq->max_n_shift + 1);
 	
 	//	if (wrpplus)
 	//		print = true;
@@ -1363,37 +1363,30 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	
 		
 		if (print)
-			pr_err_once("%s4 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x\n", __func__,
-		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus);
+			pr_err_once("%s4 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x inti_sw_cons_main=0x%x\n", __func__,
+		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, inti_sw_cons_main);
 	}
 	
 	cmdq_prod = READ_ONCE(cmdq->q.llq.prod.prod);
 	
 	if (read_value < inti_sw_cons)
-		pr_err("ppp full wrap? cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
-		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift);
+		pr_err("ppp full wrap? cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
+		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
 	
 	if (read_value > cmdq_prod)
-		panic("ppp cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
-		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift);
+		panic("ppp cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
+		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
 	
-	pr_err_once("%s5 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x cmdq.q.llq.cons=0x%x special=%d wrpplus=0x%x\n", 
-	__func__, smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, cmdq->q.llq.cons, special, wrpplus);
+	pr_err_once("%s5 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x cmdq.q.llq.cons=0x%x special=%d wrpplus=0x%x inti_sw_cons_main=0x%x\n", 
+	__func__, smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, cmdq->q.llq.cons, special, wrpplus, inti_sw_cons_main);
 	
 	smp_mb();
 	
 	if (read_value < inti_sw_cons) {
 		if (1)
-			panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
-			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
-	}
-
-	if (read_value < inti_sw_cons_main) {
-		if (1)
-			panic("xxx cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
+			panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
 	}
-
 
 	return read_value;
 }
