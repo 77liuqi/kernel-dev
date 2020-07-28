@@ -1302,6 +1302,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	u32 orig_hw;
 	u32 read_value;
 	const u32 inti_sw_cons = READ_ONCE(llq->cons);
+	const u32 inti_sw_cons_main = READ_ONCE(cmdq->q.llq.cons);
 	bool special = false;
 	u32 wrpplus;
 	bool special_wrap = false;
@@ -1386,6 +1387,13 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 			panic("ddd cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d\n", 
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift);
 	}
+
+	if (read_value < inti_sw_cons_main) {
+		if (1)
+			panic("xxx cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
+			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
+	}
+
 
 	return read_value;
 }
