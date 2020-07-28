@@ -909,7 +909,7 @@ static void queue_poll_init(struct arm_smmu_device *smmu,
 	qp->delay = 1;
 	qp->spin_cnt = 0;
 	qp->wfe = !!(smmu->features & ARM_SMMU_FEAT_SEV);
-	qp->timeout = ktime_add_us(ktime_get(), 5*ARM_SMMU_POLL_TIMEOUT_US);
+	qp->timeout = ktime_add_us(ktime_get(), ARM_SMMU_POLL_TIMEOUT_US);
 }
 
 static int queue_poll(struct arm_smmu_queue_poll *qp)
