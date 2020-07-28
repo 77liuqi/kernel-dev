@@ -855,7 +855,7 @@ static bool queue_consumed(struct arm_smmu_ll_queue *q, u32 prod)
 	       ((Q_WRP(q, q->cons) != Q_WRP(q, prod)) &&
 		(Q_IDX(q, q->cons) <= Q_IDX(q, prod)));
 
-	bool second = (q->cons >= prod);
+	bool second = (q->cons > prod);
 
 	if (second != first)
 		pr_err_once("%s first=%d second=%d prod=0x%x q->prod.prod=0x%x q->cons=0x%x\n",
@@ -1754,9 +1754,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	if (head.prod.prod != Q_PROD(&llq, head.prod.prod))
-		pr_err_once("%s wrongy head.prod.prod=0x%x Q_PROD(&llq, head.prod.prod)=0x%x\n", __func__, head.prod.prod, Q_PROD(&llq, head.prod.prod));
+		pr_err_once("%s wrongy head.prod.prod=0x%x Q_PROD(&llq, head.prod.prod)=0x%x head.prod.prod=0x%x\n", __func__, head.prod.prod, Q_PROD(&llq, head.prod.prod), head.prod.prod);
 	if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
-		pr_err_once("%s wronga llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+		pr_err_once("%s wronga llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x head.prod.prod=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod), head.prod.prod);
+
+
+	if (Q_PROD(&llq, llq.prod.prod) ==Q_PROD(&llq, head.prod.prod))
+		pr_err_once("%s wronga bad llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x head.prod.prod=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod), head.prod.prod);
+
+	
 	arm_smmu_cmdq_set_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, head.prod.prod));
 
 	if (initial_prod > 0x25000)
@@ -1803,12 +1809,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//		pr_err("%s6.2 cpu%d prod=0x%x prod64=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x\n", __func__, cpu, prod, prod64, llq.prod.prod, llq.cons, head.prod.prod);
 
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s6.3 wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
+			pr_err_once("%s6.3 wrongd llq.prod.prod=0x%x Q_PROD(&llq, prod)=0x%x llq.prod.prod=0x%x\n", __func__, prod, Q_PROD(&llq, prod), llq.prod.prod);
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
-			pr_err_once("%s6.4 wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
+			pr_err_once("%s6.4 wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x prod=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod), prod);
 
 	//	pr_err("%s6.5 cpu%d prod=[0x%x 0x%x] cons=0x%x  llq.prod.prod=0x%x prod64=0x%llx prod=0x%x cmdq->q.llq.prod=[0x%x 0x%x]\n",
 	//	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, llq.prod.prod, prod64, prod, cmdq->q.llq.prod.prod, cmdq->q.llq.prod.owner);
+
+		if (Q_PROD(&llq, llq.prod.prod) == Q_PROD(&llq, prod))
+			pr_err_once("%s6.4 bad wrongU llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
@@ -1864,7 +1873,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (sync) {
 //		llq.prod.prod += n;//queue_inc_prod_n(&llq, n);
 //		u32 tjee = llq.prod.prod;
-		llq.prod.prod = queue_inc_prod_n(&llq, n);
+
+//		llq.prod.prod = queue_inc_prod_n(&llq, n); fixme for MSI
+		llq.prod.prod += n;
+
 
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
 			pr_err_once("%s wrong1 llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
