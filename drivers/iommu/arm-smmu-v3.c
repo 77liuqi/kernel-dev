@@ -1885,13 +1885,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, llq.prod.prod);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
-			dev_err_once(smmu->dev,
-					    "CMD_SYNC cpu%d timeout at  llq.prod.prod=0x%08x llq.cons=0x%x [hwprod 0x%08x, hwcons 0x%08x] owner=%d cmdq->owner_prod=0x%x owner=%d initial_val=0x%llx\n",
+			dev_err_ratelimited(smmu->dev,
+					    "CMD_SYNC cpu%d timeout at  llq.prod.prod=0x%08x llq.cons=0x%x [hwprod 0x%08x, hwcons 0x%08x] owner=%d cmdq->owner_prod=0x%x owner=%d initial_val=0x%llx cmd cons=0x%x\n",
 					    cpu,
 					    llq.prod.prod,
 					    llq.cons,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg), owner, atomic_read(&cmdq->owner_prod), owner, initial_val);
+					    readl_relaxed(cmdq->q.cons_reg), owner, atomic_read(&cmdq->owner_prod), owner, initial_val, READ_ONCE(cmdq->q.llq.cons));
 		}
 
 		/*
