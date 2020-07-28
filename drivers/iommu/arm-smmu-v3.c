@@ -1661,6 +1661,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !llq.prod.owner;
 	head.prod.prod = queue_inc_prod_n(&llq, n + sync);
 
+	if (llq.prod.owner > 100)
+			pr_err_once("%s well cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d initial_val=0x%llx\n",
+		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync, initial_val);
+		
+
 //	if (initial_prod > 0xffc0)
 //		pr_err("%s1 cpu%d initial_val=0x%llx llq.prod.prod=0x%x llq.cons=0x%x head.prod.prod=0x%x owner=%d s=%d n=%d\n",
 //		__func__, cpu, initial_val, llq.prod.prod, llq.cons, head.prod.prod, owner, sync, n);
@@ -1749,6 +1754,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (owner) {
 		struct arm_smmu_ll_queue mask = {};
 		mask.prod.owner = 0xffffffff;
+		if (mask.prod.prod)
+			pr_err("%s bad mask.prod.val=0x%llx\n", __func__, mask.prod.val);
 		/* a. Wait for previous owner to finish */
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
 			pr_err_once("%s wrongo llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
