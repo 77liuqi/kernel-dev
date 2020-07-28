@@ -1687,6 +1687,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
 	space.prod.prod = llq.prod.prod;
 	start = ktime_get();
+
+	
+	if (initial_prod + n + sync < READ_ONCE(cmdq->q.llq.cons))
+		pr_err_once("%s badx wrong0 initial_prod=0x%x n=%d sync=%d cmd->q.llq.cons=0x%x\n", __func__, initial_prod, n, sync, READ_ONCE(cmdq->q.llq.cons));
+
+	
 	while (!queue_has_space(&space, n + sync, &myspace)) {
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space, owner)) {
 			//queue_has_space(&space, n + sync, &myspace);
@@ -1746,8 +1752,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	arm_smmu_cmdq_set_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, head.prod.prod));
 
 	if (initial_prod > 0x25000)
-		pr_err_once("%s4.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d initial_val=0x%llx\n",
-		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync, initial_val);
+		pr_err_once("%s4.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d initial_val=0x%llx owner=%d\n",
+		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync, initial_val, owner);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
@@ -1849,6 +1855,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
 //		llq.prod.prod += n;//queue_inc_prod_n(&llq, n);
+//		u32 tjee = llq.prod.prod;
 		llq.prod.prod = queue_inc_prod_n(&llq, n);
 
 		if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
