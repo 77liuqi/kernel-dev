@@ -1529,8 +1529,7 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 		 * Requires us to see CPU 0's shared_lock() acquisition.
 		 */
 		 cons_old = llq->cons;
-
-
+#if 0
 		if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 			u32 read_value = arm_smmu_get_cons(llq, cmdq);
 		
@@ -1546,9 +1545,10 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 		//	pr_err_once("%s fixme1\n", __func__);
 			//	return 0;
 		}
+#endif
 
-		 
-
+		llq->cons = arm_smmu_get_cons(llq, cmdq);
+		
 		if (llq->cons < cons_old)
 			pr_err("%s something bad cons_old=0x%x cons=0x%x\n", __func__, cons_old, llq->cons);
 //		readl(cmdq->q.cons_reg);
