@@ -1758,8 +1758,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x\n",
+			pr_err_once("%s6.2 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x\n",
 				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod);
+
+		if (llq.prod.prod > 0x20050)
+			pr_err_once("%s6.3 cpu%d owner setting hw prod=0x%x Q_PROD(prod)=0x%x prod64=0x%llx llq.prod.prod=0x%x\n",
+				__func__, cpu, prod, Q_PROD(&llq, prod), prod64, llq.prod.prod);
+			
 
 		/*
 		 * d. Advance the hardware prod pointer
