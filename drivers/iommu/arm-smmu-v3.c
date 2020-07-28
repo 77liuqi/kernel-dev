@@ -1665,6 +1665,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		space.prod.prod = llq.prod.prod;
 	}
 
+//	if (initial_prod > 0x1FF00)
+//			pr_err("%s2.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d\n",
+//		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync);
+		
+
 	/*
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
@@ -1689,6 +1694,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	arm_smmu_cmdq_shared_lock(cmdq);
 	}
 
+//	if (initial_prod > 0x1FF00)
+//		pr_err("%s3.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d\n",
+//		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync);
+
 //	pr_err("%s4 cpu%d llq.prod=[0x%x 0x%x] head.prod.prod=0x%x owner=%d\n",
 	//__func__, cpu, llq.prod.prod, llq.prod.owner, head.prod.prod, owner);
 
@@ -1699,6 +1708,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (llq.prod.prod != Q_PROD(&llq, llq.prod.prod))
 		pr_err_once("%s wronga llq.prod.prod=0x%x Q_PROD(&llq, llq.prod.prod)=0x%x\n", __func__, llq.prod.prod, Q_PROD(&llq, llq.prod.prod));
 	arm_smmu_cmdq_set_valid_map(cmdq, Q_PROD(&llq, llq.prod.prod), Q_PROD(&llq, head.prod.prod));
+
+//	if (initial_prod > 0x1FF00)
+//		pr_err("%s4.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d\n",
+//		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
@@ -1767,6 +1780,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //	pr_err("%s7 cpu%d prod.val=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x sync=%d\n",
 //	__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, sync);
 
+//	if (initial_prod > 0x1FF00)
+//		pr_err("%s7.1 cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d\n",
+//		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync);
+
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
 //		llq.prod.prod += n;//queue_inc_prod_n(&llq, n);
@@ -1805,6 +1822,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	final = ktime_get();
 	*t += final - initial;
 	
+
+//	if (initial_prod > 0x1FF00)
+//		pr_err("%s9.1 exit cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d\n",
+//		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync);
 	local_irq_restore(flags);
 	return ret;
 }
