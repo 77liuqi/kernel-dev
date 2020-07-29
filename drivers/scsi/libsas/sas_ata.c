@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/async.h>
 #include <linux/export.h>
+#include <linux/pm_runtime.h>
 
 #include <scsi/sas_ata.h>
 #include "sas_internal.h"
@@ -722,6 +723,9 @@ void sas_resume_sata(struct asd_sas_port *port)
 
 		sata = &dev->sata_dev;
 		if (sata->ap->pm_mesg.event == PM_EVENT_ON)
+			continue;
+
+		if (pm_runtime_suspended(sata->ap->dev) == 0)
 			continue;
 
 		ata_sas_port_resume(sata->ap);
