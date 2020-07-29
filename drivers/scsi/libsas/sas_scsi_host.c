@@ -727,6 +727,8 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	int tries = 0;
 	bool retry;
 
+	pr_err("%s shost=%pS\n", __func__, shost);
+
 retry:
 	tries++;
 	retry = true;

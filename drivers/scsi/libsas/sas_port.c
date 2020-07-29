@@ -30,6 +30,8 @@ static void sas_resume_port(struct asd_sas_phy *phy)
 	struct sas_ha_struct *sas_ha = phy->ha;
 	struct sas_internal *si = to_sas_internal(sas_ha->core.shost->transportt);
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	if (si->dft->lldd_port_formed)
 		si->dft->lldd_port_formed(phy);
 
@@ -83,6 +85,8 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	struct sas_internal *si =
 		to_sas_internal(sas_ha->core.shost->transportt);
 	unsigned long flags;
+
+	pr_err("%s port=%pS\n", __func__, port);
 
 	if (port) {
 		if (!phy_is_wideport_member(port, phy))

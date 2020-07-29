@@ -426,6 +426,8 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 {
 	int i;
 
+	pr_err("%s ha=%pS\n", __func__, ha);
+
 	sas_disable_events(ha);
 	scsi_block_requests(ha->core.shost);
 	for (i = 0; i < ha->num_phys; i++) {

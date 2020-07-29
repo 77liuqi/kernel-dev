@@ -4935,6 +4935,8 @@ static void ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
 	struct ata_link *link;
 	unsigned long flags;
 
+	pr_err("%s ap=%pS mesg.event=%d action=%d ap->pflags=0x%x\n", __func__, ap, mesg.event, action, ap->pflags);
+
 	/* Previous resume operation might still be in
 	 * progress.  Wait for PM_PENDING to clear.
 	 */
@@ -4976,17 +4978,22 @@ static const unsigned int ata_port_suspend_ehi = ATA_EHI_QUIET
 
 static void ata_port_suspend(struct ata_port *ap, pm_message_t mesg)
 {
+	pr_err("%s ap=%pS mesg.event=%d\n", __func__, ap, mesg.event);
+
 	ata_port_request_pm(ap, mesg, 0, ata_port_suspend_ehi, false);
 }
 
 static void ata_port_suspend_async(struct ata_port *ap, pm_message_t mesg)
 {
+	pr_err("%s ap=%pS mesg.event=%d\n", __func__, ap, mesg.event);
 	ata_port_request_pm(ap, mesg, 0, ata_port_suspend_ehi, true);
 }
 
 static int ata_port_pm_suspend(struct device *dev)
 {
 	struct ata_port *ap = to_ata_port(dev);
+
+	dev_err(dev, "%s ap=%pS pm_runtime_suspended=%d\n", __func__, ap, pm_runtime_suspended(dev));
 
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -4998,6 +5005,8 @@ static int ata_port_pm_suspend(struct device *dev)
 static int ata_port_pm_freeze(struct device *dev)
 {
 	struct ata_port *ap = to_ata_port(dev);
+
+	dev_err(dev, "%s ap=%pS pm_runtime_suspended=%d\n", __func__, ap, pm_runtime_suspended(dev));
 
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -5017,16 +5026,20 @@ static const unsigned int ata_port_resume_ehi = ATA_EHI_NO_AUTOPSY
 
 static void ata_port_resume(struct ata_port *ap, pm_message_t mesg)
 {
+	pr_err("%s ap=%pS ap->pflags=0x%x\n", __func__, ap, ap->pflags);
 	ata_port_request_pm(ap, mesg, ATA_EH_RESET, ata_port_resume_ehi, false);
 }
 
 static void ata_port_resume_async(struct ata_port *ap, pm_message_t mesg)
 {
+	pr_err( "%s ap=%pS ap->flags=0x%x mesg.event=%d\n", __func__, ap, ap->pflags, mesg.event);
 	ata_port_request_pm(ap, mesg, ATA_EH_RESET, ata_port_resume_ehi, true);
 }
 
 static int ata_port_pm_resume(struct device *dev)
 {
+	dev_err(dev, "%s dev=%pS\n", __func__, dev);
+
 	ata_port_resume_async(to_ata_port(dev), PMSG_RESUME);
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
@@ -5090,12 +5103,14 @@ static const struct dev_pm_ops ata_port_pm_ops = {
  */
 void ata_sas_port_suspend(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_port_suspend_async(ap, PMSG_SUSPEND);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_suspend);
 
 void ata_sas_port_resume(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_port_resume_async(ap, PMSG_RESUME);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_resume);
@@ -5109,6 +5124,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_resume);
  */
 int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 {
+	pr_err("%s host=%pS mesg.event=%d\n", __func__, host, mesg.event);
 	host->dev->power.power_state = mesg;
 	return 0;
 }

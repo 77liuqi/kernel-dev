@@ -899,6 +899,8 @@ static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 	guid_t guid;
 	int rc;
 
+	dev_err(dev, "%s\n", __func__);
+
 	rc = reset_hw_v3_hw(hisi_hba);
 	if (rc) {
 		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d\n", rc);
@@ -2490,6 +2492,8 @@ static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 {
 	int rc;
 
+	dev_err(hisi_hba->dev, "%s\n", __func__);
+
 	rc = hw_init_v3_hw(hisi_hba);
 	if (rc)
 		return rc;
@@ -2579,6 +2583,8 @@ static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	int rc;
+
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 
 	rc = disable_host_v3_hw(hisi_hba);
 	if (rc) {
@@ -3208,6 +3214,8 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
 
+	dev_err(dev, "%s\n", __func__);
+
 	rc = pci_enable_device(pdev);
 	if (rc)
 		goto err_out;
@@ -3391,6 +3399,8 @@ static void hisi_sas_reset_done_v3_hw(struct pci_dev *pdev)
 	struct device *dev = hisi_hba->dev;
 	int rc;
 
+	dev_err(hisi_hba->dev, "%s\n", __func__);
+
 	hisi_sas_init_mem(hisi_hba);
 
 	rc = hw_init_v3_hw(hisi_hba);
@@ -3417,6 +3427,8 @@ static int hisi_sas_v3_suspend(struct device *device)
 	struct Scsi_Host *shost = hisi_hba->shost;
 	pci_power_t device_state;
 	int rc;
+
+	dev_err(device, "%s\n", __func__);
 
 	if (!pdev->pm_cap) {
 		dev_err(dev, "PCI PM not supported\n");
@@ -3463,6 +3475,8 @@ static int hisi_sas_v3_resume(struct device *device)
 	struct device *dev = hisi_hba->dev;
 	unsigned int rc;
 	pci_power_t device_state = pdev->current_state;
+
+	dev_err(hisi_hba->dev, "%s\n", __func__);
 
 	dev_warn(dev, "resuming from operating state [D%d]\n",
 		 device_state);
@@ -3511,6 +3525,7 @@ static int hisi_sas_v3_runtime_suspend(struct device *dev)
 
 static int hisi_sas_v3_runtime_resume(struct device *dev)
 {
+	dev_err(dev, "%s\n", __func__);
 	return hisi_sas_v3_resume(dev);
 }
 

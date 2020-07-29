@@ -692,12 +692,17 @@ void sas_suspend_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
 
 		if (!dev_is_sata(dev))
 			continue;
+		
+		pr_err("%s1 port=%pS dev=%pS sata=%pS sata->ap->pm_mesg.event=%d\n",
+		__func__, port, dev, sata, sata->ap->pm_mesg.event);
 
 		sata = &dev->sata_dev;
 		if (sata->ap->pm_mesg.event == PM_EVENT_SUSPEND)
@@ -714,14 +719,19 @@ void sas_resume_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;
 
 		if (!dev_is_sata(dev))
 			continue;
+		
 
 		sata = &dev->sata_dev;
+		pr_err("%s1 port=%pS dev=%pS sata=%pS sata->ap->pm_mesg.event=%d pm_runtime_suspended=%d\n",
+		__func__, port, dev, sata, sata->ap->pm_mesg.event, pm_runtime_suspended(sata->ap->dev));
 		if (sata->ap->pm_mesg.event == PM_EVENT_ON)
 			continue;
 
@@ -766,6 +776,8 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
+	pr_err("%s ap=%pS dev=%pS\n", __func__, ap, dev);
+
 	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
@@ -776,6 +788,8 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
+
+	pr_err("%s shost=%pS\n", __func__, shost);
 
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:

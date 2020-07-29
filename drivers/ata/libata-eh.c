@@ -650,6 +650,8 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s shost=%pS ap=%pS ap->pflags=0x%x\n", __func__, host, ap, ap->pflags);
+
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -926,6 +928,8 @@ void ata_std_sched_eh(struct ata_port *ap)
 {
 	WARN_ON(!ap->ops->error_handler);
 
+	pr_err("%s ap=%pS ap->pflags=0x%x\n", __func__, ap, ap->pflags);
+
 	if (ap->pflags & ATA_PFLAG_INITIALIZING)
 		return;
 
@@ -969,6 +973,7 @@ EXPORT_SYMBOL(ata_std_end_eh);
  */
 void ata_port_schedule_eh(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS ap->pflags=0x%x\n", __func__, ap, ap->pflags);
 	/* see: ata_std_sched_eh, unless you know better */
 	ap->ops->sched_eh(ap);
 }
@@ -3873,6 +3878,8 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 	int rc = 0;
 	struct ata_device *dev;
 
+	pr_err("%s ap=%pS ap->pflags=0x%x\n", __func__, ap, ap->pflags);
+
 	/* are we suspending? */
 	spin_lock_irqsave(ap->lock, flags);
 	if (!(ap->pflags & ATA_PFLAG_PM_PENDING) ||
@@ -3937,6 +3944,8 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	struct ata_link *link;
 	struct ata_device *dev;
 	unsigned long flags;
+	
+	pr_err("%s ap=%pS ap->pflags=0x%x\n", __func__, ap, ap->pflags);
 
 	/* are we resuming? */
 	spin_lock_irqsave(ap->lock, flags);

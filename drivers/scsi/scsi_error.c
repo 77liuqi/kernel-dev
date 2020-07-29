@@ -85,6 +85,8 @@ void scsi_schedule_eh(struct Scsi_Host *shost)
 {
 	unsigned long flags;
 
+	pr_err("%s shost=%pS\n", __func__, shost);
+
 	spin_lock_irqsave(shost->host_lock, flags);
 
 	if (scsi_host_set_state(shost, SHOST_RECOVERY) == 0 ||
@@ -2172,6 +2174,8 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 int scsi_error_handler(void *data)
 {
 	struct Scsi_Host *shost = data;
+
+	pr_err("%s shost=%pS\n", __func__, shost);
 
 	/*
 	 * We use TASK_INTERRUPTIBLE so that the thread is not
