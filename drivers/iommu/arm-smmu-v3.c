@@ -1660,6 +1660,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !llq.prod.owner;
 	head.prod.prod = queue_inc_prod_n(&llq, n + sync);
 
+	if (head.prod.prod > 0x80000000)
+		pr_err_once("%s head.prod.prod=0x%x\n", __func__, head.prod.prod);
+
 	if (llq.prod.owner > 100)
 			pr_err_once("%s well cpu%d prod=[0x%x 0x%x] cons=0x%x prod64=0x%llx owner=%d head.prod.prod=0x%x llq.prod.prod=0x%x sync=%d initial_val=0x%llx\n",
 		__func__, cpu, llq.prod.prod, llq.prod.owner, llq.cons, prod64, owner, head.prod.prod, llq.prod.prod, sync, initial_val);
