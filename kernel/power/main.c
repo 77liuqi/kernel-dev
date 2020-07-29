@@ -225,7 +225,7 @@ power_attr(sync_on_suspend);
 #endif /* CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM_SLEEP_DEBUG
-int pm_test_level = TEST_NONE;
+int pm_test_level = TEST_DEVICES;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
 	[TEST_NONE] = "none",
