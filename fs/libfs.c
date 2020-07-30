@@ -974,9 +974,14 @@ ssize_t simple_attr_write(struct file *file, const char __user *buf,
 	if (copy_from_user(attr->set_buf, buf, size))
 		goto out;
 
+	pr_err("%s attr->set_buf=%s\n", __func__, attr->set_buf);
+
 	attr->set_buf[size] = '\0';
 	val = simple_strtoll(attr->set_buf, NULL, 0);
+	
+	pr_err("%s1 attr->set_buf=%s val=0x%llx\n", __func__, attr->set_buf, val);
 	ret = attr->set(attr->data, val);
+	pr_err("%s2 attr->set_buf=%s val=0x%llx ret=%zd\n", __func__, attr->set_buf, val, ret);
 	if (ret == 0)
 		ret = len; /* on success, claim we got the whole input */
 out:

@@ -370,6 +370,7 @@ struct hisi_hba {
 	struct platform_device *platform_dev;
 	struct pci_dev *pci_dev;
 	struct device *dev;
+	u32 bogus;
 
 	int prot_mask;
 

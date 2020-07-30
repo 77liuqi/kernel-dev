@@ -3957,6 +3957,8 @@ void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 			    hisi_hba,
 			    &hisi_sas_debugfs_trigger_dump_fops);
 
+	debugfs_create_u32("bogus", 0777, hisi_hba->debugfs_dir, &hisi_hba->bogus);
+
 	/* create bist structures */
 	hisi_sas_debugfs_bist_init(hisi_hba);
 
@@ -3999,7 +4001,7 @@ int hisi_sas_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);
 
-bool hisi_sas_debugfs_enable;
+bool hisi_sas_debugfs_enable = 1;
 EXPORT_SYMBOL_GPL(hisi_sas_debugfs_enable);
 module_param_named(debugfs_enable, hisi_sas_debugfs_enable, bool, 0444);
 MODULE_PARM_DESC(hisi_sas_debugfs_enable, "Enable driver debugfs (default disabled)");
