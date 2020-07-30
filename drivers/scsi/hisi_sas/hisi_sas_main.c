@@ -796,6 +796,9 @@ static int hisi_sas_dev_found(struct domain_device *device)
 	dev_info(dev, "dev[%d:%x] found\n",
 		sas_dev->device_id, sas_dev->dev_type);
 
+	if (device->tproto & SAS_PROTOCOL_SSP)
+		return -1;
+
 	rc = hisi_sas_init_device(device);
 	if (rc)
 		goto err_out;
