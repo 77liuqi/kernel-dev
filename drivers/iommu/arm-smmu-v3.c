@@ -1311,8 +1311,8 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	
 	smp_mb();
 	
-	if (Q_WRP(llq, read_value) == Q_WRP(llq, inti_sw_cons_main)) {
-		if (Q_IDX(llq, inti_sw_cons_main) > Q_IDX(llq, read_value)) {
+	if (Q_WRP(llq, read_value) == Q_WRP(llq, inti_sw_cons)) {
+		if (Q_IDX(llq, inti_sw_cons) > Q_IDX(llq, read_value)) {
 			special_wrap = true;
 		}
 	}
@@ -1321,13 +1321,15 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	#define ABOUT_TO_WRAP(v64) ((v64 & 0xffff0000) ==0xffff0000)
 	
 	if (inti_sw_cons > cmdq_prod) {
-		if (1)
+		if (inti_sw_cons > 0xffff0000 && cmdq_prod < 0xffff0000) {
+		} else {
 			panic("qqq cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x inti_sw_cons_main=0x%x\n", 
 			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, inti_sw_cons_main);
+		}
 	}
 	
-	if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, inti_sw_cons_main))) { // sw cons was 1, and now cycled, so add
-		wrpplus = inti_sw_cons_main >> llq->max_n_shift;
+	if ((Q_WRP(llq, read_value) == 0) && (Q_WRP(llq, inti_sw_cons))) { // sw cons was 1, and now cycled, so add
+		wrpplus = inti_sw_cons >> llq->max_n_shift;
 		wrpplus++;
 		wrpplus = wrpplus << llq->max_n_shift;
 		pr_err_once("%s1 cpu%d cmdq->q.llq.cons=0x%x read_value=0x%x wrpplus=0x%x inti_sw_cons=0x%x orig_hw=0x%x inti_sw_cons_main=0x%x\n", __func__, smp_processor_id(), llq->cons, read_value, wrpplus, inti_sw_cons, orig_hw, inti_sw_cons_main);
@@ -1344,7 +1346,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		
 		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x inti_sw_cons_main=0x%x cmdq->lock=%d\n", __func__,
 		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, inti_sw_cons_main, atomic_read(&cmdq->lock));
-		wrpplus = inti_sw_cons_main >> llq->max_n_shift;
+		wrpplus = inti_sw_cons >> llq->max_n_shift;
 		wrpplus += 2;
 		wrpplus = wrpplus << llq->max_n_shift;
 		read_value = Q_PROD(llq, read_value);
@@ -1355,7 +1357,7 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 	} else {
 		u32 print = false;
 		
-		wrpplus = inti_sw_cons_main >> (llq->max_n_shift + 1);
+		wrpplus = inti_sw_cons >> (llq->max_n_shift + 1);
 	
 	//	if (wrpplus)
 	//		print = true;
