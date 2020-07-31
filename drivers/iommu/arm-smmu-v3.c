@@ -1378,9 +1378,14 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		pr_err("ppp full wrap? cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
 		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
 	
-	if (read_value > cmdq_prod)
-		panic("ppp cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
-		smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
+	if (read_value > cmdq_prod) {
+		if (read_value > 0x80000000 && 0x80000000 > cmdq_prod) {
+			
+		} else {
+			panic("ppp cpu%d cmdq->q.llq.prod.prod=0x%x cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x special=%d wrpplus=0x%x orig_hw_prod=0x%x cmdq_prod=0x%x special_wrap=%d max_n_shift=%d inti_sw_cons_main=0x%x\n", 
+			smp_processor_id(), cmdq->q.llq.prod.prod, cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, special, wrpplus, orig_hw_prod, cmdq_prod, special_wrap, llq->max_n_shift, inti_sw_cons_main);
+		}
+	}
 	
 	pr_err_once("%s5 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x cmdq.q.llq.cons=0x%x special=%d wrpplus=0x%x inti_sw_cons_main=0x%x\n", 
 	__func__, smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, cmdq->q.llq.cons, special, wrpplus, inti_sw_cons_main);
