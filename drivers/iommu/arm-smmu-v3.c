@@ -793,9 +793,12 @@ static __maybe_unused bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, u
 
 	if (prod >= cons)
 		diff = prod - cons;
-	else {
+	else if (prod < 0x80000000 && cons > 0x80000000) {
 		diff = prod + (0xffffffff - cons);
-		pr_err_ratelimited("%s cpu%d prod wrapped prod=0x%x cons=0x%x diff=0x%x myspace=%pS\n", __func__, smp_processor_id(), prod, cons, diff, myspace);
+		pr_err_once("%s cpu%d prod wrapped prod=0x%x cons=0x%x diff=0x%x myspace=%pS\n", __func__, smp_processor_id(), prod, cons, diff, myspace);		
+	} else {
+		diff = prod + (0xffffffff - cons);
+		panic("something wrong prod=0x%x cons=0x%x\n", prod, cons);
 	}
 	
 	if (diff >= 1 << q->max_n_shift) {
@@ -1339,16 +1342,16 @@ u32 arm_smmu_get_cons(struct arm_smmu_ll_queue *llq, struct arm_smmu_cmdq *cmdq)
 		
 	} else if (special_wrap) {
 		
-		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x inti_sw_cons_main=0x%x\n", __func__,
-		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, inti_sw_cons_main);
+		pr_err("%s3 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x inti_sw_cons_main=0x%x cmdq->lock=%d\n", __func__,
+		smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, inti_sw_cons_main, atomic_read(&cmdq->lock));
 		wrpplus = inti_sw_cons_main >> llq->max_n_shift;
 		wrpplus += 2;
 		wrpplus = wrpplus << llq->max_n_shift;
 		read_value = Q_PROD(llq, read_value);
 		read_value |= wrpplus;
 	
-		pr_err("%s3.1 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x orig_hw_prod=0x%x inti_sw_cons_main=0x%x\n", __func__,
-	smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod, orig_hw_prod, inti_sw_cons_main);
+		pr_err("%s3.1 cpu%d cmdq->q.llq.cons=0x%x llq->cons=0x%x read_value=0x%x orig_hw=0x%x inti_sw_cons=0x%x wrpplus=0x%x llq prod=0x%x orig_hw_prod=0x%x inti_sw_cons_main=0x%x cmdq->lock=%d\n", __func__,
+	smp_processor_id(), cmdq->q.llq.cons, llq->cons, read_value, orig_hw, inti_sw_cons, wrpplus, llq->prod.prod, orig_hw_prod, inti_sw_cons_main, atomic_read(&cmdq->lock));
 	} else {
 		u32 print = false;
 		
@@ -1725,9 +1728,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, Q_PROD(&llq, llq.prod.prod), n);
 	if (sync) {
+		u32 llq_prod= llq.prod.prod;
 		prod = queue_inc_prod_n(&llq, n);
 		if (prod != Q_PROD(&llq, prod))
-			pr_err_once("%s wrongs prod=0x%x Q_PROD(&llq, prod)=0x%x\n", __func__, prod, Q_PROD(&llq, prod));
+			pr_err_once("%s wrongs prod=0x%x Q_PROD(&llq, prod)=0x%x llq_prod=0x%x\n", __func__, prod, Q_PROD(&llq, prod), llq_prod);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, Q_PROD(&llq, prod));
 		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
 		
