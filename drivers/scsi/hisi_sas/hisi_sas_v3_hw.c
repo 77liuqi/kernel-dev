@@ -1345,7 +1345,6 @@ static void prep_smp_v3_hw(struct hisi_hba *hisi_hba,
 
 	hdr->cmd_table_addr = cpu_to_le64(req_dma_addr);
 	hdr->sts_buffer_addr = cpu_to_le64(hisi_sas_status_buf_addr_dma(slot));
-
 }
 
 static void prep_ata_v3_hw(struct hisi_hba *hisi_hba,
@@ -1451,7 +1450,6 @@ static void prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 	/* dw7 */
 	hdr->dw7 = cpu_to_le32(tag_to_abort << CMD_HDR_ABORT_IPTT_OFF);
 	hdr->transfer_tags = cpu_to_le32(slot->idx);
-
 }
 
 static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
