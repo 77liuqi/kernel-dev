@@ -5490,9 +5490,13 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				u64 d = ktime_get_boottime_ns() - ns_from_boot;
 
 				if (kt <= d) {	/* elapsed duration >= kt */
+					unsigned long flags_a;
+			
+					spin_lock_irqsave(&sqp->qc_lock, flags_a);
 					sqcp->a_cmnd = NULL;
 					atomic_dec(&devip->num_in_q);
 					clear_bit(k, sqp->in_use_bm);
+					spin_unlock_irqrestore(&sqp->qc_lock, flags_a);
 					if (new_sd_dp)
 						kfree(sd_dp);
 					/* call scsi_done() from this thread */
@@ -5504,6 +5508,9 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			}
 		}
 		if (!sd_dp->init_hrt) {
+			unsigned long flags_a;
+			
+			spin_lock_irqsave(&sqp->qc_lock, flags_a);
 			sd_dp->init_hrt = true;
 			sqcp->sd_dp = sd_dp;
 			hrtimer_init(&sd_dp->hrt, CLOCK_MONOTONIC,
@@ -5511,6 +5518,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			sd_dp->hrt.function = sdebug_q_cmd_hrt_complete;
 			sd_dp->sqa_idx = sqp - sdebug_q_arr;
 			sd_dp->qc_idx = k;
+			spin_unlock_irqrestore(&sqp->qc_lock, flags_a);
 		}
 		if (sdebug_statistics)
 			sd_dp->issuing_cpu = raw_smp_processor_id();
@@ -5519,11 +5527,15 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		hrtimer_start(&sd_dp->hrt, kt, HRTIMER_MODE_REL_PINNED);
 	} else {	/* jdelay < 0, use work queue */
 		if (!sd_dp->init_wq) {
+			unsigned long flags_a;
+			
+			spin_lock_irqsave(&sqp->qc_lock, flags_a);
 			sd_dp->init_wq = true;
 			sqcp->sd_dp = sd_dp;
 			sd_dp->sqa_idx = sqp - sdebug_q_arr;
 			sd_dp->qc_idx = k;
 			INIT_WORK(&sd_dp->ew.work, sdebug_q_cmd_wq_complete);
+			spin_unlock_irqrestore(&sqp->qc_lock, flags_a);
 		}
 		if (sdebug_statistics)
 			sd_dp->issuing_cpu = raw_smp_processor_id();
