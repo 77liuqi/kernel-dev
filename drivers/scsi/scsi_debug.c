@@ -4762,7 +4762,7 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 	if (unlikely(atomic_read(&retired_max_queue) > 0))
 		retiring = 1;
 
-	sqcp->a_cmnd = NULL;
+//	sqcp->a_cmnd = NULL;
 	if (unlikely(!test_and_clear_bit(qc_idx, sqp->in_use_bm))) {
 		spin_unlock_irqrestore(&sqp->qc_lock, iflags);
 		pr_err("Unexpected completion\n");
@@ -5058,7 +5058,7 @@ static bool stop_queued_cmnd(struct scsi_cmnd *cmnd)
 						cmnd->device->hostdata;
 				if (devip)
 					atomic_dec(&devip->num_in_q);
-				sqcp->a_cmnd = NULL;
+//				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
 					l_defer_t = sd_dp->defer_t;
@@ -5098,7 +5098,7 @@ static void stop_all_queued(void)
 					sqcp->a_cmnd->device->hostdata;
 				if (devip)
 					atomic_dec(&devip->num_in_q);
-				sqcp->a_cmnd = NULL;
+//				sqcp->a_cmnd = NULL;
 				sd_dp = sqcp->sd_dp;
 				if (sd_dp) {
 					l_defer_t = sd_dp->defer_t;
@@ -5490,7 +5490,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 				u64 d = ktime_get_boottime_ns() - ns_from_boot;
 
 				if (kt <= d) {	/* elapsed duration >= kt */
-					sqcp->a_cmnd = NULL;
+//					sqcp->a_cmnd = NULL;
 					atomic_dec(&devip->num_in_q);
 					clear_bit(k, sqp->in_use_bm);
 					if (new_sd_dp)
