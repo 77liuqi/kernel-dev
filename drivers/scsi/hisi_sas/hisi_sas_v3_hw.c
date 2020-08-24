@@ -3032,14 +3032,16 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 	u32 *ffe = hisi_hba->debugfs_bist_ffe[phy_no];
 	u32 code_mode = hisi_hba->debugfs_bist_code_mode;
 	u32 path_mode = hisi_hba->debugfs_bist_mode;
+	u32 *fix_code = &hisi_hba->debugfs_bist_fixed_code[0];
 	struct device *dev = hisi_hba->dev;
 
-	dev_info(dev, "BIST info:phy%d linkrate=%d code_mode=%d path_mode=%d ffe={0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x}\n",
+	dev_info(dev, "BIST info:phy%d linkrate=%d code_mode=%d path_mode=%d ffe={0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x} fixed_code={0x%x, 0x%x}\n",
 		 phy_no, linkrate, code_mode, path_mode,
 		 ffe[FFE_SAS_1_5_GBPS], ffe[FFE_SAS_3_0_GBPS],
 		 ffe[FFE_SAS_6_0_GBPS], ffe[FFE_SAS_12_0_GBPS],
 		 ffe[FFE_SATA_1_5_GBPS], ffe[FFE_SATA_3_0_GBPS],
-		 ffe[FFE_SATA_6_0_GBPS]);
+		 ffe[FFE_SATA_6_0_GBPS], fix_code[FIXED_CODE],
+		 fix_code[FIXED_CODE_1]);
 	mode_tmp = path_mode ? 2 : 1;
 	if (enable) {
 		/* some preparations before bist test */
@@ -3068,12 +3070,22 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 				     SAS_PHY_BIST_CTRL, reg_val);
 
 		/* set the bist init value */
-		hisi_sas_phy_write32(hisi_hba, phy_no,
-				     SAS_PHY_BIST_CODE,
-				     SAS_PHY_BIST_CODE_INIT);
-		hisi_sas_phy_write32(hisi_hba, phy_no,
-				     SAS_PHY_BIST_CODE1,
-				     SAS_PHY_BIST_CODE1_INIT);
+		if (code_mode == HISI_SAS_BIST_CODE_MODE_FIXED_DATA) {
+			reg_val = hisi_hba->debugfs_bist_fixed_code[0];
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     SAS_PHY_BIST_CODE, reg_val);
+
+			reg_val = hisi_hba->debugfs_bist_fixed_code[1];
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     SAS_PHY_BIST_CODE1, reg_val);
+		} else {
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     SAS_PHY_BIST_CODE,
+					     SAS_PHY_BIST_CODE_INIT);
+			hisi_sas_phy_write32(hisi_hba, phy_no,
+					     SAS_PHY_BIST_CODE1,
+					     SAS_PHY_BIST_CODE1_INIT);
+		}
 
 		mdelay(100);
 		reg_val |= (CFG_RX_BIST_EN_MSK | CFG_TX_BIST_EN_MSK);
