@@ -59,11 +59,21 @@ static int testthread(void *data)
 {  
 	unsigned long stop = jiffies +seconds*HZ;
 	struct device *dev = hisi_sas_dev;
-	char *inputs[COMPLETIONS_SIZE];
-	char *outputs[COMPLETIONS_SIZE];
-	dma_addr_t dma_addr[COMPLETIONS_SIZE];
+	char **inputs;
+	char **outputs;
+	dma_addr_t *dma_addrs;
 	int i, cpu = smp_processor_id();
 	struct semaphore *sem = data;
+
+	inputs = kcalloc(completions, sizeof(char *), GFP_KERNEL);
+	outputs = kcalloc(completions, sizeof(char *), GFP_KERNEL);
+	dma_addrs = kcalloc(completions, sizeof(dma_addr_t), GFP_KERNEL);
+
+	if (!inputs || !outputs || !dma_addrs) {
+		pr_err("%s inputs=%pS outputs=%pS dma=%pS\n", __func__, inputs, outputs, dma_addrs);
+		return -ENOMEM;
+	}
+	
 
 	for (i = 0; i < completions; i++) {
 		inputs[i] = kzalloc(4096, GFP_KERNEL);
@@ -79,12 +89,12 @@ static int testthread(void *data)
 
 	while (time_before(jiffies, stop)) {
 		for (i = 0; i < completions; i++) {
-			dma_addr[i] = test_mapsingle(dev, inputs[i], 4096);
+			dma_addrs[i] = test_mapsingle(dev, inputs[i], 4096);
 			test_memcpy(outputs[i], inputs[i], 4096);
 		}
 		msleep(10+cpu%5);
 		for (i = 0; i < completions; i++) {
-			test_unmapsingle(dev, inputs[i], 4096, dma_addr[i]);
+			test_unmapsingle(dev, inputs[i], 4096, dma_addrs[i]);
 		}
 		mappings[cpu] += completions;
 	}
@@ -93,6 +103,10 @@ static int testthread(void *data)
 		kfree(outputs[i]);
 		kfree(inputs[i]);
 	}
+
+	kfree(inputs);
+	kfree(outputs);
+	kfree(dma_addrs);
 
 	up(sem);
 
