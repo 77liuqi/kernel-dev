@@ -55,6 +55,10 @@ static noinline void test_memcpy(void *out, void *in, int size)
 
 extern struct device *hisi_sas_dev;
 
+extern atomic64_t iova_allocs;
+extern atomic64_t iova_allocs_rcache;
+extern atomic64_t iova_allocs_new_iova;
+
 static int testthread(void *data)
 {  
 	unsigned long stop = jiffies +seconds*HZ;
@@ -121,12 +125,22 @@ static int timerthread(void *data)
 	int i;
 
 	while (time_before(jiffies, stop)) {
+		u64 _iova_allocs, _iova_allocs_rcache, _iova_allocs_new_iova;
 		unsigned long long _mappings = 0;
 		msleep(30000);
 		for(i=0;i<ways;i++) {
 			_mappings += mappings[i];
 		}
-		pr_err("%s mappings=%llu\n", __func__, _mappings - previous_mappings);
+
+		_iova_allocs = atomic64_read(&iova_allocs);
+		_iova_allocs_rcache = atomic64_read(&iova_allocs_rcache);
+		_iova_allocs_new_iova = atomic64_read(&iova_allocs_new_iova);
+
+		pr_err("%s mappings=%llu iova_allocs=%llu iova_allocs_rcache=%llu (%llu %%) iova_allocs_new_iova=%llu\n",
+		__func__, _mappings - previous_mappings, 
+		_iova_allocs,
+		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
+		_iova_allocs_new_iova);
 		previous_mappings = _mappings;
 	}
 

@@ -408,6 +408,10 @@ EXPORT_SYMBOL_GPL(free_iova);
  * and falls back to regular allocation on failure. If regular allocation
  * fails too and the flush_rcache flag is set then the rcache will be flushed.
 */
+atomic64_t iova_allocs;
+atomic64_t iova_allocs_rcache;
+atomic64_t iova_allocs_new_iova;
+
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 		unsigned long limit_pfn, bool flush_rcache)
@@ -415,9 +419,13 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 	unsigned long iova_pfn;
 	struct iova *new_iova;
 
+	atomic64_inc(&iova_allocs);
+
 	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
-	if (iova_pfn)
+	if (iova_pfn) {
+		atomic64_inc(&iova_allocs_rcache);
 		return iova_pfn;
+	}
 
 retry:
 	new_iova = alloc_iova(iovad, size, limit_pfn, true);
@@ -432,6 +440,8 @@ retry:
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
 		goto retry;
+	} else {
+		atomic64_inc(&iova_allocs_new_iova);
 	}
 
 	return new_iova->pfn_lo;
