@@ -17,13 +17,15 @@
 #include <scsi/libsas.h>
 #include <linux/kthread.h>
 
+#define TIMER_PERIOD_SECONDS 30
+
 static int ways = 64;
 module_param(ways, int, S_IRUGO);
 
-static int seconds = 4;
+static int seconds = 10;
 module_param(seconds, int, S_IRUGO);
 
-static int completions = 20;
+static int completions = 2000;
 module_param(completions, int, S_IRUGO);
 
 
@@ -33,7 +35,7 @@ struct semaphore sem[NR_CPUS+1];
 
 extern struct device *get_zip_dev(void);
 
-#define COMPLETIONS_SIZE 200
+#define COMPLETIONS_SIZE 2000
 
 static noinline dma_addr_t test_mapsingle(struct device *dev, void *buf, int size)
 {
@@ -80,6 +82,7 @@ static int testthread(void *data)
 			dma_addr[i] = test_mapsingle(dev, inputs[i], 4096);
 			test_memcpy(outputs[i], inputs[i], 4096);
 		}
+		msleep(10+cpu%5);
 		for (i = 0; i < completions; i++) {
 			test_unmapsingle(dev, inputs[i], 4096, dma_addr[i]);
 		}
@@ -100,10 +103,17 @@ static int timerthread(void *data)
 {  
 	unsigned long stop = jiffies +seconds*HZ;
 	struct semaphore *sem = data;
+	unsigned long long previous_mappings = 0;
+	int i;
 
 	while (time_before(jiffies, stop)) {
-		msleep(1000);
-		pr_err("%s\n", __func__);
+		unsigned long long _mappings = 0;
+		msleep(30000);
+		for(i=0;i<ways;i++) {
+			_mappings += mappings[i];
+		}
+		pr_err("%s mappings=%llu\n", __func__, _mappings - previous_mappings);
+		previous_mappings = _mappings;
 	}
 
 	up(sem);
@@ -156,10 +166,12 @@ void smmu_test_core(int cpus)
 		wake_up_process(tsk);
 	}
 
-	tsk = kthread_create(timerthread, &sem[NR_CPUS], "map_timer");
-	if (IS_ERR(tsk))
-		printk(KERN_ERR "timer test thread failed\n");
-	wake_up_process(tsk);
+	if (seconds > TIMER_PERIOD_SECONDS * 2) {
+		tsk = kthread_create(timerthread, &sem[NR_CPUS], "map_timer");
+		if (IS_ERR(tsk))
+			printk(KERN_ERR "timer test thread failed\n");
+		wake_up_process(tsk);
+	}
 
 	for(i=0;i<ways;i++) {
 		down(&sem[i]);
