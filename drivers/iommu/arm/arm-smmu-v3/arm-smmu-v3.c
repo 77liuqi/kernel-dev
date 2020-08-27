@@ -1378,6 +1378,9 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
 
+// hack to fill out all slots in a batch
+//#define HACK
+extern int smmu_test; // whether normal operation or we're running the smmu test
 
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
@@ -1387,12 +1390,27 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	unsigned long flags;
 	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
+	int n_orig = n;
+	#ifdef HACK
+	int i;
+	struct arm_smmu_cmdq *q = &smmu->cmdq;
+	struct arm_smmu_ll_queue *llq2 = &q->q.llq;
+	int test = READ_ONCE(smmu_test);
+	if (test)
+		n = llq2->max_cmd_per_batch;
+	#endif
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq;
 	int ret = 0;
+	static int max_len = 0;
 	ktime_t initial, final, *t;
 	int cpu;
+
+	if (n > max_len) {
+		max_len = n;
+		pr_err("%s max_len=%d\n", __func__, max_len);
+	}
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1428,11 +1446,31 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
+
 	/*
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the cmpxchg() loop above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
+
+
+
+	#ifdef HACK
+	if (test) {
+		for (i=n_orig;i<llq2->max_cmd_per_batch;i++) {
+			prod = queue_inc_prod_n(&llq, i);
+			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
+		}
+		pr_err_once("%s padding up %d commands\n", __func__, llq2->max_cmd_per_batch);
+		prod = queue_inc_prod_n(&llq, llq2->max_cmd_per_batch);
+	} else {
+		prod = queue_inc_prod_n(&llq, n);
+	}
+	#endif
+
+
 	if (sync) {
 		prod = queue_inc_prod_n(&llq, n);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);

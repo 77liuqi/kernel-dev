@@ -28,7 +28,7 @@ module_param(completions, int, S_IRUGO);
 
 
 unsigned long long mappings[NR_CPUS];
-struct semaphore sem[NR_CPUS];
+struct semaphore sem[NR_CPUS+1];
 
 
 extern struct device *get_zip_dev(void);
@@ -96,6 +96,22 @@ static int testthread(void *data)
 	return 0;
 }  
 
+static int timerthread(void *data)
+{  
+	unsigned long stop = jiffies +seconds*HZ;
+	struct semaphore *sem = data;
+
+	while (time_before(jiffies, stop)) {
+		msleep(1000);
+		pr_err("%s\n", __func__);
+	}
+
+	up(sem);
+
+	return 0;
+}  
+
+
 int smmu_test;
 
 
@@ -117,6 +133,10 @@ void smmu_test_core(int cpus)
 	arm_smmu_cmdq_zero_times();
 	arm_smmu_cmdq_zero_cmpxchg();
 
+	if (ways > 200) {
+		seconds = (ways - 200) * 60;
+		pr_err("setting seconds to %d (%d minutes)\n", seconds, seconds/60);
+	}
 	if (ways > num_possible_cpus()) {
 		ways = num_possible_cpus();
 		pr_err("limiting ways to %d\n", ways);
@@ -132,9 +152,14 @@ void smmu_test_core(int cpus)
 		tsk = kthread_create_on_cpu(testthread, &sem[i], i,  "map_test");
 
 		if (IS_ERR(tsk))
-			printk(KERN_ERR "create test thread failed\n");
+			printk(KERN_ERR "create test thread failed i=%d\n", i);
 		wake_up_process(tsk);
 	}
+
+	tsk = kthread_create(timerthread, &sem[NR_CPUS], "map_timer");
+	if (IS_ERR(tsk))
+		printk(KERN_ERR "timer test thread failed\n");
+	wake_up_process(tsk);
 
 	for(i=0;i<ways;i++) {
 		down(&sem[i]);
@@ -156,7 +181,7 @@ static int __init test_init(void)
 {
 	int i;
 
-	for(i=0;i<NR_CPUS;i++)
+	for(i=0;i<=NR_CPUS;i++)
 		sema_init(&sem[i], 0);
 
 	return 0;
