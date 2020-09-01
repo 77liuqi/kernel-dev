@@ -58,6 +58,10 @@ extern struct device *hisi_sas_dev;
 extern atomic64_t iova_allocs;
 extern atomic64_t iova_allocs_rcache;
 extern atomic64_t iova_allocs_new_iova;
+extern atomic64_t iova_allocs_rcache_log_too_big;
+extern atomic64_t atomic__iova_rcache_get;
+extern atomic64_t atomic__iova_rcache_get_has_pfn;
+extern atomic64_t atomic__iova_rcache_get_has_pfn_success;
 
 static int testthread(void *data)
 {  
@@ -117,6 +121,8 @@ static int testthread(void *data)
 	return 0;
 }  
 
+extern atomic64_t iova_allocs_rcache_log_too_big;
+
 static int timerthread(void *data)
 {  
 	unsigned long stop = jiffies +seconds*HZ;
@@ -125,7 +131,12 @@ static int timerthread(void *data)
 	int i;
 
 	while (time_before(jiffies, stop)) {
-		u64 _iova_allocs, _iova_allocs_rcache, _iova_allocs_new_iova;
+		u64 _iova_allocs, _iova_allocs_rcache, _iova_allocs_new_iova,
+			 _iova_allocs_rcache_log_too_big;
+		u64 _atomic__iova_rcache_get;
+		u64 _atomic__iova_rcache_get_has_pfn;
+		u64 _atomic__iova_rcache_get_has_pfn_success;
+		u64 too_big;
 		unsigned long long _mappings = 0;
 		msleep(30000);
 		for(i=0;i<ways;i++) {
@@ -135,12 +146,21 @@ static int timerthread(void *data)
 		_iova_allocs = atomic64_read(&iova_allocs);
 		_iova_allocs_rcache = atomic64_read(&iova_allocs_rcache);
 		_iova_allocs_new_iova = atomic64_read(&iova_allocs_new_iova);
+		_iova_allocs_rcache_log_too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
+		_atomic__iova_rcache_get = atomic64_read(&atomic__iova_rcache_get);
+		_atomic__iova_rcache_get_has_pfn = atomic64_read(&atomic__iova_rcache_get_has_pfn);
+		_atomic__iova_rcache_get_has_pfn_success = atomic64_read(&atomic__iova_rcache_get_has_pfn_success);
+		too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
 
-		pr_err("%s mappings=%llu iova_allocs=%llu iova_allocs_rcache=%llu (%llu %%) iova_allocs_new_iova=%llu\n",
+		pr_err("%s mappings=%llu iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu) rcache_get=(%llu, pfn=%llu, success=%llu) too_big=%llu\n",
 		__func__, _mappings - previous_mappings, 
 		_iova_allocs,
 		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
-		_iova_allocs_new_iova);
+		_iova_allocs_new_iova,
+		_atomic__iova_rcache_get,
+		_atomic__iova_rcache_get_has_pfn,
+		_atomic__iova_rcache_get_has_pfn_success,
+		too_big);
 		previous_mappings = _mappings;
 	}
 
