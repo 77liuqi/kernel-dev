@@ -307,10 +307,14 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	struct iova_domain *iovad;
 	int attr;
 
+	dev_err(dev, "%s domain=%pS cookie=%pS\n", __func__, domain, cookie);
+
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;
 
 	iovad = &cookie->iovad;
+
+	dev_err(dev, "%s2 domain=%pS cookie=%pS iovad=%pS\n", __func__, domain, cookie, iovad);
 
 	/* Use the smallest supported page size for IOVA granularity */
 	order = __ffs(domain->pgsize_bitmap);
@@ -1143,8 +1147,12 @@ void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 
+	dev_err(dev, "%s domain=%pS iommu_group=%pS\n", __func__, domain, dev->iommu_group);
+
 	if (!domain)
 		goto out_err;
+
+	dev_err(dev, "%s1 domain=%pS type=%d\n", __func__, domain, domain->type);
 
 	/*
 	 * The IOMMU core code allocates the default DMA domain, which the
