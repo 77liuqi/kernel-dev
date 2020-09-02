@@ -412,6 +412,81 @@ atomic64_t iova_allocs;
 atomic64_t iova_allocs_rcache;
 atomic64_t iova_allocs_new_iova;
 
+#define IOVA_MAG_SIZE 128
+
+struct iova_magazine {
+	unsigned long size;
+	unsigned long pfns[IOVA_MAG_SIZE];
+};
+
+struct iova_cpu_rcache {
+	spinlock_t lock;
+	bool prev_mag_hit;
+	unsigned long nr_hit;
+	struct iova_magazine *loaded;
+	struct iova_magazine *prev;
+};
+
+unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad)
+{
+	struct iova_cpu_rcache *cpu_rcache;
+	struct iova_rcache *rcache;
+	unsigned long flags;
+	char string[2000] = {};
+	int i;
+	unsigned long total = 0;
+
+
+	sprintf(string, "%s cpu%d ", __func__, cpu);
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
+		struct iova_magazine *loaded, *prev;
+		rcache = &iovad->rcaches[i];
+		
+		cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+		spin_lock_irqsave(&cpu_rcache->lock, flags);
+		loaded = cpu_rcache->loaded;
+		if (loaded)
+			total += loaded->size;
+		prev = cpu_rcache->prev;
+		if (prev)
+			total += prev->size;
+		sprintf(string + strlen(string), "i=%d l=%lu p=%lu ", i, loaded ? loaded->size : -1, prev ? prev->size : -1);
+		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	}
+
+
+
+	pr_err("%s total=%lu\n", string, total);
+	return total;
+}
+
+void print_iova(struct iova_domain *iovad)
+{
+	unsigned int cpu;
+	unsigned long cpu_total = 0, depot_total = 0;
+	int i;
+		
+	for_each_online_cpu(cpu)
+		cpu_total += print_cpu_iova(cpu, iovad);
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
+		struct iova_rcache *rcache = &iovad->rcaches[i];
+		int j;
+
+		for (j = 0; j < MAX_GLOBAL_MAGS; ++j) {
+			struct iova_magazine *depot = rcache->depot[j];
+
+			if (!depot)
+				continue;
+			depot_total += depot->size;
+		}
+	}
+
+
+		
+	pr_err("%s cpu_total=%lu depot_total=%lu total=%lu\n", __func__, cpu_total, depot_total, cpu_total + depot_total);
+}
 
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
@@ -419,8 +494,10 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 {
 	unsigned long iova_pfn;
 	struct iova *new_iova;
+	u64 old = atomic64_inc_return(&iova_allocs);
 
-	atomic64_inc(&iova_allocs);
+	if ((old % 100000000) == 0)
+		print_iova(iovad);
 
 	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
 	if (iova_pfn) {
@@ -784,19 +861,6 @@ error:
  * For simplicity, we use a static magazine size and don't implement the
  * dynamic size tuning described in the paper.
  */
-
-#define IOVA_MAG_SIZE 128
-
-struct iova_magazine {
-	unsigned long size;
-	unsigned long pfns[IOVA_MAG_SIZE];
-};
-
-struct iova_cpu_rcache {
-	spinlock_t lock;
-	struct iova_magazine *loaded;
-	struct iova_magazine *prev;
-};
 
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 {
