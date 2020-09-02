@@ -62,6 +62,7 @@ extern atomic64_t iova_allocs_rcache_log_too_big;
 extern atomic64_t atomic__iova_rcache_get;
 extern atomic64_t atomic__iova_rcache_get_has_pfn;
 extern atomic64_t atomic__iova_rcache_get_has_pfn_success;
+extern atomic64_t atomic__iova_rcache_get_zero_depot;
 
 static int testthread(void *data)
 {  
@@ -82,31 +83,31 @@ static int testthread(void *data)
 		return -ENOMEM;
 	}
 	
-
+	
 	for (i = 0; i < completions; i++) {
 		inputs[i] = kzalloc(4096, GFP_KERNEL);
 		if (!inputs[i])
 			return -ENOMEM;
-	}
-
-	for (i = 0; i < completions; i++) {
 		outputs[i] = kzalloc(4096, GFP_KERNEL);
 		if (!outputs[i])
 			return -ENOMEM;
 	}
 
+
 	while (time_before(jiffies, stop)) {
+	
 		for (i = 0; i < completions; i++) {
 			dma_addrs[i] = test_mapsingle(dev, inputs[i], 4096);
 			test_memcpy(outputs[i], inputs[i], 4096);
 		}
-		msleep(10+cpu%5);
+		msleep(cpu%5+1);
 		for (i = 0; i < completions; i++) {
 			test_unmapsingle(dev, inputs[i], 4096, dma_addrs[i]);
 		}
 		mappings[cpu] += completions;
-	}
 
+	}
+	
 	for (i = 0; i < completions; i++) {
 		kfree(outputs[i]);
 		kfree(inputs[i]);
@@ -136,9 +137,10 @@ static int timerthread(void *data)
 		u64 _atomic__iova_rcache_get;
 		u64 _atomic__iova_rcache_get_has_pfn;
 		u64 _atomic__iova_rcache_get_has_pfn_success;
+		u64 _atomic__iova_rcache_get_zero_depot;
 		u64 too_big;
 		unsigned long long _mappings = 0;
-		msleep(30000);
+		msleep(1000);
 		for(i=0;i<ways;i++) {
 			_mappings += mappings[i];
 		}
@@ -150,9 +152,10 @@ static int timerthread(void *data)
 		_atomic__iova_rcache_get = atomic64_read(&atomic__iova_rcache_get);
 		_atomic__iova_rcache_get_has_pfn = atomic64_read(&atomic__iova_rcache_get_has_pfn);
 		_atomic__iova_rcache_get_has_pfn_success = atomic64_read(&atomic__iova_rcache_get_has_pfn_success);
+		_atomic__iova_rcache_get_zero_depot = atomic64_read(&atomic__iova_rcache_get_zero_depot);
 		too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
 
-		pr_err("%s mappings=%llu iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu) rcache_get=(%llu, pfn=%llu, success=%llu) too_big=%llu\n",
+		pr_err("%s mappings=%llu iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) too_big=%llu\n",
 		__func__, _mappings - previous_mappings, 
 		_iova_allocs,
 		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
@@ -160,8 +163,19 @@ static int timerthread(void *data)
 		_atomic__iova_rcache_get,
 		_atomic__iova_rcache_get_has_pfn,
 		_atomic__iova_rcache_get_has_pfn_success,
+		_atomic__iova_rcache_get_zero_depot,
 		too_big);
 		previous_mappings = _mappings;
+
+		atomic64_sub(_iova_allocs, &iova_allocs);
+		atomic64_sub(_iova_allocs_rcache, &iova_allocs_rcache);
+		atomic64_sub(_iova_allocs_new_iova, &iova_allocs_new_iova);
+		atomic64_sub(_iova_allocs_rcache_log_too_big, &iova_allocs_rcache_log_too_big);
+		atomic64_sub(_atomic__iova_rcache_get, &atomic__iova_rcache_get);
+		atomic64_sub(_atomic__iova_rcache_get_has_pfn, &atomic__iova_rcache_get_has_pfn);
+		atomic64_sub(_atomic__iova_rcache_get_has_pfn_success, &atomic__iova_rcache_get_has_pfn_success);
+		atomic64_sub(_atomic__iova_rcache_get_zero_depot, &atomic__iova_rcache_get_zero_depot);
+		
 	}
 
 	up(sem);

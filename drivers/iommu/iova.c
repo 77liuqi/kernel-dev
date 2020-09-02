@@ -964,10 +964,11 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
  * it from the 'rcache'.
  */
 atomic64_t atomic__iova_rcache_get;
+atomic64_t atomic__iova_rcache_get_no_depot;
 atomic64_t atomic__iova_rcache_get_has_pfn;
 atomic64_t atomic__iova_rcache_get_has_pfn_success;
+atomic64_t atomic__iova_rcache_get_zero_depot;
 
-				   
 static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 				       unsigned long limit_pfn)
 {
@@ -992,6 +993,8 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 			iova_magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
 			has_pfn = true;
+		} else {
+			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
 		}
 		spin_unlock(&rcache->lock);
 	}
