@@ -7361,10 +7361,9 @@ static struct scsi_host_template sdebug_driver_template = {
 	.eh_host_reset_handler = scsi_debug_host_reset,
 	.can_queue =		SDEBUG_CANQUEUE,
 	.this_id =		7,
-	.sg_tablesize =		SG_MAX_SEGMENTS,
+	.sg_tablesize =		64,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
-	.max_sectors =		-1U,
-	.max_segment_size =	-1U,
+	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
 };
