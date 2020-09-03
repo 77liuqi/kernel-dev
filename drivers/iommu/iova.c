@@ -403,6 +403,14 @@ static void
 iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad);
 static void iova_magazine_free(struct iova_magazine *mag);
 
+atomic64_t iova_allocs_rcache_log_too_big;
+
+atomic64_t atomic__iova_rcache_get;
+atomic64_t atomic__iova_rcache_get_no_depot;
+atomic64_t atomic__iova_rcache_get_has_pfn;
+atomic64_t atomic__iova_rcache_get_has_pfn_success;
+atomic64_t atomic__iova_rcache_get_zero_depot;
+
 void flush_iovad(struct iova_domain *iovad)
 {
 	int cpu, i, j;
@@ -505,8 +513,25 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 	unsigned int cpu;
 	unsigned long cpu_total = 0, depot_total = 0;
 	int i;
+	u64 _iova_allocs, _iova_allocs_rcache, _iova_allocs_new_iova,
+		 _iova_allocs_rcache_log_too_big;
+	u64 _atomic__iova_rcache_get;
+	u64 _atomic__iova_rcache_get_has_pfn;
+	u64 _atomic__iova_rcache_get_has_pfn_success;
+	u64 _atomic__iova_rcache_get_zero_depot;
+	u64 too_big;
 
-	
+
+	_iova_allocs = atomic64_read(&iova_allocs);
+	_iova_allocs_rcache = atomic64_read(&iova_allocs_rcache);
+	_iova_allocs_new_iova = atomic64_read(&iova_allocs_new_iova);
+	_iova_allocs_rcache_log_too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
+	_atomic__iova_rcache_get = atomic64_read(&atomic__iova_rcache_get);
+	_atomic__iova_rcache_get_has_pfn = atomic64_read(&atomic__iova_rcache_get_has_pfn);
+	_atomic__iova_rcache_get_has_pfn_success = atomic64_read(&atomic__iova_rcache_get_has_pfn_success);
+	_atomic__iova_rcache_get_zero_depot = atomic64_read(&atomic__iova_rcache_get_zero_depot);
+	too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
+		
 	for_each_online_cpu(cpu)
 		cpu_total += print_cpu_iova(cpu, iovad, print_cpus);
 
@@ -525,7 +550,29 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 
 
 		
-	pr_err("%s cpu_total=%lu depot_total=%lu total=%lu\n", __func__, cpu_total, depot_total, cpu_total + depot_total);
+	pr_err("%s1 cpu_total=%lu depot_total=%lu total=%lu\n", __func__, cpu_total, depot_total, cpu_total + depot_total);
+
+	pr_err("%s2 iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) too_big=%llu\n",
+		__func__, 
+		_iova_allocs,
+		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
+		_iova_allocs_new_iova,
+		_atomic__iova_rcache_get,
+		_atomic__iova_rcache_get_has_pfn,
+		_atomic__iova_rcache_get_has_pfn_success,
+		_atomic__iova_rcache_get_zero_depot,
+		too_big);
+
+	atomic64_sub(_iova_allocs, &iova_allocs);
+	atomic64_sub(_iova_allocs_rcache, &iova_allocs_rcache);
+	atomic64_sub(_iova_allocs_new_iova, &iova_allocs_new_iova);
+	atomic64_sub(_iova_allocs_rcache_log_too_big, &iova_allocs_rcache_log_too_big);
+	atomic64_sub(_atomic__iova_rcache_get, &atomic__iova_rcache_get);
+	atomic64_sub(_atomic__iova_rcache_get_has_pfn, &atomic__iova_rcache_get_has_pfn);
+	atomic64_sub(_atomic__iova_rcache_get_has_pfn_success, &atomic__iova_rcache_get_has_pfn_success);
+	atomic64_sub(_atomic__iova_rcache_get_zero_depot, &atomic__iova_rcache_get_zero_depot);
+
+	
 }
 
 unsigned long
@@ -1077,11 +1124,6 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
  * satisfy the request, return a matching non-NULL range and remove
  * it from the 'rcache'.
  */
-atomic64_t atomic__iova_rcache_get;
-atomic64_t atomic__iova_rcache_get_no_depot;
-atomic64_t atomic__iova_rcache_get_has_pfn;
-atomic64_t atomic__iova_rcache_get_has_pfn_success;
-atomic64_t atomic__iova_rcache_get_zero_depot;
 
 static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 				       unsigned long limit_pfn)
@@ -1128,7 +1170,6 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	return iova_pfn;
 }
 
-atomic64_t iova_allocs_rcache_log_too_big;
 
 /*
  * Try to satisfy IOVA allocation range from rcache.  Fail if requested
