@@ -139,6 +139,8 @@ void iova_cache_put(void);
 struct iova *alloc_iova_mem(void);
 void free_iova_mem(struct iova *iova);
 void free_iova(struct iova_domain *iovad, unsigned long pfn);
+void flush_iovad(struct iova_domain *iovad);
+
 void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
