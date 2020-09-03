@@ -1183,7 +1183,9 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 	unsigned int log_size = order_base_2(size);
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
-		atomic64_inc(&iova_allocs_rcache_log_too_big);
+		u64 old = atomic64_inc_return(&iova_allocs_rcache_log_too_big);
+		if ((old % 4000000) == 0)
+			pr_err("%s too big size=%lu log_size = %u\n", __func__, size, log_size);
 		return 0;
 	}
 
@@ -1297,8 +1299,8 @@ static void iova_compact_rcache(struct iova_domain *iovad,
 		/*
 		 * Don's compact current rcache, that maybe reused immediately
 		 */
-		//if (rcache == curr_rcache)
-		//	continue;
+		if (rcache == curr_rcache)
+			continue;
 
 		iova_compact_percpu_mags(iovad, rcache);
 		iova_compact_depot_mags(iovad, rcache);
