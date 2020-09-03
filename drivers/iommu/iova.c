@@ -464,7 +464,7 @@ struct iova_cpu_rcache {
 	struct iova_magazine *prev;
 };
 
-unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad)
+unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad, bool  print_cpus)
 {
 	struct iova_cpu_rcache *cpu_rcache;
 	struct iova_rcache *rcache;
@@ -474,7 +474,8 @@ unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad)
 	unsigned long total = 0;
 
 
-	sprintf(string, "%s cpu%d ", __func__, cpu);
+	if (print_cpus)
+		sprintf(string, "%s cpu%d ", __func__, cpu);
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		struct iova_magazine *loaded, *prev;
@@ -488,24 +489,26 @@ unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad)
 		prev = cpu_rcache->prev;
 		if (prev)
 			total += prev->size;
-		sprintf(string + strlen(string), "i=%d l=%lu p=%lu ", i, loaded ? loaded->size : -1, prev ? prev->size : -1);
+		if (print_cpus)
+			sprintf(string + strlen(string), "i=%d l=%lu p=%lu ", i, loaded ? loaded->size : -1, prev ? prev->size : -1);
 		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 	}
 
 
-
-	pr_err("%s total=%lu\n", string, total);
+	if (print_cpus)
+		pr_err("%s total=%lu\n", string, total);
 	return total;
 }
 
-void print_iova(struct iova_domain *iovad)
+void print_iova(struct iova_domain *iovad, bool print_cpus)
 {
 	unsigned int cpu;
 	unsigned long cpu_total = 0, depot_total = 0;
 	int i;
-		
+
+	
 	for_each_online_cpu(cpu)
-		cpu_total += print_cpu_iova(cpu, iovad);
+		cpu_total += print_cpu_iova(cpu, iovad, print_cpus);
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		struct iova_rcache *rcache = &iovad->rcaches[i];
@@ -534,7 +537,9 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 	u64 old = atomic64_inc_return(&iova_allocs);
 
 	if ((old % 100000000) == 0)
-		print_iova(iovad);
+		print_iova(iovad, true);
+	else if((old % 5000000) == 0)
+		print_iova(iovad, false);
 
 	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
 	if (iova_pfn) {
@@ -1251,8 +1256,8 @@ static void iova_compact_rcache(struct iova_domain *iovad,
 		/*
 		 * Don's compact current rcache, that maybe reused immediately
 		 */
-		if (rcache == curr_rcache)
-			continue;
+		//if (rcache == curr_rcache)
+		//	continue;
 
 		iova_compact_percpu_mags(iovad, rcache);
 		iova_compact_depot_mags(iovad, rcache);
