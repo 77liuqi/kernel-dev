@@ -1181,11 +1181,13 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
-
+	unsigned int shift = iova_shift(iovad);
+	unsigned long real_len = size << shift;
+	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
 		u64 old = atomic64_inc_return(&iova_allocs_rcache_log_too_big);
 		if ((old % 4000000) == 0)
-			pr_err("%s too big size=%lu log_size = %u\n", __func__, size, log_size);
+			pr_err("%s too big size=%lu log_size = %u iovad->granuale=%lu shift=%d real_len=%lu\n", __func__, size, log_size, iovad->granule, shift, real_len);
 		return 0;
 	}
 
