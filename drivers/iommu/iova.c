@@ -587,11 +587,17 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 	unsigned long iova_pfn;
 	struct iova *new_iova;
 	u64 old = atomic64_inc_return(&iova_allocs);
+	static int count;
 
-	if ((old % 50000000) == 0)
-		print_iova(iovad, true);
-	else if((old % 5000000) == 0)
-		print_iova(iovad, false);
+	 if((old % 5000000) == 0) {
+	 	count++;
+		if (count == 10) {
+			print_iova(iovad, true);
+			count= 0;
+		} else {
+			print_iova(iovad, false);
+		}
+	}
 
 	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
 	if (iova_pfn) {
