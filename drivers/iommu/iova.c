@@ -989,7 +989,8 @@ static void iova_magazine_compact_pfns(struct iova_magazine *mag,
 	for (i = newsize; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		BUG_ON(!iova);
+		if (WARN(!iova, "%s mag->pfns[i]=%lu i=%d newsize=%lu mag->size=%lu\n", __func__, mag->pfns[i], i, newsize, mag->size))
+			continue;
 		private_free_iova(iovad, iova);
 	}
 
@@ -1114,7 +1115,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	if (mag_to_free) {
 		iova_magazine_free_pfns(mag_to_free, iovad);
 		iova_magazine_free(mag_to_free);
-		iova_compact_rcache(iovad, rcache);
+	//	iova_compact_rcache(iovad, rcache);
 	}
 
 	return can_insert;
