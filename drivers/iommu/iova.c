@@ -548,7 +548,10 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 
 			if (!depot)
 				continue;
-			depot_total += depot->size;
+			if (depot->size <= IOVA_MAG_SIZE)
+				depot_total += depot->size;
+			else
+				pr_err_once("%s iova=%pS i=%d j=%d\n", __func__, iovad, i, i);
 		}
 		spin_unlock_irqrestore(&rcache->lock, flags);
 	}
