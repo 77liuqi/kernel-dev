@@ -974,35 +974,28 @@ static void iova_magazine_free(struct iova_magazine *mag)
 	kfree(mag);
 }
 
-static void iova_magazine_compact_pfns(struct iova_magazine *mag,
-				       struct iova_domain *iovad,
-				       unsigned long newsize)
+static void
+iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 {
 	unsigned long flags;
 	int i;
 
-	if (!mag || mag->size <= newsize)
+	if (!mag)
 		return;
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
-	for (i = newsize; i < mag->size; ++i) {
+	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		if (WARN(!iova, "%s mag->pfns[i]=%lu i=%d newsize=%lu mag->size=%lu\n", __func__, mag->pfns[i], i, newsize, mag->size))
+		if (WARN(!iova, "%s mag->pfns[i]=%lu i=%d mag->size=%lu\n", __func__, mag->pfns[i], i, mag->size))
 			continue;
 		private_free_iova(iovad, iova);
 	}
 
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 
-	mag->size = newsize;
-}
-
-static void
-iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
-{
-	iova_magazine_compact_pfns(mag, iovad, 0);
+	mag->size = 0;
 }
 
 static bool iova_magazine_full(struct iova_magazine *mag)
