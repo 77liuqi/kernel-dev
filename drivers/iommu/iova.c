@@ -524,6 +524,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 	u64 _iova_allocs_rcache_alloc_fail;
 	u64 _iova_allocs_rcache_alloc_fail_flush;
 	u64 too_big;
+	u64 diff;
 
 
 	_atomic__iova_depot_full_at_insert = atomic64_read(&atomic__iova_depot_full_at_insert);
@@ -546,6 +547,9 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 		struct iova_rcache *rcache = &iovad->rcaches[i];
 		int j;
 		unsigned long flags;
+		char string[500];
+		sprintf(string, "%s rcache%d ", __func__, i);
+		int dcount = 0;
 
 
 		spin_lock_irqsave(&rcache->lock, flags);
@@ -554,24 +558,36 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 
 			if (!depot)
 				continue;
-			if (depot->size <= IOVA_MAG_SIZE)
+			if (depot->size <= IOVA_MAG_SIZE) {
 				depot_total += depot->size;
-			else
+				sprintf(string+strlen(string), "%lu ", depot->size);
+				dcount++;
+			} else {
+				sprintf(string+strlen(string), "- ");
 				pr_err_once("%s iova=%pS i=%d j=%d\n", __func__, iovad, i, i);
+			}
+				
 		}
 		spin_unlock_irqrestore(&rcache->lock, flags);
+		if (print_cpus)
+			pr_err("%s [dcount=%d]\n", string, dcount);
 	}
 
 
 		
 	pr_err("%s1 cpu_total=%lu depot_total=%lu total=%lu\n", __func__, cpu_total, depot_total, cpu_total + depot_total);
 
+	if (_iova_allocs > _iova_allocs_rcache + _iova_allocs_new_iova)
+		diff = _iova_allocs - _iova_allocs_rcache - _iova_allocs_new_iova;
+	else
+		diff = _iova_allocs_rcache + _iova_allocs_new_iova - _iova_allocs;
+
 	pr_err("%s2 iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu diff=%llu fail=%llu flush=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) insert depot full=%llu too_big=%llu\n",
 		__func__, 
 		_iova_allocs,
 		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
 		_iova_allocs_new_iova,
-		_iova_allocs - _iova_allocs_rcache - _iova_allocs_new_iova,
+		diff, 
 		_iova_allocs_rcache_alloc_fail,
 		_iova_allocs_rcache_alloc_fail_flush,
 		_atomic__iova_rcache_get,
