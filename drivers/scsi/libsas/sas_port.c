@@ -329,7 +329,7 @@ static void sas_init_port(struct asd_sas_port *port,
 	spin_lock_init(&port->dev_list_lock);
 }
 
-int sas_register_ports(struct sas_ha_struct *sas_ha)
+void sas_register_ports(struct sas_ha_struct *sas_ha)
 {
 	int i;
 
@@ -340,7 +340,6 @@ int sas_register_ports(struct sas_ha_struct *sas_ha)
 		sas_init_port(port, sas_ha, i);
 		sas_init_disc(&port->disc, port);
 	}
-	return 0;
 }
 
 void sas_unregister_ports(struct sas_ha_struct *sas_ha)

@@ -173,10 +173,8 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event)
 	return ret;
 }
 
-int sas_init_events(struct sas_ha_struct *sas_ha)
+void sas_init_events(struct sas_ha_struct *sas_ha)
 {
 	sas_ha->notify_port_event = sas_notify_port_event;
 	sas_ha->notify_phy_event = sas_notify_phy_event;
-
-	return 0;
 }

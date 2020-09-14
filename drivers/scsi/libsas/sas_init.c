@@ -117,23 +117,13 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		return error;
 	}
 
-	error = sas_register_ports(sas_ha);
-	if (error) {
-		pr_notice("couldn't register sas ports:%d\n", error);
-		goto Undo_phys;
-	}
+	sas_register_ports(sas_ha);
+	sas_init_events(sas_ha);
 
-	error = sas_init_events(sas_ha);
-	if (error) {
-		pr_notice("couldn't start event thread:%d\n", error);
-		goto Undo_ports;
-	}
-
-	error = -ENOMEM;
 	snprintf(name, sizeof(name), "%s_event_q", dev_name(sas_ha->dev));
 	sas_ha->event_q = create_singlethread_workqueue(name);
 	if (!sas_ha->event_q)
-		goto Undo_ports;
+		goto Undo_phys;
 
 	snprintf(name, sizeof(name), "%s_disco_q", dev_name(sas_ha->dev));
 	sas_ha->disco_q = create_singlethread_workqueue(name);
@@ -147,11 +137,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 Undo_event_q:
 	destroy_workqueue(sas_ha->event_q);
-Undo_ports:
-	sas_unregister_ports(sas_ha);
 Undo_phys:
-
-	return error;
+	sas_unregister_phys(sas_ha);
+	return -ENOMEM;
 }
 
 static void sas_disable_events(struct sas_ha_struct *sas_ha)
