@@ -1188,6 +1188,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		if (rcache->depot_size > 0) {
 			iova_magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
+			rcache->depot[rcache->depot_size] = NULL;
 			has_pfn = true;
 		} else {
 			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
