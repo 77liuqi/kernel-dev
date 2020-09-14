@@ -564,7 +564,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 				dcount++;
 			} else {
 				sprintf(string+strlen(string), "- ");
-				pr_err_once("%s iova=%pS i=%d j=%d\n", __func__, iovad, i, i);
+				pr_err_once("%s iova=%pS i=%d j=%d depot->size=%lu\n", __func__, iovad, i, i, depot->size);
 			}
 				
 		}
@@ -1120,6 +1120,10 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
+				if (!cpu_rcache->loaded)
+					pr_err("%s cpu_rcache->loaded=NULL\n", __func__);
+				else if (cpu_rcache->loaded->size != IOVA_MAG_SIZE)
+					pr_err("%s cpu_rcache->loaded size=%lu\n", __func__, cpu_rcache->loaded->size);
 			} else {
 				atomic64_inc(&atomic__iova_depot_full_at_insert);
 				mag_to_free = cpu_rcache->loaded;
