@@ -3450,7 +3450,7 @@ enum {
 	hip08,
 };
 
-static int _hisi_sas_v3_suspend(struct device *device)
+static int _hisi_sas_suspend_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3496,7 +3496,7 @@ static int _hisi_sas_v3_suspend(struct device *device)
 	return 0;
 }
 
-static int _hisi_sas_v3_resume(struct device *device)
+static int _hisi_sas_resume_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3535,7 +3535,7 @@ static int _hisi_sas_v3_resume(struct device *device)
 	return 0;
 }
 
-static int hisi_sas_v3_suspend(struct device *device)
+static int hisi_sas_suspend_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3544,19 +3544,19 @@ static int hisi_sas_v3_suspend(struct device *device)
 
 	set_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
-	rc =  _hisi_sas_v3_suspend(device);
+	rc =  _hisi_sas_suspend_v3_hw(device);
 	if (rc)
 		clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
 	return rc;
 }
 
-static int hisi_sas_v3_resume(struct device *device)
+static int hisi_sas_resume_v3_hw(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
-	int rc = _hisi_sas_v3_resume(device);
+	int rc = _hisi_sas_resume_v3_hw(device);
 
 	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
@@ -3574,20 +3574,20 @@ static const struct pci_error_handlers hisi_sas_err_handler = {
 	.reset_done	= hisi_sas_reset_done_v3_hw,
 };
 
-static int hisi_sas_v3_runtime_suspend(struct device *dev)
+static int hisi_sas_runtime_suspend_v3_hw(struct device *dev)
 {
-	return hisi_sas_v3_suspend(dev);
+	return hisi_sas_suspend_v3_hw(dev);
 }
 
-static int hisi_sas_v3_runtime_resume(struct device *dev)
+static int hisi_sas_runtime_resume_v3_hw(struct device *dev)
 {
-	return hisi_sas_v3_resume(dev);
+	return hisi_sas_resume_v3_hw(dev);
 }
 
 static const struct dev_pm_ops hisi_sas_v3_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(hisi_sas_v3_suspend, hisi_sas_v3_resume)
-	SET_RUNTIME_PM_OPS(hisi_sas_v3_runtime_suspend,
-			   hisi_sas_v3_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(hisi_sas_suspend_v3_hw, hisi_sas_resume_v3_hw)
+	SET_RUNTIME_PM_OPS(hisi_sas_runtime_suspend_v3_hw,
+			   hisi_sas_runtime_resume_v3_hw, NULL)
 };
 
 static struct pci_driver sas_v3_pci_driver = {
