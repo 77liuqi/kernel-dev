@@ -3450,7 +3450,7 @@ enum {
 	hip08,
 };
 
-static int hisi_sas_v3_suspend(struct device *device)
+static int _hisi_sas_v3_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3496,7 +3496,7 @@ static int hisi_sas_v3_suspend(struct device *device)
 	return 0;
 }
 
-static int hisi_sas_v3_resume(struct device *device)
+static int _hisi_sas_v3_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
@@ -3533,6 +3533,34 @@ static int hisi_sas_v3_resume(struct device *device)
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
 	return 0;
+}
+
+static int hisi_sas_v3_suspend(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	int rc;
+
+	set_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
+
+	rc =  _hisi_sas_v3_suspend(device);
+	if (rc)
+		clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
+
+	return rc;
+}
+
+static int hisi_sas_v3_resume(struct device *device)
+{
+	struct pci_dev *pdev = to_pci_dev(device);
+	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
+	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	int rc = _hisi_sas_v3_resume(device);
+
+	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
+
+	return rc;
 }
 
 static const struct pci_device_id sas_v3_pci_table[] = {

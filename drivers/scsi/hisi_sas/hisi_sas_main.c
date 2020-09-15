@@ -619,7 +619,8 @@ static void hisi_sas_bytes_dmaed(struct hisi_hba *hisi_hba, int phy_no)
 	if (!phy->phy_attached)
 		return;
 
-	if (!pm_runtime_active(hisi_hba->dev) && !sas_phy->suspended) {
+	if (test_bit(HISI_SAS_PM_BIT, &hisi_hba->flags) &&
+	    !sas_phy->suspended) {
 		dev_warn(hisi_hba->dev, "phy%d during suspend filter out\n", phy_no);
 		return;
 	}
