@@ -501,7 +501,7 @@ unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad, bool  print_cpu
 		if (prev)
 			total += prev->size;
 		if (print_cpus) {
-			sprintf(string + strlen(string), "i=%d l=%lu (%lu-%lu=%lu) p=%lu ", i, 
+			sprintf(string + strlen(string), "i=%d l=%lu (%lu-%lu=%lu) p=%lu, ", i, 
 				loaded ? loaded->size : -1,
 				loaded ? loaded->low_watermark : -1,
 				loaded ? loaded->high_watermark : -1,
@@ -1103,6 +1103,85 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 	}
 }
 
+static void iova_magazine_compact_pfns(struct iova_magazine *mag,
+				       struct iova_domain *iovad,
+				       unsigned long newsize)
+{
+	unsigned long flags;
+	int i;
+
+	if (!mag || mag->size <= newsize)
+		return;
+
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+
+	for (i = newsize; i < mag->size; ++i) {
+		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
+
+		if (WARN(!iova, "%s mag->pfns[i]=%lu i=%d newsize=%lu mag->size=%lu\n", __func__, mag->pfns[i], i, newsize, mag->size))
+			continue;
+		private_free_iova(iovad, iova);
+	}
+
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+
+	mag->size = newsize;
+}
+
+static void iova_iova_compact_percpu_mag(struct iova_magazine *mag, struct iova_domain *iovad)
+{
+	unsigned long diff;
+
+	if (!mag)
+		return;
+	
+	diff = mag->high_watermark - mag->low_watermark;
+	
+	if (mag->size > diff) {
+		iova_magazine_compact_pfns(mag, iovad, diff);
+		mag->high_watermark = mag->low_watermark = diff;
+	}
+}
+
+static void iova_compact_percpu_mags(struct iova_domain *iovad,
+				     struct iova_rcache *rcache)
+{
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		unsigned long flags;
+		struct iova_cpu_rcache *cpu_rcache;
+
+		cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+
+		spin_lock_irqsave(&cpu_rcache->lock, flags);
+
+		iova_iova_compact_percpu_mag(cpu_rcache->loaded, iovad);
+//		iova_iova_compact_percpu_mag(cpu_rcache->prev, iovad);
+
+		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	}
+}
+
+static void iova_compact_rcache(struct iova_domain *iovad,
+				struct iova_rcache *curr_rcache)
+{
+	int i;
+	struct iova_rcache *rcache;
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
+		rcache = &iovad->rcaches[i];
+
+		/*
+		 * Dont's compact current rcache, that maybe reused immediately
+		 */
+		if (rcache == curr_rcache)
+			continue;
+
+		iova_compact_percpu_mags(iovad, rcache);
+	}
+}
+
 /*
  * Try inserting IOVA range starting with 'iova_pfn' into 'rcache', and
  * return true on success.  Can fail if rcache is full and we can't free
@@ -1115,7 +1194,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 {
 	struct iova_magazine *mag_to_free = NULL;
 	struct iova_cpu_rcache *cpu_rcache;
-	bool can_insert = false;
+	bool can_insert = false, compact = false;
 	unsigned long flags;
 
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
@@ -1138,6 +1217,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 					pr_err("%s cpu_rcache->loaded=NULL\n", __func__);
 				else if (cpu_rcache->loaded->size != IOVA_MAG_SIZE)
 					pr_err("%s cpu_rcache->loaded size=%lu\n", __func__, cpu_rcache->loaded->size);
+				compact = true;
+				
 			} else {
 				atomic64_inc(&atomic__iova_depot_full_at_insert);
 				mag_to_free = cpu_rcache->loaded;
@@ -1154,6 +1235,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 
+	
+
 	if (mag_to_free) {
 		int cpu;
 
@@ -1161,7 +1244,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	//		free_cpu_cached_iovas(cpu, iovad);
 		iova_magazine_free_pfns(mag_to_free, iovad);
 		iova_magazine_free(mag_to_free);
-	
+	} else if (compact) {
+		iova_compact_rcache(iovad, rcache);
 	}
 
 	return can_insert;
@@ -1207,7 +1291,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		if (rcache->depot_size > 0) {
 			iova_magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
-			cpu_rcache->loaded->low_watermark = 0;
+			cpu_rcache->loaded->low_watermark = IOVA_MAG_SIZE;
 			cpu_rcache->loaded->high_watermark = IOVA_MAG_SIZE;
 			rcache->depot[rcache->depot_size] = NULL;
 			has_pfn = true;
