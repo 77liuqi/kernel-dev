@@ -1223,7 +1223,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
-			if (rcache->depot_size > MAX_GLOBAL_MAGS/3)
+			if (rcache->depot_size > MAX_GLOBAL_MAGS/2)
 				flush = true;
 			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
 				rcache->depot[rcache->depot_size++] =
@@ -1395,7 +1395,7 @@ void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 	unsigned long flags;
 	int i;
 
-	pr_err("%s cpu%d iovad=%pS\n", __func__, cpu, iovad);
+//	pr_err("%s cpu%d iovad=%pS\n", __func__, cpu, iovad);
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
