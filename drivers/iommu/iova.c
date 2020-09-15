@@ -1182,6 +1182,18 @@ static void iova_compact_rcache(struct iova_domain *iovad,
 	}
 }
 
+static void iova_flush_rcache(struct iova_domain *iovad,
+				struct iova_rcache *curr_rcache)
+{
+	int cpu;
+
+	pr_err("%s\n", __func__);
+
+	
+	for_each_online_cpu(cpu)
+		free_cpu_cached_iovas(cpu, iovad);
+}
+
 /*
  * Try inserting IOVA range starting with 'iova_pfn' into 'rcache', and
  * return true on success.  Can fail if rcache is full and we can't free
@@ -1196,6 +1208,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	struct iova_cpu_rcache *cpu_rcache;
 	bool can_insert = false, compact = false;
 	unsigned long flags;
+	bool flush = false;
 
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
@@ -1210,15 +1223,15 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
+			if (rcache->depot_size > MAX_GLOBAL_MAGS/3)
+				flush = true;
 			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
 				if (!cpu_rcache->loaded)
 					pr_err("%s cpu_rcache->loaded=NULL\n", __func__);
 				else if (cpu_rcache->loaded->size != IOVA_MAG_SIZE)
-					pr_err("%s cpu_rcache->loaded size=%lu\n", __func__, cpu_rcache->loaded->size);
-				compact = true;
-				
+					pr_err("%s cpu_rcache->loaded size=%lu\n", __func__, cpu_rcache->loaded->size);				
 			} else {
 				atomic64_inc(&atomic__iova_depot_full_at_insert);
 				mag_to_free = cpu_rcache->loaded;
@@ -1240,12 +1253,15 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	if (mag_to_free) {
 		int cpu;
 
-	//	for_each_online_cpu(cpu)
-	//		free_cpu_cached_iovas(cpu, iovad);
+//		for_each_online_cpu(cpu)
+//			free_cpu_cached_iovas(cpu, iovad);
 		iova_magazine_free_pfns(mag_to_free, iovad);
 		iova_magazine_free(mag_to_free);
 	} else if (compact) {
-	//	iova_compact_rcache(iovad, rcache);
+		iova_compact_rcache(iovad, rcache);
+	} 
+	if (flush) {
+		iova_flush_rcache(iovad, rcache);
 	}
 
 	return can_insert;
@@ -1299,7 +1315,7 @@ static unsigned long __iova_rcache_get(struct iova_domain *iovad,
 			has_pfn = true;
 			atomic64_inc(&atomic__iova_rcache_grab_depot);
 		} else {
-			compact = true;
+			compact = false;
 			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
 		}
 		spin_unlock(&rcache->lock);
@@ -1378,6 +1394,8 @@ void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 	struct iova_rcache *rcache;
 	unsigned long flags;
 	int i;
+
+	pr_err("%s cpu%d iovad=%pS\n", __func__, cpu, iovad);
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
