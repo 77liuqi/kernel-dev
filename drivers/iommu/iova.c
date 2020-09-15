@@ -1245,7 +1245,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		iova_magazine_free_pfns(mag_to_free, iovad);
 		iova_magazine_free(mag_to_free);
 	} else if (compact) {
-		iova_compact_rcache(iovad, rcache);
+	//	iova_compact_rcache(iovad, rcache);
 	}
 
 	return can_insert;
@@ -1268,13 +1268,15 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
  * it from the 'rcache'.
  */
 
-static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
+static unsigned long __iova_rcache_get(struct iova_domain *iovad,
+						struct iova_rcache *rcache,
 				       unsigned long limit_pfn)
 {
 	struct iova_cpu_rcache *cpu_rcache;
 	unsigned long iova_pfn = 0;
 	bool has_pfn = false;
 	unsigned long flags;
+	bool compact = false;
 
 	atomic64_inc(&atomic__iova_rcache_get);
 
@@ -1297,6 +1299,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 			has_pfn = true;
 			atomic64_inc(&atomic__iova_rcache_grab_depot);
 		} else {
+			compact = true;
 			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
 		}
 		spin_unlock(&rcache->lock);
@@ -1310,6 +1313,9 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	}
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+
+	if (compact)
+		iova_compact_rcache(iovad, rcache);
 
 	return iova_pfn;
 }
@@ -1337,7 +1343,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 		return 0;
 	}
 
-	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
+	return __iova_rcache_get(iovad, &iovad->rcaches[log_size], limit_pfn - size);
 }
 
 /*
