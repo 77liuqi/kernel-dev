@@ -2757,6 +2757,33 @@ static ssize_t intr_coal_count_v3_hw_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(intr_coal_count_v3_hw);
 
+static int slave_configure_v3_hw(struct scsi_device *sdev)
+{
+	struct Scsi_Host *shost = dev_to_shost(&sdev->sdev_gendev);
+	struct domain_device *ddev = sdev_to_domain_dev(sdev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	struct device *dev = hisi_hba->dev;
+	int ret = sas_slave_configure(sdev);
+
+	if (ret)
+		return ret;
+	if (!dev_is_sata(ddev))
+		sas_change_queue_depth(sdev, 64);
+
+	if (sdev->type == TYPE_ENCLOSURE)
+		return 0;
+
+	if (!device_link_add(&sdev->sdev_gendev, dev,
+			     DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE))
+		if (pm_runtime_enabled(dev)) {
+			dev_info(dev, "add device link failed, disable runtime PM for the host\n");
+			pm_runtime_disable(dev);
+		}
+
+	return 0;
+}
+
+
 static struct device_attribute *host_attrs_v3_hw[] = {
 	&dev_attr_phy_event_threshold,
 	&dev_attr_intr_conv_v3_hw,
@@ -3104,32 +3131,6 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 				phy_no, SAS_BIST_ERR_CNT);
 		hisi_sas_bist_test_restore_v3_hw(hisi_hba);
 	}
-
-	return 0;
-}
-
-static int slave_configure_v3_hw(struct scsi_device *sdev)
-{
-	struct Scsi_Host *shost = dev_to_shost(&sdev->sdev_gendev);
-	struct domain_device *ddev = sdev_to_domain_dev(sdev);
-	struct hisi_hba *hisi_hba = shost_priv(shost);
-	struct device *dev = hisi_hba->dev;
-	int ret = sas_slave_configure(sdev);
-
-	if (ret)
-		return ret;
-	if (!dev_is_sata(ddev))
-		sas_change_queue_depth(sdev, 64);
-
-	if (sdev->type == TYPE_ENCLOSURE)
-		return 0;
-
-	if (!device_link_add(&sdev->sdev_gendev, dev,
-			     DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE))
-		if (pm_runtime_enabled(dev)) {
-			dev_info(dev, "add device link failed, disable runtime PM for the host\n");
-			pm_runtime_disable(dev);
-		}
 
 	return 0;
 }
