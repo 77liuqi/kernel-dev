@@ -15,6 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
+extern struct device *hisi_sas_dev;
 #include <linux/module.h>
 
 #include <linux/kernel.h>
@@ -4788,6 +4789,13 @@ static void sdebug_q_cmd_complete(struct sdebug_defer *sd_dp)
 			pr_info("bypassing scsi_done() due to aborted cmd\n");
 		return;
 	}
+
+	if (scsi_sg_count(scp)) {
+		dma_unmap_sg(hisi_sas_dev, scsi_sglist(scp), scsi_sg_count(scp),
+				 scp->sc_data_direction);
+	}
+
+	
 	scp->scsi_done(scp); /* callback to mid level */
 }
 
@@ -5355,6 +5363,7 @@ static bool inject_on_this_cmd(void)
  * schedules a hr timer or work queue then returns 0. Returns
  * SCSI_MLQUEUE_HOST_BUSY if temporarily out of resources.
  */
+extern struct device *hisi_sas_dev;
 static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 			 int scsi_result,
 			 int (*pfp)(struct scsi_cmnd *,
@@ -5471,6 +5480,18 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 		sdev_printk(KERN_INFO, sdp, "%s: non-zero result=0x%x\n",
 			    __func__, cmnd->result);
 
+	if (scsi_sg_count(cmnd)) {
+			struct device *dev = hisi_sas_dev;
+
+			cmnd->count_sg = scsi_sg_count(cmnd);
+
+			int nseg = dma_map_sg(dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
+					  cmnd->sc_data_direction);
+			if (unlikely(!nseg))
+				pr_err("%s nseg=0 scsi_sg_count=%d\n", __func__, scsi_sg_count(cmnd));
+	//return nseg;
+	}
+
 	if (delta_jiff > 0 || ndelay > 0) {
 		ktime_t kt;
 
@@ -5501,6 +5522,12 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 					if (new_sd_dp)
 						kfree(sd_dp);
 					/* call scsi_done() from this thread */
+					if (scsi_sg_count(cmnd)) {
+						WARN_ON(cmnd->count_sg != scsi_sg_count(cmnd));
+						dma_unmap_sg(hisi_sas_dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
+							     cmnd->sc_data_direction);
+					}
+				
 					cmnd->scsi_done(cmnd);
 					return 0;
 				}
@@ -5554,6 +5581,14 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
 	cmnd->result &= ~SDEG_RES_IMMED_MASK;
 	if (cmnd->result == 0 && scsi_result != 0)
 		cmnd->result = scsi_result;
+	
+	if (cmnd->count_sg) {
+		WARN_ONCE(cmnd->count_sg != scsi_sg_count(cmnd), 
+			"%s3 cmnd->count_sg=%d scsi_sg_count=%d\n", __func__, cmnd->count_sg, scsi_sg_count(cmnd));
+		dma_unmap_sg(hisi_sas_dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
+				 cmnd->sc_data_direction);
+	}
+	
 	cmnd->scsi_done(cmnd);
 	return 0;
 }
@@ -7386,10 +7421,9 @@ static struct scsi_host_template sdebug_driver_template = {
 	.eh_host_reset_handler = scsi_debug_host_reset,
 	.can_queue =		SDEBUG_CANQUEUE,
 	.this_id =		7,
-	.sg_tablesize =		SG_MAX_SEGMENTS,
+	.sg_tablesize =		64,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
-	.max_sectors =		-1U,
-	.max_segment_size =	-1U,
+	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
 };
