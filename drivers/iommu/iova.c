@@ -896,6 +896,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				 struct iova_rcache *rcache,
 				 unsigned long iova_pfn)
 {
+	struct iova_magazine *new_mag = NULL;
 	struct iova_cpu_rcache *cpu_rcache;
 	bool can_insert = false, flush = false;
 	unsigned long flags;
@@ -909,7 +910,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
-		struct iova_magazine *new_mag = iova_magazine_alloc(GFP_ATOMIC);
+		new_mag = iova_magazine_alloc(GFP_ATOMIC);
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
@@ -917,6 +918,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
 				can_insert = true;
+				cpu_rcache->loaded = new_mag;
 			} else {
 				/*
 				 * The depot is full, meaning that a very large
@@ -927,8 +929,6 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				flush = true;
 			}
 			spin_unlock(&rcache->lock);
-
-			cpu_rcache->loaded = new_mag;
 		}
 	}
 
@@ -943,6 +943,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		pr_err("%s flush CPU rcache %pS\n", __func__, iovad);
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
+		iova_magazine_free(new_mag);
 	}
 
 	return can_insert;
