@@ -815,7 +815,7 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		if (WARN_ON(!iova))
+		if (WARN(!iova, "%s mag->size=%lu mag->pfns[%d]=%lu\n", __func__, mag->size, i, mag->pfns[i]))
 			continue;
 
 		private_free_iova(iovad, iova);
