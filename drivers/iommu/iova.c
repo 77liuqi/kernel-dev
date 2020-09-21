@@ -940,6 +940,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	if (flush) {
 		int cpu;
 
+		pr_err("%s flush CPU rcache %pS\n", __func__, iovad);
 		for_each_online_cpu(cpu)
 			free_cpu_cached_iovas(cpu, iovad);
 	}
