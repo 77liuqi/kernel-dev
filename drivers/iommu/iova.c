@@ -395,6 +395,8 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	iova = private_find_iova(iovad, pfn);
+	
+	WARN(!iova, "%s pfn=%lu\n", __func__, pfn);
 	if (iova)
 		private_free_iova(iovad, iova);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
@@ -815,7 +817,7 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		if (WARN(!iova, "%s mag->size=%lu mag->pfns[%d]=%lu\n", __func__, mag->size, i, mag->pfns[i]))
+		if (WARN(!iova, "%s mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag))
 			continue;
 
 		private_free_iova(iovad, iova);
@@ -917,8 +919,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
-				can_insert = true;
 				cpu_rcache->loaded = new_mag;
+				can_insert = true;
 			} else {
 				/*
 				 * The depot is full, meaning that a very large
