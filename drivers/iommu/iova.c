@@ -809,15 +809,19 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	unsigned long flags;
 	int i;
 
+	pr_info("%s mag=%pS iovad=%pS\n", __func__, mag, iovad);
+
 	if (!mag)
 		return;
+
+	pr_info("%s2 mag=%pS (size=%lu) iovad=%pS\n", __func__, mag, mag->size, iovad);
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		if (WARN(!iova, "%s mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag))
+		if (WARN_ONCE(!iova, "%s3 mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag))
 			continue;
 
 		private_free_iova(iovad, iova);
@@ -1055,6 +1059,8 @@ void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 		rcache = &iovad->rcaches[i];
 		cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 		spin_lock_irqsave(&cpu_rcache->lock, flags);
+		pr_info("%s iovad=%pS i=%d rcache=%pS cpu%d cpu_rcache=%pS loaded=%pS prev=%pS\n",
+			__func__, iovad, i, rcache, cpu, cpu_rcache, cpu_rcache->loaded, cpu_rcache->prev);
 		iova_magazine_free_pfns(cpu_rcache->loaded, iovad);
 		iova_magazine_free_pfns(cpu_rcache->prev, iovad);
 		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
