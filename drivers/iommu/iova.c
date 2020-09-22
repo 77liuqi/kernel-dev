@@ -783,6 +783,8 @@ error:
 #define IOVA_MAG_SIZE 128
 
 struct iova_magazine {
+	spinlock_t *lock;
+
 	unsigned long size;
 	unsigned long pfns[IOVA_MAG_SIZE];
 };
@@ -809,7 +811,9 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	unsigned long flags;
 	int i;
 
-	pr_info("%s mag=%pS iovad=%pS\n", __func__, mag, iovad);
+	pr_info("%s mag=%pS iovad=%pS mag->lock=%pS\n", __func__, mag, iovad, mag->lock);
+
+//	assert_spin_locked(mag->lock);
 
 	if (!mag)
 		return;
@@ -887,7 +891,9 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
 			cpu_rcache->loaded = iova_magazine_alloc(GFP_KERNEL);
+			cpu_rcache->loaded->lock = &cpu_rcache->lock;
 			cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
+			cpu_rcache->prev->lock = &cpu_rcache->lock;
 		}
 	}
 }
@@ -923,7 +929,9 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
+				pr_info("%s5 cpu_rcache->loaded=%pS new_mag=%pS\n", __func__, cpu_rcache->loaded, new_mag);
 				cpu_rcache->loaded = new_mag;
+				cpu_rcache->loaded->lock = &cpu_rcache->lock;
 				can_insert = true;
 			} else {
 				/*
@@ -991,7 +999,9 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		spin_lock(&rcache->lock);
 		if (rcache->depot_size > 0) {
 			iova_magazine_free(cpu_rcache->loaded);
+			pr_info("%s5 loaded=%pS\n", __func__, cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
+			pr_info("%s4 new loaded=%pS\n", __func__, cpu_rcache->loaded);
 			has_pfn = true;
 		}
 		spin_unlock(&rcache->lock);
@@ -1031,6 +1041,8 @@ static void free_iova_rcaches(struct iova_domain *iovad)
 	struct iova_cpu_rcache *cpu_rcache;
 	unsigned int cpu;
 	int i, j;
+
+	BUG();
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
