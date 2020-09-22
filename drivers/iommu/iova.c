@@ -560,6 +560,8 @@ void queue_iova(struct iova_domain *iovad,
 	unsigned long flags;
 	unsigned idx;
 
+	WARN_ONCE(!pfn, "%s iovad=%pS pages=%lu\n", __func__, iovad, pages);
+
 	spin_lock_irqsave(&fq->lock, flags);
 
 	/*
