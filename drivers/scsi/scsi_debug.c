@@ -5478,10 +5478,12 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 	if (scsi_sg_count(cmnd)) {
 			struct device *dev = hisi_sas_dev;
 
+			cmnd->count_sg = scsi_sg_count(cmnd);
+
 			int nseg = dma_map_sg(dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
 					  cmnd->sc_data_direction);
 			if (unlikely(!nseg))
-				pr_err_ratelimited("%s nseg=0 scsi_sg_count=%d\n", __func__, scsi_sg_count(cmnd));
+				pr_err("%s nseg=0 scsi_sg_count=%d\n", __func__, scsi_sg_count(cmnd));
 	//return nseg;
 	}
 
@@ -5516,6 +5518,7 @@ static int schedule_resp(struct scsi_cmnd *cmnd, struct sdebug_dev_info *devip,
 						kfree(sd_dp);
 					/* call scsi_done() from this thread */
 					if (scsi_sg_count(cmnd)) {
+						WARN_ON(cmnd->count_sg != scsi_sg_count(cmnd));
 						dma_unmap_sg(hisi_sas_dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
 							     cmnd->sc_data_direction);
 					}
@@ -5575,6 +5578,8 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
 		cmnd->result = scsi_result;
 	
 	if (scsi_sg_count(cmnd)) {
+		WARN_ONCE(cmnd->count_sg != scsi_sg_count(cmnd), 
+			"%s3 cmnd->count_sg=%d scsi_sg_count=%d\n", __func__, cmnd->count_sg, scsi_sg_count(cmnd));
 		dma_unmap_sg(hisi_sas_dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
 				 cmnd->sc_data_direction);
 	}
