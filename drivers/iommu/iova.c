@@ -825,7 +825,10 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	for (i = 0 ; i < mag->size; ++i) {
 		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
 
-		if (WARN_ONCE(!iova, "%s3 mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag))
+		WARN_ONCE(!mag->pfns[i], "%s3 mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag);
+
+
+		if (WARN_ONCE(!iova, "%s4 mag->size=%lu mag->pfns[%d]=%lu mag=%pS\n", __func__, mag->size, i, mag->pfns[i], mag))
 			continue;
 
 		private_free_iova(iovad, iova);
@@ -855,7 +858,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 	BUG_ON(iova_magazine_empty(mag));
 
 	for (i = 0; i < mag->size; i++)
-		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d\n", __func__, mag, i);
+		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d size=%lu\n", __func__, mag, i, mag->size);
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
 	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
@@ -867,7 +870,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 	mag->pfns[i] = mag->pfns[--mag->size];
 
 	for (i = 0; i < mag->size; i++)
-		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d\n", __func__, mag, i);
+		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d size=%lu\n", __func__, mag, i, mag->size);
 
 	return pfn;
 }
@@ -879,12 +882,12 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	BUG_ON(iova_magazine_full(mag));
 
 	for (i = 0; i < mag->size; i++)
-		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d pfn=%lu\n", __func__, mag, i, pfn);
+		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d pfn=%lu size=%lu\n", __func__, mag, i, pfn, mag->size);
 
 	mag->pfns[mag->size++] = pfn;
 
 	for (i = 0; i < mag->size; i++)
-		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d pfn=%lu\n", __func__, mag, i, pfn);
+		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d pfn=%lu size=%lu\n", __func__, mag, i, pfn, mag->size);
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
