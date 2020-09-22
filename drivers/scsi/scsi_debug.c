@@ -5577,7 +5577,7 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
 	if (cmnd->result == 0 && scsi_result != 0)
 		cmnd->result = scsi_result;
 	
-	if (scsi_sg_count(cmnd)) {
+	if (cmnd->count_sg) {
 		WARN_ONCE(cmnd->count_sg != scsi_sg_count(cmnd), 
 			"%s3 cmnd->count_sg=%d scsi_sg_count=%d\n", __func__, cmnd->count_sg, scsi_sg_count(cmnd));
 		dma_unmap_sg(hisi_sas_dev, scsi_sglist(cmnd), scsi_sg_count(cmnd),
