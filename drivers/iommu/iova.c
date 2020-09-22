@@ -854,6 +854,9 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 
 	BUG_ON(iova_magazine_empty(mag));
 
+	for (i = 0; i < mag->size; i++)
+		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d\n", __func__, mag, i);
+
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
 	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
 		if (i == 0)
@@ -863,14 +866,25 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 	pfn = mag->pfns[i];
 	mag->pfns[i] = mag->pfns[--mag->size];
 
+	for (i = 0; i < mag->size; i++)
+		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d\n", __func__, mag, i);
+
 	return pfn;
 }
 
 static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 {
+	int i;
+
 	BUG_ON(iova_magazine_full(mag));
 
+	for (i = 0; i < mag->size; i++)
+		WARN_ONCE(mag->pfns[i] == 0, "%s1 mag %pS i=%d pfn=%lu\n", __func__, mag, i, pfn);
+
 	mag->pfns[mag->size++] = pfn;
+
+	for (i = 0; i < mag->size; i++)
+		WARN_ONCE(mag->pfns[i] == 0, "%s2 mag %pS i=%d pfn=%lu\n", __func__, mag, i, pfn);
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
