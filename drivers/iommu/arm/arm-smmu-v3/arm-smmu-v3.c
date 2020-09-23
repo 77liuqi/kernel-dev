@@ -1388,6 +1388,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	if (spin_is_locked(&cmdq->slock))
+		goto lock;
 	do {
 		u64 old;
 
@@ -1419,7 +1421,7 @@ try_cas:
 				spin_unlock(&cmdq->slock);
 			break;
 		}
-
+lock:
 		if (!locked) {
 			spin_lock(&cmdq->slock);
 			locked = true;
