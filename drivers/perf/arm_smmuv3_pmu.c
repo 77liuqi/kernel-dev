@@ -755,7 +755,8 @@ static void smmu_pmu_get_acpi_options(struct smmu_pmu *smmu_pmu)
 
 //	model = *(u32 *)dev_get_platdata(smmu_pmu->dev);
 
-	smmu_pmu->identifier = "hip08";
+//	smmu_pmu->identifier = "hip08";
+	smmu_pmu->identifier = "0x00030736";
 
 //	switch (model) {
 //	case IORT_SMMU_V3_PMCG_HISI_HIP08:
