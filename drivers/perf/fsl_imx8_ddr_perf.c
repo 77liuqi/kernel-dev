@@ -104,9 +104,9 @@ static ssize_t ddr_perf_identifier_show(struct device *dev,
 					struct device_attribute *attr,
 					char *page)
 {
-	struct ddr_pmu *pmu = dev_get_drvdata(dev);
+	pr_err("%s dev=%pS\n", __func__, dev);
 
-	return sprintf(page, "%s\n", pmu->devtype_data->identifier);
+	return sprintf(page, "i.MX8MM\n");
 }
 
 static struct device_attribute ddr_perf_identifier_attr =
