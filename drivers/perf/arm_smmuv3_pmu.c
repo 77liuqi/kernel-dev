@@ -953,7 +953,7 @@ static struct resource p0r[] = {
 	}
 };
 
-struct platform_device p0 = {
+static struct platform_device p0 = {
 	.name = "pmcg0",
 	.id = -1,
 	.resource = p0r,
@@ -968,7 +968,7 @@ static struct resource p1r[] = {
 	}
 };
 
-struct platform_device p1 = {
+static struct platform_device p1 = {
 	.name = "pmcg1",
 	.id = -1,
 	.resource = p1r,
@@ -983,7 +983,7 @@ static struct resource p2r[] = {
 	}
 };
 
-struct platform_device p2 = {
+static struct platform_device p2 = {
 	.name = "pmcg2",
 	.id = -1,
 	.resource = p2r,
@@ -998,7 +998,7 @@ static struct resource p3r[] = {
 	}
 };
 
-struct platform_device p3 = {
+static struct platform_device p3 = {
 	.name = "pmcg3",
 	.id = -1,
 	.resource = p3r,
@@ -1028,7 +1028,7 @@ static struct resource p5r[] = {
 	}
 };
 
-struct platform_device p5 = {
+static struct platform_device p5 = {
 	.name = "pmcg5",
 	.id = -1,
 	.resource = p5r,

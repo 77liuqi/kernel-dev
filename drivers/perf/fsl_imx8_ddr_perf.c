@@ -72,7 +72,6 @@ MODULE_DEVICE_TABLE(of, imx_ddr_pmu_dt_ids);
 
 struct ddr_pmu {
 	struct pmu pmu;
-	void __iomem *base;
 	unsigned int cpu;
 	struct	hlist_node node;
 	struct	device *dev;
@@ -260,7 +259,7 @@ static bool ddr_perf_filters_compatible(struct perf_event *a,
 	return ddr_perf_filter_val(a) == ddr_perf_filter_val(b);
 }
 
-static bool ddr_perf_is_enhanced_filtered(struct perf_event *event)
+static __maybe_unused bool ddr_perf_is_enhanced_filtered(struct perf_event *event)
 {
 	unsigned int filt;
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
@@ -301,17 +300,13 @@ static void ddr_perf_free_counter(struct ddr_pmu *pmu, int counter)
 
 static u32 ddr_perf_read_counter(struct ddr_pmu *pmu, int counter)
 {
-	struct perf_event *event = pmu->events[counter];
-	void __iomem *base = pmu->base;
+//	struct perf_event *event = pmu->events[counter];
+	static int count;
 
-	/*
-	 * return bytes instead of bursts from ddr transaction for
-	 * axid-read and axid-write event if PMU core supports enhanced
-	 * filter.
-	 */
-	base += ddr_perf_is_enhanced_filtered(event) ? COUNTER_DPCR1 :
-						       COUNTER_READ;
-	return readl_relaxed(base + counter * 4);
+	count++;
+
+	return count + counter;
+	
 }
 
 static int ddr_perf_event_init(struct perf_event *event)
@@ -383,8 +378,8 @@ static void ddr_perf_event_update(struct perf_event *event)
 static void ddr_perf_counter_enable(struct ddr_pmu *pmu, int config,
 				  int counter, bool enable)
 {
-	u8 reg = counter * 4 + COUNTER_CNTL;
-	int val;
+//	u8 reg = counter * 4 + COUNTER_CNTL;
+//	int val;
 
 	if (enable) {
 		/*
@@ -393,14 +388,14 @@ static void ddr_perf_counter_enable(struct ddr_pmu *pmu, int config,
 		 * need write 0 into CLEAR bit and it turns out to be 1 by
 		 * hardware. Below enable flow is harmless for all counters.
 		 */
-		writel(0, pmu->base + reg);
-		val = CNTL_EN | CNTL_CLEAR;
-		val |= FIELD_PREP(CNTL_CSV_MASK, config);
-		writel(val, pmu->base + reg);
+//		writel(0, pmu->base + reg);
+	//	val = CNTL_EN | CNTL_CLEAR;
+	//	val |= FIELD_PREP(CNTL_CSV_MASK, config);
+	//	writel(val, pmu->base + reg);
 	} else {
 		/* Disable counter */
-		val = readl_relaxed(pmu->base + reg) & CNTL_EN_MASK;
-		writel(val, pmu->base + reg);
+//		val = readl_relaxed(pmu->base + reg) & CNTL_EN_MASK;
+//		writel(val, pmu->base + reg);
 	}
 }
 
@@ -437,7 +432,7 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 		if (ddr_perf_is_filtered(event)) {
 			/* revert axi id masking(axi_mask) value */
 			cfg1 ^= AXI_MASKING_REVERT;
-			writel(cfg1, pmu->base + COUNTER_DPCR1);
+//			writel(cfg1, pmu->base + COUNTER_DPCR1);
 		}
 	}
 
@@ -507,7 +502,7 @@ static void ddr_perf_pmu_disable(struct pmu *pmu)
 				      false);
 }
 
-static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
+static int ddr_perf_init(struct ddr_pmu *pmu,
 			 struct device *dev)
 {
 	*pmu = (struct ddr_pmu) {
@@ -524,7 +519,6 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 			.pmu_enable  = ddr_perf_pmu_enable,
 			.pmu_disable = ddr_perf_pmu_disable,
 		},
-		.base = base,
 		.dev = dev,
 	};
 
@@ -532,7 +526,7 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 	return pmu->id;
 }
 
-static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
+static __maybe_unused irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 {
 	int i;
 	struct ddr_pmu *pmu = (struct ddr_pmu *) p;
@@ -576,7 +570,7 @@ static irqreturn_t ddr_perf_irq_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
+static __maybe_unused int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct ddr_pmu *pmu = hlist_entry_safe(node, struct ddr_pmu, node);
 	int target;
@@ -599,24 +593,17 @@ static int ddr_perf_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static int ddr_perf_probe(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu;
-	struct device_node *np;
-	void __iomem *base;
 	char *name;
 	int num;
 	int ret;
-	int irq;
 
-	base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	np = pdev->dev.of_node;
+	dev_err(&pdev->dev, "%s\n", __func__);
 
 	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
 		return -ENOMEM;
 
-	num = ddr_perf_init(pmu, base, &pdev->dev);
+	num = ddr_perf_init(pmu, &pdev->dev);
 
 	platform_set_drvdata(pdev, pmu);
 
@@ -628,49 +615,7 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	pmu->devtype_data = of_device_get_match_data(&pdev->dev);
 
 	pmu->cpu = raw_smp_processor_id();
-	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN,
-				      DDR_CPUHP_CB_NAME,
-				      NULL,
-				      ddr_perf_offline_cpu);
 
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cpuhp_setup_state_multi failed\n");
-		goto cpuhp_state_err;
-	}
-
-	pmu->cpuhp_state = ret;
-
-	/* Register the pmu instance for cpu hotplug */
-	ret = cpuhp_state_add_instance_nocalls(pmu->cpuhp_state, &pmu->node);
-	if (ret) {
-		dev_err(&pdev->dev, "Error %d registering hotplug\n", ret);
-		goto cpuhp_instance_err;
-	}
-
-	/* Request irq */
-	irq = of_irq_get(np, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Failed to get irq: %d", irq);
-		ret = irq;
-		goto ddr_perf_err;
-	}
-
-	ret = devm_request_irq(&pdev->dev, irq,
-					ddr_perf_irq_handler,
-					IRQF_NOBALANCING | IRQF_NO_THREAD,
-					DDR_CPUHP_CB_NAME,
-					pmu);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Request irq failed: %d", ret);
-		goto ddr_perf_err;
-	}
-
-	pmu->irq = irq;
-	ret = irq_set_affinity_hint(pmu->irq, cpumask_of(pmu->cpu));
-	if (ret) {
-		dev_err(pmu->dev, "Failed to set interrupt affinity!\n");
-		goto ddr_perf_err;
-	}
 
 	ret = perf_pmu_register(&pmu->pmu, name, -1);
 	if (ret)
@@ -679,14 +624,45 @@ static int ddr_perf_probe(struct platform_device *pdev)
 	return 0;
 
 ddr_perf_err:
-	cpuhp_state_remove_instance_nocalls(pmu->cpuhp_state, &pmu->node);
-cpuhp_instance_err:
-	cpuhp_remove_multi_state(pmu->cpuhp_state);
-cpuhp_state_err:
-	ida_simple_remove(&ddr_ida, pmu->id);
 	dev_warn(&pdev->dev, "i.MX8 DDR Perf PMU failed (%d), disabled\n", ret);
 	return ret;
 }
+static const struct platform_device_id amatch[] = {
+	{ "imx8_ddr0", 0},
+	{ "imx8_ddr1", 0},
+	{ }
+};
+MODULE_DEVICE_TABLE(platform, amatch);
+
+static struct resource p0r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x00000,
+		.end = 0x00000 + 0x1000 -1,
+	}
+};
+
+static struct platform_device p0 = {
+	.name = "imx8_ddr0",
+	.id = -1,
+	.resource = p0r,
+	.num_resources = ARRAY_SIZE(p0r),
+};
+
+static struct resource p1r[] = {
+	{
+		.flags          = IORESOURCE_MEM,
+		.start = 0x10000,
+		.end = 0x10000 + 0x1000 -1,
+	}
+};
+
+static struct platform_device p1 = {
+	.name = "imx8_ddr1",
+	.id = -1,
+	.resource = p1r,
+	.num_resources = ARRAY_SIZE(p1r),
+};
 
 static int ddr_perf_remove(struct platform_device *pdev)
 {
@@ -703,6 +679,7 @@ static int ddr_perf_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver imx_ddr_pmu_driver = {
+	.id_table = amatch,
 	.driver         = {
 		.name   = "imx-ddr-pmu",
 		.of_match_table = imx_ddr_pmu_dt_ids,
@@ -711,5 +688,14 @@ static struct platform_driver imx_ddr_pmu_driver = {
 	.remove         = ddr_perf_remove,
 };
 
-module_platform_driver(imx_ddr_pmu_driver);
+static int __init imx_ddr_pmu_init(void)
+{
+	pr_err("%s\n", __func__);
+	platform_device_register(&p0);
+	platform_device_register(&p1);
+
+	return platform_driver_register(&imx_ddr_pmu_driver);
+}
+module_init(imx_ddr_pmu_init);
+
 MODULE_LICENSE("GPL v2");
