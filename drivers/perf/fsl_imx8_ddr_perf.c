@@ -353,7 +353,7 @@ static int ddr_perf_event_init(struct perf_event *event)
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	struct perf_event *sibling;
-
+#if 0
 	if (event->attr.type != event->pmu->type)
 		return -ENOENT;
 
@@ -388,7 +388,7 @@ static int ddr_perf_event_init(struct perf_event *event)
 				!is_software_event(sibling))
 			return -EINVAL;
 	}
-
+#endif
 	event->cpu = pmu->cpu;
 	hwc->idx = -1;
 
