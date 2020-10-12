@@ -1395,19 +1395,21 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	ktime_t initial, final, *t;
 	int cpu;
 	u32 token;
-	int count = 0;
+	int count = 1000;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	pr_err("%s cpu%d cmdq->q.llq.prod_token=0x%x n=%d sync=%d\n", __func__, cpu, atomic_read(&cmdq->q.llq.prod_token), n, sync);
+	if (count == 0)
+		pr_err("%s cpu%d cmdq->q.llq.prod_token=0x%x n=%d sync=%d\n", __func__, cpu, atomic_read(&cmdq->q.llq.prod_token), n, sync);
 	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
 	token &= Q_IDX(&llq, token) |Q_WRP(&llq, token);
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
-	pr_err("%s0 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) cmdq->q.llq.prod_token=0x%x\n", __func__, cpu, token, llq.val, llq.prod, llq.cons, atomic_read(&cmdq->q.llq.prod_token));
+	if (count == 0)
+		pr_err("%s0 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) cmdq->q.llq.prod_token=0x%x\n", __func__, cpu, token, llq.val, llq.prod, llq.cons, atomic_read(&cmdq->q.llq.prod_token));
 	do {
 		u64 old;
 		
@@ -1450,13 +1452,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		llq.val = old;
 	} while (1);
-	pr_err("%s5 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) head=0x%llx (0x%x 0x%x)\n",
+	if (count == 0)
+		pr_err("%s5 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) head=0x%llx (0x%x 0x%x)\n",
 		__func__, cpu, token, llq.val, llq.prod, llq.cons, head.val, head.prod, head.cons );
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
-	pr_err("%s6 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
+	if (count == 0)
+		pr_err("%s6 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
 		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons );
 
 	/*
@@ -1478,7 +1482,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		arm_smmu_cmdq_shared_lock(cmdq);
 	}
 
-	pr_err("%s7 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
+	if (count == 0)
+		pr_err("%s7 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
 		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons );
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
@@ -1516,7 +1521,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_set_release(&cmdq->owner_prod, prod);
 	}
 
-	pr_err("%s8 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x) sync=%d\n",
+	if (count == 0)
+		pr_err("%s8 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x) sync=%d\n",
 		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons, sync);
 
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
@@ -1544,7 +1550,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	final = ktime_get();
 	*t += final - initial;
 	
-	pr_err("%s10 out cpu%d\n", __func__, cpu);
+	if (count == 0)
+		pr_err("%s10 out cpu%d\n", __func__, cpu);
 	local_irq_restore(flags);
 	return ret;
 }
