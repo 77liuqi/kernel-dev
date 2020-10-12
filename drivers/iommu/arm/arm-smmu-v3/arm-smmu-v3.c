@@ -1411,7 +1411,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u64 old;
 		struct arm_smmu_ll_queue _llq;
 		
-	//	llq.prod = token;
+		llq.prod = token;
 
 
 	//	if (ktime_after(ktime_get(), initial+ms_to_ktime(5000)))
@@ -1425,7 +1425,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		head.cons = llq.cons;
-	//	llq.prod = token;
+		llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
 	//	do {
@@ -1438,7 +1438,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		_llq.val = old;
 		if (_llq.prod != llq.prod)
 			atomic64_inc(&cmpxchg_fail_prod);
 		if (_llq.cons != llq.cons)
