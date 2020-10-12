@@ -531,6 +531,7 @@ struct arm_smmu_ll_queue {
 		} atomic;
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
+	atomic_t		prod_token;
 	u32				max_n_shift;
 };
 
@@ -1393,17 +1394,30 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	ktime_t initial, final, *t;
 	int cpu;
+	u32 token;
+	int count = 0;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
+	pr_err("%s cpu%d cmdq->q.llq.prod_token=0x%x n=%d sync=%d\n", __func__, cpu, atomic_read(&cmdq->q.llq.prod_token), n, sync);
+	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
+	token &= Q_IDX(&llq, token) |Q_WRP(&llq, token);
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
+	pr_err("%s0 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) cmdq->q.llq.prod_token=0x%x\n", __func__, cpu, token, llq.val, llq.prod, llq.cons, atomic_read(&cmdq->q.llq.prod_token));
 	do {
 		u64 old;
+		
+		llq.prod = token;
 
+		if (count == 0)
+			pr_err("%s1 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) count=%d\n", __func__, cpu, token, llq.val, llq.prod, llq.cons, count);
+
+		if (ktime_after(ktime_get(), initial+ms_to_ktime(5000)))
+			panic("what's this cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) count=%d\n", cpu, token, llq.val, llq.prod, llq.cons, count);
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
@@ -1413,20 +1427,37 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 
 		head.cons = llq.cons;
+		llq.prod = token;
+		if (count == 0)
+			pr_err("%s2 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) count=%d\n", __func__, cpu, token, llq.val, llq.prod, llq.cons, count);
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
+		
+		if (count == 0)
+			pr_err("%s3 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) head=0x%llx (0x%x 0x%x)\n",
+				__func__, cpu, token, llq.val, llq.prod, llq.cons, head.val, head.prod, head.cons);
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
+		if (count == 0)
+			pr_err("%s4 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) old=0x%llx count=%d\n", 
+				__func__, cpu, token, llq.val, llq.prod, llq.cons, old, count);
 		if (old == llq.val)
 			break;
 		
 
+		count++;
+
 		llq.val = old;
 	} while (1);
+	pr_err("%s5 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) head=0x%llx (0x%x 0x%x)\n",
+		__func__, cpu, token, llq.val, llq.prod, llq.cons, head.val, head.prod, head.cons );
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+
+	pr_err("%s6 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
+		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons );
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1446,6 +1477,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_shared_lock(cmdq);
 	}
+
+	pr_err("%s7 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x)\n",
+		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons );
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
@@ -1482,6 +1516,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_set_release(&cmdq->owner_prod, prod);
 	}
 
+	pr_err("%s8 cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x) owner=%d head=0x%llx (0x%x 0x%x) sync=%d\n",
+		__func__, cpu, token, llq.val, llq.prod, llq.cons, owner, head.val, head.prod, head.cons, sync);
+
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
 		llq.prod = queue_inc_prod_n(&llq, n);
@@ -1507,6 +1544,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	final = ktime_get();
 	*t += final - initial;
 	
+	pr_err("%s10 out cpu%d\n", __func__, cpu);
 	local_irq_restore(flags);
 	return ret;
 }
