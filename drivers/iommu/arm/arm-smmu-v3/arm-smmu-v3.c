@@ -531,7 +531,6 @@ struct arm_smmu_ll_queue {
 		} atomic;
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
-	atomic_t		prod_token;
 	u32				max_n_shift;
 };
 
@@ -1439,10 +1438,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (old == llq.val)
 			break;
 		_llq.val = old;
-	//	if (_llq.prod != llq.prod)
-	//		atomic64_inc(&cmpxchg_fail_prod);
-	//	if (_llq.cons != llq.cons)
-	//		atomic64_inc(&cmpxchg_fail_cons);
+		if (_llq.prod != llq.prod)
+			atomic64_inc(&cmpxchg_fail_prod);
+		if (_llq.cons != llq.cons)
+			atomic64_inc(&cmpxchg_fail_cons);
 		
 		llq.val = old;
 	} while (1);
