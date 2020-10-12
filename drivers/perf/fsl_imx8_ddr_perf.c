@@ -453,6 +453,7 @@ static void ddr_perf_event_start(struct perf_event *event, int flags)
 
 static int ddr_perf_event_add(struct perf_event *event, int flags)
 {
+#if 0
 	struct ddr_pmu *pmu = to_ddr_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int counter;
@@ -489,7 +490,7 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 
 	if (flags & PERF_EF_START)
 		ddr_perf_event_start(event, flags);
-
+#endif
 	return 0;
 }
 
