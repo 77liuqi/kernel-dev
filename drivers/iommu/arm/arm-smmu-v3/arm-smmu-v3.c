@@ -532,6 +532,7 @@ struct arm_smmu_ll_queue {
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
+	atomic_t prod_token;
 };
 
 struct arm_smmu_queue {
@@ -1400,7 +1401,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-//	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
+	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
 	token = Q_IDX(&llq, token) |Q_WRP(&llq, token);
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
