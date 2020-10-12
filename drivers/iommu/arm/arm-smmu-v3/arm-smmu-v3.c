@@ -1400,13 +1400,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	local_irq_save(flags);
 	cpu = smp_processor_id();
 	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
-	token &= Q_IDX(&llq, token) |Q_WRP(&llq, token);
+	token = Q_IDX(&llq, token) |Q_WRP(&llq, token);
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 	do {
 		u64 old;
+		struct arm_smmu_ll_queue _llq;
 		
 		llq.prod = token;
 
@@ -1425,7 +1426,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
-		
+		do {
+
+			_llq.val = READ_ONCE(cmdq->q.llq.val);
+			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
+		} while (_llq.prod != token);
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
