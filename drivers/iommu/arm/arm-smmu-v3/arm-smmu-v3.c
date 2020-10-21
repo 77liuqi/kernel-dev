@@ -1379,6 +1379,7 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_fail_prod;
+static atomic64_t cmpxchg_fail_diff;
 static atomic64_t cmpxchg_fail_cons;
 
 
@@ -1428,18 +1429,34 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
-		do {
-
-			_llq.val = READ_ONCE(cmdq->q.llq.val);
-			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
-		} while (_llq.prod != token);
+//		do {
+//			_llq.val = READ_ONCE(cmdq->q.llq.val);
+//			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
+//		} while (_llq.prod != token);
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		if (_llq.prod != llq.prod)
+		if (_llq.prod != llq.prod) {
+			u32 diff;
+			struct arm_smmu_ll_queue llq_old = { 
+				.val = old,
+			};
+			u32 old_prod = llq_old.prod;
+			u32 llq_prod = llq.prod;
+		
+			old_prod = Q_IDX(&llq, old_prod) |Q_WRP(&llq, llq_prod);
+			llq_prod = Q_IDX(&llq, llq_prod) |Q_WRP(&llq, llq_prod);
+
+			if (old_prod > llq_prod)
+				diff = old_prod - llq_prod;
+			else
+				diff = llq_prod - old_prod;
+
 			atomic64_inc(&cmpxchg_fail_prod);
+			atomic64_add(diff, &cmpxchg_fail_diff);
+		}
 		if (_llq.cons != llq.cons)
 			atomic64_inc(&cmpxchg_fail_cons);
 		
@@ -1568,6 +1585,12 @@ u64 arm_smmu_cmdq_get_cmpxcgh_fail_prod(void)
 	return atomic64_read(&cmpxchg_fail_prod);
 }
 
+u64 arm_smmu_cmdq_get_cmpxcgh_fail_diff(void)
+{
+	return atomic64_read(&cmpxchg_fail_diff);
+}
+
+
 u64 arm_smmu_cmdq_get_cmpxcgh_fail_cons(void)
 {
 	return atomic64_read(&cmpxchg_fail_cons);
@@ -1578,6 +1601,7 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 	atomic64_set(&tries, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
+	atomic64_set(&cmpxchg_fail_diff, 0);
 	atomic64_set(&cmpxchg_fail_cons, 0);
 }
 

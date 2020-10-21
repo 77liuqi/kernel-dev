@@ -105,6 +105,7 @@ extern void arm_smmu_cmdq_zero_cmpxchg(void);
 extern u64 arm_smmu_cmdq_get_tries(void);
 extern u64 arm_smmu_cmdq_get_cmpxcgh_tries(void);
 extern u64 arm_smmu_cmdq_get_cmpxcgh_fail_prod(void);
+extern u64 arm_smmu_cmdq_get_cmpxcgh_fail_diff(void);
 extern u64 arm_smmu_cmdq_get_cmpxcgh_fail_cons(void);
 
 
@@ -114,6 +115,8 @@ void smmu_test_core(int cpus)
 	int i;
 	unsigned long long total_mappings = 0;
 	smmu_test = 1;
+	u32 diff_rate;
+	u64 fails;
 
 	ways = cpus;
 	arm_smmu_cmdq_zero_times();
@@ -144,13 +147,23 @@ void smmu_test_core(int cpus)
 	}
 	smmu_test = 0;
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average=%lld tries=%lld cmpxcgh tries=%lld prod=%lld cons=%lld\n", 
+	diff_rate = arm_smmu_cmdq_get_cmpxcgh_fail_diff();
+	fails = arm_smmu_cmdq_get_cmpxcgh_fail_prod();
+
+	fails /= 10;
+	if (fails)
+		diff_rate /= fails;
+	else
+		diff_rate = -1;
+
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average=%lld tries=%lld cmpxcgh tries=%lld prod=%lld cons=%lld diff_rate=%d (/10)\n", 
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
 	arm_smmu_cmdq_get_tries(),
 	arm_smmu_cmdq_get_cmpxcgh_tries(),
 	arm_smmu_cmdq_get_cmpxcgh_fail_prod(),
-	arm_smmu_cmdq_get_cmpxcgh_fail_cons());
+	arm_smmu_cmdq_get_cmpxcgh_fail_cons(),
+	diff_rate);
 
 }
 EXPORT_SYMBOL(smmu_test_core);
