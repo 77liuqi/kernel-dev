@@ -1443,7 +1443,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		if (_llq.prod != llq.prod) {
+		if (0 && _llq.prod != llq.prod) {
 			u32 diff;
 			struct arm_smmu_ll_queue llq_old = { 
 				.val = old,
