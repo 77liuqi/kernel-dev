@@ -1398,6 +1398,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	ktime_t initial, final, *t;
 	int cpu;
 	u32 token = 0;
+	bool verified_has_space = false;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1418,21 +1419,25 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	if (ktime_after(ktime_get(), initial+ms_to_ktime(5000)))
 	//		panic("what's this cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x)\n", cpu, token, llq.val, llq.prod, llq.cons);
 
-		while (!queue_has_space(&llq, n + sync)) {
-			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-			local_irq_save(flags);
+		if (verified_has_space == false) {
+			while (!queue_has_space(&llq, n + sync)) {
+				local_irq_restore(flags);
+				if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+					dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+				local_irq_save(flags);
+			}
 		}
+
+		verified_has_space = true;
 
 		head.cons = llq.cons;
 		llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
-		do {
-			_llq.val = READ_ONCE(cmdq->q.llq.val);
-			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
-		} while (_llq.prod != token);
+	//	do {
+	//		_llq.val = READ_ONCE(cmdq->q.llq.val);
+	//		_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
+	//	} while (_llq.prod != token);
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
