@@ -1429,10 +1429,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
-//		do {
-//			_llq.val = READ_ONCE(cmdq->q.llq.val);
-//			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
-//		} while (_llq.prod != token);
+		do {
+			_llq.val = READ_ONCE(cmdq->q.llq.val);
+			_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
+		} while (_llq.prod != token);
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
