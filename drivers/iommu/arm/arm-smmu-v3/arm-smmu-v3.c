@@ -1441,15 +1441,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
+		_llq.val = old;
 		if (old == llq.val)
 			break;
-		if (0 && _llq.prod != llq.prod) {
+		if (_llq.prod != llq.prod) {
 			u32 diff;
 			struct arm_smmu_ll_queue llq_old = { 
 				.val = old,
 			};
 			u32 old_prod = llq_old.prod;
 			u32 llq_prod = llq.prod;
+			static u32 diff_max;
 		
 			old_prod = Q_IDX(&llq, old_prod) |Q_WRP(&llq, llq_prod);
 			llq_prod = Q_IDX(&llq, llq_prod) |Q_WRP(&llq, llq_prod);
@@ -1458,6 +1460,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				diff = old_prod - llq_prod;
 			else
 				diff = llq_prod - old_prod;
+			if (diff > 0xfe00)
+				diff = 0xffff - diff;
+
+			if (diff > diff_max) {
+				diff_max = diff;
+				pr_err("%s diff_max=0x%x\n", __func__, diff_max);
+			}
 
 			atomic64_inc(&cmpxchg_fail_prod);
 			atomic64_add(diff, &cmpxchg_fail_diff);
