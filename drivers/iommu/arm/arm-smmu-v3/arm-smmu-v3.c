@@ -1444,6 +1444,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		_llq.val = old;
 		if (old == llq.val)
 			break;
+		cpu_relax();
 		if (0 && _llq.prod != llq.prod) {
 			u32 diff;
 			struct arm_smmu_ll_queue llq_old = { 
