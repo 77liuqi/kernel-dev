@@ -534,7 +534,7 @@ struct arm_smmu_ll_queue {
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
 	atomic_t prod_token;
-	u32 lock;
+	u64 lock;
 };
 
 struct arm_smmu_queue {
@@ -1388,20 +1388,21 @@ static atomic64_t cmpxchg_fail_cons;
 ({									\
 	u64 interim;\
 	u64 ret = 0;\
-	pr_err("%s cpu%d cmp=0x%llx head=0x%llx\n", __func__, cpu, cmp, head);\
-	smp_cond_load_relaxed(mem, VAL == cmp);\
-	pr_err("%s2 cpu%d cmp=0x%llx head=0x%llx\n", __func__, cpu, cmp, head);\
+	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx\n", cpu, cmp, head, *mem);\
 	interim = xchg(lock, head);\
-	pr_err("%s3 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", __func__, cpu, cmp, head, interim);\
+	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", cpu, cmp, head, interim);\
 	if (interim != cmp) { \
 		ret = interim;\
 		goto out;\
 	}\
-	pr_err("%s4 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", __func__, cpu, cmp, head, interim);\
+	pr_err("cmpxchg3 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", cpu, cmp, head, interim);\
 	interim = xchg(mem, head);\
-	pr_err("%s5 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", __func__, cpu, cmp, head, interim);\
+	head &= ~CMDQ_PROD_OWNED_FLAG;\
+	xchg(lock, head);\
+	ret = interim;\
+	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx *lock=0x%llx\n", cpu, cmp, head, interim, *lock);\
 out:\
-	pr_err("%s10 out cpu%d cmp=0x%llx head=0x%llx interim=0x%llx ret=0x%llx\n", __func__, cpu, cmp, head, interim, ret);\
+	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx interim=0x%llx ret=0x%llx *lock=0x%llx\n", cpu, cmp, head, interim, ret, *lock);\
 	ret;\
 })
 
@@ -1422,6 +1423,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int cpu;
 	u32 token = 0;
 	bool verified_has_space = false;
+	int loop_count = 0;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1435,7 +1437,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	do {
 		u64 old;
 		struct arm_smmu_ll_queue _llq;
-		
+		loop_count++;
+
+		if (loop_count > 2)
+			panic("too many loops\n");
 	//	llq.prod = token;
 
 
@@ -1462,10 +1467,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//		_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
 	//	} while (_llq.prod != token);
 
+		pr_err("%s0 cpu%d llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+
 		old = cmpxchg_relaxed2(&cmdq->q.llq.val, &cmdq->q.llq.lock, llq.val, head.val, cpu);
 		atomic64_inc(&cmpxchg_tries);
 		_llq.val = old;
-		pr_err("%s cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+		pr_err("%s1 cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
 		if (old == llq.val)
 			break;
 	//	cpu_relax();
@@ -1506,7 +1513,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	
-	pr_err("%s1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1528,27 +1535,27 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	pr_err("%s2 cpu%d llq.prod=0x%x head.prod=0x%x\n", __func__, cpu, llq.prod, head.prod);
+	pr_err("%s3 cpu%d llq.prod=0x%x head.prod=0x%x\n", __func__, cpu, llq.prod, head.prod);
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
-	pr_err("%s3 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+	pr_err("%s4 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 		
-		pr_err("%s3.1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+		pr_err("%s5.1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
 
 		/* b. Stop gathering work by clearing the owned flag */
 		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
 						   &cmdq->q.llq.atomic.prod);
 		prod &= ~CMDQ_PROD_OWNED_FLAG;
 		
-		pr_err("%s3.2 cpu%d prod=0x%x llq.prod=0x%x\n", __func__, cpu, prod, llq.prod);
+		pr_err("%s5.2 cpu%d prod=0x%x llq.prod=0x%x\n", __func__, cpu, prod, llq.prod);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
@@ -1557,7 +1564,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 		
-		pr_err("%s3.3 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+		pr_err("%s5.3 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
 
 		/*
 		 * d. Advance the hardware prod pointer
@@ -1574,7 +1581,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	pr_err("%s4 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), sync);
+	pr_err("%s6 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), sync);
 
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
