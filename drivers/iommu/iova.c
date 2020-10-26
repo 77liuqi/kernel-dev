@@ -901,7 +901,6 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				 struct iova_rcache *rcache,
 				 unsigned long iova_pfn)
 {
-	struct iova_magazine *mag_to_free = NULL;
 	struct iova_cpu_rcache *cpu_rcache;
 	bool can_insert = false;
 	unsigned long flags;
@@ -923,13 +922,12 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				if (cpu_rcache->loaded)
 					rcache->depot[rcache->depot_size++] =
 							cpu_rcache->loaded;
-			} else {
-				mag_to_free = cpu_rcache->loaded;
+				can_insert = true;
+				cpu_rcache->loaded = new_mag;
 			}
 			spin_unlock(&rcache->lock);
-
-			cpu_rcache->loaded = new_mag;
-			can_insert = true;
+			if (!can_insert)
+				iova_magazine_free(new_mag);
 		}
 	}
 
@@ -938,10 +936,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 
-	if (mag_to_free) {
-		iova_magazine_free_pfns(mag_to_free, iovad);
-		iova_magazine_free(mag_to_free);
-	}
+	if (!can_insert)
+		free_all_cpu_cached_iovas(iovad);
 
 	return can_insert;
 }
