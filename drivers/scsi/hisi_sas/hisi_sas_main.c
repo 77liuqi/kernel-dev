@@ -1480,7 +1480,6 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 	struct ata_port *ap = device->sata_dev.ap;
 	struct device *dev = hisi_hba->dev;
 	int s = sizeof(struct host_to_dev_fis);
-	int rc = TMF_RESP_FUNC_FAILED;
 	struct asd_sas_phy *sas_phy;
 	struct ata_link *link;
 	u8 fis[20] = {0};
@@ -1492,7 +1491,7 @@ static void hisi_sas_send_ata_reset_each_phy(struct hisi_hba *hisi_hba,
 			continue;
 
 		ata_for_each_link(link, ap, EDGE) {
-			int pmp = sata_srst_pmp(link);
+			int rc, pmp = sata_srst_pmp(link);
 
 			tmf_task.phy_id = sas_phy->id;
 			hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
@@ -1855,7 +1854,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-	int rc = TMF_RESP_FUNC_FAILED;
+	int rc;
 
 	/* Clear internal IO and then lu reset */
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
