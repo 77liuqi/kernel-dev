@@ -1388,19 +1388,23 @@ static atomic64_t cmpxchg_fail_cons;
 ({									\
 	u64 old_lock;\
 	u64 ret = 0;\
-	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx\n", cpu, cmp, head, *mem);\
-	old_lock = xchg(lock, head);\
+	u64 old_mem;\
+	u64 head_no_flag = head & ~CMDQ_PROD_OWNED_FLAG;\
+	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
+	if (*lock > *mem ) panic("ehhh cpu%d\n", cpu);\
+	old_lock = xchg(lock, head_no_flag);\
 	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
 	if (old_lock != cmp) { \
-		ret = old_lock;\
+		ret = *mem;\
 		goto out;\
 	}\
 	pr_err("cmpxchg3 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
-	old_lock = xchg(mem, head);\
+	old_mem = xchg(mem, head);\
+	smp_mb();\
 	head &= ~CMDQ_PROD_OWNED_FLAG;\
-	xchg(lock, head);\
-	ret = old_lock;\
-	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx\n", cpu, cmp, head, old_lock, *lock);\
+	*lock = head;\
+	ret = old_mem;\
+	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx old_mem=0x%llx\n", cpu, cmp, head, old_lock, *lock, old_mem);\
 out:\
 	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock);\
 	ret;\
@@ -1477,6 +1481,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		pr_err("%s1 cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
 		if (old == llq.val)
 			break;
+		pr_err("%s1.1 cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
 	//	cpu_relax();
 		if (0 && _llq.prod != llq.prod) {
 			u32 diff;
@@ -1584,17 +1589,20 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 
 	pr_err("%s6 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), sync);
-
+	loop_count = 0;
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
+		loop_count++;
+		if (loop_count > 5)
+			panic("too many loops2 cpu%d\n", cpu);
 		llq.prod = queue_inc_prod_n(&llq, n);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
-			dev_err_ratelimited(smmu->dev,
-					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x]\n",
+			dev_err_once(smmu->dev,
+					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] loop_count=%d, cpu%d\n",
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg));
+					    readl_relaxed(cmdq->q.cons_reg), loop_count, cpu);
 		}
 
 		/*
