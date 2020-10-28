@@ -1391,7 +1391,6 @@ static atomic64_t cmpxchg_fail_cons;
 	u64 old_mem;\
 	u64 head_no_flag = head & ~CMDQ_PROD_OWNED_FLAG;\
 	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
-	if (*lock > *mem ) panic("ehhh cpu%d\n", cpu);\
 	old_lock = xchg(lock, head_no_flag);\
 	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
 	if (old_lock != cmp) { \
@@ -1421,7 +1420,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq;
+	}, head = llq, llqinitial;
 	int ret = 0;
 	ktime_t initial, final, *t;
 	int cpu;
@@ -1436,7 +1435,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	token = Q_IDX(&llq, token) |Q_WRP(&llq, token);
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
-	llq.val = READ_ONCE(cmdq->q.llq.val);
+	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 
 	pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
@@ -1515,12 +1514,18 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 		llq.val = old;
 	} while (1);
+	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+	if (llqinitial.val == head.val)
+		panic("%s how1 cpu%d\n", __func__, cpu);
 //	smp_mb();
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+
+	if (llqinitial.val == head.val)
+		panic("%s how2 cpu%d\n", __func__, cpu);
 	
-	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+	pr_err("%s2.1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1619,6 +1624,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	final = ktime_get();
 	*t += final - initial;
+	
+	if (llqinitial.val == head.val)
+		panic("%s how3 cpu%d\n", __func__, cpu);
 	
 	local_irq_restore(flags);
 	return ret;
