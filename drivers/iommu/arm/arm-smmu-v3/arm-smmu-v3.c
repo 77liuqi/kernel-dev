@@ -1386,23 +1386,23 @@ static atomic64_t cmpxchg_fail_cons;
 
 #define cmpxchg_relaxed2(mem, lock, cmp, head, cpu) \
 ({									\
-	u64 interim;\
+	u64 old_lock;\
 	u64 ret = 0;\
 	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx\n", cpu, cmp, head, *mem);\
-	interim = xchg(lock, head);\
-	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", cpu, cmp, head, interim);\
-	if (interim != cmp) { \
-		ret = interim;\
+	old_lock = xchg(lock, head);\
+	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
+	if (old_lock != cmp) { \
+		ret = old_lock;\
 		goto out;\
 	}\
-	pr_err("cmpxchg3 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx\n", cpu, cmp, head, interim);\
-	interim = xchg(mem, head);\
+	pr_err("cmpxchg3 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
+	old_lock = xchg(mem, head);\
 	head &= ~CMDQ_PROD_OWNED_FLAG;\
 	xchg(lock, head);\
-	ret = interim;\
-	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx interim=0x%llx *lock=0x%llx\n", cpu, cmp, head, interim, *lock);\
+	ret = old_lock;\
+	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx\n", cpu, cmp, head, old_lock, *lock);\
 out:\
-	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx interim=0x%llx ret=0x%llx *lock=0x%llx\n", cpu, cmp, head, interim, ret, *lock);\
+	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock);\
 	ret;\
 })
 
@@ -1434,13 +1434,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
+
+	pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
 		u64 old;
 		struct arm_smmu_ll_queue _llq;
 		loop_count++;
 
-		if (loop_count > 2)
-			panic("too many loops\n");
+		if (loop_count > 5)
+			panic("too many loops cpu%d\n", cpu);
 	//	llq.prod = token;
 
 
@@ -1600,7 +1602,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
 		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+		//	WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
 	}
