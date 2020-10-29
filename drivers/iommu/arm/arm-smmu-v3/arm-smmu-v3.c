@@ -1390,24 +1390,23 @@ static atomic64_t cmpxchg_fail_cons;
 	u64 ret = 0;\
 	u64 old_mem;\
 	u64 head_no_flag = head & ~CMDQ_PROD_OWNED_FLAG;\
-	cmp &= ~CMDQ_PROD_OWNED_FLAG;\
-	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
+	pr_err("cmpxchg cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
 	old_lock = xchg(lock, head_no_flag);\
 	old_lock &= ~CMDQ_PROD_OWNED_FLAG;\
-	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
-	if (old_lock != cmp) { \
-		ret = *mem;\
+	pr_err("cmpxchg1 after cxhg with lock cpu%d cmp=0x%llx old_lock=0x%llx\n", cpu, cmp, old_lock);\
+	if (old_lock != (cmp & ~CMDQ_PROD_OWNED_FLAG)) { \
+		ret = old_lock;\
 		goto out;\
 	}\
-	pr_err("cmpxchg3 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
+	pr_err("cmpxchg2 xchg with lock passed cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
 	old_mem = xchg(mem, head);\
 	smp_mb();\
 	head &= ~CMDQ_PROD_OWNED_FLAG;\
 	*lock = head;\
 	ret = old_mem;\
-	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx old_mem=0x%llx\n", cpu, cmp, head, old_lock, *lock, old_mem);\
+	pr_err("cmpxchg3  xchg with lock passed, after update mem cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx old_mem=0x%llx\n", cpu, cmp, head, old_lock, *lock, old_mem);\
 out:\
-	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx *mem=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock, *mem);\
+	pr_err("cmpxchg4 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx *mem=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock, *mem);\
 	ret;\
 })
 
@@ -1492,6 +1491,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			panic("too many loops b cpu%d\n", cpu);
 		
 		if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
+		//if (old == llq.val)
 			break;
 		pr_err("%s1.1 failed cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
 	//	cpu_relax();
@@ -1566,7 +1566,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
-	pr_err("%s4 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, owner);
+	pr_err("%s4 cpu%d llq.val=0x%llx head.val=0x%llx owner=%d\n", __func__, cpu, llq.val, head.val, owner);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
@@ -1580,7 +1580,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 						   &cmdq->q.llq.atomic.prod);
 		prod &= ~CMDQ_PROD_OWNED_FLAG;
 		
-		pr_err("%s5.2 cpu%d prod=0x%x llq.prod=0x%x\n", __func__, cpu, prod, llq.prod);
+		pr_err("%s5.2 cpu%d llq.prod=0x%x prod=0x%x\n", __func__, cpu, llq.prod, prod);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
