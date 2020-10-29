@@ -534,7 +534,7 @@ struct arm_smmu_ll_queue {
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
 	atomic_t prod_token;
-	u64 lock;
+	u32 lock;
 };
 
 struct arm_smmu_queue {
@@ -1383,19 +1383,19 @@ static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_diff;
 static atomic64_t cmpxchg_fail_cons;
-
+#ifdef crap
 #define cmpxchg_relaxed2(mem, lock, cmp, head, cpu) \
 ({									\
 	u64 old_lock;\
 	u64 ret = 0;\
 	u64 old_mem;\
 	u64 head_no_flag = head & ~CMDQ_PROD_OWNED_FLAG;\
-	pr_err("cmpxchg cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
+	pr_err("cmpxchg cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, *lock, head_no_flag);\
 	old_lock = xchg(lock, head_no_flag);\
 	old_lock &= ~CMDQ_PROD_OWNED_FLAG;\
 	pr_err("cmpxchg1 after cxhg with lock cpu%d cmp=0x%llx old_lock=0x%llx\n", cpu, cmp, old_lock);\
 	if (old_lock != (cmp & ~CMDQ_PROD_OWNED_FLAG)) { \
-		ret = old_lock;\
+		ret = *mem;\
 		goto out;\
 	}\
 	pr_err("cmpxchg2 xchg with lock passed cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
@@ -1409,7 +1409,40 @@ out:\
 	pr_err("cmpxchg4 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx *mem=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock, *mem);\
 	ret;\
 })
+#endif
 
+u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, unsigned int cpu)
+{
+	u64 old_lock;
+	u64 head_no_flag = head_val & ~CMDQ_PROD_OWNED_FLAG;
+	u64 old_val;
+
+	pr_err("%s cpu%d llq_val=0x%llx head_val=0x%llx *val=0x%llx *lock=0x%x head_no_flag=0x%llx\n", __func__, cpu, llq_val, head_val, READ_ONCE(llq->val), READ_ONCE(llq->lock), head_no_flag);
+	old_lock = xchg(&llq->lock, head_no_flag);
+	old_lock &= ~CMDQ_PROD_OWNED_FLAG;
+	pr_err("%s1 cpu%d after cxhg with lock old_lock=0x%llx\n", __func__, cpu, old_lock);
+
+	if (old_lock != (llq_val & ~CMDQ_PROD_OWNED_FLAG)) {
+		smp_mb();
+		u64 val = READ_ONCE(llq->val);
+		smp_mb();
+		pr_err("%s2 cpu%d failed xchg with lock passed returning val=0x%llx\n", __func__, cpu, val);
+		return val;
+	}
+	
+	pr_err("%s3 cpu%d xchg with lock passed old_lock=0x%llx\n", __func__, cpu, old_lock);
+	old_val = xchg(&llq->val, head_val);
+	smp_mb();
+	head_val &= ~CMDQ_PROD_OWNED_FLAG;
+	WRITE_ONCE(llq->lock, head_val);
+	smp_mb();
+	pr_err("%s4 cpu%d out  xchg with lock passed, after update mem returning old_val=0x%llx\n", __func__, cpu, old_val);
+
+	if ((old_val & ~CMDQ_PROD_OWNED_FLAG) != (llq_val & ~CMDQ_PROD_OWNED_FLAG))
+		panic("%s how is this cpu%d\n", __func__, cpu);
+
+	return old_val;
+}
 
 int flag_to_stop;
 
@@ -1457,6 +1490,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	//	if (verified_has_space == false) {
 			while (!queue_has_space(&llq, n + sync)) {
+				panic("no space not supported yet cpu%d\n", cpu);
 				local_irq_restore(flags);
 				if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
 					dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
@@ -1477,7 +1511,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		pr_err("%s0 cpu%d llq.val=0x%llx head.val=0x%llx\n", __func__, cpu, llq.val, head.val);
 
-		old = cmpxchg_relaxed2(&cmdq->q.llq.val, &cmdq->q.llq.lock, llq.val, head.val, cpu);
+		//old = cmpxchg_relaxed2(&cmdq->q.llq.val, &cmdq->q.llq.lock, llq.val, head.val, cpu);
+		old = cmpxchg_relaxedx(&cmdq->q.llq, llq.val, head.val, cpu);
+		
 		atomic64_inc(&cmpxchg_tries);
 		_llq.val = old;
 		pr_err("%s1 after cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
