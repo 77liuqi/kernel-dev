@@ -1390,8 +1390,10 @@ static atomic64_t cmpxchg_fail_cons;
 	u64 ret = 0;\
 	u64 old_mem;\
 	u64 head_no_flag = head & ~CMDQ_PROD_OWNED_FLAG;\
+	cmp &= ~CMDQ_PROD_OWNED_FLAG;\
 	pr_err("cmpxchg1 cpu%d cmp=0x%llx head=0x%llx *mem=0x%llx cmp=0x%llx *lock=0x%llx head_no_flag=0x%llx\n", cpu, cmp, head, *mem, cmp, *lock, head_no_flag);\
 	old_lock = xchg(lock, head_no_flag);\
+	old_lock &= ~CMDQ_PROD_OWNED_FLAG;\
 	pr_err("cmpxchg2 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx\n", cpu, cmp, head, old_lock);\
 	if (old_lock != cmp) { \
 		ret = *mem;\
@@ -1405,10 +1407,12 @@ static atomic64_t cmpxchg_fail_cons;
 	ret = old_mem;\
 	pr_err("cmpxchg4 cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx *lock=0x%llx old_mem=0x%llx\n", cpu, cmp, head, old_lock, *lock, old_mem);\
 out:\
-	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock);\
+	pr_err("cmpxchg5 out cpu%d cmp=0x%llx head=0x%llx old_lock=0x%llx ret=0x%llx *lock=0x%llx *mem=0x%llx\n", cpu, cmp, head, old_lock, ret, *lock, *mem);\
 	ret;\
 })
 
+
+int flag_to_stop;
 
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
@@ -1445,7 +1449,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		loop_count++;
 
 		if (loop_count > 5)
-			panic("too many loops cpu%d\n", cpu);
+			panic("too many loops a cpu%d\n", cpu);
 	//	llq.prod = token;
 
 
@@ -1472,15 +1476,24 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//		_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
 	//	} while (_llq.prod != token);
 
-		pr_err("%s0 cpu%d llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+		pr_err("%s0 cpu%d llq.val=0x%llx head.val=0x%llx\n", __func__, cpu, llq.val, head.val);
 
 		old = cmpxchg_relaxed2(&cmdq->q.llq.val, &cmdq->q.llq.lock, llq.val, head.val, cpu);
 		atomic64_inc(&cmpxchg_tries);
 		_llq.val = old;
-		pr_err("%s1 cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
-		if (old == llq.val)
+		pr_err("%s1 after cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
+		if (loop_count > 1) {
+			flag_to_stop = 1;
+		//	panic("too many loops cpu%d\n", cpu);
+		}
+		if (flag_to_stop)
+			flag_to_stop++;
+		if (flag_to_stop > 10000)
+			panic("too many loops b cpu%d\n", cpu);
+		
+		if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
 			break;
-		pr_err("%s1.1 cpu%d old=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, old, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+		pr_err("%s1.1 failed cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
 	//	cpu_relax();
 		if (0 && _llq.prod != llq.prod) {
 			u32 diff;
@@ -1514,7 +1527,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 		llq.val = old;
 	} while (1);
-	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx\n", __func__, cpu, head.val, llq.val);
 	if (llqinitial.val == head.val)
 		panic("%s how1 cpu%d\n", __func__, cpu);
 //	smp_mb();
@@ -1525,7 +1538,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (llqinitial.val == head.val)
 		panic("%s how2 cpu%d\n", __func__, cpu);
 	
-	pr_err("%s2.1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val));
+	pr_err("%s2.1 cpu%d head.val=0x%llx llq.val=0x%llx\n", __func__, cpu, head.val, llq.val);
 
 	/*
 	 * 2. Write our commands into the queue
@@ -1553,14 +1566,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
-	pr_err("%s4 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+	pr_err("%s4 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, owner);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 		
-		pr_err("%s5.1 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+		pr_err("%s5.1 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, owner);
 
 		/* b. Stop gathering work by clearing the owned flag */
 		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
@@ -1576,7 +1589,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 		
-		pr_err("%s5.3 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), owner);
+		pr_err("%s5.3 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d prod=0x%x\n", __func__, cpu, head.val, llq.val, owner, prod);
 
 		/*
 		 * d. Advance the hardware prod pointer
@@ -1593,13 +1606,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	pr_err("%s6 cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), sync);
+	pr_err("%s6 cpu%d head.val=0x%llx llq.val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, sync);
 	loop_count = 0;
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
 		loop_count++;
 		if (loop_count > 5)
-			panic("too many loops2 cpu%d\n", cpu);
+			panic("too many loops c cpu%d\n", cpu);
 		llq.prod = queue_inc_prod_n(&llq, n);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
@@ -1620,7 +1633,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
-	pr_err("%s10 out cpu%d head.val=0x%llx llq.val=0x%llx atomic_val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, atomic64_read(&cmdq->q.llq.atomic_val), sync);
+	pr_err("%s10 out cpu%d head.val=0x%llx llq.val=0x%llx sync=%d\n", __func__, cpu, head.val, llq.val, sync);
 
 	final = ktime_get();
 	*t += final - initial;
