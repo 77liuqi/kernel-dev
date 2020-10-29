@@ -1425,11 +1425,8 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 	pr_err("%s1 cpu%d after cxhg with lock old_lock=0x%llx\n", __func__, cpu, old_lock);
 
 	if (old_lock != (llq_val & ~CMDQ_PROD_OWNED_FLAG)) {
-		smp_mb();
-		u64 val = READ_ONCE(llq->val);
-		smp_mb();
-		pr_err("%s2 cpu%d failed xchg with lock passed returning val=0x%llx\n", __func__, cpu, val);
-		return val;
+		pr_err("%s2 cpu%d failed xchg with lock passed returning -1\n", __func__, cpu);
+		return ~0;
 	}
 	
 	pr_err("%s3 cpu%d xchg with lock passed old_lock=0x%llx\n", __func__, cpu, old_lock);
@@ -1438,7 +1435,7 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 	head_val &= ~CMDQ_PROD_OWNED_FLAG;
 	WRITE_ONCE(llq->lock, head_val);
 	smp_mb();
-	pr_err("%s4 cpu%d out  xchg with lock passed, after update mem returning old_val=0x%llx\n", __func__, cpu, old_val);
+	pr_err("%s4 cpu%d out xchg with lock passed, after update mem returning old_val=0x%llx\n", __func__, cpu, old_val);
 
 	if ((old_val & ~CMDQ_PROD_OWNED_FLAG) != (llq_val & ~CMDQ_PROD_OWNED_FLAG))
 		panic("%s how is this cpu%d\n", __func__, cpu);
@@ -1527,8 +1524,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			flag_to_stop++;
 		if (flag_to_stop > 10000)
 			panic("too many loops b cpu%d\n", cpu);
-		
-		if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
+		if (old == ~0)
+			old = READ_ONCE(cmdq->q.llq.val);
+		else if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
 		//if (old == llq.val)
 			break;
 		pr_err("%s1.1 cpu%d failed cmpxchg old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
