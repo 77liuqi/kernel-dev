@@ -407,7 +407,7 @@
 #define PRIQ_1_ADDR_MASK		GENMASK_ULL(63, 12)
 
 /* High-level queue structures */
-#define ARM_SMMU_POLL_TIMEOUT_US	1000000 /* 1s! */
+#define ARM_SMMU_POLL_TIMEOUT_US	5000000 /* 1s! */
 #define ARM_SMMU_POLL_SPIN_COUNT	10
 
 #define MSI_IOVA_BASE			0x8000000
@@ -1411,6 +1411,8 @@ out:\
 })
 #endif
 
+static DEFINE_PER_CPU(u32, llqprodx);
+
 u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, unsigned int cpu)
 {
 	u64 old_lock;
@@ -1516,7 +1518,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 		atomic64_inc(&cmpxchg_tries);
 		_llq.val = old;
-		pr_err("%s1 after cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
+		pr_err("%s1 cpu%d after cmpxchg old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
 		if (loop_count > 1) {
 			flag_to_stop = 1;
 		//	panic("too many loops cpu%d\n", cpu);
@@ -1529,7 +1531,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
 		//if (old == llq.val)
 			break;
-		pr_err("%s1.1 failed cmpxchg cpu%d old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
+		pr_err("%s1.1 cpu%d failed cmpxchg old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
 	//	cpu_relax();
 		if (0 && _llq.prod != llq.prod) {
 			u32 diff;
@@ -1570,6 +1572,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
+
+	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5))
+		panic("%s same value cpu%d\n", __func__, cpu);
+
+	this_cpu_write(llqprodx, llq.prod);
+
+	//raw_cpu_write(llqprod, llq.prod);
+
 
 	if (llqinitial.val == head.val)
 		panic("%s how2 cpu%d\n", __func__, cpu);
@@ -1657,6 +1667,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
 					    readl_relaxed(cmdq->q.cons_reg), loop_count, cpu);
+						panic("no space not supported yet cpu%d\n", cpu);
 		}
 
 		/*
