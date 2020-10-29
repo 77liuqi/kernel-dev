@@ -1412,7 +1412,7 @@ out:\
 #endif
 
 static DEFINE_PER_CPU(u32, llqprodx);
-
+#ifdef dsdsd 
 u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, unsigned int cpu)
 {
 	u64 old_lock;
@@ -1442,6 +1442,39 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 
 	return old_val;
 }
+#endif
+
+#define FREE_LOCK 778
+
+u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, unsigned int cpu)
+{
+	u32 old_lock;
+	u64 head_no_flag = head_val & ~CMDQ_PROD_OWNED_FLAG;
+	u64 old_val;
+
+	pr_err("%s cpu%d llq_val=0x%llx head_val=0x%llx *val=0x%llx *lock=0x%x head_no_flag=0x%llx\n", __func__, cpu, llq_val, head_val, READ_ONCE(llq->val), READ_ONCE(llq->lock), head_no_flag);
+	old_lock = xchg(&llq->lock, cpu);
+	pr_err("%s1 cpu%d after cxhg with lock old_lock=%d\n", __func__, cpu, old_lock);
+
+	if (old_lock != FREE_LOCK) {
+		pr_err("%s2 cpu%d failed xchg with lock passed returning -1 old_lock=%d\n", __func__, cpu, old_lock);
+		return ~0;
+	}
+
+	pr_err("%s3 cpu%d xchg with lock passed old_lock=%d\n", __func__, cpu, old_lock);
+	old_val = xchg(&llq->val, head_val);
+	smp_mb();
+	head_val &= ~CMDQ_PROD_OWNED_FLAG;
+	WRITE_ONCE(llq->lock, FREE_LOCK);
+	smp_mb();
+	pr_err("%s4 cpu%d out xchg with lock passed, after update mem returning old_val=0x%llx\n", __func__, cpu, old_val);
+
+	if ((old_val & ~CMDQ_PROD_OWNED_FLAG) != (llq_val & ~CMDQ_PROD_OWNED_FLAG))
+		panic("%s how is this cpu%d\n", __func__, cpu);
+
+	return old_val;
+}
+
 
 int flag_to_stop;
 
@@ -3436,6 +3469,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->llq.max_n_shift);
 
 	q->llq.prod = q->llq.cons = 0;
+	q->llq.lock = FREE_LOCK;
 	return 0;
 }
 
