@@ -1510,7 +1510,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
-		loop_count++;
 		
 		llq.val = READ_ONCE(cmdq->q.llq.val);
 
@@ -1537,15 +1536,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 		old = xchg(&cmdq->q.llq.prod, head.prod);
 		pr_err("%s0.1 cpu%d old=0x%x\n", __func__, cpu, old);
-		if (old & CMDQ_PROD_LOCKED_FLAG)
+		if (old & CMDQ_PROD_LOCKED_FLAG) {
+			loop_count++;
 			continue;
+		}
 		head.prod &= ~CMDQ_PROD_LOCKED_FLAG;
 		old2 = xchg(&cmdq->q.llq.prod, head.prod);
 		
 		pr_err("%s0.2 cpu%d old=0x%x old2=0x%x\n", __func__, cpu, old, old2);
 		break;
 	} while (1);
-	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx old2=0x%x\n", __func__, cpu, head.val, llq.val, old2);
+	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx old=0x%x old2=0x%x\n", __func__, cpu, head.val, llq.val, old, old2);
 	if (llqinitial.val == head.val)
 		panic("%s how1 cpu%d\n", __func__, cpu);
 //	smp_mb();
@@ -1600,6 +1601,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 		
 		pr_err("%s5.1 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, owner);
+
+		
 
 		/* b. Stop gathering work by clearing the owned flag */
 		prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
