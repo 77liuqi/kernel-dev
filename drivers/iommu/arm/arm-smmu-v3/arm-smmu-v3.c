@@ -1494,8 +1494,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	ktime_t initial, final, *t;
 	int cpu;
 	u32 token = 0;
-	bool verified_has_space = false;
 	int loop_count = 0;
+	u32 old2 = 0;
+	u32 old = 0;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1509,8 +1510,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
-		u64 old;
-		struct arm_smmu_ll_queue _llq;
 		loop_count++;
 		
 		llq.val = READ_ONCE(cmdq->q.llq.val);
@@ -1520,11 +1519,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		
 		if (loop_count > 5)
 			panic("too many loops a cpu%d\n", cpu);
-	//	llq.prod = token;
-
-
-	//	if (ktime_after(ktime_get(), initial+ms_to_ktime(5000)))
-	//		panic("what's this cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x)\n", cpu, token, llq.val, llq.prod, llq.cons);
 
 		while (!queue_has_space(&llq, n + sync)) {
 			panic("no space not supported yet cpu%d\n", cpu);
@@ -1534,81 +1528,28 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			local_irq_save(flags);
 		}
 
-		verified_has_space = true;
-
 		head.cons = llq.cons;
-	//	llq.prod = token;
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
-					     CMDQ_PROD_OWNED_FLAG;
-	//	do {
-	//		_llq.val = READ_ONCE(cmdq->q.llq.val);
-	//		_llq.prod = Q_IDX(&llq, _llq.prod) |Q_WRP(&llq, _llq.prod);
-	//	} while (_llq.prod != token);
+					     CMDQ_PROD_OWNED_FLAG |
+					     CMDQ_PROD_LOCKED_FLAG;
 
-		pr_err("%s0 cpu%d llq.val=0x%llx head.val=0x%llx\n", __func__, cpu, llq.val, head.val);
-
-		old = xchg(&cmdq->q.llq.prod, head.val);
+		pr_err("%s0 cpu%d llq.val=0x%llx head.val=0x%llx loop_count=%d\n", __func__, cpu, llq.val, head.val, loop_count);
+		
+		old = xchg(&cmdq->q.llq.prod, head.prod);
+		pr_err("%s0.1 cpu%d old=0x%x\n", __func__, cpu, old);
 		if (old & CMDQ_PROD_LOCKED_FLAG)
 			continue;
-		old &= ~CMDQ_PROD_LOCKED_FLAG;
-		llq.prod = xchg(&cmdq->q.llq.prod, old);
-
+		head.prod &= ~CMDQ_PROD_LOCKED_FLAG;
+		old2 = xchg(&cmdq->q.llq.prod, head.prod);
 		
-		atomic64_inc(&cmpxchg_tries);
-		_llq.val = old;
-		pr_err("%s1 cpu%d after cmpxchg old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
-		if (loop_count > 1) {
-			flag_to_stop = 1;
-		//	panic("too many loops cpu%d\n", cpu);
-		}
-		if (flag_to_stop)
-			flag_to_stop++;
-		if (flag_to_stop > 10000)
-			panic("too many loops b cpu%d\n", cpu);
-		if (old == ~0)
-			old = READ_ONCE(cmdq->q.llq.val);
-		else if ((old & ~CMDQ_PROD_OWNED_FLAG) == (llq.val & ~CMDQ_PROD_OWNED_FLAG))
-		//if (old == llq.val)
-			break;
-		pr_err("%s1.1 cpu%d failed cmpxchg old=0x%llx llq.val=0x%llx\n", __func__, cpu, old, llq.val);
-	//	cpu_relax();
-		if (0 && _llq.prod != llq.prod) {
-			u32 diff;
-			struct arm_smmu_ll_queue llq_old = { 
-				.val = old,
-			};
-			u32 old_prod = llq_old.prod;
-			u32 llq_prod = llq.prod;
-			static u32 diff_max;
-		
-			old_prod = Q_IDX(&llq, old_prod) |Q_WRP(&llq, llq_prod);
-			llq_prod = Q_IDX(&llq, llq_prod) |Q_WRP(&llq, llq_prod);
-
-			if (old_prod > llq_prod)
-				diff = old_prod - llq_prod;
-			else
-				diff = llq_prod - old_prod;
-			if (diff > 0xfe00)
-				diff = 0xffff - diff;
-
-			if (diff > diff_max) {
-				diff_max = diff;
-				pr_err("%s diff_max=0x%x\n", __func__, diff_max);
-			}
-
-			atomic64_inc(&cmpxchg_fail_prod);
-			atomic64_add(diff, &cmpxchg_fail_diff);
-		}
-		if (0 && _llq.cons != llq.cons)
-			atomic64_inc(&cmpxchg_fail_cons);
-		
-		llq.val = old;
+		pr_err("%s0.2 cpu%d old=0x%x old2=0x%x\n", __func__, cpu, old, old2);
+		break;
 	} while (1);
-	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx\n", __func__, cpu, head.val, llq.val);
+	pr_err("%s2 cpu%d head.val=0x%llx llq.val=0x%llx old2=0x%x\n", __func__, cpu, head.val, llq.val, old2);
 	if (llqinitial.val == head.val)
 		panic("%s how1 cpu%d\n", __func__, cpu);
 //	smp_mb();
-	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
+	owner = !(old & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
@@ -1623,7 +1564,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (llqinitial.val == head.val)
 		panic("%s how2 cpu%d\n", __func__, cpu);
 	
-	pr_err("%s2.1 cpu%d head.val=0x%llx llq.val=0x%llx\n", __func__, cpu, head.val, llq.val);
+	pr_err("%s2.1 cpu%d head.val=0x%llx llq.val=0x%llx owner=%d\n", __func__, cpu, head.val, llq.val, owner);
 
 	/*
 	 * 2. Write our commands into the queue
