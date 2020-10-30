@@ -331,6 +331,7 @@
 #define CMDQ_ERR_CERROR_ATC_INV_IDX	3
 
 #define CMDQ_PROD_OWNED_FLAG		Q_OVERFLOW_FLAG
+#define CMDQ_PROD_LOCKED_FLAG		(1U << 30)
 
 /*
  * This is used to size the command queue and therefore must be at least
@@ -534,7 +535,6 @@ struct arm_smmu_ll_queue {
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
 	atomic_t prod_token;
-	u32 lock;
 };
 
 struct arm_smmu_queue {
@@ -1442,7 +1442,6 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 
 	return old_val;
 }
-#endif
 
 #define FREE_LOCK 778
 
@@ -1467,7 +1466,7 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 	head_val &= ~CMDQ_PROD_OWNED_FLAG;
 	WRITE_ONCE(llq->lock, FREE_LOCK);
 	smp_mb();
-	pr_err("%s4 cpu%d out xchg with lock passed, after update mem returning old_val=0x%llx\n", __func__, cpu, old_val);
+	pr_err("%s4 cpu%d out xchg with lock passed, after update mem returning old_val=0x%llx llq_val=0x%llx\n", __func__, cpu, old_val, llq_val);
 
 	if ((old_val & ~CMDQ_PROD_OWNED_FLAG) != (llq_val & ~CMDQ_PROD_OWNED_FLAG))
 		panic("%s how is this cpu%d\n", __func__, cpu);
@@ -1475,6 +1474,8 @@ u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, u
 	return old_val;
 }
 
+
+#endif
 
 int flag_to_stop;
 
@@ -1511,7 +1512,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u64 old;
 		struct arm_smmu_ll_queue _llq;
 		loop_count++;
+		
+		llq.val = READ_ONCE(cmdq->q.llq.val);
 
+		if (llq.val & CMDQ_PROD_LOCKED_FLAG)
+			continue;
+		
 		if (loop_count > 5)
 			panic("too many loops a cpu%d\n", cpu);
 	//	llq.prod = token;
@@ -1520,15 +1526,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	if (ktime_after(ktime_get(), initial+ms_to_ktime(5000)))
 	//		panic("what's this cpu%d token=0x%x llq.val=0x%llx (0x%x 0x%x)\n", cpu, token, llq.val, llq.prod, llq.cons);
 
-	//	if (verified_has_space == false) {
-			while (!queue_has_space(&llq, n + sync)) {
-				panic("no space not supported yet cpu%d\n", cpu);
-				local_irq_restore(flags);
-				if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-					dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
-				local_irq_save(flags);
-			}
-	//	}
+		while (!queue_has_space(&llq, n + sync)) {
+			panic("no space not supported yet cpu%d\n", cpu);
+			local_irq_restore(flags);
+			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+			local_irq_save(flags);
+		}
 
 		verified_has_space = true;
 
@@ -1543,8 +1547,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		pr_err("%s0 cpu%d llq.val=0x%llx head.val=0x%llx\n", __func__, cpu, llq.val, head.val);
 
-		//old = cmpxchg_relaxed2(&cmdq->q.llq.val, &cmdq->q.llq.lock, llq.val, head.val, cpu);
-		old = cmpxchg_relaxedx(&cmdq->q.llq, llq.val, head.val, cpu);
+		old = xchg(&cmdq->q.llq.prod, head.val);
+		if (old & CMDQ_PROD_LOCKED_FLAG)
+			continue;
+		old &= ~CMDQ_PROD_LOCKED_FLAG;
+		llq.prod = xchg(&cmdq->q.llq.prod, old);
+
 		
 		atomic64_inc(&cmpxchg_tries);
 		_llq.val = old;
@@ -3469,7 +3477,6 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->llq.max_n_shift);
 
 	q->llq.prod = q->llq.cons = 0;
-	q->llq.lock = FREE_LOCK;
 	return 0;
 }
 
