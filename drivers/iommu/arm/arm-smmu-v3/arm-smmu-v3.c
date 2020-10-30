@@ -1516,11 +1516,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (llq.val & CMDQ_PROD_LOCKED_FLAG)
 			continue;
 		
-		if (loop_count > 5)
-			panic("too many loops a cpu%d\n", cpu);
+		BUG_ON(loop_count > 15);
 
 		while (!queue_has_space(&llq, n + sync)) {
-			panic("no space not supported yet cpu%d\n", cpu);
+			BUG();
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
@@ -1541,7 +1540,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err("%s3 failed cpu%d old=0x%x\n", __func__, cpu, old);
 			continue;
 		} else if (Q_IDX(&llq, old) != Q_IDX(&llq, llq.prod)) {
-			pr_err("%s3.1 cpu%d same value a bug after first xhcg old=0x%x llq.prod=0x%x\n", __func__, cpu, old, llq.prod);
+			pr_err("%s3.1 cpu%d same value after first xhcg old=0x%x llq.prod=0x%x\n", __func__, cpu, old, llq.prod);
 			loop_count++;
 			/* We need to reinstate owner flag */
 			if (!(old & CMDQ_PROD_OWNED_FLAG)) {
@@ -1555,15 +1554,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		break;
 	} while (1);
 	pr_err("%s4 cpu%d out of xchg loop llq.val=0x%llx head.val=0x%llx (old=0x%x old2=0x%x)\n", __func__, cpu, llq.val, head.val, old, old2);
-	if (llqinitial.val == head.val)
-		panic("%s how1 cpu%d\n", __func__, cpu);
+	BUG_ON(llqinitial.val == head.val);
 //	smp_mb();
 	owner = !(old & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
 	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5))
-		panic("%s same value cpu%d\n", __func__, cpu);
+		BUG();
 
 	this_cpu_write(llqprodx, llq.prod);
 
@@ -1571,7 +1569,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 
 	if (llqinitial.val == head.val)
-		panic("%s how2 cpu%d\n", __func__, cpu);
+		BUG();
 	
 	pr_err("%s5 cpu%d writing command entries llq.prod=0x%x n=%d owner=%d\n", __func__, cpu, llq.prod, n, owner);
 
@@ -1604,26 +1602,37 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		u32 llqval, c_return = ~0;
+		u32 llqprod, c_return = ~0;
 		int loop_count = 0;
+	
+		ktime_t c_start, c_timeout;
 		pr_err("%s7 cpu%d wait for owner prod llq.prod=0x%x\n", __func__, cpu, llq.prod);
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
-		llqval = READ_ONCE(cmdq->q.llq.prod);
-		pr_err("%s8 cpu%d finished wait for owner prod llqval=0x%x\n", __func__, cpu, llqval);
+		llqprod = READ_ONCE(cmdq->q.llq.prod);
+		pr_err("%s8 cpu%d finished wait for owner prod llqprod=0x%x\n", __func__, cpu, llqprod);
+
+		c_start = ktime_get();
+
+		c_timeout = c_start + ms_to_ktime(2000);
+		pr_err("%s9 cpu%d cmpxchg loop llqprod=0x%x\n", __func__, cpu, llqprod);
 
 		while (true) {
-			llqval &= ~CMDQ_PROD_LOCKED_FLAG;
-			pr_err("%s9 cpu%d cmpxchg loop llqval=0x%x\n", __func__, cpu, llqval);
+			bool toout;
+			pr_err_ratelimited("%s9.1 cpu%d cmpxchg loop llqprod=0x%x\n", __func__, cpu, llqprod);
+			llqprod &= ~CMDQ_PROD_LOCKED_FLAG;
 
-			BUG_ON(loop_count > 30);
-			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqval, llqval & ~CMDQ_PROD_OWNED_FLAG);
-			if (c_return == llqval) {
+			toout = ktime_after(ktime_get(), c_timeout);
+
+			BUG_ON(toout);
+			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqprod, llqprod & ~CMDQ_PROD_OWNED_FLAG);
+			
+			if (c_return == llqprod) {
 				prod = c_return;
 				break;
 			}loop_count++;
-			llqval = c_return;
+			llqprod = c_return;
 		}
 
 		/* b. Stop gathering work by clearing the owned flag */
@@ -1663,7 +1672,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	if (sync) {
 		loop_count++;
 		if (loop_count > 5)
-			panic("too many loops c cpu%d\n", cpu);
+			BUG();
 		llq.prod = queue_inc_prod_n(&llq, n);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
@@ -1672,7 +1681,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
 					    readl_relaxed(cmdq->q.cons_reg), loop_count, cpu, llq.prod);
-						panic("timeout cpu%d\n", cpu);
+						BUG();
 		}
 
 		/*
@@ -1691,7 +1700,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	*t += final - initial;
 	
 	if (llqinitial.val == head.val)
-		panic("%s how3 cpu%d\n", __func__, cpu);
+		BUG();
 	
 	local_irq_restore(flags);
 	return ret;

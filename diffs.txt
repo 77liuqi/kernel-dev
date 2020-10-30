@@ -1,0 +1,60 @@
+diff --git a/block/blk-mq-tag.h b/block/blk-mq-tag.h
+index 0a57e4f041a9..e959971b1cee 100644
+--- a/block/blk-mq-tag.h
++++ b/block/blk-mq-tag.h
+@@ -46,11 +46,25 @@ extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
+ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
+ 		void *priv);
+ 
++static inline bool blk_mq_is_sbitmap_shared(struct blk_mq_tag_set *tag_set)
++{
++	return tag_set->flags & BLK_MQ_F_TAG_HCTX_SHARED;
++}
++
+ static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
+ 						 struct blk_mq_hw_ctx *hctx)
+ {
++	struct request_queue *queue;
++	struct blk_mq_tag_set *set;
++
+ 	if (!hctx)
+ 		return &bt->ws[0];
++	queue = hctx->queue;
++	set = queue->tag_set;
++
++	if (blk_mq_is_sbitmap_shared(set))
++		return sbq_wait_ptr(bt, &set->wait_index);
++	
+ 	return sbq_wait_ptr(bt, &hctx->wait_index);
+ }
+ 
+diff --git a/block/blk-mq.h b/block/blk-mq.h
+index 4f12363d56bf..241607806f77 100644
+--- a/block/blk-mq.h
++++ b/block/blk-mq.h
+@@ -158,11 +158,6 @@ struct blk_mq_alloc_data {
+ 	struct blk_mq_hw_ctx *hctx;
+ };
+ 
+-static inline bool blk_mq_is_sbitmap_shared(struct blk_mq_tag_set *tag_set)
+-{
+-	return tag_set->flags & BLK_MQ_F_TAG_HCTX_SHARED;
+-}
+-
+ static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+ {
+ 	if (data->flags & BLK_MQ_REQ_INTERNAL)
+
+diff --git a/include/linux/blk-mq.h b/include/linux/blk-mq.h
+index 957cb43c5de7..427c7934c29d 100644
+--- a/include/linux/blk-mq.h
++++ b/include/linux/blk-mq.h
+@@ -259,6 +259,8 @@ struct blk_mq_tag_set {
+ 
+ 	struct mutex		tag_list_lock;
+ 	struct list_head	tag_list;
++
++	atomic_t		wait_index;
+ };
+ 
+ /**
