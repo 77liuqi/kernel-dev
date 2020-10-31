@@ -1224,27 +1224,35 @@ static void arm_smmu_cmdq_poll_valid_map(struct arm_smmu_cmdq *cmdq,
 
 /* Wait for the command queue to become non-full */
 static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
-					     struct arm_smmu_ll_queue *llq)
+					     struct arm_smmu_ll_queue *llq, unsigned int cpu)
 {
 	unsigned long flags;
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	int ret = 0;
+	int loops = 0;
 
 	/*
 	 * Try to update our copy of cons by grabbing exclusive cmdq access. If
 	 * that fails, spin until somebody else updates it for us.
 	 */
+	pr_err("%s cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
-		llq->val = READ_ONCE(cmdq->q.llq.val);
+		llq->cons = READ_ONCE(cmdq->q.llq.cons);
+		pr_err("%s1 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
-		llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
+		llq->cons = READ_ONCE(smmu->cmdq.q.llq.cons);
+		pr_err("%s2 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
+		loops ++;
+		if (loops > 10) {
+			panic("%s cpu%d shit\n", __func__, cpu);
+		}
 		if (!queue_full(llq))
 			break;
 
@@ -1378,6 +1386,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
+static atomic64_t contries;
 static atomic64_t tries;
 static atomic64_t jtries;
 static atomic64_t cmpxchg_tries;
@@ -1535,12 +1544,18 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		llq.cons = READ_ONCE(cmdq->q.llq.cons);
 
 		while (!queue_has_space(&llq, n + sync)) {
-			panic("no space cpu%d\n", cpu);
-			BUG();
+			
+			pr_err("%s cpu%d before poll not full llq.prod=0x%x llq.cons=0x%x jtries=0x%llx\n", __func__, cpu, llq.prod, llq.cons, atomic64_read(&jtries));
 			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq, cpu))
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 			local_irq_save(flags);
+			pr_err("%s cpu%d after poll not full llq.prod=0x%x llq.cons=0x%x jtries=0x%llx\n", __func__, cpu, llq.prod, llq.cons, atomic64_read(&jtries));
+			atomic64_inc(&contries);
+			if (atomic64_read(&contries) > 20) {
+				panic("cpu%d too many cons\n", cpu);
+				BUG();
+			}
 		}
 		head.prod = queue_inc_prod_n(&llq, n + sync);
 		head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -1710,7 +1725,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
 		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-		//	WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
 	}
