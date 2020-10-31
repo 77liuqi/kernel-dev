@@ -1379,6 +1379,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t tries;
+static atomic64_t jtries;
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_diff;
@@ -1508,10 +1509,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	initial = ktime_get();
 	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
+	atomic64_inc(&jtries);
 	j_timeout = initial + ms_to_ktime(10000);
 
 
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
 		
@@ -1543,13 +1545,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		head.prod = queue_inc_prod_n(&llq, n + sync);
 		head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s3 cpu%d exiting loop setting head @ head.prod=0x%x, llq.prod=0x%x\n", __func__, cpu, head.prod, llq.prod);
 		old2 = xchg(&cmdq->q.llq.prod, head.prod);
 		
 		break;
 	} while (1);
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s4 cpu%d out of xchg loop llq.val=0x%llx head.val=0x%llx (old=0x%x) READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llq.val, head.val, old, READ_ONCE(cmdq->q.llq.prod));
 	BUG_ON(llqinitial.val == head.val);
 //	smp_mb();
@@ -1571,7 +1573,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		panic("head no different cpu%d\n", cpu);
 	}
 	
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s5 cpu%d writing command entries llq.prod=0x%x n=%d owner=%d\n", __func__, cpu, llq.prod, n, owner);
 
 	/*
@@ -1594,7 +1596,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s6 cpu%d set valid map llq.prod=0x%x head.prod=0x%x owner=%d\n", __func__, cpu, llq.prod, head.prod, owner);
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
@@ -1608,36 +1610,36 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		int loop_count = 0;
 	
 		ktime_t c_start, c_timeout;
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s7 cpu%d wait for owner prod llq.prod=0x%x\n", __func__, cpu, llq.prod);
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
 		llqprod = READ_ONCE(cmdq->q.llq.prod);
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s8 cpu%d finished wait for owner prod llqprod=0x%x\n", __func__, cpu, llqprod);
 
 		c_start = ktime_get();
 
 		c_timeout = c_start + ms_to_ktime(10000);
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s9 cpu%d cmpxchg loop llqprod=0x%x\n", __func__, cpu, llqprod);
 
 		while (true) {
 			bool toout;
-			if (atomic64_read(&tries) < 20)
+			if (atomic64_read(&jtries) < 20)
 				pr_err_ratelimited("%s9.1 cpu%d cmpxchg loop llqprod=0x%x \n", __func__, cpu, llqprod);
 			llqprod &= ~CMDQ_PROD_LOCKED_FLAG;
 
 			toout = ktime_after(ktime_get(), c_timeout);
 
-			if (atomic64_read(&tries) < 20)
+			if (atomic64_read(&jtries) < 20)
 				pr_err_ratelimited("%s9.2 cpu%d cmpxchg loop before llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod));
 			if (toout)
 				panic("cmpxchg cpu%d timeout\n", cpu);
 			BUG_ON(toout);
 			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqprod, llqprod | CMDQ_PROD_OWNED_FLAG);
-			if (atomic64_read(&tries) < 20)
+			if (atomic64_read(&jtries) < 20)
 				pr_err_ratelimited("%s9.3 cpu%d cmpxchg loop after llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x c_return=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod), c_return);
 			
 			if (c_return == llqprod) {
@@ -1651,7 +1653,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* b. Stop gathering work by clearing the owned flag */
 		//prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
 		//				   &cmdq->q.llq.atomic.prod);
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s10 cpu%d out of cmpxchg loop llq.prod=0x%x prod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llq.prod, prod, READ_ONCE(cmdq->q.llq.prod));
 		prod &= ~CMDQ_PROD_OWNED_FLAG;
 		
@@ -1663,7 +1665,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 		
-		if (atomic64_read(&tries) < 20)
+		if (atomic64_read(&jtries) < 20)
 			pr_err("%s11 cpu%d finished polling valid map llq.prod=0x%x prod=0x%x\n", __func__, cpu, llq.prod, prod);
 
 		/*
@@ -1681,7 +1683,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s12 cpu%d maybe going to sync llq.prod=0x%x n=%d sync=%d\n", __func__, cpu, llq.prod, n, sync);
 	loop_count = 0;
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
@@ -1713,7 +1715,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
-	if (atomic64_read(&tries) < 20)
+	if (atomic64_read(&jtries) < 20)
 		pr_err("%s100 out cpu%d\n", __func__, cpu);
 
 	final = ktime_get();
