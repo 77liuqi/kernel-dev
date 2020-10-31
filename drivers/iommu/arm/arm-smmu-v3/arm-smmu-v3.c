@@ -1511,65 +1511,59 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
 		
-		llq.val = READ_ONCE(cmdq->q.llq.val);
-
-		if (llq.val & CMDQ_PROD_LOCKED_FLAG)
-			continue;
 		
-		BUG_ON(loop_count > 15);
+		if (loop_count > 1000) {
+			panic(" too many initial loops cpu%d", cpu);
+		}
+		BUG_ON(loop_count > 1000);
+
+
+		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
+		if (loop_count < 20 || loop_count > 995)
+			pr_err("%s2 cpu%d after first xhcg llq.prod=0x%x\n", __func__, cpu, llq.prod);
+		if (llq.prod & CMDQ_PROD_LOCKED_FLAG) {
+			loop_count++;
+			continue;
+		}
+
+		llq.cons = READ_ONCE(cmdq->q.llq.cons);
 
 		while (!queue_has_space(&llq, n + sync)) {
+			panic("no space cpu%d\n", cpu);
 			BUG();
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 			local_irq_save(flags);
 		}
+		head.prod = queue_inc_prod_n(&llq, n + sync);
+		head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
-		head.cons = llq.cons;
-		head.prod = queue_inc_prod_n(&llq, n + sync) |
-					     CMDQ_PROD_OWNED_FLAG |
-					     CMDQ_PROD_LOCKED_FLAG;
-
-		pr_err("%s1 cpu%d trying first xchg llq.val=0x%llx head.val=0x%llx loop_count=%d\n", __func__, cpu, llq.val, head.val, loop_count);
-		
-		old = xchg(&cmdq->q.llq.prod, head.prod);
-		pr_err("%s2 cpu%d after first xhcg old=0x%x\n", __func__, cpu, old);
-		if (old & CMDQ_PROD_LOCKED_FLAG) {
-			loop_count++; 
-			pr_err("%s3 failed cpu%d old=0x%x\n", __func__, cpu, old);
-			continue;
-		} else if (Q_IDX(&llq, old) != Q_IDX(&llq, llq.prod)) {
-			pr_err("%s3.1 cpu%d same value after first xhcg old=0x%x llq.prod=0x%x\n", __func__, cpu, old, llq.prod);
-			loop_count++;
-			/* We need to reinstate owner flag */
-			if (!(old & CMDQ_PROD_OWNED_FLAG)) {
-				xchg(&cmdq->q.llq.prod, old & ~CMDQ_PROD_OWNED_FLAG);
-			}
-			continue;
-		}
-		head.prod &= ~CMDQ_PROD_LOCKED_FLAG;
+		pr_err("%s3 cpu%d exiting loop setting head @ head.prod=0x%x, llq.prod=0x%x\n", __func__, cpu, head.prod, llq.prod);
 		old2 = xchg(&cmdq->q.llq.prod, head.prod);
 		
 		break;
 	} while (1);
-	pr_err("%s4 cpu%d out of xchg loop llq.val=0x%llx head.val=0x%llx (old=0x%x old2=0x%x)\n", __func__, cpu, llq.val, head.val, old, old2);
+	pr_err("%s4 cpu%d out of xchg loop llq.val=0x%llx head.val=0x%llx (old=0x%x) READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llq.val, head.val, old, READ_ONCE(cmdq->q.llq.prod));
 	BUG_ON(llqinitial.val == head.val);
 //	smp_mb();
-	owner = !(old & CMDQ_PROD_OWNED_FLAG);
+	owner = !!(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
-	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5))
+	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5)) {
+		panic("same llq val\n");
 		BUG();
+	}
 
 	this_cpu_write(llqprodx, llq.prod);
 
 	//raw_cpu_write(llqprod, llq.prod);
 
 
-	if (llqinitial.val == head.val)
-		BUG();
+	if (llqinitial.val == head.val) {
+		panic("head no different cpu%d\n", cpu);
+	}
 	
 	pr_err("%s5 cpu%d writing command entries llq.prod=0x%x n=%d owner=%d\n", __func__, cpu, llq.prod, n, owner);
 
@@ -1620,25 +1614,30 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		while (true) {
 			bool toout;
-			pr_err_ratelimited("%s9.1 cpu%d cmpxchg loop llqprod=0x%x\n", __func__, cpu, llqprod);
+			pr_err_ratelimited("%s9.1 cpu%d cmpxchg loop llqprod=0x%x \n", __func__, cpu, llqprod);
 			llqprod &= ~CMDQ_PROD_LOCKED_FLAG;
 
 			toout = ktime_after(ktime_get(), c_timeout);
 
+			pr_err_ratelimited("%s9.2 cpu%d cmpxchg loop before llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod));
+			if (toout)
+				panic("cmpxchg cpu%d timeout\n", cpu);
 			BUG_ON(toout);
-			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqprod, llqprod & ~CMDQ_PROD_OWNED_FLAG);
+			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqprod, llqprod | CMDQ_PROD_OWNED_FLAG);
+			pr_err_ratelimited("%s9.3 cpu%d cmpxchg loop after llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x c_return=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod), c_return);
 			
 			if (c_return == llqprod) {
 				prod = c_return;
 				break;
-			}loop_count++;
+			}
+			loop_count++;
 			llqprod = c_return;
 		}
 
 		/* b. Stop gathering work by clearing the owned flag */
 		//prod = atomic_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG,
 		//				   &cmdq->q.llq.atomic.prod);
-		pr_err("%s10 cpu%d out of cmpxchg loop llq.prod=0x%x prod=0x%x\n", __func__, cpu, llq.prod, prod);
+		pr_err("%s10 cpu%d out of cmpxchg loop llq.prod=0x%x prod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llq.prod, prod, READ_ONCE(cmdq->q.llq.prod));
 		prod &= ~CMDQ_PROD_OWNED_FLAG;
 		
 
@@ -1671,8 +1670,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
 		loop_count++;
-		if (loop_count > 5)
+		if (loop_count > 5) {
+			panic("many sync wait loops cpu%d\n", cpu);
 			BUG();
+		}
 		llq.prod = queue_inc_prod_n(&llq, n);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
@@ -1681,6 +1682,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
 					    readl_relaxed(cmdq->q.cons_reg), loop_count, cpu, llq.prod);
+						panic("sync timeout\n");
 						BUG();
 		}
 
@@ -1699,8 +1701,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	final = ktime_get();
 	*t += final - initial;
 	
-	if (llqinitial.val == head.val)
+	if (llqinitial.val == head.val) {
+		panic("head same as initial cpu%d\n", cpu);
 		BUG();
+	}
 	
 	local_irq_restore(flags);
 	return ret;
@@ -3451,7 +3455,9 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	q->q_base |= q->base_dma & Q_BASE_ADDR_MASK;
 	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->llq.max_n_shift);
 
-	q->llq.prod = q->llq.cons = 0;
+	q->llq.cons = 0;
+	q->llq.prod = CMDQ_PROD_OWNED_FLAG;
+
 	return 0;
 }
 
