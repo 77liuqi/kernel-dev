@@ -1528,7 +1528,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	}
 	//	BUG_ON(ktime_after(ktime_get(), j_timeout));
 
-		atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, !(VAL & CMDQ_PROD_LOCKED_FLAG));
+		
+		//atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, !(VAL & CMDQ_PROD_LOCKED_FLAG));
 
 		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
 		//if (loop_count < 20 || loop_count > 995)
@@ -1561,8 +1562,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s3 cpu%d exiting loop setting head @ head.prod=0x%x, llq.prod=0x%x\n", __func__, cpu, head.prod, llq.prod);
 //		old2 = 
-		xchg(&cmdq->q.llq.prod, head.prod);
-//		WRITE_ONCE(cmdq->q.llq.prod, head.prod);
+//		xchg(&cmdq->q.llq.prod, head.prod);
+		WRITE_ONCE(cmdq->q.llq.prod, head.prod);
+		smp_mb();
 		
 		break;
 	} while (1);
