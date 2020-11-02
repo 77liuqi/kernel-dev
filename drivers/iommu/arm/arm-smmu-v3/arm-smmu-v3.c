@@ -1385,7 +1385,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
-//static atomic64_t contries;
+static atomic64_t xchgtries;
 static atomic64_t tries;
 //static atomic64_t jtries;
 static atomic64_t cmpxchg_tries;
@@ -1535,6 +1535,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		//	pr_err("%s2 cpu%d after first xhcg llq.prod=0x%x\n", __func__, cpu, llq.prod);
 		if (llq.prod & CMDQ_PROD_LOCKED_FLAG) {
 //			loop_count++;
+			atomic64_inc(&xchgtries);
 			continue;
 		}
 
@@ -1767,9 +1768,14 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
-u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
+u64 arm_smmu_cmdq_get_cmpxchg_tries(void)
 {
 	return atomic64_read(&cmpxchg_tries);
+}
+
+u64 arm_smmu_cmdq_get_xchg_tries(void)
+{
+	return atomic64_read(&xchgtries);
 }
 
 u64 arm_smmu_cmdq_get_cmpxcgh_fail_prod(void)
