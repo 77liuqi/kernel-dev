@@ -534,6 +534,7 @@ struct arm_smmu_ll_queue {
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
+	atomic_t prod_token;
 };
 
 struct arm_smmu_queue {
@@ -1503,13 +1504,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	ktime_t initial, final, *t;//, j_timeout;
 	int cpu;
-//	int loop_count = 0;
-//	u32 old2 = 0;
-//	u32 old = 0;
+	u32 token;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
+	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
+	token = Q_IDX(&llq, token) ;
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 //	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
@@ -1522,14 +1523,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //		pr_err("%s cpu%d llq.val=0x%llx n=%d sync=%d\n", __func__, cpu, llq.val, n, sync);
 	do {
 		
-		
 	//	if (ktime_after(ktime_get(), j_timeout)) {
 	//		panic(" too many initial loops cpu%d", cpu);
 	//	}
 	//	BUG_ON(ktime_after(ktime_get(), j_timeout));
 
-		
-		//atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, !(VAL & CMDQ_PROD_LOCKED_FLAG));
+	//	pr_err("%s cpu%d before token=0x%x cmdq->q.llq.atomic.prod=0x%x\n", __func__, cpu, token, atomic_read(&cmdq->q.llq.atomic.prod));
+		atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, Q_IDX(&llq, VAL) == token);
+	//	pr_err("%s cpu%d after token=0x%x cmdq->q.llq.atomic.prod=0x%x\n", __func__, cpu, token, atomic_read(&cmdq->q.llq.atomic.prod));
 
 		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
 		//if (loop_count < 20 || loop_count > 995)
