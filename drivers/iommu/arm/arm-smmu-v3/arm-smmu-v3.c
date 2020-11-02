@@ -1385,7 +1385,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
-static atomic64_t contries;
+//static atomic64_t contries;
 static atomic64_t tries;
 //static atomic64_t jtries;
 static atomic64_t cmpxchg_tries;
@@ -1499,7 +1499,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-	}, head = llq, llqinitial;
+	}, head = llq;//, llqinitial;
 	int ret = 0;
 	ktime_t initial, final, *t;//, j_timeout;
 	int cpu;
@@ -1512,7 +1512,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	cpu = smp_processor_id();
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
-	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
+//	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 //	atomic64_inc(&jtries);
 //	j_timeout = initial + ms_to_ktime(10000);
@@ -1547,11 +1547,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 			local_irq_save(flags);
 	//		pr_err("%s cpu%d after poll not full llq.prod=0x%x llq.cons=0x%x jtries=0x%llx\n", __func__, cpu, llq.prod, llq.cons, atomic64_read(&jtries));
-			atomic64_inc(&contries);
-			if (atomic64_read(&contries) > 20) {
-				panic("cpu%d too many cons\n", cpu);
-				BUG();
-			}
+//			atomic64_inc(&contries);
+//			if (atomic64_read(&contries) > 20) {
+//				panic("cpu%d too many cons\n", cpu);
+//				BUG();
+//			}
 		}
 		head.prod = queue_inc_prod_n(&llq, n + sync);
 		head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -1564,7 +1564,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	} while (1);
 //	if (atomic64_read(&jtries) < 20)
 //		pr_err("%s4 cpu%d out of xchg loop llq.val=0x%llx head.val=0x%llx (old=0x%x) READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llq.val, head.val, old, READ_ONCE(cmdq->q.llq.prod));
-	BUG_ON(llqinitial.val == head.val);
+//	BUG_ON(llqinitial.val == head.val);
 //	smp_mb();
 	owner = !!(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -1575,14 +1575,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		BUG();
 	}
 
-	this_cpu_write(llqprodx, llq.prod);
+//	this_cpu_write(llqprodx, llq.prod);
 
 	//raw_cpu_write(llqprod, llq.prod);
 
 
-	if (llqinitial.val == head.val) {
-		panic("head no different cpu%d\n", cpu);
-	}
+//	if (llqinitial.val == head.val) {
+//		panic("head no different cpu%d\n", cpu);
+//	}
 	
 //	if (atomic64_read(&jtries) < 20)
 //		pr_err("%s5 cpu%d writing command entries llq.prod=0x%x n=%d owner=%d\n", __func__, cpu, llq.prod, n, owner);
@@ -1732,10 +1732,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	final = ktime_get();
 	*t += final - initial;
 	
-	if (llqinitial.val == head.val) {
-		panic("head same as initial cpu%d\n", cpu);
-		BUG();
-	}
+//	if (llqinitial.val == head.val) {
+//		panic("head same as initial cpu%d\n", cpu);
+//		BUG();
+//	}
 	
 	local_irq_restore(flags);
 	return ret;
