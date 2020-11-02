@@ -1420,7 +1420,7 @@ out:\
 })
 #endif
 
-static DEFINE_PER_CPU(u32, llqprodx);
+//static DEFINE_PER_CPU(u32, llqprodx);
 #ifdef dsdsd 
 u64 cmpxchg_relaxedx(struct arm_smmu_ll_queue *llq, u64 llq_val, u64 head_val, unsigned int cpu)
 {
@@ -1503,7 +1503,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	ktime_t initial, final, *t;//, j_timeout;
 	int cpu;
-	int loop_count = 0;
+//	int loop_count = 0;
 	u32 old2 = 0;
 //	u32 old = 0;
 
@@ -1533,7 +1533,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		//if (loop_count < 20 || loop_count > 995)
 		//	pr_err("%s2 cpu%d after first xhcg llq.prod=0x%x\n", __func__, cpu, llq.prod);
 		if (llq.prod & CMDQ_PROD_LOCKED_FLAG) {
-			loop_count++;
+//			loop_count++;
 			continue;
 		}
 
@@ -1570,10 +1570,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
 
-	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5)) {
-		panic("same llq val\n");
-		BUG();
-	}
+//	if ((this_cpu_read(llqprodx) == llq.prod) && (this_cpu_read(llqprodx) > 5)) {
+//		panic("same llq val\n");
+//		BUG();
+//	}
 
 //	this_cpu_write(llqprodx, llq.prod);
 
@@ -1696,14 +1696,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 //	if (atomic64_read(&jtries) < 20)
 //		pr_err("%s12 cpu%d maybe going to sync llq.prod=0x%x n=%d sync=%d\n", __func__, cpu, llq.prod, n, sync);
-	loop_count = 0;
+//	loop_count = 0;
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
 	if (sync) {
-		loop_count++;
-		if (loop_count > 5) {
-			panic("many sync wait loops cpu%d\n", cpu);
-			BUG();
-		}
+//		loop_count++;
+//		if (loop_count > 5) {
+//			panic("many sync wait loops cpu%d\n", cpu);
+//			BUG();
+//		}
 		llq.prod = queue_inc_prod_n(&llq, n);
 		ret = arm_smmu_cmdq_poll_until_sync(smmu, &llq);
 		if (ret) {
@@ -1711,7 +1711,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    "CMD_SYNC timeout at 0x%08x [hwprod 0x%08x, hwcons 0x%08x] loop_count=%d, cpu%d llq.prod=0x%x\n",
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
-					    readl_relaxed(cmdq->q.cons_reg), loop_count, cpu, llq.prod);
+					    readl_relaxed(cmdq->q.cons_reg), -1, cpu, llq.prod);
 						panic("sync timeout\n");
 						BUG();
 		}
