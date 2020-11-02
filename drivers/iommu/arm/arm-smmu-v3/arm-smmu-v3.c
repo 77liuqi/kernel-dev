@@ -1235,22 +1235,22 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	 * Try to update our copy of cons by grabbing exclusive cmdq access. If
 	 * that fails, spin until somebody else updates it for us.
 	 */
-	pr_err("%s cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
+	//pr_err("%s cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->cons = READ_ONCE(cmdq->q.llq.cons);
-		pr_err("%s1 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
+	//	pr_err("%s1 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
 		llq->cons = READ_ONCE(smmu->cmdq.q.llq.cons);
-		pr_err("%s2 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
+		//pr_err("%s2 cpu%d llq.prod=0x%x cons=0x%x\n", __func__, cpu, llq->prod, llq->cons);
 		loops ++;
 		if (loops > 10) {
-			panic("%s cpu%d shit\n", __func__, cpu);
+		//	panic("%s cpu%d shit\n", __func__, cpu);
 		}
 		if (!queue_full(llq))
 			break;
