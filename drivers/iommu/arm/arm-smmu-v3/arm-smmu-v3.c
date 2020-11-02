@@ -1528,7 +1528,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	}
 	//	BUG_ON(ktime_after(ktime_get(), j_timeout));
 
-		atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, !(VAL & CMDQ_PROD_LOCKED_FLAG));
+	//	atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, !(VAL & CMDQ_PROD_LOCKED_FLAG));
 
 		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
 		//if (loop_count < 20 || loop_count > 995)
