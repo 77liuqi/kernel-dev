@@ -1501,7 +1501,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq, llqinitial;
 	int ret = 0;
-	ktime_t initial, final, *t, j_timeout;
+	ktime_t initial, final, *t;//, j_timeout;
 	int cpu;
 	int loop_count = 0;
 	u32 old2 = 0;
@@ -1515,7 +1515,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llqinitial.val = llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 //	atomic64_inc(&jtries);
-	j_timeout = initial + ms_to_ktime(10000);
+//	j_timeout = initial + ms_to_ktime(10000);
 
 
 //	if (atomic64_read(&jtries) < 20)
@@ -1523,10 +1523,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	do {
 		
 		
-		if (ktime_after(ktime_get(), j_timeout)) {
-			panic(" too many initial loops cpu%d", cpu);
-		}
-		BUG_ON(ktime_after(ktime_get(), j_timeout));
+	//	if (ktime_after(ktime_get(), j_timeout)) {
+	//		panic(" too many initial loops cpu%d", cpu);
+	//	}
+	//	BUG_ON(ktime_after(ktime_get(), j_timeout));
 
 
 		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
@@ -1620,7 +1620,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 llqprod, c_return = ~0;
 		int loop_count = 0;
 	
-		ktime_t c_start, c_timeout;
+//		ktime_t c_start, c_timeout;
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s7 cpu%d wait for owner prod llq.prod=0x%x\n", __func__, cpu, llq.prod);
 		/* a. Wait for previous owner to finish */
@@ -1630,25 +1630,25 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s8 cpu%d finished wait for owner prod llqprod=0x%x\n", __func__, cpu, llqprod);
 
-		c_start = ktime_get();
+//		c_start = ktime_get();
 
-		c_timeout = c_start + ms_to_ktime(10000);
+//		c_timeout = c_start + ms_to_ktime(10000);
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s9 cpu%d cmpxchg loop llqprod=0x%x\n", __func__, cpu, llqprod);
 
 		while (true) {
-			bool toout;
+//			bool toout;
 //			if (atomic64_read(&jtries) < 20)
 //				pr_err_ratelimited("%s9.1 cpu%d cmpxchg loop llqprod=0x%x \n", __func__, cpu, llqprod);
 			llqprod &= ~CMDQ_PROD_LOCKED_FLAG;
 
-			toout = ktime_after(ktime_get(), c_timeout);
+//			toout = ktime_after(ktime_get(), c_timeout);
 
 //			if (atomic64_read(&jtries) < 20)
 //				pr_err_ratelimited("%s9.2 cpu%d cmpxchg loop before llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod));
-			if (toout)
-				panic("cmpxchg cpu%d timeout\n", cpu);
-			BUG_ON(toout);
+//			if (toout)
+//				panic("cmpxchg cpu%d timeout\n", cpu);
+//			BUG_ON(toout);
 			c_return = cmpxchg_relaxed(&cmdq->q.llq.prod, llqprod, llqprod | CMDQ_PROD_OWNED_FLAG);
 //			if (atomic64_read(&jtries) < 20)
 //				pr_err_ratelimited("%s9.3 cpu%d cmpxchg loop after llqprod=0x%x READ_ONCE(cmdq->q.llq.prod)=0x%x c_return=0x%x\n", __func__, cpu, llqprod, READ_ONCE(cmdq->q.llq.prod), c_return);
