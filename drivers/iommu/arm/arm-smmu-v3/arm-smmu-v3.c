@@ -1388,6 +1388,7 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t xchgtries;
 static atomic64_t tries;
+static atomic64_t owner_g;
 //static atomic64_t jtries;
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_fail_prod;
@@ -1509,7 +1510,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	token = atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
+	token = 0;//atomic_fetch_add(n + sync, &cmdq->q.llq.prod_token);
 	token = Q_IDX(&llq, token) ;
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
@@ -1529,7 +1530,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//	BUG_ON(ktime_after(ktime_get(), j_timeout));
 
 	//	pr_err("%s cpu%d before token=0x%x cmdq->q.llq.atomic.prod=0x%x\n", __func__, cpu, token, atomic_read(&cmdq->q.llq.atomic.prod));
-		atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, Q_IDX(&llq, VAL) == token);
+	//	atomic_cond_read_relaxed(&cmdq->q.llq.atomic.prod, Q_IDX(&llq, VAL) == token);
 	//	pr_err("%s cpu%d after token=0x%x cmdq->q.llq.atomic.prod=0x%x\n", __func__, cpu, token, atomic_read(&cmdq->q.llq.atomic.prod));
 
 		llq.prod = xchg(&cmdq->q.llq.prod, CMDQ_PROD_LOCKED_FLAG);
@@ -1627,6 +1628,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 llqprod, c_return = ~0;
 //		int loop_count = 0;
 	
+		atomic64_inc(&owner_g);
 //		ktime_t c_start, c_timeout;
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s7 cpu%d wait for owner prod llq.prod=0x%x\n", __func__, cpu, llq.prod);
@@ -1771,6 +1773,12 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
+u64 arm_smmu_cmdq_get_owner(void)
+{
+	return atomic64_read(&owner_g);
+}
+
+
 u64 arm_smmu_cmdq_get_cmpxchg_tries(void)
 {
 	return atomic64_read(&cmpxchg_tries);
@@ -1800,6 +1808,8 @@ u64 arm_smmu_cmdq_get_cmpxcgh_fail_cons(void)
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
+	atomic64_set(&xchgtries, 0);
+	atomic64_set(&owner_g, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
 	atomic64_set(&cmpxchg_fail_diff, 0);
