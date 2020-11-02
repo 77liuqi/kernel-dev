@@ -1618,7 +1618,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
 		u32 llqprod, c_return = ~0;
-		int loop_count = 0;
+//		int loop_count = 0;
 	
 //		ktime_t c_start, c_timeout;
 //		if (atomic64_read(&jtries) < 20)
@@ -1657,7 +1657,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				prod = c_return;
 				break;
 			}
-			loop_count++;
+//			loop_count++;
 			llqprod = c_return;
 		}
 
