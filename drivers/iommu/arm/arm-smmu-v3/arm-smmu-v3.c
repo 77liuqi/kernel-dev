@@ -1559,8 +1559,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 //		if (atomic64_read(&jtries) < 20)
 //			pr_err("%s3 cpu%d exiting loop setting head @ head.prod=0x%x, llq.prod=0x%x\n", __func__, cpu, head.prod, llq.prod);
-//		old2 = xchg(&cmdq->q.llq.prod, head.prod);
-		WRITE_ONCE(cmdq->q.llq.prod, head.prod);
+//		old2 = 
+		xchg(&cmdq->q.llq.prod, head.prod);
+//		WRITE_ONCE(cmdq->q.llq.prod, head.prod);
 		
 		break;
 	} while (1);
