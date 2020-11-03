@@ -254,11 +254,6 @@ struct hisi_sas_debugfs_reg {
 	const struct hisi_sas_debugfs_reg_lu *lu;
 	int count;
 	int base_off;
-	union {
-		u32 (*read_global_reg)(struct hisi_hba *hisi_hba, u32 off);
-		u32 (*read_port_reg)(struct hisi_hba *hisi_hba, int port,
-				     u32 off);
-	};
 };
 
 struct hisi_sas_iost_itct_cache {
@@ -350,10 +345,6 @@ struct hisi_sas_hw {
 					   int delay_ms, int timeout_ms);
 	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
 	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
-	int (*set_bist)(struct hisi_hba *hisi_hba, bool enable);
-	void (*read_iost_itct_cache)(struct hisi_hba *hisi_hba,
-				     enum hisi_sas_debugfs_cache_type type,
-				     u32 *cache);
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
 
