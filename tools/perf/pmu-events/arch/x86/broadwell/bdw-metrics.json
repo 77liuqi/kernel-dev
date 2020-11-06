@@ -349,4 +349,10 @@
         "MetricGroup": "Power",
         "MetricName": "C7_Pkg_Residency"
     }
+    {,
+        "BriefDescription": "test metric",
+        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
+        "MetricGroup": "Test",
+        "MetricName": "test_metric_inc"
+    }
 ]
