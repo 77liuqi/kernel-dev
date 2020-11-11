@@ -781,6 +781,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
 	space.prod = llq.prod;
 	while (!queue_has_space(&space, n + sync)) {
+		WARN_ONCE(!owner, "full but am the owner cpu%d\n", cpu);
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 
