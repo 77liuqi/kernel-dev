@@ -483,8 +483,8 @@ struct arm_smmu_ll_queue {
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
 	u32				cons;
-	u32				max_cmd_per_batch;
 	u32				max_n_shift;
+	u32				owner_count_shift;
 };
 
 struct arm_smmu_queue {

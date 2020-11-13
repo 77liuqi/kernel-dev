@@ -738,6 +738,8 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
+#define HACK
+extern int smmu_test;	
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
@@ -761,23 +763,35 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.count = 1,
 		.sync = sync,
 		.prod = n + sync,
-	}, test;
+	}, test_s, test_y;
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	int ret = 0;
 	ktime_t initial, final, *t;
+	int test = READ_ONCE(smmu_test);
+	int n_orig = n;
 	int cpu;
 	u32 xprod;
 
 
-	if (atomic64_read(&tries) < 5) {
-		test.val = 0;
+	#ifdef HACK
+	int i;
+	if (test)
+		n = CMDQ_BATCH_ENTRIES;
+	space.prod = n + sync;
+	#endif
 
-		atomic64_inc(&test.atomic);
-		pr_err("%s test.prod=0x%x .count=0x%x .sync=0x%x test.val=0x%llx", __func__, test.prod, test.count, test.sync, test.val);
-		test.val = 0;
-		test.prod = ~0;
-		atomic64_inc(&test.atomic);
-		pr_err("%s2 test.prod=0x%x .count=0x%x .sync=0x%x test.val=0x%llx", __func__, test.prod, test.count, test.sync, test.val);
+
+	if (atomic64_read(&tries) < 5) {
+		test_s.val = 0;
+
+		atomic64_inc(&test_s.atomic);
+		pr_err("%s test_s.prod=0x%x .count=0x%x .sync=0x%x test_s.val=0x%llx", __func__, test_s.prod, test_s.count, test_s.sync, test_s.val);
+		test_s.val = 0;
+		test_s.prod = ~0;
+		test_y.val = 0;
+		test_y.prod = 1;
+		atomic64_add(test_y.val, &test_s.atomic);
+		pr_err("%s2 test_s.prod=0x%x .count=0x%x .sync=0x%x test_s.val=0x%llx test_y.val=0x%llx", __func__, test_s.prod, test_s.count, test_s.sync, test_s.val, test_y.val);
 
 	}
 
@@ -812,7 +826,26 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * 2. Write our commands into the queue
 	 * Dependency ordering from the space-checking while loop, above.
 	 */
-	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n);
+	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
+
+
+	#ifdef HACK
+	if (test) {
+		for (i=n_orig;i<CMDQ_BATCH_ENTRIES ;i++) {
+			prod = queue_inc_prod_n(&llq, i);
+			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
+		}
+		pr_err_once("%s padding up %d commands\n", __func__, CMDQ_BATCH_ENTRIES);
+		prod = queue_inc_prod_n(&llq, CMDQ_BATCH_ENTRIES);
+	} else {
+		prod = queue_inc_prod_n(&llq, n);
+	}
+	#else
+	prod = queue_inc_prod_n(&llq, n);
+	#endif
+
 	if (sync) {
 		prod = queue_inc_prod_n(&llq, n);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
@@ -832,6 +865,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		};
 		u32 yprod;
 		int sync_count;
+		static int max_owner;
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == xprod);
 
@@ -862,6 +896,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_shared_lock(cmdq, sync_count);
 
+		if (sync_count > max_owner) {
+
+			max_owner = sync_count;
+			pr_err("%s max sync=%d\n", __func__, sync_count);
+		}
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
@@ -886,6 +925,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    llq.prod,
 					    readl_relaxed(cmdq->q.prod_reg),
 					    readl_relaxed(cmdq->q.cons_reg));
+			panic("no more\n");
 		}
 
 		/*
@@ -2741,6 +2781,66 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 	return 0;
 }
 
+static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
+				   struct arm_smmu_queue *q,
+				   unsigned long prod_off,
+				   unsigned long cons_off,
+				   size_t dwords)
+{
+	u32 cpus = num_possible_cpus(), bits_for_cmdq_owner,
+		bits_available_for_prod, entries_for_prod;
+	int ret;
+
+	/*
+	 * We can get the number of bits required for owner counting by
+	 * log2(nr possible cpus) + 1
+	 */
+	bits_for_cmdq_owner = ilog2(cpus) + 1;
+
+//#define EXTRA_SHIFT 3 //ok
+#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+
+
+	/*
+	 * Add an extra bit to ensure prod(+wrap) do not overflow into
+	 * owner count.
+	 */
+	bits_available_for_prod = 32 - 1 - bits_for_cmdq_owner;
+
+	if (bits_available_for_prod < 1) /* How many CPUs??? */
+		return -ENOMEM;
+
+	q->llq.max_n_shift = min(q->llq.max_n_shift, bits_available_for_prod);
+	q->llq.max_n_shift -= EXTRA_SHIFT;
+
+	ret = arm_smmu_init_one_queue(smmu, q, prod_off, cons_off, dwords,
+				      "cmdq");
+	if (ret)
+		return ret;
+
+	entries_for_prod = 1 << q->llq.max_n_shift;
+
+	/*
+	 * We need at least 2 commands in a batch (1 x CMD_SYNC and 1 x
+	 * whatever else).
+	 */
+	//if (entries_for_prod < 2 * cpus)
+	//	return -ENOMEM;
+
+	/*
+	 * When finding max_cmd_per_batch, deduct 1 entry per batch to take
+	 * account of CMD_SYNC
+	 */
+	
+
+	pr_err("%s max entries for prod=%d if we ignored CMDQ_BATCH_ENTRIES, max_cmd_per_batch=%d, entries_for_prod=%d, entries required for prod=%d\n", 
+		__func__, (entries_for_prod / cpus) - 1, CMDQ_BATCH_ENTRIES , entries_for_prod, cpus * (1 + CMDQ_BATCH_ENTRIES ));
+
+	q->llq.owner_count_shift = q->llq.max_n_shift + 2;
+
+	return 0;
+}
+
 static void arm_smmu_cmdq_free_bitmap(void *data)
 {
 	unsigned long *bitmap = data;
@@ -2774,9 +2874,8 @@ static int arm_smmu_init_queues(struct arm_smmu_device *smmu)
 	int ret;
 
 	/* cmdq */
-	ret = arm_smmu_init_one_queue(smmu, &smmu->cmdq.q, ARM_SMMU_CMDQ_PROD,
-				      ARM_SMMU_CMDQ_CONS, CMDQ_ENT_DWORDS,
-				      "cmdq");
+	ret = arm_smmu_init_cmd_queue(smmu, &smmu->cmdq.q, ARM_SMMU_CMDQ_PROD,
+				      ARM_SMMU_CMDQ_CONS, CMDQ_ENT_DWORDS);
 	if (ret)
 		return ret;
 
