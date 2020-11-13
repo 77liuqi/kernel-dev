@@ -120,14 +120,18 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
 		/* check if we have wrapped, meaning definitely no space */
-		if (cons > prod)
+		if (cons > prod) {
+			pr_err_once("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
 			return false;
+		}
 
 		space = (1 << q->max_n_shift) - (prod - cons);
 	} else {
 		/* similar check to above */
-		if (prod > cons)
+		if (prod > cons) {
+			pr_err_once("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
 			return false;
+		}
 
 		space = cons - prod;
 	}
@@ -757,11 +761,27 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.count = 1,
 		.sync = sync,
 		.prod = n + sync,
-	};
+	}, test;
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	int ret = 0;
 	ktime_t initial, final, *t;
 	int cpu;
+	u32 xprod;
+
+
+	if (atomic64_read(&tries) < 5) {
+		test.val = 0;
+
+		atomic64_inc(&test.atomic);
+		pr_err("%s test.prod=0x%x .count=0x%x .sync=0x%x test.val=0x%llx", __func__, test.prod, test.count, test.sync, test.val);
+		test.val = 0;
+		test.prod = ~0;
+		atomic64_inc(&test.atomic);
+		pr_err("%s2 test.prod=0x%x .count=0x%x .sync=0x%x test.val=0x%llx", __func__, test.prod, test.count, test.sync, test.val);
+
+	}
+
+	atomic64_inc(&tries);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -770,6 +790,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	initial = ktime_get();
 
 	llq.val = atomic64_fetch_add(space.val, &cmdq->q.llq.atomic);
+	xprod = llq.prod;
 	llq.prod &= prod_mask;
 	owner = !llq.count;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
@@ -807,15 +828,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		struct arm_smmu_ll_queue tmp = {
 			.sync= ~0,
 			.count= ~0,
-			.prod = ~prod_mask,
+		//	.prod = ~prod_mask,
 		};
+		u32 yprod;
 		int sync_count;
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
+		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == xprod);
 
 		/* b. Stop gathering work by clearing the owned mask */
 		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
 						       &cmdq->q.llq.atomic);
+		yprod = tmp.prod;
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
 		sync_count = tmp.sync;
 
@@ -850,7 +873,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Make sure we've updated the hardware first, so that we don't
 		 * race to update prod and potentially move it backwards.
 		 */
-		atomic_set_release(&cmdq->owner_prod, prod);
+		atomic_set_release(&cmdq->owner_prod, yprod);
 	}
 
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
