@@ -2614,6 +2614,7 @@ err_out:
 	return NULL;
 }
 
+struct device *hisi_sas_dev;
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
 {
@@ -2624,6 +2625,8 @@ int hisi_sas_probe(struct platform_device *pdev,
 	struct asd_sas_port **arr_port;
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
+	
+	hisi_sas_dev = dev;
 
 	shost = hisi_sas_shost_alloc(pdev, hw);
 	if (!shost)
