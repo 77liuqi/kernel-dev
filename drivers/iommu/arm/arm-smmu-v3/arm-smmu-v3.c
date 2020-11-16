@@ -183,7 +183,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 
 	result2 = space > xprod - aprod + n;
 
-	return result1; 
+//ok	return result1; 
 
 	//pr_err("%s2 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d llq_prod=0x%x result=%d\n", __func__, cpu, prod, aprod, cons, space, n, llq_prod, result);
 
@@ -192,7 +192,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n, struct arm_smmu_
 
 	if (result1 != result2)
 		panic("%s xxx cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d xprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, aprod, cons, space, n, xprod, result1, result2);
-	
+	return result1; 
 end:
 
 	return result1;
