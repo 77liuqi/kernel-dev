@@ -111,11 +111,13 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm_smmu_cmdq *cmdq, const u32 xprod, const u32 xcons, unsigned cpu, int owner)
+static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, struct arm_smmu_cmdq *cmdq, unsigned cpu, int owner)
 {
 	u32 space, prod, cons;
-	u32 aprod;
-	bool result1, result2, space1;
+	u32 _sprod, space1, _eprod, _xprod;
+	bool result1, result2;
+	bool wrapped = false, wrapped2 = false;
+	u64 owner_prod;
 
 	prod = Q_IDX(q, q->prod);
 	cons = Q_IDX(q, q->cons);
@@ -126,6 +128,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm
 			pr_err_once("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
 			result1 = false;
 			//panic("sdsds\n");
+			wrapped = true;
 			goto end;
 		}
 
@@ -136,6 +139,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm
 			pr_err_once("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
 			result1 = false;
 			//panic("sdsdws\n");
+			wrapped = true;
 			goto end;
 		}
 
@@ -143,7 +147,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm
 	}
 
 
-	space1= space;
+	space1 = space;
 	result1 = space >= n;
 // end
 	//////////////////////////		//////////////////////////
@@ -152,30 +156,64 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm
 	//////////////////////////		//////////////////////////
 
 //ok	return result1; 
+	owner_prod = atomic64_read(&cmdq->owner_prod);
+	_sprod = owner_prod >> 32;
+	_eprod = owner_prod & 0xffffffff;
+	_xprod = _eprod;
 
-	aprod = atomic_read(&cmdq->owner_prod);
+	_xprod = _sprod;
 
-	prod = Q_IDX(&cmdq->q.llq, aprod);
-	cons = Q_IDX(&cmdq->q.llq, xcons);
+	if ((Q_IDX(&cmdq->q.llq, _eprod) |Q_WRP(&cmdq->q.llq, _eprod)) == q->cons)
+		_xprod = _eprod;
+	else if ((Q_IDX(&cmdq->q.llq, _sprod) |Q_WRP(&cmdq->q.llq, _sprod)) == q->cons)
+		_xprod = _sprod;
+	else
+		_xprod = _eprod;
 
 //ok		return result1; 
-
-	if (Q_WRP(&cmdq->q.llq, prod) == Q_WRP(&cmdq->q.llq, cons))
-		space = (1 << cmdq->q.llq.max_n_shift) - (prod - cons);
+#if 0
+	if (q->prod == _eprod)
+		panic("%s0 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
+	else if (q->prod == _eprod)
+		panic("%s1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
 	else
+		panic("%s2 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
+#endif
+
+	prod = Q_IDX(&cmdq->q.llq, _xprod);
+	cons = Q_IDX(&cmdq->q.llq, q->cons);
+
+	if (Q_WRP(&cmdq->q.llq, _xprod) == Q_WRP(&cmdq->q.llq, q->cons)) {
+		space = (1 << cmdq->q.llq.max_n_shift) - (prod - cons);
+		if (cons > prod) {
+			wrapped2 = true;
+		}
+	} else {
+		if (prod > cons) {
+			wrapped2 = true;
+		}
 		space = cons - prod;
+	}
 //ok	return result1; 
 
-	//pr_err("%s cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d\n", __func__, cpu, prod, aprod, cons, space, n);
+	//pr_err("%s cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d\n", __func__, cpu, prod, sprod, cons, space, n);
+
+	if (wrapped2)
+		panic("%s9 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
+
 
 	if (space > 2 << cmdq->q.llq.max_n_shift)
-		panic("%s0 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d xprod=0x%x result1=%d result2=%d 1 >> cmdq->q.llq.max_n_shift=0x%x max_n_shift=%d\n",
-		__func__, cpu, prod, aprod, cons, space, n, xprod, result1, result2, 1 << cmdq->q.llq.max_n_shift, cmdq->q.llq.max_n_shift);
+		panic("%s10 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
 
 //ok		return result1; 
 
 	if ( space < n) {
-//		panic("%s1 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d result=%d\n", __func__, cpu, prod, aprod, cons, space, n, result);
+//		panic("%s1 cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d result=%d\n", __func__, cpu, prod, sprod, cons, space, n, result);
 		result2 = false;
 		goto end;
 	}
@@ -184,21 +222,22 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, const u32 n, struct arm
 
 //ok	return result1; 
 
-	if (xprod < aprod)
-		panic("%s2 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d xprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, aprod, cons, space, n, xprod, result1, result2);
+	if (q->prod < _sprod)
+		panic("%s11 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+				__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, space1, owner, wrapped, owner_prod, wrapped2);
 
-	result2 = space > xprod - aprod + n;
+	result2 = space >= q->prod - _xprod + n;
 
 //ok	return result1; 
 
-	//pr_err("%s2 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d llq_prod=0x%x result=%d\n", __func__, cpu, prod, aprod, cons, space, n, llq_prod, result);
+	//pr_err("%s2 cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d llq_prod=0x%x result=%d\n", __func__, cpu, prod, sprod, cons, space, n, llq_prod, result);
 
-	if (result2 == 0)
-		panic("%s3 cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d xprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, aprod, cons, space, n, xprod, result1, result2);
+//	if (result2 == 0)
+//		panic("%s3 cpu%d prod=0x%x new_prod=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, new_prod, cons, space, n, _sprod, result1, result2);
 
 	if (result1 != result2)
-		panic("%s xxx cpu%d prod=0x%x aprod=0x%x cons=0x%x space=0x%x n=%d xprod=0x%x result1=%d result2=%d space1=0x%x q->prod=0x%x owner=%d xcons=0x%x\n",
-		__func__, cpu, prod, aprod, cons, space, n, xprod, result1, result2, space1, q->prod, owner, xcons);
+		panic("%s xxx cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d space1=0x%x owner=%d wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, result2, space1, owner, wrapped, owner_prod, wrapped2);
 	return result1; 
 end:
 
@@ -836,7 +875,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int test = READ_ONCE(smmu_test);
 	int n_orig = n;
 	int cpu;
-	u32 xprod;
+	u32 sprod;
 
 
 	#ifdef HACK
@@ -847,7 +886,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	#endif
 
 
-	if (atomic64_read(&tries) < 5) {
+	if (atomic64_read(&tries) < 0) {
 		test_s.val = 0;
 
 		atomic64_inc(&test_s.atomic);
@@ -870,7 +909,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	initial = ktime_get();
 
 	llq.val = atomic64_fetch_add(space.val, &cmdq->q.llq.atomic);
-	xprod = llq.prod;
+	sprod = llq.prod;
 	llq.prod &= prod_mask;
 	owner = !llq.count;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
@@ -880,13 +919,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 * that there is space in the queue from our prod pointer.
 	 */
 	space.cons = READ_ONCE(cmdq->q.llq.cons);
-	space.prod = llq.prod;
-	while (!queue_has_space(&space, n + sync, cmdq, xprod, space.cons, cpu, owner)) {
+	space.prod = sprod;
+	while (!queue_has_space(&space, n + sync, cmdq, cpu, owner)) {
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 	//	dev_err_ratelimited(smmu->dev, "CMDQ timeout1\n");
 
-		space.prod = llq.prod;
+		space.prod = sprod;
 	}
 
 	/*
@@ -930,16 +969,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			.count= ~0,
 		//	.prod = ~prod_mask,
 		};
-		u32 yprod;
+		u32 eprod;
 		int sync_count;
 		static int max_owner;
+		u64 val;
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == xprod);
+		atomic64_cond_read_relaxed(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
 
 		/* b. Stop gathering work by clearing the owned mask */
 		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
 						       &cmdq->q.llq.atomic);
-		yprod = tmp.prod;
+		eprod = tmp.prod;
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
 		sync_count = tmp.sync;
 
@@ -974,12 +1014,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
+		val = eprod;
+		val |= (u64)sprod << 32;
 		/*
 		 * e. Tell the next owner we're done
 		 * Make sure we've updated the hardware first, so that we don't
 		 * race to update prod and potentially move it backwards.
 		 */
-		atomic_set_release(&cmdq->owner_prod, yprod);
+		atomic64_set_release(&cmdq->owner_prod, val);
 	}
 
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
@@ -2921,7 +2963,7 @@ static int arm_smmu_cmdq_init(struct arm_smmu_device *smmu)
 	unsigned int nents = 1 << cmdq->q.llq.max_n_shift;
 	atomic_long_t *bitmap;
 
-	atomic_set(&cmdq->owner_prod, 0);
+	atomic64_set(&cmdq->owner_prod, 0);
 	atomic_set(&cmdq->lock, 0);
 
 	bitmap = (atomic_long_t *)bitmap_zalloc(nents, GFP_KERNEL);

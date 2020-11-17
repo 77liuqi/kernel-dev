@@ -511,7 +511,7 @@ struct arm_smmu_queue_poll {
 struct arm_smmu_cmdq {
 	struct arm_smmu_queue		q;
 	atomic_long_t			*valid_map;
-	atomic_t			owner_prod;
+	atomic64_t			owner_prod;
 	atomic_t			lock;
 };
 
