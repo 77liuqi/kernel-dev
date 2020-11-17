@@ -1053,7 +1053,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    readl_relaxed(cmdq->q.cons_reg),
 					    atomic64_read(&cmdq->owner_prod), owner, sprod);
 			count++;
-			if (count > 10)
+			if (count > 200)
 				panic("no more\n");
 		}
 
