@@ -550,7 +550,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
  *   fails if the caller appears to be the last lock holder (yes, this is
  *   racy). All successful UNLOCK routines have RELEASE semantics.
  */
-static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
+static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
 {
 	int val;
 
@@ -560,12 +560,12 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	 * to INT_MIN so these increments won't hurt as the value will remain
 	 * negative.
 	 */
-	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
+	if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
 		return;
 
 	do {
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
-	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
+	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
 }
 
 static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
@@ -973,6 +973,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		prod = queue_inc_prod_n(&llq, n);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+
+		/*
+		 * In order to determine completion of our CMD_SYNC, we must
+		 * ensure that the queue can't wrap twice without us noticing.
+		 * We achieve that by taking the cmdq lock as shared before
+		 * marking our slot as valid.
+		 */
+		arm_smmu_cmdq_shared_lock(cmdq);
 	}
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
@@ -987,8 +995,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		//	.prod = ~prod_mask,
 		};
 		u32 eprod;
-		int sync_count;
-		static int max_owner;
 		u64 val;
 		/* a. Wait for previous owner to finish */
 		atomic64_cond_read_relaxed(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
@@ -998,7 +1004,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 						       &cmdq->q.llq.atomic);
 		eprod = tmp.prod;
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
-		sync_count = tmp.sync;
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
@@ -1007,24 +1012,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 
-		/*
-		 * In order to determine completion of the CMD_SYNCs, we must
-		 * ensure that the queue can't wrap twice without us noticing.
-		 * We achieve that by taking the cmdq lock as shared before
-		 * progressing the prod pointer.
-		 * The owner does this for all the non-owners it has gathered.
-		 * Otherwise, some non-owner(s) may lock the cmdq, blocking the
-		 * cons being updating. This could be when the cmdq has just
-		 * become full. In this case, other sibling non-owners could be
-		 * blocked from progressing, leading to deadlock.
-		 */
-		arm_smmu_cmdq_shared_lock(cmdq, sync_count);
-
-		if (sync_count > max_owner) {
-
-			max_owner = sync_count;
-			pr_err("%s max sync=%d\n", __func__, sync_count);
-		}
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
