@@ -156,6 +156,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 	//////////////////////////		//////////////////////////
 
 //ok	return result1; 
+	smp_mb__before_atomic();
 	owner_prod = atomic64_read(&cmdq->owner_prod);
 	_sprod = owner_prod >> 32;
 	_eprod = owner_prod & 0xffffffff;
@@ -850,7 +851,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
-#define HACK
+#undef HACK
 extern int smmu_test;	
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
