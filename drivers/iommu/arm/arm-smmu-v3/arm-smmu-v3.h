@@ -510,7 +510,10 @@ struct arm_smmu_cmdq {
 	struct arm_smmu_queue		q;
 	atomic_long_t			*valid_map;
 	atomic64_t			owner_prod;
-	u64					owner;
+	union {
+		u64				owner;
+		atomic64_t 		owner_a;
+	};
 	atomic_t			lock;
 };
 

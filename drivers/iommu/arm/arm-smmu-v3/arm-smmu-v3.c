@@ -866,7 +866,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u64 cmd_sync[CMDQ_ENT_DWORDS];
 	u32 prod;
 	unsigned long flags;
-	bool owner = false;
+	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
@@ -884,6 +884,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	static int print = 0;
 	u64 owner_val, _tries;
 	int count;
+	u32 shead;
 
 	#ifdef HACK
 	int i;
@@ -939,6 +940,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			if (print == 0)
 				print = 1;
 			dev_err_once(smmu->dev, "CMDQ timeout1 sprod=0x%x owner=%d cpu%d\n", sprod, owner, cpu);
+			panic("dsdsdsxxc34");
 		}
 
 		space.prod = sprod;
@@ -952,35 +954,42 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	owner_val = READ_ONCE(cmdq->owner);
 
-	if (_tries < 20)
-		pr_err("%s u0 cpu%d owner_val=0x%llx sprod=0x%x\n", __func__, cpu, owner_val, sprod);
 
 	count = 0;
+	shead = sprod + n + sync;
+
+	owner = false;
+	
+	if (_tries < 20)
+		pr_err("%s u0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x\n", __func__, cpu, owner_val, sprod, shead);
+	
 	while (1) {
-		u64 old, new_val = sprod | CMDQ_PROD_OWNED_FLAG;
+		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
 		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
 		
 		if (_tries < 20)
-			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x count=%d new_val=0x%llx owner_val=0x%llx\n", __func__, cpu, owner_val, sprod, count, new_val, owner_val);
+			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx owner_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, owner_val);
 
 		old = cmpxchg_relaxed(&cmdq->owner, owner_val, new_val);
 		if (_tries < 20)
-			pr_err("%s u2 cpu%d owner_val=0x%llx sprod=0x%x count=%d new_val=0x%llx owner_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, count, new_val, owner_val, old);
-		if (old== owner_val) {
-			owner = 1;
+			pr_err("%s u2 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx owner_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, owner_val, old);
+		if (old == owner_val) {
+			owner = true;
 			break;
 		}
 		owner_val = (u32)old;
-		if (owner_val > sprod)
+		if (owner_val > shead) {
+			pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx owner_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, owner_val, old);
 			break;
+		}
 		count++;
-		if (count > 10)
-			panic("sass cpu%d\n", cpu);
+		if (count > 50)
+			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx\n", cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner));
 	}
 
 
 	if (_tries < 20)
-		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, READ_ONCE(cmdq->owner), owner);
+		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), owner);
 
 	#ifdef HACK
 	if (test) {
@@ -1025,11 +1034,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u64 val;
 		/* a. Wait for previous owner to finish */
 		atomic64_cond_read_relaxed(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
-
+		
+		if (_tries < 20)
+			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx \n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner));
 		/* b. Stop gathering work by clearing the owned mask */
-//		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
-//						       &cmdq->q.llq.atomic64);
+		tmp.val = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
+	
 		eprod = tmp.prod;
+		if (_tries < 20)
+			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx tmp.val=0x%llx eprod=0x%x\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), tmp.val, eprod);
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
 
 		/*
@@ -1068,7 +1081,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					    readl_relaxed(cmdq->q.cons_reg),
 					    atomic64_read(&cmdq->owner_prod), owner, sprod);
 			count++;
-			if (count > 200)
+			if (count > 2)
 				panic("no more\n");
 		}
 
