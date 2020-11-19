@@ -652,13 +652,17 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
 
+	int count = 0;
+
 	while (llq.prod != eprod) {
 		unsigned long mask;
 		atomic_long_t *ptr;
 		u32 limit = BITS_PER_LONG;
 
-		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (set == false))
-			pr_err_once("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
+		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (count == 0)) {
+			count = 1;
+			pr_err("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
+		}
 
 		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
 		sbidx = Q_IDX(&llq, llq.prod) % BITS_PER_LONG;
@@ -1009,7 +1013,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 		owner_val = (u32)old;
 		if (owner_val > shead) {
-			pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			pr_err("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 			if (owner)
 				panic("wft1");
 			break;
@@ -1017,7 +1021,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (owner_val == shead) {
 			if (owner)
 				panic("wft2");
-			pr_err_once("%s u4 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			pr_err("%s u4 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 			break;
 		}
 		count++;
@@ -1079,9 +1083,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		eprod = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
 	
 		if (_tries < 0)
-			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx tmp.val=0x%llx eprod=0x%x owner_a=0x%llx tmp.val=0x%llx\n",
-			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), tmp.val, eprod, atomic64_read(&cmdq->owner_a), tmp.val);
-		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
+			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx eprod=0x%x owner_a=0x%llx\n",
+			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), eprod, atomic64_read(&cmdq->owner_a));
+		prod = Q_WRP(&llq, eprod) | Q_IDX(&llq, eprod);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
