@@ -1010,14 +1010,18 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		owner_val = (u32)old;
 		if (owner_val > shead) {
 			pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			if (owner)
+				panic("wft1");
 			break;
 		}
 		if (owner_val == shead) {
+			if (owner)
+				panic("wft2");
 			pr_err_once("%s u4 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 			break;
 		}
 		count++;
-		if (ktime_after(ktime_get(), owner_time + ms_to_ktime(800)))
+		if (ktime_after(ktime_get(), owner_time + ms_to_ktime(1800)))
 			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx old=0x%llx\n", 
 			cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), old);
 	}
@@ -1063,8 +1067,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		struct arm_smmu_ll_queue tmp = {
-		};
 		u32 eprod;
 		u64 val;
 		/* a. Wait for previous owner to finish */
@@ -1074,9 +1076,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner_a=0x%llx\n",
 			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), atomic64_read(&cmdq->owner_a));
 		/* b. Stop gathering work by clearing the owned mask */
-		tmp.val = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
+		eprod = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
 	
-		eprod = tmp.prod;
 		if (_tries < 0)
 			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx tmp.val=0x%llx eprod=0x%x owner_a=0x%llx tmp.val=0x%llx\n",
 			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), tmp.val, eprod, atomic64_read(&cmdq->owner_a), tmp.val);
@@ -1094,6 +1095,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Control dependency ordering from the entries becoming valid.
 		 */
 		writel_relaxed(prod, cmdq->q.prod_reg);
+
+		if (eprod < sprod)
+			panic("sddd es prod\n");
 
 		val = eprod;
 		val |= (u64)sprod << 32;
