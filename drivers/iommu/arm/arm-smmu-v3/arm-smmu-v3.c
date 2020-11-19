@@ -924,7 +924,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	_tries = atomic64_inc_return(&tries);
 
-	if (_tries < 0) {
+	if (_tries < 1000) {
 #ifdef fdffd
 		struct arm_smmu_ll_queue test_s, test_y;
 		test_s.val = 0;
@@ -988,8 +988,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	owner = false;
 	
-	if (_tries < 0)
-		pr_err("%s u0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x\n", __func__, cpu, owner_val, sprod, shead);
+	if (_tries < 1000)
+		pr_err("%s u0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x _tries=0x%llx\n", __func__, cpu, owner_val, sprod, shead, _tries);
 	owner_time = ktime_get();
 	while (1) {
 		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
@@ -1001,11 +1001,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//		break;
 	//	}
 		
-		if (_tries < 0)
+		if (_tries < 1000)
 			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
 
 		old = cmpxchg_relaxed(&cmdq->owner, owner_val, new_val);
-		if (_tries < 0)
+		if (_tries < 1000)
 			pr_err("%s u2 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 		if (old == owner_val) {
 			owner = true;
@@ -1031,7 +1031,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	if (_tries < 0)
+	if (_tries < 1000)
 		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), owner);
 
 	#ifdef HACK
@@ -1076,13 +1076,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* a. Wait for previous owner to finish */
 		atomic64_cond_read_relaxedx(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
 		
-		if (_tries < 0)
+		if (_tries < 1000)
 			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner_a=0x%llx\n",
 			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), atomic64_read(&cmdq->owner_a));
 		/* b. Stop gathering work by clearing the owned mask */
 		eprod = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
 	
-		if (_tries < 0)
+		if (_tries < 1000)
 			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx eprod=0x%x owner_a=0x%llx\n",
 			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), eprod, atomic64_read(&cmdq->owner_a));
 		prod = Q_WRP(&llq, eprod) | Q_IDX(&llq, eprod);
@@ -1105,6 +1105,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		val = eprod;
 		val |= (u64)sprod << 32;
+		if (_tries < 1000)
+			pr_err("%s v2 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx eprod=0x%x owner_a=0x%llx val=0x%llx\n",
+			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), eprod, atomic64_read(&cmdq->owner_a), val);
 		/*
 		 * e. Tell the next owner we're done
 		 * Make sure we've updated the hardware first, so that we don't
