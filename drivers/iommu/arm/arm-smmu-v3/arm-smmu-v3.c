@@ -927,29 +927,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	_tries = atomic64_inc_return(&tries);
 
-	if (_tries < 0) {
-#ifdef fdffd
-		struct arm_smmu_ll_queue test_s, test_y;
-		test_s.val = 0;
-		atomic64_inc(&test_s.atomic);
-		pr_err("%s test_s.prod=0x%x .count=0x%x .sync=0x%x test_s.val=0x%llx", __func__, test_s.prod, test_s.count, test_s.sync, test_s.val);
-		test_s.val = 0;
-		test_s.prod = ~0;
-		test_y.val = 0;
-		test_y.prod = 1;
-		atomic64_add(test_y.val, &test_s.atomic);
-		pr_err("%s2 test_s.prod=0x%x .count=0x%x .sync=0x%x test_s.val=0x%llx test_y.val=0x%llx", __func__, test_s.prod, test_s.count, test_s.sync, test_s.val, test_y.val);
-#endif
-	}
-
-
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 
-	llq.val = atomic_fetch_add(space.prod, &cmdq->q.llq.atomic.prod);
+	llq.val = atomic64_fetch_add(space.val, &cmdq->q.llq.atomic64);
 	sprod = llq.prod;
 	llq.prod &= prod_mask;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
@@ -1095,7 +1079,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Note that we read our own entries so that we have the control
 		 * dependency required by (d).
 		 */
-		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		arm_smmu_cmdq_poll_valid_map(cmdq, owner_val, prod);
 
 		/*
 		 * d. Advance the hardware prod pointer

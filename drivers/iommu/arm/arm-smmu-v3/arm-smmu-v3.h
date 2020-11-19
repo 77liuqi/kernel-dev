@@ -472,6 +472,7 @@ struct arm_smmu_cmdq_ent {
 struct arm_smmu_ll_queue {
 	union {
 		u64			val;
+		atomic64_t			atomic64;
 		struct {
 			u32		prod;
 			u32		cons;
