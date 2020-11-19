@@ -727,14 +727,13 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
-		llq->cons = READ_ONCE(cmdq->q.llq.cons);
+		llq->val = READ_ONCE(cmdq->q.llq.val);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
-		llq->prod = READ_ONCE(smmu->cmdq.q.llq.prod);
-		llq->cons = READ_ONCE(smmu->cmdq.q.llq.cons);
+		llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
 		if (!queue_full(llq))
 			break;
 
@@ -781,7 +780,7 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 	int ret = 0;
 
 	queue_poll_init(smmu, &qp);
-	llq->cons = READ_ONCE(smmu->cmdq.q.llq.cons);
+	llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
 	do {
 		if (queue_consumed(llq, prod))
 			break;
@@ -3011,7 +3010,7 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	bits_for_cmdq_owner = ilog2(cpus) + 1;
 
 //#define EXTRA_SHIFT 3 //ok
-#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+#define EXTRA_SHIFT 0//bad D05 dies at 64 D06ES dies at 64
 
 
 	/*
