@@ -646,6 +646,8 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		.max_n_shift	= cmdq->q.llq.max_n_shift,
 		.prod		= sprod,
 	};
+	ktime_t init_time = ktime_get();
+	
 
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
@@ -654,6 +656,9 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		unsigned long mask;
 		atomic_long_t *ptr;
 		u32 limit = BITS_PER_LONG;
+
+		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (set == false))
+			pr_err_once("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
 
 		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
 		sbidx = Q_IDX(&llq, llq.prod) % BITS_PER_LONG;
@@ -870,7 +875,7 @@ static atomic64_t cmpxchg_tries;
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
 		if (ktime_after(ktime_get(), hjhj + ms_to_ktime(700)))\
-			pr_err("relaxed cpu%d VAL=0x%llx sprod=0x%x\n", cpu, VAL, sprod);\
+			pr_err_once("relaxed cpu%d VAL=0x%llx sprod=0x%x\n", cpu, VAL, sprod);\
 	}								\
 	(typeof(*ptr))VAL;						\
 })
