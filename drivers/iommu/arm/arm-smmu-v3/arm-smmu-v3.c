@@ -1020,7 +1020,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 		owner_val = (u32)old;
 		if (owner_val > shead) {
-			pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			//pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 			if (owner)
 				panic("wft1");
 			break;
