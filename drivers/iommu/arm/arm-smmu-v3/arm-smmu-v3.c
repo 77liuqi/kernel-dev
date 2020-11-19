@@ -876,7 +876,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	};
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	int ret = 0;
-	ktime_t initial, final, *t;
+	ktime_t initial, final, *t, owner_time;
 	int test = READ_ONCE(smmu_test);
 	int n_orig = n;
 	int cpu;
@@ -918,7 +918,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 
-	llq.val = atomic_fetch_add(space.val, &cmdq->q.llq.atomic.prod);
+	llq.val = atomic_fetch_add(space.prod, &cmdq->q.llq.atomic.prod);
 	sprod = llq.prod;
 	llq.prod &= prod_mask;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
@@ -952,7 +952,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
-	owner_val = READ_ONCE(cmdq->owner);
+	owner_val = sprod;
 
 
 	count = 0;
@@ -962,15 +962,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	
 	if (_tries < 30)
 		pr_err("%s u0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x\n", __func__, cpu, owner_val, sprod, shead);
-	
+	owner_time = ktime_get();
 	while (1) {
 		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
 		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
 
-		if ((u32)owner_val >= shead) {
-			pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
-			break;
-		}
+	//	if ((u32)owner_val >= shead) {
+	//		pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
+	//		break;
+	//	}
 		
 		if (_tries < 30)
 			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
@@ -988,7 +988,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			break;
 		}
 		count++;
-		if (count > 5000)
+		if (ktime_after(ktime_get(), owner_time + ms_to_ktime(800)))
 			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx\n", cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner));
 	}
 
@@ -1041,13 +1041,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_cond_read_relaxed(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
 		
 		if (_tries < 30)
-			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx \n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner));
+			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner_a=0x%llx\n",
+			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), atomic64_read(&cmdq->owner_a));
 		/* b. Stop gathering work by clearing the owned mask */
 		tmp.val = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
 	
 		eprod = tmp.prod;
 		if (_tries < 30)
-			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx tmp.val=0x%llx eprod=0x%x\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), tmp.val, eprod);
+			pr_err("%s v1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx tmp.val=0x%llx eprod=0x%x owner_a=0x%llx tmp.val=0x%llx\n",
+			__func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), tmp.val, eprod, atomic64_read(&cmdq->owner_a), tmp.val);
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
 
 		/*
