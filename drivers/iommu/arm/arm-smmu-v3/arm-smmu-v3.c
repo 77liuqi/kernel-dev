@@ -127,14 +127,13 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 	if (Q_WRP(q, q->prod) == Q_WRP(q, q->cons)) {
 		/* check if we have wrapped, meaning definitely no space */
 		if (cons > prod) {
-			result1 = false;
-			//panic("sdsds\n");
 			wrapped = true;
-			if (atomic_inc_return(&printx) == 0) {
+			if (atomic_inc_return(&printx) <= 1) {
 				pr_err("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
 				p = 1;
 			}
-			goto end;
+			result1 = false;
+		//	goto end;
 		}
 
 		space = (1 << q->max_n_shift) - (prod - cons);
@@ -142,12 +141,12 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 		/* similar check to above */
 		if (prod > cons) {
 			wrapped = true;
-			if (atomic_inc_return(&printx) == 0) {
+			if (atomic_inc_return(&printx) <= 1) {
 				pr_err("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
 				p = 1;
 			}
 			result1 = false;
-			goto end;
+		//	goto end;
 		}
 
 		space = cons - prod;
@@ -230,9 +229,9 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 
 //ok	return result1; 
 
-	if ((q->prod < _sprod) || (p == 1))
-		panic("%s11 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d p=%d\n",
-				__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, space1, wrapped, owner_prod, wrapped2, p);
+	if (q->prod < _sprod) 
+		panic("%s11  _sprod ahead of q->prod cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d p=%d\n",
+				__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, space1, wrapped, owner_prod, wrapped2, p);
 
 	result2 = space >= q->prod - _xprod + n;
 
@@ -244,19 +243,16 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 //		panic("%s3 cpu%d prod=0x%x new_prod=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, new_prod, cons, space, n, _sprod, result1, result2);
 
 	if (result1 != result2)
-		panic("%s xxx cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
+		pr_err_once("%s differ results cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
 		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, result2, space1, wrapped, owner_prod, wrapped2);
 
 	if ((*print == 1) || (p == 1)) {
-		pr_err("%s print=1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d printx=%d\n",
+		pr_err("%s print stuff =1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d printx=%d\n",
 	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, owner_prod, wrapped2, p);
 		*print = 2;
 	}
 		
-	return result1; 
-end:
-
-	return result1;
+	return result2; 
 }
 
 static bool queue_full(struct arm_smmu_ll_queue *q)
@@ -1123,6 +1119,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * race to update prod and potentially move it backwards.
 		 */
 		atomic64_set_release(&cmdq->owner_prod, val);
+		smp_mb__after_atomic();
 	}
 
 	/* 5. If we are inserting a CMD_SYNC, we must wait for it to complete */
