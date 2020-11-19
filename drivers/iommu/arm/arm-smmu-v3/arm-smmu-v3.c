@@ -1105,6 +1105,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
 		 */
+		 if (prod != (Q_WRP(&llq, prod) | Q_IDX(&llq, prod)))
+		 	panic("prod=0x%x\n", prod);
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
 		if (eprod < sprod)
