@@ -142,6 +142,7 @@ do {									\
 
 #define smp_cond_load_relaxed(ptr, cond_expr)				\
 ({									\
+	ktime_t initial_time = ktime_get();\
 	typeof(ptr) __PTR = (ptr);					\
 	__unqual_scalar_typeof(*ptr) VAL;				\
 	for (;;) {							\
@@ -149,6 +150,8 @@ do {									\
 		if (cond_expr)						\
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
+		if (ktime_after(ktime_get(), initial_time + ms_to_ktime(800)))\
+			panic("timeout");\
 	}								\
 	(typeof(*ptr))VAL;						\
 })
