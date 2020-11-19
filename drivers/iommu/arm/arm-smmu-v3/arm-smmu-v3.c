@@ -859,6 +859,25 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
 
+#define smp_cond_load_relaxedx(ptr, cond_expr)				\
+({									\
+	ktime_t hjhj = ktime_get();\
+	typeof(ptr) __PTR = (ptr);					\
+	__unqual_scalar_typeof(*ptr) VAL;				\
+	for (;;) {							\
+		VAL = READ_ONCE(*__PTR);				\
+		if (cond_expr)						\
+			break;						\
+		__cmpwait_relaxed(__PTR, VAL);				\
+		if (ktime_after(ktime_get(), hjhj + ms_to_ktime(700)))\
+			pr_err("relaxed cpu%d VAL=0x%llx sprod=0x%x\n", cpu, VAL, sprod);\
+	}								\
+	(typeof(*ptr))VAL;						\
+})
+
+
+#define atomic64_cond_read_relaxedx(v, c) smp_cond_load_relaxedx(&(v)->counter, (c))
+
 
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
@@ -1044,7 +1063,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 eprod;
 		u64 val;
 		/* a. Wait for previous owner to finish */
-		atomic64_cond_read_relaxed(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
+		atomic64_cond_read_relaxedx(&cmdq->owner_prod, (VAL & 0xffffffff) == sprod);
 		
 		if (_tries < 0)
 			pr_err("%s v0 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner_a=0x%llx\n",
