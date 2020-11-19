@@ -965,7 +965,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	owner_time = ktime_get();
 	while (1) {
 		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
-		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
+	//	owner_val &= ~CMDQ_PROD_OWNED_FLAG;
+		owner_val = sprod;
 
 	//	if ((u32)owner_val >= shead) {
 	//		pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
@@ -984,12 +985,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 		owner_val = (u32)old;
 		if (owner_val >= shead) {
-			pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
-			break;
+		//	pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+		//	break;
 		}
 		count++;
 		if (ktime_after(ktime_get(), owner_time + ms_to_ktime(800)))
-			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx\n", cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner));
+			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx old=0x%llx\n", 
+			cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), old);
 	}
 
 
