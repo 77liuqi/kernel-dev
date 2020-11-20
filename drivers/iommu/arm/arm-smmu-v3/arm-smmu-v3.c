@@ -111,10 +111,10 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, struct arm_smmu_cmdq *cmdq, unsigned cpu, int owner, int *print)
+static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, struct arm_smmu_cmdq *cmdq, unsigned cpu, int *print, bool owner)
 {
 	u32 space, prod, cons;
-	u32 _sprod, space1, _eprod, _xprod;
+	u32 space1, _xprod;
 	bool result1, result2;
 	bool wrapped = false, wrapped2 = false;
 	u64 cons_owner;
@@ -129,7 +129,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 		if (cons > prod) {
 			wrapped = true;
 			if (atomic_inc_return(&printx) <= 1) {
-				pr_err("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
+			//	pr_err("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
 				p = 1;
 			}
 			result1 = false;
@@ -142,7 +142,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 		if (prod > cons) {
 			wrapped = true;
 			if (atomic_inc_return(&printx) <= 1) {
-				pr_err("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
+			//	pr_err("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
 				p = 1;
 			}
 			result1 = false;
@@ -207,18 +207,20 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 		}
 		space = cons - prod;
 	}
-//ok	return result1; 
+//ok	return result1;  
 
 	//pr_err("%s cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d\n", __func__, cpu, prod, sprod, cons, space, n);
 
-	if (wrapped2)
-		panic("%s 2nd wrapped cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
-	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, space1, wrapped, cons_owner, wrapped2, p);
+	if (wrapped2) {
+		u32 prod_reg = readl(cmdq->q.prod_reg);
+		panic("%s 2nd wrapped much space cpu%d q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x prod=0x%x cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d prod_reg=0x%x owner=%d\n",
+		__func__, cpu, q->owner_prod, q->prod, q->cons, prod, cons, space, n, _xprod, result1, space1, wrapped, cons_owner, wrapped2, prod_reg, owner);
+	}
 
 
 	if (space > 2 << cmdq->q.llq.max_n_shift)
-		panic("%s too much space cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d\n",
-		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, space1, wrapped, cons_owner, wrapped2);
+		panic("%s too much space cpu%d q->owner_prod=0x%x q->cons=0x%x prod=0x%x cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d\n",
+		__func__, cpu, q->owner_prod, q->cons, prod, cons, space, n, _xprod, result1, space1, wrapped, cons_owner, wrapped2);
 
 //ok		return result1; 
 
@@ -233,16 +235,16 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 //ok	return result1; 
 
 
-	result2 = space >= q->prod - _xprod + n;
+	result2 = space >= q->owner_prod - _xprod + n;
 
 	if (result2 == false)
-		pr_err_once("%s  result2 == false ahead of q->prod cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
-			__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
-
+		pr_err_once("%s  result2 == false cpu%d prod=0x%x cons=0x%x q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
+			__func__, cpu, prod, cons, q->owner_prod, q->prod, q->cons, space, n,  _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
+#if 0
 	if (q->prod < _sprod) 
-		panic("%s  _sprod ahead of q->prod cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
-				__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
-
+		panic("%s  _sprod ahead of q->prod cpu%d prod=0x%x q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
+				__func__, cpu, prod, q->owner_prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
+#endif
 //ok	return result1; 
 
 	//pr_err("%s2 cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d llq_prod=0x%x result=%d\n", __func__, cpu, prod, sprod, cons, space, n, llq_prod, result);
@@ -255,8 +257,8 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 //		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, result2, space1, wrapped, owner_prod, wrapped2);
 
 	if ((*print == 1) || (p == 1)) {
-		pr_err("%s print stuff =1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d printx=%d\n",
-	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
+		pr_err("%s print stuff =1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d printx=%d\n",
+	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
 		*print = 2;
 	}
 		
@@ -961,7 +963,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	space.cons_owner = READ_ONCE(cmdq->q.llq.cons_owner);
 	space.prod = sprod;
-	while (!queue_has_space(&space, n + sync, cmdq, cpu, owner, &print)) {
+	while (!queue_has_space(&space, n + sync, cmdq, cpu, &print, owner)) {
 		ktime_t timeout = initial + ms_to_ktime(800);
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
@@ -2981,7 +2983,8 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	bits_for_cmdq_owner = ilog2(cpus) + 1;
 
 //#define EXTRA_SHIFT 3 //ok
-#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+//#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+#define EXTRA_SHIFT 0
 
 
 	/*
@@ -3016,8 +3019,8 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	 */
 	
 
-	pr_err("%s max entries for prod=%d if we ignored CMDQ_BATCH_ENTRIES, max_cmd_per_batch=%d, entries_for_prod=%d, entries required for prod=%d\n", 
-		__func__, (entries_for_prod / cpus) - 1, CMDQ_BATCH_ENTRIES , entries_for_prod, cpus * (1 + CMDQ_BATCH_ENTRIES ));
+	pr_err("%s max entries for prod=%d if we ignored CMDQ_BATCH_ENTRIES, max_cmd_per_batch=%d, entries_for_prod=%d, entries required for prod=%d max_n_shift=%d\n", 
+		__func__, (entries_for_prod / cpus) - 1, CMDQ_BATCH_ENTRIES , entries_for_prod, cpus * (1 + CMDQ_BATCH_ENTRIES ), q->llq.max_n_shift);
 
 
 	return 0;
