@@ -235,6 +235,10 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 
 	result2 = space >= q->prod - _xprod + n;
 
+	if (result2 == false)
+		pr_err_once("%s  result2 == false ahead of q->prod cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
+			__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
+
 	if (q->prod < _sprod) 
 		panic("%s  _sprod ahead of q->prod cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
 				__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
