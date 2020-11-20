@@ -869,7 +869,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
-#undef HACK
+#define HACK
 extern int smmu_test;	
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
