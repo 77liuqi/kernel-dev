@@ -162,7 +162,6 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 	//////////////////////////		//////////////////////////
 
 //ok	return result1; 
-	smp_mb__before_atomic();
 	cons_owner = q->cons_owner;
 
 //	_sprod = owner_prod >> 32;
@@ -235,7 +234,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 //ok	return result1; 
 
 
-	result2 = space >= q->owner_prod - _xprod + n;
+	result2 = space >= q->prod - _xprod + n;
 
 	if (result2 == false)
 		pr_err_once("%s  result2 == false cpu%d prod=0x%x cons=0x%x q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d p=%d\n",
