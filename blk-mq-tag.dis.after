@@ -1,0 +1,1782 @@
+
+block/blk-mq-tag.o:     file format elf64-littleaarch64
+
+
+Disassembly of section .text:
+
+0000000000000000 <bt_iter>:
+static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
+{
+	struct bt_iter_data *iter_data = data;
+	struct blk_mq_hw_ctx *hctx = iter_data->hctx;
+	struct blk_mq_tags *tags = hctx->tags;
+	bool reserved = iter_data->reserved;
+       0:	39406043 	ldrb	w3, [x2, #24]
+	struct blk_mq_hw_ctx *hctx = iter_data->hctx;
+       4:	f9400040 	ldr	x0, [x2]
+	struct blk_mq_tags *tags = hctx->tags;
+       8:	f940a804 	ldr	x4, [x0, #336]
+	struct request *rq;
+
+	if (!reserved)
+       c:	35000063 	cbnz	w3, 18 <bt_iter+0x18>
+		bitnr += tags->nr_reserved_tags;
+      10:	b9400485 	ldr	w5, [x4, #4]
+      14:	0b050021 	add	w1, w1, w5
+	rq = tags->rqs[bitnr];
+      18:	f9405085 	ldr	x5, [x4, #160]
+	 * We can hit rq == NULL here, because the tagging functions
+	 * test and set the bit before assigning ->rqs[].
+	 */
+	if (rq && rq->q == hctx->queue)
+		return iter_data->fn(hctx, rq, iter_data->data, reserved);
+	return true;
+      1c:	52800024 	mov	w4, #0x1                   	// #1
+	rq = tags->rqs[bitnr];
+      20:	f86158a1 	ldr	x1, [x5, w1, uxtw #3]
+	if (rq && rq->q == hctx->queue)
+      24:	b40001e1 	cbz	x1, 60 <bt_iter+0x60>
+      28:	f9406805 	ldr	x5, [x0, #208]
+      2c:	f9400026 	ldr	x6, [x1]
+      30:	eb0500df 	cmp	x6, x5
+      34:	54000161 	b.ne	60 <bt_iter+0x60>  // b.any
+{
+      38:	d503233f 	paciasp
+      3c:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+      40:	910003fd 	mov	x29, sp
+		return iter_data->fn(hctx, rq, iter_data->data, reserved);
+      44:	a9408844 	ldp	x4, x2, [x2, #8]
+      48:	d63f0080 	blr	x4
+      4c:	12001c04 	and	w4, w0, #0xff
+}
+      50:	2a0403e0 	mov	w0, w4
+      54:	a8c17bfd 	ldp	x29, x30, [sp], #16
+      58:	d50323bf 	autiasp
+      5c:	d65f03c0 	ret
+      60:	2a0403e0 	mov	w0, w4
+      64:	d65f03c0 	ret
+
+0000000000000068 <bt_tags_iter>:
+
+static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
+{
+	struct bt_tags_iter_data *iter_data = data;
+	struct blk_mq_tags *tags = iter_data->tags;
+	bool reserved = iter_data->flags & BT_TAG_ITER_RESERVED;
+      68:	b9401843 	ldr	w3, [x2, #24]
+	struct blk_mq_tags *tags = iter_data->tags;
+      6c:	f9400040 	ldr	x0, [x2]
+	struct request *rq;
+
+	if (!reserved)
+      70:	12000064 	and	w4, w3, #0x1
+      74:	37000063 	tbnz	w3, #0, 80 <bt_tags_iter+0x18>
+		bitnr += tags->nr_reserved_tags;
+      78:	b9400405 	ldr	w5, [x0, #4]
+      7c:	0b050021 	add	w1, w1, w5
+      80:	2a0103e1 	mov	w1, w1
+
+	/*
+	 * We can hit rq == NULL here, because the tagging functions
+	 * test and set the bit before assigning ->rqs[].
+	 */
+	if (iter_data->flags & BT_TAG_ITER_STATIC_RQS)
+      84:	36100223 	tbz	w3, #2, c8 <bt_tags_iter+0x60>
+		rq = tags->static_rqs[bitnr];
+      88:	f9405400 	ldr	x0, [x0, #168]
+      8c:	f8617800 	ldr	x0, [x0, x1, lsl #3]
+	else
+		rq = tags->rqs[bitnr];
+	if (!rq)
+		return true;
+      90:	52800021 	mov	w1, #0x1                   	// #1
+	if (!rq)
+      94:	b4000220 	cbz	x0, d8 <bt_tags_iter+0x70>
+	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
+      98:	37080243 	tbnz	w3, #1, e0 <bt_tags_iter+0x78>
+{
+      9c:	d503233f 	paciasp
+      a0:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+      a4:	910003fd 	mov	x29, sp
+	    !blk_mq_request_started(rq))
+		return true;
+	return iter_data->fn(rq, iter_data->data, reserved);
+      a8:	a9408443 	ldp	x3, x1, [x2, #8]
+      ac:	2a0403e2 	mov	w2, w4
+      b0:	d63f0060 	blr	x3
+      b4:	12001c01 	and	w1, w0, #0xff
+}
+      b8:	2a0103e0 	mov	w0, w1
+      bc:	a8c17bfd 	ldp	x29, x30, [sp], #16
+      c0:	d50323bf 	autiasp
+      c4:	d65f03c0 	ret
+		rq = tags->rqs[bitnr];
+      c8:	f9405000 	ldr	x0, [x0, #160]
+      cc:	f8617800 	ldr	x0, [x0, x1, lsl #3]
+		return true;
+      d0:	52800021 	mov	w1, #0x1                   	// #1
+	if (!rq)
+      d4:	b5fffe20 	cbnz	x0, 98 <bt_tags_iter+0x30>
+}
+      d8:	2a0103e0 	mov	w0, w1
+      dc:	d65f03c0 	ret
+ * blk_mq_rq_state() - read the current MQ_RQ_* state of a request
+ * @rq: target request.
+ */
+static inline enum mq_rq_state blk_mq_rq_state(struct request *rq)
+{
+	return READ_ONCE(rq->state);
+      e0:	b940d403 	ldr	w3, [x0, #212]
+	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
+      e4:	35fffdc3 	cbnz	w3, 9c <bt_tags_iter+0x34>
+      e8:	17fffffc 	b	d8 <bt_tags_iter+0x70>
+      ec:	d503201f 	nop
+
+00000000000000f0 <blk_mq_tagset_count_completed_rqs>:
+      f0:	b940d400 	ldr	w0, [x0, #212]
+}
+EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
+
+static bool blk_mq_tagset_count_completed_rqs(struct request *rq,
+		void *data, bool reserved)
+{
+      f4:	d503233f 	paciasp
+	unsigned *count = data;
+
+	if (blk_mq_request_completed(rq))
+      f8:	7100081f 	cmp	w0, #0x2
+      fc:	54000081 	b.ne	10c <blk_mq_tagset_count_completed_rqs+0x1c>  // b.any
+		(*count)++;
+     100:	b9400020 	ldr	w0, [x1]
+     104:	11000400 	add	w0, w0, #0x1
+     108:	b9000020 	str	w0, [x1]
+	return true;
+}
+     10c:	52800020 	mov	w0, #0x1                   	// #1
+     110:	d50323bf 	autiasp
+     114:	d65f03c0 	ret
+
+0000000000000118 <blk_mq_unique_tag>:
+ * Note: When called for a request that is queued on a non-multiqueue request
+ * queue, the hardware context index is set to zero.
+ */
+u32 blk_mq_unique_tag(struct request *rq)
+{
+	return (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
+     118:	f9400801 	ldr	x1, [x0, #16]
+{
+     11c:	d503233f 	paciasp
+		(rq->tag & BLK_MQ_UNIQUE_TAG_MASK);
+     120:	79404000 	ldrh	w0, [x0, #32]
+}
+     124:	d50323bf 	autiasp
+	return (rq->mq_hctx->queue_num << BLK_MQ_UNIQUE_TAG_BITS) |
+     128:	b941ac21 	ldr	w1, [x1, #428]
+}
+     12c:	2a014000 	orr	w0, w0, w1, lsl #16
+     130:	d65f03c0 	ret
+     134:	d503201f 	nop
+
+0000000000000138 <__blk_mq_get_tag>:
+{
+     138:	aa0003e2 	mov	x2, x0
+	if (!data->q->elevator && !hctx_may_queue(data->hctx, bt))
+     13c:	f9400000 	ldr	x0, [x0]
+     140:	f9400400 	ldr	x0, [x0, #8]
+     144:	b40001e0 	cbz	x0, 180 <__blk_mq_get_tag+0x48>
+{
+     148:	d503233f 	paciasp
+     14c:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+     150:	aa0103e0 	mov	x0, x1
+     154:	910003fd 	mov	x29, sp
+	if (data->shallow_depth)
+     158:	b9400c41 	ldr	w1, [x2, #12]
+     15c:	350000a1 	cbnz	w1, 170 <__blk_mq_get_tag+0x38>
+		return __sbitmap_queue_get(bt);
+     160:	94000000 	bl	0 <__sbitmap_queue_get>
+}
+     164:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     168:	d50323bf 	autiasp
+     16c:	d65f03c0 	ret
+		return __sbitmap_queue_get_shallow(bt, data->shallow_depth);
+     170:	94000000 	bl	0 <__sbitmap_queue_get_shallow>
+}
+     174:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     178:	d50323bf 	autiasp
+     17c:	d65f03c0 	ret
+	if (!data->q->elevator && !hctx_may_queue(data->hctx, bt))
+     180:	f9401040 	ldr	x0, [x2, #32]
+static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
+				  struct sbitmap_queue *bt)
+{
+	unsigned int depth, users;
+
+	if (!hctx || !(hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED))
+     184:	b4fffe20 	cbz	x0, 148 <__blk_mq_get_tag+0x10>
+     188:	f9406003 	ldr	x3, [x0, #192]
+     18c:	360ffde3 	tbz	w3, #1, 148 <__blk_mq_get_tag+0x10>
+ * @nr: bit number to test
+ * @addr: Address to start counting from
+ */
+static inline int test_bit(int nr, const volatile unsigned long *addr)
+{
+	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
+     190:	f9400c03 	ldr	x3, [x0, #24]
+		return true;
+	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+     194:	721f007f 	tst	w3, #0x2
+     198:	54fffd80 	b.eq	148 <__blk_mq_get_tag+0x10>  // b.none
+		return true;
+
+	/*
+	 * Don't try dividing an ant
+	 */
+	if (bt->sb.depth == 1)
+     19c:	b9400023 	ldr	w3, [x1]
+     1a0:	7100047f 	cmp	w3, #0x1
+     1a4:	54fffd20 	b.eq	148 <__blk_mq_get_tag+0x10>  // b.none
+		return true;
+
+	users = atomic_read(&hctx->tags->active_queues);
+     1a8:	f940a804 	ldr	x4, [x0, #336]
+
+static __always_inline int
+atomic_read(const atomic_t *v)
+{
+	instrument_atomic_read(v, sizeof(*v));
+	return arch_atomic_read(v);
+     1ac:	b9400884 	ldr	w4, [x4, #8]
+	if (!users)
+     1b0:	34fffcc4 	cbz	w4, 148 <__blk_mq_get_tag+0x10>
+		return true;
+
+	/*
+	 * Allow at least some tags
+	 */
+	depth = max((bt->sb.depth + users - 1) / users, 4U);
+     1b4:	51000463 	sub	w3, w3, #0x1
+     1b8:	b941b005 	ldr	w5, [x0, #432]
+     1bc:	0b040063 	add	w3, w3, w4
+     1c0:	52800086 	mov	w6, #0x4                   	// #4
+		return BLK_MQ_NO_TAG;
+     1c4:	12800000 	mov	w0, #0xffffffff            	// #-1
+     1c8:	1ac40863 	udiv	w3, w3, w4
+     1cc:	6b06007f 	cmp	w3, w6
+     1d0:	1a862063 	csel	w3, w3, w6, cs  // cs = hs, nlast
+	if (!data->q->elevator && !hctx_may_queue(data->hctx, bt))
+     1d4:	6b05007f 	cmp	w3, w5
+     1d8:	54fffb88 	b.hi	148 <__blk_mq_get_tag+0x10>  // b.pmore
+}
+     1dc:	d65f03c0 	ret
+
+00000000000001e0 <__blk_mq_all_tag_iter>:
+{
+     1e0:	d503233f 	paciasp
+     1e4:	a9b67bfd 	stp	x29, x30, [sp, #-160]!
+     1e8:	910003fd 	mov	x29, sp
+     1ec:	f90013f5 	str	x21, [sp, #32]
+     1f0:	aa0003f5 	mov	x21, x0
+     1f4:	f9001ff8 	str	x24, [sp, #56]
+     1f8:	90000018 	adrp	x24, 0 <__stack_chk_guard>
+     1fc:	a904effa 	stp	x26, x27, [sp, #72]
+     200:	91000300 	add	x0, x24, #0x0
+     204:	aa0103fb 	mov	x27, x1
+     208:	b9006fa3 	str	w3, [x29, #108]
+     20c:	f9400001 	ldr	x1, [x0]
+     210:	f9004fa1 	str	x1, [x29, #152]
+     214:	d2800001 	mov	x1, #0x0                   	// #0
+     218:	aa0203fa 	mov	x26, x2
+	if (tags->nr_reserved_tags)
+     21c:	b94006a1 	ldr	w1, [x21, #4]
+     220:	f94052a0 	ldr	x0, [x21, #160]
+     224:	34000561 	cbz	w1, 2d0 <__blk_mq_all_tag_iter+0xf0>
+		bt_tags_for_each(tags, tags->breserved_tags, fn, priv,
+     228:	32000061 	orr	w1, w3, #0x1
+     22c:	f9002fbc 	str	x28, [x29, #88]
+	struct bt_tags_iter_data iter_data = {
+     230:	a907efb5 	stp	x21, x27, [x29, #120]
+     234:	f90047a2 	str	x2, [x29, #136]
+     238:	b90093a1 	str	w1, [x29, #144]
+		bt_tags_for_each(tags, tags->breserved_tags, fn, priv,
+     23c:	f9400ebc 	ldr	x28, [x21, #24]
+	if (tags->rqs)
+     240:	b4000d00 	cbz	x0, 3e0 <__blk_mq_all_tag_iter+0x200>
+     244:	f9000bb3 	str	x19, [x29, #16]
+	if (start >= sb->depth)
+		start = 0;
+	index = SB_NR_TO_INDEX(sb, start);
+	nr = SB_NR_TO_BIT(sb, start);
+
+	while (scanned < sb->depth) {
+     248:	b9400393 	ldr	w19, [x28]
+     24c:	34001033 	cbz	w19, 450 <__blk_mq_all_tag_iter+0x270>
+     250:	f9000fb4 	str	x20, [x29, #24]
+	index = SB_NR_TO_INDEX(sb, start);
+     254:	52800014 	mov	w20, #0x0                   	// #0
+     258:	a902dfb6 	stp	x22, x23, [x29, #40]
+	unsigned int scanned = 0;
+     25c:	52800016 	mov	w22, #0x0                   	// #0
+     260:	f90023b9 	str	x25, [x29, #64]
+		unsigned long word;
+		unsigned int depth = min_t(unsigned int,
+     264:	52801800 	mov	w0, #0xc0                  	// #192
+     268:	f9400b81 	ldr	x1, [x28, #16]
+     26c:	4b160273 	sub	w19, w19, w22
+     270:	9ba07e80 	umull	x0, w20, w0
+     274:	8b000022 	add	x2, x1, x0
+     278:	f8606821 	ldr	x1, [x1, x0]
+					   sb->map[index].depth - nr,
+					   sb->depth - scanned);
+
+		scanned += depth;
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     27c:	f9402043 	ldr	x3, [x2, #64]
+     280:	f9404040 	ldr	x0, [x2, #128]
+		unsigned int depth = min_t(unsigned int,
+     284:	6b01027f 	cmp	w19, w1
+     288:	1a813273 	csel	w19, w19, w1, cc  // cc = lo, ul, last
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     28c:	8a200060 	bic	x0, x3, x0
+     290:	f9003ba0 	str	x0, [x29, #112]
+		scanned += depth;
+     294:	0b1302d6 	add	w22, w22, w19
+		if (!word)
+     298:	b5000a80 	cbnz	x0, 3e8 <__blk_mq_all_tag_iter+0x208>
+
+			nr++;
+		}
+next:
+		nr = 0;
+		if (++index >= sb->map_nr)
+     29c:	b9400b80 	ldr	w0, [x28, #8]
+     2a0:	11000694 	add	w20, w20, #0x1
+	while (scanned < sb->depth) {
+     2a4:	b9400393 	ldr	w19, [x28]
+			index = 0;
+     2a8:	6b00029f 	cmp	w20, w0
+     2ac:	1a9f3294 	csel	w20, w20, wzr, cc  // cc = lo, ul, last
+	while (scanned < sb->depth) {
+     2b0:	6b16027f 	cmp	w19, w22
+     2b4:	54fffd88 	b.hi	264 <__blk_mq_all_tag_iter+0x84>  // b.pmore
+     2b8:	a94153b3 	ldp	x19, x20, [x29, #16]
+     2bc:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     2c0:	f94052a0 	ldr	x0, [x21, #160]
+     2c4:	f94023b9 	ldr	x25, [x29, #64]
+     2c8:	f9402fbc 	ldr	x28, [x29, #88]
+     2cc:	d503201f 	nop
+	struct bt_tags_iter_data iter_data = {
+     2d0:	b9406fa1 	ldr	w1, [x29, #108]
+     2d4:	a907efb5 	stp	x21, x27, [x29, #120]
+     2d8:	f90047ba 	str	x26, [x29, #136]
+     2dc:	b90093a1 	str	w1, [x29, #144]
+	bt_tags_for_each(tags, tags->bitmap_tags, fn, priv, flags);
+     2e0:	f9400aba 	ldr	x26, [x21, #16]
+	if (tags->rqs)
+     2e4:	b4000420 	cbz	x0, 368 <__blk_mq_all_tag_iter+0x188>
+     2e8:	f9000fb4 	str	x20, [x29, #24]
+     2ec:	b9400354 	ldr	w20, [x26]
+     2f0:	34000ad4 	cbz	w20, 448 <__blk_mq_all_tag_iter+0x268>
+     2f4:	f9000bb3 	str	x19, [x29, #16]
+	index = SB_NR_TO_INDEX(sb, start);
+     2f8:	52800015 	mov	w21, #0x0                   	// #0
+     2fc:	a902dfb6 	stp	x22, x23, [x29, #40]
+	unsigned int scanned = 0;
+     300:	52800016 	mov	w22, #0x0                   	// #0
+     304:	f90023b9 	str	x25, [x29, #64]
+		unsigned int depth = min_t(unsigned int,
+     308:	52801819 	mov	w25, #0xc0                  	// #192
+     30c:	9bb97ea0 	umull	x0, w21, w25
+     310:	f9400b41 	ldr	x1, [x26, #16]
+     314:	4b160294 	sub	w20, w20, w22
+     318:	8b000022 	add	x2, x1, x0
+     31c:	f8606821 	ldr	x1, [x1, x0]
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     320:	f9402043 	ldr	x3, [x2, #64]
+     324:	f9404040 	ldr	x0, [x2, #128]
+		unsigned int depth = min_t(unsigned int,
+     328:	6b01029f 	cmp	w20, w1
+     32c:	1a813294 	csel	w20, w20, w1, cc  // cc = lo, ul, last
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     330:	8a200060 	bic	x0, x3, x0
+     334:	f9003ba0 	str	x0, [x29, #112]
+		scanned += depth;
+     338:	0b1402d6 	add	w22, w22, w20
+		if (!word)
+     33c:	b50002c0 	cbnz	x0, 394 <__blk_mq_all_tag_iter+0x1b4>
+		if (++index >= sb->map_nr)
+     340:	b9400b40 	ldr	w0, [x26, #8]
+     344:	110006b5 	add	w21, w21, #0x1
+	while (scanned < sb->depth) {
+     348:	b9400354 	ldr	w20, [x26]
+			index = 0;
+     34c:	6b0002bf 	cmp	w21, w0
+     350:	1a9f32b5 	csel	w21, w21, wzr, cc  // cc = lo, ul, last
+	while (scanned < sb->depth) {
+     354:	6b16029f 	cmp	w20, w22
+     358:	54fffda8 	b.hi	30c <__blk_mq_all_tag_iter+0x12c>  // b.pmore
+     35c:	a94153b3 	ldp	x19, x20, [x29, #16]
+     360:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     364:	f94023b9 	ldr	x25, [x29, #64]
+}
+     368:	91000318 	add	x24, x24, #0x0
+     36c:	f9404fa1 	ldr	x1, [x29, #152]
+     370:	f9400300 	ldr	x0, [x24]
+     374:	ca000020 	eor	x0, x1, x0
+     378:	b5000720 	cbnz	x0, 45c <__blk_mq_all_tag_iter+0x27c>
+     37c:	f94013f5 	ldr	x21, [sp, #32]
+     380:	f9401ff8 	ldr	x24, [sp, #56]
+     384:	a944effa 	ldp	x26, x27, [sp, #72]
+     388:	a8ca7bfd 	ldp	x29, x30, [sp], #160
+     38c:	d50323bf 	autiasp
+     390:	d65f03c0 	ret
+     394:	2a1403f7 	mov	w23, w20
+		if (!word)
+     398:	d2800002 	mov	x2, #0x0                   	// #0
+     39c:	14000002 	b	3a4 <__blk_mq_all_tag_iter+0x1c4>
+			nr++;
+     3a0:	11000662 	add	w2, w19, #0x1
+			nr = find_next_bit(&word, depth, nr);
+     3a4:	aa1703e1 	mov	x1, x23
+     3a8:	9101c3a0 	add	x0, x29, #0x70
+     3ac:	94000000 	bl	0 <find_next_bit>
+     3b0:	aa0003f3 	mov	x19, x0
+			if (nr >= depth)
+     3b4:	6b00029f 	cmp	w20, w0
+     3b8:	54fffc49 	b.ls	340 <__blk_mq_all_tag_iter+0x160>  // b.plast
+			if (!fn(sb, (index << sb->shift) + nr, data))
+     3bc:	b9400741 	ldr	w1, [x26, #4]
+     3c0:	9101e3a2 	add	x2, x29, #0x78
+     3c4:	aa1a03e0 	mov	x0, x26
+     3c8:	1ac122a1 	lsl	w1, w21, w1
+     3cc:	0b130021 	add	w1, w1, w19
+     3d0:	97ffff26 	bl	68 <bt_tags_iter>
+     3d4:	72001c1f 	tst	w0, #0xff
+     3d8:	54fffe41 	b.ne	3a0 <__blk_mq_all_tag_iter+0x1c0>  // b.any
+     3dc:	17ffffe0 	b	35c <__blk_mq_all_tag_iter+0x17c>
+     3e0:	f9402fbc 	ldr	x28, [x29, #88]
+     3e4:	17ffffe1 	b	368 <__blk_mq_all_tag_iter+0x188>
+     3e8:	2a1303f7 	mov	w23, w19
+		if (!word)
+     3ec:	d2800002 	mov	x2, #0x0                   	// #0
+     3f0:	14000002 	b	3f8 <__blk_mq_all_tag_iter+0x218>
+			nr++;
+     3f4:	11000722 	add	w2, w25, #0x1
+			nr = find_next_bit(&word, depth, nr);
+     3f8:	aa1703e1 	mov	x1, x23
+     3fc:	9101c3a0 	add	x0, x29, #0x70
+     400:	94000000 	bl	0 <find_next_bit>
+     404:	aa0003f9 	mov	x25, x0
+			if (nr >= depth)
+     408:	6b00027f 	cmp	w19, w0
+     40c:	54fff489 	b.ls	29c <__blk_mq_all_tag_iter+0xbc>  // b.plast
+			if (!fn(sb, (index << sb->shift) + nr, data))
+     410:	b9400781 	ldr	w1, [x28, #4]
+     414:	9101e3a2 	add	x2, x29, #0x78
+     418:	aa1c03e0 	mov	x0, x28
+     41c:	1ac12281 	lsl	w1, w20, w1
+     420:	0b190021 	add	w1, w1, w25
+     424:	97ffff11 	bl	68 <bt_tags_iter>
+     428:	72001c1f 	tst	w0, #0xff
+     42c:	54fffe41 	b.ne	3f4 <__blk_mq_all_tag_iter+0x214>  // b.any
+     430:	a94153b3 	ldp	x19, x20, [x29, #16]
+     434:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     438:	f94052a0 	ldr	x0, [x21, #160]
+     43c:	f94023b9 	ldr	x25, [x29, #64]
+     440:	f9402fbc 	ldr	x28, [x29, #88]
+     444:	17ffffa3 	b	2d0 <__blk_mq_all_tag_iter+0xf0>
+     448:	f9400fb4 	ldr	x20, [x29, #24]
+     44c:	17ffffc7 	b	368 <__blk_mq_all_tag_iter+0x188>
+     450:	f9400bb3 	ldr	x19, [x29, #16]
+     454:	f9402fbc 	ldr	x28, [x29, #88]
+     458:	17ffff9e 	b	2d0 <__blk_mq_all_tag_iter+0xf0>
+     45c:	a90153b3 	stp	x19, x20, [x29, #16]
+     460:	a902dfb6 	stp	x22, x23, [x29, #40]
+     464:	f90023b9 	str	x25, [x29, #64]
+     468:	f9002fbc 	str	x28, [x29, #88]
+     46c:	94000000 	bl	0 <__stack_chk_fail>
+
+0000000000000470 <blk_mq_tagset_busy_iter>:
+	for (i = 0; i < tagset->nr_hw_queues; i++) {
+     470:	b9404005 	ldr	w5, [x0, #64]
+     474:	340003a5 	cbz	w5, 4e8 <blk_mq_tagset_busy_iter+0x78>
+{
+     478:	d503233f 	paciasp
+     47c:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+     480:	910003fd 	mov	x29, sp
+     484:	a90153f3 	stp	x19, x20, [sp, #16]
+     488:	aa0003f4 	mov	x20, x0
+     48c:	a9025bf5 	stp	x21, x22, [sp, #32]
+     490:	aa0203f6 	mov	x22, x2
+     494:	aa0103f5 	mov	x21, x1
+	for (i = 0; i < tagset->nr_hw_queues; i++) {
+     498:	52800013 	mov	w19, #0x0                   	// #0
+     49c:	d503201f 	nop
+		if (tagset->tags && tagset->tags[i])
+     4a0:	f9403683 	ldr	x3, [x20, #104]
+     4a4:	b4000123 	cbz	x3, 4c8 <blk_mq_tagset_busy_iter+0x58>
+     4a8:	f873d864 	ldr	x4, [x3, w19, sxtw #3]
+			__blk_mq_all_tag_iter(tagset->tags[i], fn, priv,
+     4ac:	aa1603e2 	mov	x2, x22
+     4b0:	52800043 	mov	w3, #0x2                   	// #2
+     4b4:	aa1503e1 	mov	x1, x21
+     4b8:	aa0403e0 	mov	x0, x4
+		if (tagset->tags && tagset->tags[i])
+     4bc:	b4000064 	cbz	x4, 4c8 <blk_mq_tagset_busy_iter+0x58>
+			__blk_mq_all_tag_iter(tagset->tags[i], fn, priv,
+     4c0:	97ffff48 	bl	1e0 <__blk_mq_all_tag_iter>
+     4c4:	b9404285 	ldr	w5, [x20, #64]
+	for (i = 0; i < tagset->nr_hw_queues; i++) {
+     4c8:	11000673 	add	w19, w19, #0x1
+     4cc:	6b1300bf 	cmp	w5, w19
+     4d0:	54fffe88 	b.hi	4a0 <blk_mq_tagset_busy_iter+0x30>  // b.pmore
+}
+     4d4:	a94153f3 	ldp	x19, x20, [sp, #16]
+     4d8:	a9425bf5 	ldp	x21, x22, [sp, #32]
+     4dc:	a8c37bfd 	ldp	x29, x30, [sp], #48
+     4e0:	d50323bf 	autiasp
+     4e4:	d65f03c0 	ret
+     4e8:	d65f03c0 	ret
+     4ec:	d503201f 	nop
+
+00000000000004f0 <blk_mq_tagset_wait_completed_request>:
+{
+     4f0:	d503233f 	paciasp
+     4f4:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     4f8:	910003fd 	mov	x29, sp
+     4fc:	a90153f3 	stp	x19, x20, [sp, #16]
+     500:	90000013 	adrp	x19, 0 <bt_iter>
+     504:	f90013f5 	str	x21, [sp, #32]
+     508:	90000015 	adrp	x21, 0 <__stack_chk_guard>
+     50c:	910002a1 	add	x1, x21, #0x0
+     510:	aa0003f4 	mov	x20, x0
+		blk_mq_tagset_busy_iter(tagset,
+     514:	91000273 	add	x19, x19, #0x0
+{
+     518:	f9400020 	ldr	x0, [x1]
+     51c:	f9001fa0 	str	x0, [x29, #56]
+     520:	d2800000 	mov	x0, #0x0                   	// #0
+     524:	14000003 	b	530 <blk_mq_tagset_wait_completed_request+0x40>
+		msleep(5);
+     528:	528000a0 	mov	w0, #0x5                   	// #5
+     52c:	94000000 	bl	0 <msleep>
+		blk_mq_tagset_busy_iter(tagset,
+     530:	aa1403e0 	mov	x0, x20
+     534:	9100d3a2 	add	x2, x29, #0x34
+     538:	aa1303e1 	mov	x1, x19
+		unsigned count = 0;
+     53c:	b90037bf 	str	wzr, [x29, #52]
+		blk_mq_tagset_busy_iter(tagset,
+     540:	94000000 	bl	470 <blk_mq_tagset_busy_iter>
+		if (!count)
+     544:	b94037a0 	ldr	w0, [x29, #52]
+     548:	35ffff00 	cbnz	w0, 528 <blk_mq_tagset_wait_completed_request+0x38>
+}
+     54c:	910002b5 	add	x21, x21, #0x0
+     550:	f9401fa1 	ldr	x1, [x29, #56]
+     554:	f94002a0 	ldr	x0, [x21]
+     558:	ca000020 	eor	x0, x1, x0
+     55c:	b50000c0 	cbnz	x0, 574 <blk_mq_tagset_wait_completed_request+0x84>
+     560:	a94153f3 	ldp	x19, x20, [sp, #16]
+     564:	f94013f5 	ldr	x21, [sp, #32]
+     568:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     56c:	d50323bf 	autiasp
+     570:	d65f03c0 	ret
+     574:	94000000 	bl	0 <__stack_chk_fail>
+
+0000000000000578 <__blk_mq_tag_busy>:
+     578:	f9400c01 	ldr	x1, [x0, #24]
+	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state) &&
+     57c:	721f003f 	tst	w1, #0x2
+     580:	54000061 	b.ne	58c <__blk_mq_tag_busy+0x14>  // b.any
+{
+	long old;
+	unsigned long mask = BIT_MASK(nr);
+
+	p += BIT_WORD(nr);
+	if (READ_ONCE(*p) & mask)
+     584:	f9400c01 	ldr	x1, [x0, #24]
+     588:	36080061 	tbz	w1, #1, 594 <__blk_mq_tag_busy+0x1c>
+}
+     58c:	52800020 	mov	w0, #0x1                   	// #1
+     590:	d65f03c0 	ret
+{
+     594:	d503233f 	paciasp
+	    !test_and_set_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+     598:	91006002 	add	x2, x0, #0x18
+}
+
+static __always_inline bool arch_static_branch_jump(struct static_key *key,
+						    bool branch)
+{
+	asm_volatile_goto(
+     59c:	14000008 	b	5bc <__blk_mq_tag_busy+0x44>
+     5a0:	14000007 	b	5bc <__blk_mq_tag_busy+0x44>
+	ATOMIC64_FETCH_OP(_acquire,  a, op, asm_op, "memory")		\
+	ATOMIC64_FETCH_OP(_release,  l, op, asm_op, "memory")		\
+	ATOMIC64_FETCH_OP(        , al, op, asm_op, "memory")
+
+ATOMIC64_FETCH_OPS(andnot, ldclr)
+ATOMIC64_FETCH_OPS(or, ldset)
+     5a4:	d2800041 	mov	x1, #0x2                   	// #2
+     5a8:	f8e13041 	ldsetal	x1, x1, [x2]
+	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state) &&
+     5ac:	360800e1 	tbz	w1, #1, 5c8 <__blk_mq_tag_busy+0x50>
+}
+     5b0:	52800020 	mov	w0, #0x1                   	// #1
+     5b4:	d50323bf 	autiasp
+     5b8:	d65f03c0 	ret
+	ATOMIC64_FETCH_OP (_relaxed,,  ,  ,         , __VA_ARGS__)	\
+	ATOMIC64_FETCH_OP (_acquire,, a,  , "memory", __VA_ARGS__)	\
+	ATOMIC64_FETCH_OP (_release,,  , l, "memory", __VA_ARGS__)
+
+ATOMIC64_OPS(and, and, L)
+ATOMIC64_OPS(or, orr, L)
+     5bc:	91006004 	add	x4, x0, #0x18
+     5c0:	140002b4 	b	1090 <blk_mq_tag_update_depth+0x160>
+     5c4:	17fffffa 	b	5ac <__blk_mq_tag_busy+0x34>
+		atomic_inc(&hctx->tags->active_queues);
+     5c8:	f940a800 	ldr	x0, [x0, #336]
+     5cc:	91002002 	add	x2, x0, #0x8
+     5d0:	14000005 	b	5e4 <__blk_mq_tag_busy+0x6c>
+     5d4:	14000004 	b	5e4 <__blk_mq_tag_busy+0x6c>
+ATOMIC_OP(add, stadd)
+     5d8:	52800021 	mov	w1, #0x1                   	// #1
+     5dc:	b821005f 	stadd	w1, [x2]
+     5e0:	17fffff4 	b	5b0 <__blk_mq_tag_busy+0x38>
+ATOMIC_OPS(add, add, I)
+     5e4:	91002000 	add	x0, x0, #0x8
+     5e8:	140002b1 	b	10ac <blk_mq_tag_update_depth+0x17c>
+	return true;
+     5ec:	17fffff1 	b	5b0 <__blk_mq_tag_busy+0x38>
+
+00000000000005f0 <blk_mq_tag_wakeup_all>:
+{
+     5f0:	d503233f 	paciasp
+     5f4:	a9be7bfd 	stp	x29, x30, [sp, #-32]!
+     5f8:	910003fd 	mov	x29, sp
+     5fc:	a90153f3 	stp	x19, x20, [sp, #16]
+     600:	aa0003f3 	mov	x19, x0
+     604:	12001c34 	and	w20, w1, #0xff
+	sbitmap_queue_wake_all(tags->bitmap_tags);
+     608:	f9400800 	ldr	x0, [x0, #16]
+     60c:	94000000 	bl	0 <sbitmap_queue_wake_all>
+	if (include_reserve)
+     610:	34000074 	cbz	w20, 61c <blk_mq_tag_wakeup_all+0x2c>
+		sbitmap_queue_wake_all(tags->breserved_tags);
+     614:	f9400e60 	ldr	x0, [x19, #24]
+     618:	94000000 	bl	0 <sbitmap_queue_wake_all>
+}
+     61c:	a94153f3 	ldp	x19, x20, [sp, #16]
+     620:	a8c27bfd 	ldp	x29, x30, [sp], #32
+     624:	d50323bf 	autiasp
+     628:	d65f03c0 	ret
+     62c:	d503201f 	nop
+
+0000000000000630 <__blk_mq_tag_idle>:
+{
+	long old;
+	unsigned long mask = BIT_MASK(nr);
+
+	p += BIT_WORD(nr);
+	if (!(READ_ONCE(*p) & mask))
+     630:	f9400c01 	ldr	x1, [x0, #24]
+     634:	37080041 	tbnz	w1, #1, 63c <__blk_mq_tag_idle+0xc>
+     638:	d65f03c0 	ret
+{
+     63c:	d503233f 	paciasp
+     640:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+     644:	91006002 	add	x2, x0, #0x18
+{
+     648:	910003fd 	mov	x29, sp
+	struct blk_mq_tags *tags = hctx->tags;
+     64c:	f940a803 	ldr	x3, [x0, #336]
+     650:	14000009 	b	674 <__blk_mq_tag_idle+0x44>
+     654:	14000008 	b	674 <__blk_mq_tag_idle+0x44>
+ATOMIC64_FETCH_OPS(andnot, ldclr)
+     658:	d2800041 	mov	x1, #0x2                   	// #2
+     65c:	f8e11041 	ldclral	x1, x1, [x2]
+     660:	aa0103e0 	mov	x0, x1
+	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+     664:	37080120 	tbnz	w0, #1, 688 <__blk_mq_tag_idle+0x58>
+}
+     668:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     66c:	d50323bf 	autiasp
+     670:	d65f03c0 	ret
+/*
+ * GAS converts the mysterious and undocumented BIC (immediate) alias to
+ * an AND (immediate) instruction with the immediate inverted. We don't
+ * have a constraint for this, so fall back to register.
+ */
+ATOMIC64_OPS(andnot, bic, )
+     674:	d2800042 	mov	x2, #0x2                   	// #2
+     678:	91006000 	add	x0, x0, #0x18
+     67c:	14000292 	b	10c4 <blk_mq_tag_update_depth+0x194>
+     680:	aa0103e0 	mov	x0, x1
+	if (!test_and_clear_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+     684:	360fff20 	tbz	w0, #1, 668 <__blk_mq_tag_idle+0x38>
+	atomic_dec(&tags->active_queues);
+     688:	91002061 	add	x1, x3, #0x8
+     68c:	1400000a 	b	6b4 <__blk_mq_tag_idle+0x84>
+     690:	14000009 	b	6b4 <__blk_mq_tag_idle+0x84>
+	asm volatile(
+     694:	52800020 	mov	w0, #0x1                   	// #1
+     698:	4b0003e0 	neg	w0, w0
+     69c:	b820003f 	stadd	w0, [x1]
+	sbitmap_queue_wake_all(tags->bitmap_tags);
+     6a0:	f9400860 	ldr	x0, [x3, #16]
+     6a4:	94000000 	bl	0 <sbitmap_queue_wake_all>
+}
+     6a8:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     6ac:	d50323bf 	autiasp
+     6b0:	d65f03c0 	ret
+ATOMIC_OPS(sub, sub, J)
+     6b4:	52800020 	mov	w0, #0x1                   	// #1
+     6b8:	91002064 	add	x4, x3, #0x8
+     6bc:	14000289 	b	10e0 <blk_mq_tag_update_depth+0x1b0>
+     6c0:	17fffff8 	b	6a0 <__blk_mq_tag_idle+0x70>
+     6c4:	d503201f 	nop
+
+00000000000006c8 <blk_mq_put_tag>:
+{
+     6c8:	d503233f 	paciasp
+     6cc:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+     6d0:	2a0203e3 	mov	w3, w2
+     6d4:	910003fd 	mov	x29, sp
+	if (!blk_mq_tag_is_reserved(tags, tag)) {
+     6d8:	b9400402 	ldr	w2, [x0, #4]
+     6dc:	6b02007f 	cmp	w3, w2
+     6e0:	54000183 	b.cc	710 <blk_mq_put_tag+0x48>  // b.lo, b.ul, b.last
+		BUG_ON(real_tag >= tags->nr_tags);
+     6e4:	b9400004 	ldr	w4, [x0]
+		const int real_tag = tag - tags->nr_reserved_tags;
+     6e8:	4b020063 	sub	w3, w3, w2
+		BUG_ON(real_tag >= tags->nr_tags);
+     6ec:	6b04007f 	cmp	w3, w4
+     6f0:	540001e2 	b.cs	72c <blk_mq_put_tag+0x64>  // b.hs, b.nlast
+		sbitmap_queue_clear(tags->bitmap_tags, real_tag, ctx->cpu);
+     6f4:	b9404022 	ldr	w2, [x1, #64]
+     6f8:	2a0303e1 	mov	w1, w3
+     6fc:	f9400800 	ldr	x0, [x0, #16]
+     700:	94000000 	bl	0 <sbitmap_queue_clear>
+}
+     704:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     708:	d50323bf 	autiasp
+     70c:	d65f03c0 	ret
+		sbitmap_queue_clear(tags->breserved_tags, tag, ctx->cpu);
+     710:	b9404022 	ldr	w2, [x1, #64]
+     714:	2a0303e1 	mov	w1, w3
+     718:	f9400c00 	ldr	x0, [x0, #24]
+     71c:	94000000 	bl	0 <sbitmap_queue_clear>
+}
+     720:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     724:	d50323bf 	autiasp
+     728:	d65f03c0 	ret
+		BUG_ON(real_tag >= tags->nr_tags);
+     72c:	d4210000 	brk	#0x800
+
+0000000000000730 <blk_mq_get_tag>:
+{
+     730:	d503233f 	paciasp
+     734:	a9b67bfd 	stp	x29, x30, [sp, #-160]!
+ */
+static __always_inline struct task_struct *get_current(void)
+{
+	unsigned long sp_el0;
+
+	asm ("mrs %0, sp_el0" : "=r" (sp_el0));
+     738:	d5384105 	mrs	x5, sp_el0
+     73c:	910003fd 	mov	x29, sp
+     740:	a90153f3 	stp	x19, x20, [sp, #16]
+     744:	aa0003f3 	mov	x19, x0
+     748:	f90013f5 	str	x21, [sp, #32]
+     74c:	90000015 	adrp	x21, 0 <__stack_chk_guard>
+     750:	f9001bf7 	str	x23, [sp, #48]
+     754:	910002a0 	add	x0, x21, #0x0
+     758:	f90027fa 	str	x26, [sp, #72]
+	struct blk_mq_hw_ctx *hctx;
+};
+
+static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
+{
+	if (data->q->elevator)
+     75c:	f9400264 	ldr	x4, [x19]
+     760:	f9400001 	ldr	x1, [x0]
+     764:	f9004fa1 	str	x1, [x29, #152]
+     768:	d2800001 	mov	x1, #0x0                   	// #0
+	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
+     76c:	f9401262 	ldr	x2, [x19, #32]
+	DEFINE_SBQ_WAIT(wait);
+     770:	910223a1 	add	x1, x29, #0x88
+	if (data->flags & BLK_MQ_REQ_RESERVED) {
+     774:	b9400a63 	ldr	w3, [x19, #8]
+	DEFINE_SBQ_WAIT(wait);
+     778:	90000000 	adrp	x0, 0 <autoremove_wake_function>
+     77c:	f9400486 	ldr	x6, [x4, #8]
+     780:	91000000 	add	x0, x0, #0x0
+		return data->hctx->sched_tags;
+
+	return data->hctx->tags;
+     784:	f940a844 	ldr	x4, [x2, #336]
+     788:	f10000df 	cmp	x6, #0x0
+		return data->hctx->sched_tags;
+     78c:	f940ac5a 	ldr	x26, [x2, #344]
+     790:	a906ffbf 	stp	xzr, xzr, [x29, #104]
+     794:	a90783a5 	stp	x5, x0, [x29, #120]
+	return data->hctx->tags;
+     798:	9a84135a 	csel	x26, x26, x4, ne  // ne = any
+     79c:	a90887a1 	stp	x1, x1, [x29, #136]
+	if (data->flags & BLK_MQ_REQ_RESERVED) {
+     7a0:	360811e3 	tbz	w3, #1, 9dc <blk_mq_get_tag+0x2ac>
+		if (unlikely(!tags->nr_reserved_tags)) {
+     7a4:	b9400740 	ldr	w0, [x26, #4]
+     7a8:	340014e0 	cbz	w0, a44 <blk_mq_get_tag+0x314>
+     7ac:	f9002bbb 	str	x27, [x29, #80]
+	tag = __blk_mq_get_tag(data, bt);
+     7b0:	aa1303e0 	mov	x0, x19
+		tag_offset = 0;
+     7b4:	52800017 	mov	w23, #0x0                   	// #0
+		bt = tags->breserved_tags;
+     7b8:	f9400f54 	ldr	x20, [x26, #24]
+	tag = __blk_mq_get_tag(data, bt);
+     7bc:	aa1403e1 	mov	x1, x20
+     7c0:	97fffe5e 	bl	138 <__blk_mq_get_tag>
+     7c4:	2a0003fb 	mov	w27, w0
+	if (tag != BLK_MQ_NO_TAG)
+     7c8:	3100041f 	cmn	w0, #0x1
+     7cc:	540011a1 	b.ne	a00 <blk_mq_get_tag+0x2d0>  // b.any
+	if (data->flags & BLK_MQ_REQ_NOWAIT)
+     7d0:	b9400a61 	ldr	w1, [x19, #8]
+     7d4:	37000ea1 	tbnz	w1, #0, 9a8 <blk_mq_get_tag+0x278>
+     7d8:	f90017b6 	str	x22, [x29, #40]
+     7dc:	a903e7b8 	stp	x24, x25, [x29, #56]
+	ws = bt_wait_ptr(bt, data->hctx);
+     7e0:	f9401260 	ldr	x0, [x19, #32]
+     7e4:	f9401699 	ldr	x25, [x20, #40]
+	if (!hctx)
+     7e8:	b4000200 	cbz	x0, 828 <blk_mq_get_tag+0xf8>
+     7ec:	b9414804 	ldr	w4, [x0, #328]
+#if !defined(arch_atomic_cmpxchg_relaxed) || defined(arch_atomic_cmpxchg)
+static __always_inline int
+atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	instrument_atomic_write(v, sizeof(*v));
+	return arch_atomic_cmpxchg(v, old, new);
+     7f0:	91052003 	add	x3, x0, #0x148
+	return arch_atomic_read(v);
+     7f4:	b9414801 	ldr	w1, [x0, #328]
+static inline struct sbq_wait_state *sbq_wait_ptr(struct sbitmap_queue *sbq,
+						  atomic_t *wait_index)
+{
+	struct sbq_wait_state *ws;
+
+	ws = &sbq->ws[atomic_read(wait_index)];
+     7f8:	937a7c84 	sbfiz	x4, x4, #6, #32
+	return (index + 1) & (SBQ_WAIT_QUEUES - 1);
+     7fc:	11000422 	add	w2, w1, #0x1
+	return arch_atomic_cmpxchg(v, old, new);
+     800:	93407c20 	sxtw	x0, w1
+	ws = &sbq->ws[atomic_read(wait_index)];
+     804:	8b040339 	add	x25, x25, x4
+	return (index + 1) & (SBQ_WAIT_QUEUES - 1);
+     808:	12000842 	and	w2, w2, #0x7
+     80c:	14000091 	b	a50 <blk_mq_get_tag+0x320>
+     810:	14000090 	b	a50 <blk_mq_get_tag+0x320>
+__CMPXCHG_CASE(w, h, rel_, 16,  l, "memory")
+__CMPXCHG_CASE(w,  , rel_, 32,  l, "memory")
+__CMPXCHG_CASE(x,  , rel_, 64,  l, "memory")
+__CMPXCHG_CASE(w, b,  mb_,  8, al, "memory")
+__CMPXCHG_CASE(w, h,  mb_, 16, al, "memory")
+__CMPXCHG_CASE(w,  ,  mb_, 32, al, "memory")
+     814:	aa0303e0 	mov	x0, x3
+     818:	2a0103e4 	mov	w4, w1
+     81c:	88e4fc62 	casal	w4, w2, [x3]
+     820:	2a0403e0 	mov	w0, w4
+     824:	f9401260 	ldr	x0, [x19, #32]
+		blk_mq_run_hw_queue(data->hctx, false);
+     828:	52800001 	mov	w1, #0x0                   	// #0
+     82c:	94000000 	bl	0 <blk_mq_run_hw_queue>
+	return __blk_mq_get_ctx(q, raw_smp_processor_id());
+     830:	90000018 	adrp	x24, 0 <cpu_number>
+	return per_cpu_ptr(q->queue_ctx, cpu);
+     834:	90000016 	adrp	x22, 0 <__per_cpu_offset>
+		tag = __blk_mq_get_tag(data, bt);
+     838:	aa1403e1 	mov	x1, x20
+     83c:	aa1303e0 	mov	x0, x19
+	return __blk_mq_get_ctx(q, raw_smp_processor_id());
+     840:	91000318 	add	x24, x24, #0x0
+     844:	97fffe3d 	bl	138 <__blk_mq_get_tag>
+	return per_cpu_ptr(q->queue_ctx, cpu);
+     848:	910002d6 	add	x22, x22, #0x0
+     84c:	2a0003fb 	mov	w27, w0
+		if (tag != BLK_MQ_NO_TAG)
+     850:	3100041f 	cmn	w0, #0x1
+     854:	54000941 	b.ne	97c <blk_mq_get_tag+0x24c>  // b.any
+		sbitmap_prepare_to_wait(bt, ws, &wait, TASK_UNINTERRUPTIBLE);
+     858:	9101a3a2 	add	x2, x29, #0x68
+     85c:	52800043 	mov	w3, #0x2                   	// #2
+     860:	aa1903e1 	mov	x1, x25
+     864:	aa1403e0 	mov	x0, x20
+     868:	94000000 	bl	0 <sbitmap_prepare_to_wait>
+		tag = __blk_mq_get_tag(data, bt);
+     86c:	aa1403e1 	mov	x1, x20
+     870:	aa1303e0 	mov	x0, x19
+     874:	97fffe31 	bl	138 <__blk_mq_get_tag>
+     878:	2a0003fb 	mov	w27, w0
+		if (tag != BLK_MQ_NO_TAG)
+     87c:	3100041f 	cmn	w0, #0x1
+     880:	540007e1 	b.ne	97c <blk_mq_get_tag+0x24c>  // b.any
+		io_schedule();
+     884:	94000000 	bl	0 <io_schedule>
+		sbitmap_finish_wait(bt, ws, &wait);
+     888:	9101a3a2 	add	x2, x29, #0x68
+     88c:	aa1903e1 	mov	x1, x25
+     890:	aa1403e0 	mov	x0, x20
+     894:	94000000 	bl	0 <sbitmap_finish_wait>
+	return __blk_mq_get_ctx(q, raw_smp_processor_id());
+     898:	aa1803e0 	mov	x0, x24
+		data->ctx = blk_mq_get_ctx(data->q);
+     89c:	f9400263 	ldr	x3, [x19]
+
+	/*
+	 * We want to allow caching the value, so avoid using volatile and
+	 * instead use a fake stack read to hazard against barrier().
+	 */
+	asm(ALTERNATIVE("mrs %0, tpidr_el1",
+     8a0:	d538d081 	mrs	x1, tpidr_el1
+	return per_cpu_ptr(q->queue_ctx, cpu);
+     8a4:	b8616804 	ldr	w4, [x0, x1]
+		type = HCTX_TYPE_POLL;
+     8a8:	52800041 	mov	w1, #0x2                   	// #2
+		data->hctx = blk_mq_map_queue(data->q, data->cmd_flags,
+     8ac:	b9401262 	ldr	w2, [x19, #16]
+	return per_cpu_ptr(q->queue_ctx, cpu);
+     8b0:	f9401460 	ldr	x0, [x3, #40]
+     8b4:	f8647ac4 	ldr	x4, [x22, x4, lsl #3]
+     8b8:	8b040000 	add	x0, x0, x4
+		data->ctx = blk_mq_get_ctx(data->q);
+     8bc:	f9000e60 	str	x0, [x19, #24]
+	if (flags & REQ_HIPRI)
+     8c0:	37c00082 	tbnz	w2, #24, 8d0 <blk_mq_get_tag+0x1a0>
+	else if ((flags & REQ_OP_MASK) == REQ_OP_READ)
+     8c4:	12001c42 	and	w2, w2, #0xff
+     8c8:	7100005f 	cmp	w2, #0x0
+     8cc:	1a9f17e1 	cset	w1, eq  // eq = none
+	return ctx->hctxs[type];
+     8d0:	d37d0421 	ubfiz	x1, x1, #3, #2
+		if (data->flags & BLK_MQ_REQ_RESERVED)
+     8d4:	b9400a62 	ldr	w2, [x19, #8]
+     8d8:	8b010000 	add	x0, x0, x1
+     8dc:	f9402800 	ldr	x0, [x0, #80]
+		data->hctx = blk_mq_map_queue(data->q, data->cmd_flags,
+     8e0:	f9001260 	str	x0, [x19, #32]
+		return data->hctx->sched_tags;
+     8e4:	a9556801 	ldp	x1, x26, [x0, #336]
+	if (data->q->elevator)
+     8e8:	f9400463 	ldr	x3, [x3, #8]
+	return data->hctx->tags;
+     8ec:	f100007f 	cmp	x3, #0x0
+     8f0:	9a81135a 	csel	x26, x26, x1, ne  // ne = any
+			bt = tags->breserved_tags;
+     8f4:	f27f005f 	tst	x2, #0x2
+     8f8:	a941075b 	ldp	x27, x1, [x26, #16]
+     8fc:	9a81037b 	csel	x27, x27, x1, eq  // eq = none
+		if (bt != bt_prev)
+     900:	eb1b029f 	cmp	x20, x27
+     904:	54000080 	b.eq	914 <blk_mq_get_tag+0x1e4>  // b.none
+			sbitmap_queue_wake_up(bt_prev);
+     908:	aa1403e0 	mov	x0, x20
+     90c:	94000000 	bl	0 <sbitmap_queue_wake_up>
+     910:	f9401260 	ldr	x0, [x19, #32]
+     914:	f9401779 	ldr	x25, [x27, #40]
+     918:	b4000200 	cbz	x0, 958 <blk_mq_get_tag+0x228>
+	return arch_atomic_read(v);
+     91c:	b9414804 	ldr	w4, [x0, #328]
+	return arch_atomic_cmpxchg(v, old, new);
+     920:	91052003 	add	x3, x0, #0x148
+	return arch_atomic_read(v);
+     924:	b9414801 	ldr	w1, [x0, #328]
+	ws = &sbq->ws[atomic_read(wait_index)];
+     928:	937a7c84 	sbfiz	x4, x4, #6, #32
+	return (index + 1) & (SBQ_WAIT_QUEUES - 1);
+     92c:	11000422 	add	w2, w1, #0x1
+	return arch_atomic_cmpxchg(v, old, new);
+     930:	93407c20 	sxtw	x0, w1
+	ws = &sbq->ws[atomic_read(wait_index)];
+     934:	8b040339 	add	x25, x25, x4
+	return (index + 1) & (SBQ_WAIT_QUEUES - 1);
+     938:	12000842 	and	w2, w2, #0x7
+     93c:	1400003d 	b	a30 <blk_mq_get_tag+0x300>
+     940:	1400003c 	b	a30 <blk_mq_get_tag+0x300>
+     944:	aa0303e0 	mov	x0, x3
+     948:	2a0103e4 	mov	w4, w1
+     94c:	88e4fc62 	casal	w4, w2, [x3]
+     950:	2a0403e0 	mov	w0, w4
+     954:	f9401260 	ldr	x0, [x19, #32]
+		tag_offset = 0;
+     958:	aa1b03f4 	mov	x20, x27
+		blk_mq_run_hw_queue(data->hctx, false);
+     95c:	52800001 	mov	w1, #0x0                   	// #0
+     960:	94000000 	bl	0 <blk_mq_run_hw_queue>
+		tag = __blk_mq_get_tag(data, bt);
+     964:	aa1403e1 	mov	x1, x20
+     968:	aa1303e0 	mov	x0, x19
+     96c:	97fffdf3 	bl	138 <__blk_mq_get_tag>
+     970:	2a0003fb 	mov	w27, w0
+		if (tag != BLK_MQ_NO_TAG)
+     974:	3100041f 	cmn	w0, #0x1
+     978:	54fff700 	b.eq	858 <blk_mq_get_tag+0x128>  // b.none
+	sbitmap_finish_wait(bt, ws, &wait);
+     97c:	aa1903e1 	mov	x1, x25
+     980:	aa1403e0 	mov	x0, x20
+     984:	9101a3a2 	add	x2, x29, #0x68
+     988:	94000000 	bl	0 <sbitmap_finish_wait>
+	if (unlikely(test_bit(BLK_MQ_S_INACTIVE, &data->hctx->state))) {
+     98c:	f9401261 	ldr	x1, [x19, #32]
+     990:	0b170360 	add	w0, w27, w23
+	sbitmap_finish_wait(bt, ws, &wait);
+     994:	f94017b6 	ldr	x22, [x29, #40]
+     998:	a943e7b8 	ldp	x24, x25, [x29, #56]
+     99c:	f9400c21 	ldr	x1, [x1, #24]
+	if (unlikely(test_bit(BLK_MQ_S_INACTIVE, &data->hctx->state))) {
+     9a0:	721d003f 	tst	w1, #0x8
+     9a4:	54000381 	b.ne	a14 <blk_mq_get_tag+0x2e4>  // b.any
+     9a8:	f9402bbb 	ldr	x27, [x29, #80]
+}
+     9ac:	910002b5 	add	x21, x21, #0x0
+     9b0:	f9404fa2 	ldr	x2, [x29, #152]
+     9b4:	f94002a1 	ldr	x1, [x21]
+     9b8:	ca010041 	eor	x1, x2, x1
+     9bc:	b5000521 	cbnz	x1, a60 <blk_mq_get_tag+0x330>
+     9c0:	a94153f3 	ldp	x19, x20, [sp, #16]
+     9c4:	f94013f5 	ldr	x21, [sp, #32]
+     9c8:	f9401bf7 	ldr	x23, [sp, #48]
+     9cc:	f94027fa 	ldr	x26, [sp, #72]
+     9d0:	a8ca7bfd 	ldp	x29, x30, [sp], #160
+     9d4:	d50323bf 	autiasp
+     9d8:	d65f03c0 	ret
+     9dc:	f9002bbb 	str	x27, [x29, #80]
+	tag = __blk_mq_get_tag(data, bt);
+     9e0:	aa1303e0 	mov	x0, x19
+		bt = tags->bitmap_tags;
+     9e4:	f9400b54 	ldr	x20, [x26, #16]
+		tag_offset = tags->nr_reserved_tags;
+     9e8:	b9400757 	ldr	w23, [x26, #4]
+	tag = __blk_mq_get_tag(data, bt);
+     9ec:	aa1403e1 	mov	x1, x20
+     9f0:	97fffdd2 	bl	138 <__blk_mq_get_tag>
+     9f4:	2a0003fb 	mov	w27, w0
+	if (tag != BLK_MQ_NO_TAG)
+     9f8:	3100041f 	cmn	w0, #0x1
+     9fc:	54ffeea0 	b.eq	7d0 <blk_mq_get_tag+0xa0>  // b.none
+	if (unlikely(test_bit(BLK_MQ_S_INACTIVE, &data->hctx->state))) {
+     a00:	f9401261 	ldr	x1, [x19, #32]
+     a04:	0b170360 	add	w0, w27, w23
+     a08:	f9400c21 	ldr	x1, [x1, #24]
+     a0c:	721d003f 	tst	w1, #0x8
+     a10:	54fffcc0 	b.eq	9a8 <blk_mq_get_tag+0x278>  // b.none
+		blk_mq_put_tag(tags, data->ctx, tag + tag_offset);
+     a14:	f9400e61 	ldr	x1, [x19, #24]
+     a18:	2a0003e2 	mov	w2, w0
+     a1c:	aa1a03e0 	mov	x0, x26
+     a20:	94000000 	bl	6c8 <blk_mq_put_tag>
+		return BLK_MQ_NO_TAG;
+     a24:	f9402bbb 	ldr	x27, [x29, #80]
+     a28:	12800000 	mov	w0, #0xffffffff            	// #-1
+     a2c:	17ffffe0 	b	9ac <blk_mq_get_tag+0x27c>
+__CMPXCHG_CASE(w, h, rel_, 16,        ,  , l, "memory", K)
+__CMPXCHG_CASE(w,  , rel_, 32,        ,  , l, "memory", K)
+__CMPXCHG_CASE( ,  , rel_, 64,        ,  , l, "memory", L)
+__CMPXCHG_CASE(w, b,  mb_,  8, dmb ish,  , l, "memory", K)
+__CMPXCHG_CASE(w, h,  mb_, 16, dmb ish,  , l, "memory", K)
+__CMPXCHG_CASE(w,  ,  mb_, 32, dmb ish,  , l, "memory", K)
+     a30:	92407c00 	and	x0, x0, #0xffffffff
+     a34:	140001b2 	b	10fc <blk_mq_tag_update_depth+0x1cc>
+     a38:	f9401260 	ldr	x0, [x19, #32]
+		tag_offset = 0;
+     a3c:	aa1b03f4 	mov	x20, x27
+     a40:	17ffffc7 	b	95c <blk_mq_get_tag+0x22c>
+			WARN_ON_ONCE(1);
+     a44:	d4210000 	brk	#0x800
+			return BLK_MQ_NO_TAG;
+     a48:	12800000 	mov	w0, #0xffffffff            	// #-1
+     a4c:	17ffffd8 	b	9ac <blk_mq_get_tag+0x27c>
+     a50:	92407c00 	and	x0, x0, #0xffffffff
+     a54:	140001b2 	b	111c <blk_mq_tag_update_depth+0x1ec>
+     a58:	f9401260 	ldr	x0, [x19, #32]
+     a5c:	17ffff73 	b	828 <blk_mq_get_tag+0xf8>
+     a60:	f90017b6 	str	x22, [x29, #40]
+     a64:	a903e7b8 	stp	x24, x25, [x29, #56]
+     a68:	f9002bbb 	str	x27, [x29, #80]
+}
+     a6c:	94000000 	bl	0 <__stack_chk_fail>
+
+0000000000000a70 <blk_mq_all_tag_iter>:
+{
+     a70:	d503233f 	paciasp
+     a74:	a9bf7bfd 	stp	x29, x30, [sp, #-16]!
+	__blk_mq_all_tag_iter(tags, fn, priv, BT_TAG_ITER_STATIC_RQS);
+     a78:	52800083 	mov	w3, #0x4                   	// #4
+{
+     a7c:	910003fd 	mov	x29, sp
+	__blk_mq_all_tag_iter(tags, fn, priv, BT_TAG_ITER_STATIC_RQS);
+     a80:	97fffdd8 	bl	1e0 <__blk_mq_all_tag_iter>
+}
+     a84:	a8c17bfd 	ldp	x29, x30, [sp], #16
+     a88:	d50323bf 	autiasp
+     a8c:	d65f03c0 	ret
+
+0000000000000a90 <blk_mq_queue_tag_busy_iter>:
+{
+     a90:	d503233f 	paciasp
+     a94:	a9b67bfd 	stp	x29, x30, [sp, #-160]!
+     a98:	910003fd 	mov	x29, sp
+     a9c:	a90153f3 	stp	x19, x20, [sp, #16]
+     aa0:	a9025bf5 	stp	x21, x22, [sp, #32]
+     aa4:	a90363f7 	stp	x23, x24, [sp, #48]
+     aa8:	a9046bf9 	stp	x25, x26, [sp, #64]
+     aac:	aa0003f9 	mov	x25, x0
+     ab0:	a90573fb 	stp	x27, x28, [sp, #80]
+     ab4:	90000000 	adrp	x0, 0 <__stack_chk_guard>
+     ab8:	91000000 	add	x0, x0, #0x0
+     abc:	a90607a2 	stp	x2, x1, [x29, #96]
+     ac0:	f9400001 	ldr	x1, [x0]
+     ac4:	f9004fa1 	str	x1, [x29, #152]
+     ac8:	d2800001 	mov	x1, #0x0                   	// #0
+ * read-side critical sections may be preempted and they may also block, but
+ * only when acquiring spinlocks that are subject to priority inheritance.
+ */
+static __always_inline void rcu_read_lock(void)
+{
+	__rcu_read_lock();
+     acc:	94000000 	bl	0 <__rcu_read_lock>
+	 * READ_ONCE() is required when fetching it.
+	 *
+	 * The dependency ordering from the READ_ONCE() pairs
+	 * with smp_store_release() in __percpu_ref_switch_to_percpu().
+	 */
+	percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
+     ad0:	f942ff20 	ldr	x0, [x25, #1528]
+     ad4:	9117c323 	add	x3, x25, #0x5f0
+	 * Theoretically, the following could test just ATOMIC; however,
+	 * then we'd have to mask off DEAD separately as DEAD may be
+	 * visible without ATOMIC if we race with percpu_ref_kill().  DEAD
+	 * implies ATOMIC anyway.  Test them together.
+	 */
+	if (unlikely(percpu_ptr & __PERCPU_REF_ATOMIC_DEAD))
+     ad8:	f240041f 	tst	x0, #0x3
+     adc:	54001401 	b.ne	d5c <blk_mq_queue_tag_busy_iter+0x2cc>  // b.any
+     ae0:	d5384101 	mrs	x1, sp_el0
+	return !current_thread_info()->preempt.need_resched;
+}
+
+static inline void __preempt_count_add(int val)
+{
+	u32 pc = READ_ONCE(current_thread_info()->preempt.count);
+     ae4:	b9401022 	ldr	w2, [x1, #16]
+	pc += val;
+     ae8:	11000442 	add	w2, w2, #0x1
+	WRITE_ONCE(current_thread_info()->preempt.count, pc);
+     aec:	b9001022 	str	w2, [x1, #16]
+
+PERCPU_RW_OPS(8)
+PERCPU_RW_OPS(16)
+PERCPU_RW_OPS(32)
+PERCPU_RW_OPS(64)
+PERCPU_OP(add, add, stadd)
+     af0:	d2800023 	mov	x3, #0x1                   	// #1
+	asm(ALTERNATIVE("mrs %0, tpidr_el1",
+     af4:	d538d082 	mrs	x2, tpidr_el1
+PERCPU_OP(add, add, stadd)
+     af8:	8b020000 	add	x0, x0, x2
+     afc:	c85f7c05 	ldxr	x5, [x0]
+     b00:	8b0300a5 	add	x5, x5, x3
+     b04:	c8047c05 	stxr	w4, x5, [x0]
+     b08:	35ffffa4 	cbnz	w4, afc <blk_mq_queue_tag_busy_iter+0x6c>
+}
+
+static inline bool __preempt_count_dec_and_test(void)
+{
+	struct thread_info *ti = current_thread_info();
+	u64 pc = READ_ONCE(ti->preempt_count);
+     b0c:	f9400820 	ldr	x0, [x1, #16]
+
+	/* Update only the count field, leaving need_resched unchanged */
+	WRITE_ONCE(ti->preempt.count, --pc);
+     b10:	d1000400 	sub	x0, x0, #0x1
+     b14:	b9001020 	str	w0, [x1, #16]
+	 * need of a reschedule. Otherwise, we need to reload the
+	 * preempt_count in case the need_resched flag was cleared by an
+	 * interrupt occurring between the non-atomic READ_ONCE/WRITE_ONCE
+	 * pair.
+	 */
+	return !pc || !READ_ONCE(ti->preempt_count);
+     b18:	b50011c0 	cbnz	x0, d50 <blk_mq_queue_tag_busy_iter+0x2c0>
+	bool ret;
+
+	rcu_read_lock();
+
+	if (__ref_is_percpu(ref, &percpu_count)) {
+		this_cpu_add(*percpu_count, nr);
+     b1c:	94000000 	bl	0 <preempt_schedule_notrace>
+static inline void rcu_read_unlock(void)
+{
+	RCU_LOCKDEP_WARN(!rcu_is_watching(),
+			 "rcu_read_unlock() used illegally while idle");
+	__release(RCU);
+	__rcu_read_unlock();
+     b20:	94000000 	bl	0 <__rcu_read_unlock>
+	queue_for_each_hw_ctx(q, hctx, i) {
+     b24:	52800015 	mov	w21, #0x0                   	// #0
+     b28:	b9404320 	ldr	w0, [x25, #64]
+     b2c:	350000a0 	cbnz	w0, b40 <blk_mq_queue_tag_busy_iter+0xb0>
+     b30:	14000030 	b	bf0 <blk_mq_queue_tag_busy_iter+0x160>
+     b34:	110006b5 	add	w21, w21, #0x1
+     b38:	6b15001f 	cmp	w0, w21
+     b3c:	540005a9 	b.ls	bf0 <blk_mq_queue_tag_busy_iter+0x160>  // b.plast
+     b40:	f9401f21 	ldr	x1, [x25, #56]
+     b44:	f875d836 	ldr	x22, [x1, w21, sxtw #3]
+	return test_bit(BLK_MQ_S_STOPPED, &hctx->state);
+}
+
+static inline bool blk_mq_hw_queue_mapped(struct blk_mq_hw_ctx *hctx)
+{
+	return hctx->nr_ctx && hctx->tags;
+     b48:	79421ec1 	ldrh	w1, [x22, #270]
+		struct blk_mq_tags *tags = hctx->tags;
+     b4c:	f940aad8 	ldr	x24, [x22, #336]
+     b50:	7100003f 	cmp	w1, #0x0
+     b54:	fa401b04 	ccmp	x24, #0x0, #0x4, ne  // ne = any
+     b58:	54fffee0 	b.eq	b34 <blk_mq_queue_tag_busy_iter+0xa4>  // b.none
+		if (tags->nr_reserved_tags)
+     b5c:	b9400700 	ldr	w0, [x24, #4]
+     b60:	35000900 	cbnz	w0, c80 <blk_mq_queue_tag_busy_iter+0x1f0>
+	struct bt_iter_data iter_data = {
+     b64:	f94037a0 	ldr	x0, [x29, #104]
+	index = SB_NR_TO_INDEX(sb, start);
+     b68:	52800014 	mov	w20, #0x0                   	// #0
+		bt_for_each(hctx, tags->bitmap_tags, fn, priv, false);
+     b6c:	f9400b1b 	ldr	x27, [x24, #16]
+		unsigned int depth = min_t(unsigned int,
+     b70:	52801818 	mov	w24, #0xc0                  	// #192
+	struct bt_iter_data iter_data = {
+     b74:	a90783b6 	stp	x22, x0, [x29, #120]
+	unsigned int scanned = 0;
+     b78:	52800016 	mov	w22, #0x0                   	// #0
+     b7c:	f94033a0 	ldr	x0, [x29, #96]
+     b80:	f90047a0 	str	x0, [x29, #136]
+     b84:	390243bf 	strb	wzr, [x29, #144]
+	while (scanned < sb->depth) {
+     b88:	b9400373 	ldr	w19, [x27]
+     b8c:	340002b3 	cbz	w19, be0 <blk_mq_queue_tag_busy_iter+0x150>
+		unsigned int depth = min_t(unsigned int,
+     b90:	9bb87e80 	umull	x0, w20, w24
+     b94:	f9400b61 	ldr	x1, [x27, #16]
+     b98:	4b160273 	sub	w19, w19, w22
+     b9c:	8b000022 	add	x2, x1, x0
+     ba0:	f8606821 	ldr	x1, [x1, x0]
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     ba4:	f9402044 	ldr	x4, [x2, #64]
+     ba8:	f9404040 	ldr	x0, [x2, #128]
+		unsigned int depth = min_t(unsigned int,
+     bac:	6b01027f 	cmp	w19, w1
+     bb0:	1a813273 	csel	w19, w19, w1, cc  // cc = lo, ul, last
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     bb4:	8a200080 	bic	x0, x4, x0
+     bb8:	f9003ba0 	str	x0, [x29, #112]
+		scanned += depth;
+     bbc:	0b1302d6 	add	w22, w22, w19
+		if (!word)
+     bc0:	b5000380 	cbnz	x0, c30 <blk_mq_queue_tag_busy_iter+0x1a0>
+		if (++index >= sb->map_nr)
+     bc4:	b9400b60 	ldr	w0, [x27, #8]
+     bc8:	11000694 	add	w20, w20, #0x1
+	while (scanned < sb->depth) {
+     bcc:	b9400373 	ldr	w19, [x27]
+			index = 0;
+     bd0:	6b00029f 	cmp	w20, w0
+     bd4:	1a9f3294 	csel	w20, w20, wzr, cc  // cc = lo, ul, last
+	while (scanned < sb->depth) {
+     bd8:	6b16027f 	cmp	w19, w22
+     bdc:	54fffda8 	b.hi	b90 <blk_mq_queue_tag_busy_iter+0x100>  // b.pmore
+     be0:	b9404320 	ldr	w0, [x25, #64]
+	queue_for_each_hw_ctx(q, hctx, i) {
+     be4:	110006b5 	add	w21, w21, #0x1
+     be8:	6b15001f 	cmp	w0, w21
+     bec:	54fffaa8 	b.hi	b40 <blk_mq_queue_tag_busy_iter+0xb0>  // b.pmore
+	blk_queue_exit(q);
+     bf0:	aa1903e0 	mov	x0, x25
+     bf4:	94000000 	bl	0 <blk_queue_exit>
+}
+     bf8:	90000000 	adrp	x0, 0 <__stack_chk_guard>
+     bfc:	91000000 	add	x0, x0, #0x0
+     c00:	f9404fa1 	ldr	x1, [x29, #152]
+     c04:	f9400000 	ldr	x0, [x0]
+     c08:	ca000020 	eor	x0, x1, x0
+     c0c:	b5000cc0 	cbnz	x0, da4 <blk_mq_queue_tag_busy_iter+0x314>
+     c10:	a94153f3 	ldp	x19, x20, [sp, #16]
+     c14:	a9425bf5 	ldp	x21, x22, [sp, #32]
+     c18:	a94363f7 	ldp	x23, x24, [sp, #48]
+     c1c:	a9446bf9 	ldp	x25, x26, [sp, #64]
+     c20:	a94573fb 	ldp	x27, x28, [sp, #80]
+     c24:	a8ca7bfd 	ldp	x29, x30, [sp], #160
+     c28:	d50323bf 	autiasp
+     c2c:	d65f03c0 	ret
+     c30:	2a1303f7 	mov	w23, w19
+		if (!word)
+     c34:	d2800002 	mov	x2, #0x0                   	// #0
+     c38:	14000002 	b	c40 <blk_mq_queue_tag_busy_iter+0x1b0>
+			nr++;
+     c3c:	11000742 	add	w2, w26, #0x1
+			nr = find_next_bit(&word, depth, nr);
+     c40:	aa1703e1 	mov	x1, x23
+     c44:	9101c3a0 	add	x0, x29, #0x70
+     c48:	94000000 	bl	0 <find_next_bit>
+     c4c:	aa0003fa 	mov	x26, x0
+			if (nr >= depth)
+     c50:	6b00027f 	cmp	w19, w0
+     c54:	54fffb89 	b.ls	bc4 <blk_mq_queue_tag_busy_iter+0x134>  // b.plast
+			if (!fn(sb, (index << sb->shift) + nr, data))
+     c58:	b9400761 	ldr	w1, [x27, #4]
+     c5c:	9101e3a2 	add	x2, x29, #0x78
+     c60:	aa1b03e0 	mov	x0, x27
+     c64:	1ac12281 	lsl	w1, w20, w1
+     c68:	0b1a0021 	add	w1, w1, w26
+     c6c:	97fffce5 	bl	0 <bt_iter>
+     c70:	72001c1f 	tst	w0, #0xff
+     c74:	54fffe41 	b.ne	c3c <blk_mq_queue_tag_busy_iter+0x1ac>  // b.any
+     c78:	b9404320 	ldr	w0, [x25, #64]
+     c7c:	17ffffda 	b	be4 <blk_mq_queue_tag_busy_iter+0x154>
+	struct bt_iter_data iter_data = {
+     c80:	f94037a1 	ldr	x1, [x29, #104]
+     c84:	52800020 	mov	w0, #0x1                   	// #1
+			bt_for_each(hctx, tags->breserved_tags, fn, priv, true);
+     c88:	f9400f1b 	ldr	x27, [x24, #24]
+	unsigned int scanned = 0;
+     c8c:	52800017 	mov	w23, #0x0                   	// #0
+	struct bt_iter_data iter_data = {
+     c90:	a90787b6 	stp	x22, x1, [x29, #120]
+	index = SB_NR_TO_INDEX(sb, start);
+     c94:	52800014 	mov	w20, #0x0                   	// #0
+     c98:	f94033a1 	ldr	x1, [x29, #96]
+     c9c:	f90047a1 	str	x1, [x29, #136]
+     ca0:	390243a0 	strb	w0, [x29, #144]
+	while (scanned < sb->depth) {
+     ca4:	b9400373 	ldr	w19, [x27]
+     ca8:	34fff5f3 	cbz	w19, b64 <blk_mq_queue_tag_busy_iter+0xd4>
+		unsigned int depth = min_t(unsigned int,
+     cac:	52801800 	mov	w0, #0xc0                  	// #192
+     cb0:	f9400b61 	ldr	x1, [x27, #16]
+     cb4:	4b170273 	sub	w19, w19, w23
+     cb8:	9ba07e80 	umull	x0, w20, w0
+     cbc:	8b000022 	add	x2, x1, x0
+     cc0:	f8606821 	ldr	x1, [x1, x0]
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     cc4:	f9402043 	ldr	x3, [x2, #64]
+     cc8:	f9404040 	ldr	x0, [x2, #128]
+		unsigned int depth = min_t(unsigned int,
+     ccc:	6b01027f 	cmp	w19, w1
+     cd0:	1a813273 	csel	w19, w19, w1, cc  // cc = lo, ul, last
+		word = sb->map[index].word & ~sb->map[index].cleared;
+     cd4:	8a200060 	bic	x0, x3, x0
+     cd8:	f9003ba0 	str	x0, [x29, #112]
+		scanned += depth;
+     cdc:	0b1302f7 	add	w23, w23, w19
+		if (!word)
+     ce0:	b5000120 	cbnz	x0, d04 <blk_mq_queue_tag_busy_iter+0x274>
+		if (++index >= sb->map_nr)
+     ce4:	b9400b60 	ldr	w0, [x27, #8]
+     ce8:	11000694 	add	w20, w20, #0x1
+	while (scanned < sb->depth) {
+     cec:	b9400373 	ldr	w19, [x27]
+			index = 0;
+     cf0:	6b00029f 	cmp	w20, w0
+     cf4:	1a9f3294 	csel	w20, w20, wzr, cc  // cc = lo, ul, last
+	while (scanned < sb->depth) {
+     cf8:	6b17027f 	cmp	w19, w23
+     cfc:	54fffd88 	b.hi	cac <blk_mq_queue_tag_busy_iter+0x21c>  // b.pmore
+     d00:	17ffff99 	b	b64 <blk_mq_queue_tag_busy_iter+0xd4>
+     d04:	2a1303fa 	mov	w26, w19
+		if (!word)
+     d08:	d2800002 	mov	x2, #0x0                   	// #0
+     d0c:	1400000a 	b	d34 <blk_mq_queue_tag_busy_iter+0x2a4>
+			if (!fn(sb, (index << sb->shift) + nr, data))
+     d10:	b9400761 	ldr	w1, [x27, #4]
+     d14:	9101e3a2 	add	x2, x29, #0x78
+     d18:	aa1b03e0 	mov	x0, x27
+     d1c:	1ac12281 	lsl	w1, w20, w1
+     d20:	0b1c0021 	add	w1, w1, w28
+     d24:	97fffcb7 	bl	0 <bt_iter>
+     d28:	72001c1f 	tst	w0, #0xff
+     d2c:	54fff1c0 	b.eq	b64 <blk_mq_queue_tag_busy_iter+0xd4>  // b.none
+			nr++;
+     d30:	11000782 	add	w2, w28, #0x1
+			nr = find_next_bit(&word, depth, nr);
+     d34:	aa1a03e1 	mov	x1, x26
+     d38:	9101c3a0 	add	x0, x29, #0x70
+     d3c:	94000000 	bl	0 <find_next_bit>
+     d40:	aa0003fc 	mov	x28, x0
+			if (nr >= depth)
+     d44:	6b00027f 	cmp	w19, w0
+     d48:	54fffe48 	b.hi	d10 <blk_mq_queue_tag_busy_iter+0x280>  // b.pmore
+     d4c:	17ffffe6 	b	ce4 <blk_mq_queue_tag_busy_iter+0x254>
+     d50:	f9400820 	ldr	x0, [x1, #16]
+     d54:	b4ffee40 	cbz	x0, b1c <blk_mq_queue_tag_busy_iter+0x8c>
+     d58:	17ffff72 	b	b20 <blk_mq_queue_tag_busy_iter+0x90>
+ * Returns original value of @v
+ */
+static __always_inline s64
+arch_atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
+{
+	s64 c = arch_atomic64_read(v);
+     d5c:	f942fb24 	ldr	x4, [x25, #1520]
+
+	do {
+		if (unlikely(c == u))
+     d60:	b40001e4 	cbz	x4, d9c <blk_mq_queue_tag_busy_iter+0x30c>
+			break;
+	} while (!arch_atomic64_try_cmpxchg(v, &c, c + a));
+     d64:	91000482 	add	x2, x4, #0x1
+     d68:	14000008 	b	d88 <blk_mq_queue_tag_busy_iter+0x2f8>
+     d6c:	14000007 	b	d88 <blk_mq_queue_tag_busy_iter+0x2f8>
+__CMPXCHG_CASE(x,  ,  mb_, 64, al, "memory")
+     d70:	aa0303e0 	mov	x0, x3
+     d74:	aa0403e1 	mov	x1, x4
+     d78:	aa0103e5 	mov	x5, x1
+     d7c:	c8e5fc62 	casal	x5, x2, [x3]
+     d80:	aa0503e0 	mov	x0, x5
+     d84:	14000002 	b	d8c <blk_mq_queue_tag_busy_iter+0x2fc>
+__CMPXCHG_CASE( ,  ,  mb_, 64, dmb ish,  , l, "memory", L)
+     d88:	140000f2 	b	1150 <blk_mq_tag_update_depth+0x220>
+	if (unlikely(r != o))
+     d8c:	eb04001f 	cmp	x0, x4
+     d90:	54ffec80 	b.eq	b20 <blk_mq_queue_tag_busy_iter+0x90>  // b.none
+     d94:	aa0003e4 	mov	x4, x0
+		if (unlikely(c == u))
+     d98:	b5fffe60 	cbnz	x0, d64 <blk_mq_queue_tag_busy_iter+0x2d4>
+     d9c:	94000000 	bl	0 <__rcu_read_unlock>
+     da0:	17ffff96 	b	bf8 <blk_mq_queue_tag_busy_iter+0x168>
+}
+     da4:	94000000 	bl	0 <__stack_chk_fail>
+
+0000000000000da8 <blk_mq_init_tags>:
+{
+     da8:	d503233f 	paciasp
+     dac:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+	if (total_tags > BLK_MQ_TAG_MAX) {
+     db0:	3100041f 	cmn	w0, #0x1
+{
+     db4:	910003fd 	mov	x29, sp
+     db8:	f9000bf3 	str	x19, [sp, #16]
+	if (total_tags > BLK_MQ_TAG_MAX) {
+     dbc:	54000780 	b.eq	eac <blk_mq_init_tags+0x104>  // b.none
+     dc0:	a901d7b4 	stp	x20, x21, [x29, #24]
+     dc4:	2a0003f5 	mov	w21, w0
+		unsigned int i = kmalloc_index(size);
+
+		if (!i)
+			return ZERO_SIZE_PTR;
+
+		return kmem_cache_alloc_node_trace(
+     dc8:	90000000 	adrp	x0, 0 <kmalloc_caches>
+     dcc:	a902dfb6 	stp	x22, x23, [x29, #40]
+     dd0:	53087c74 	lsr	w20, w3, #8
+     dd4:	2a0103f6 	mov	w22, w1
+	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
+     dd8:	f9400000 	ldr	x0, [x0]
+     ddc:	2a0203f7 	mov	w23, w2
+     de0:	5281b801 	mov	w1, #0xdc0                 	// #3520
+     de4:	94000000 	bl	0 <kmem_cache_alloc_node>
+     de8:	aa0003f3 	mov	x19, x0
+	if (!tags)
+     dec:	b40003e0 	cbz	x0, e68 <blk_mq_init_tags+0xc0>
+     df0:	f9001fb8 	str	x24, [x29, #56]
+	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
+     df4:	12000294 	and	w20, w20, #0x1
+	tags->nr_reserved_tags = reserved_tags;
+     df8:	29005a75 	stp	w21, w22, [x19]
+	if (bt_alloc(&tags->__bitmap_tags, depth, round_robin, node))
+     dfc:	91008018 	add	x24, x0, #0x20
+	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
+     e00:	2a1703e5 	mov	w5, w23
+     e04:	52819804 	mov	w4, #0xcc0                 	// #3264
+     e08:	2a1403e3 	mov	w3, w20
+     e0c:	12800002 	mov	w2, #0xffffffff            	// #-1
+     e10:	4b1602a1 	sub	w1, w21, w22
+     e14:	aa1803e0 	mov	x0, x24
+     e18:	94000000 	bl	0 <sbitmap_queue_init_node>
+	if (bt_alloc(&tags->__bitmap_tags, depth, round_robin, node))
+     e1c:	350003a0 	cbnz	w0, e90 <blk_mq_init_tags+0xe8>
+	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
+     e20:	b9400661 	ldr	w1, [x19, #4]
+	if (bt_alloc(&tags->__breserved_tags, tags->nr_reserved_tags,
+     e24:	91018275 	add	x21, x19, #0x60
+	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
+     e28:	2a1703e5 	mov	w5, w23
+     e2c:	52819804 	mov	w4, #0xcc0                 	// #3264
+     e30:	2a1403e3 	mov	w3, w20
+     e34:	12800002 	mov	w2, #0xffffffff            	// #-1
+     e38:	aa1503e0 	mov	x0, x21
+     e3c:	94000000 	bl	0 <sbitmap_queue_init_node>
+	if (bt_alloc(&tags->__breserved_tags, tags->nr_reserved_tags,
+     e40:	350001a0 	cbnz	w0, e74 <blk_mq_init_tags+0xcc>
+	tags->breserved_tags = &tags->__breserved_tags;
+     e44:	a9015678 	stp	x24, x21, [x19, #16]
+     e48:	a941d7b4 	ldp	x20, x21, [x29, #24]
+     e4c:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     e50:	f9401fb8 	ldr	x24, [x29, #56]
+}
+     e54:	aa1303e0 	mov	x0, x19
+     e58:	f9400bf3 	ldr	x19, [sp, #16]
+     e5c:	a8c47bfd 	ldp	x29, x30, [sp], #64
+     e60:	d50323bf 	autiasp
+     e64:	d65f03c0 	ret
+     e68:	a941d7b4 	ldp	x20, x21, [x29, #24]
+     e6c:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     e70:	17fffff9 	b	e54 <blk_mq_init_tags+0xac>
+	kfree(sbq->ws);
+     e74:	f9401700 	ldr	x0, [x24, #40]
+     e78:	94000000 	bl	0 <kfree>
+	free_percpu(sbq->alloc_hint);
+     e7c:	f9400f00 	ldr	x0, [x24, #24]
+     e80:	94000000 	bl	0 <free_percpu>
+	kfree(sb->map);
+     e84:	f9401a60 	ldr	x0, [x19, #48]
+     e88:	94000000 	bl	0 <kfree>
+	sb->map = NULL;
+     e8c:	f9001a7f 	str	xzr, [x19, #48]
+		kfree(tags);
+     e90:	aa1303e0 	mov	x0, x19
+		return NULL;
+     e94:	d2800013 	mov	x19, #0x0                   	// #0
+		kfree(tags);
+     e98:	94000000 	bl	0 <kfree>
+     e9c:	f9401fb8 	ldr	x24, [x29, #56]
+     ea0:	a941d7b4 	ldp	x20, x21, [x29, #24]
+     ea4:	a942dfb6 	ldp	x22, x23, [x29, #40]
+		return NULL;
+     ea8:	17ffffeb 	b	e54 <blk_mq_init_tags+0xac>
+		pr_err("blk-mq: tag depth too large\n");
+     eac:	90000000 	adrp	x0, 0 <bt_iter>
+		return NULL;
+     eb0:	d2800013 	mov	x19, #0x0                   	// #0
+		pr_err("blk-mq: tag depth too large\n");
+     eb4:	91000000 	add	x0, x0, #0x0
+     eb8:	94000000 	bl	0 <printk>
+		return NULL;
+     ebc:	17ffffe6 	b	e54 <blk_mq_init_tags+0xac>
+
+0000000000000ec0 <blk_mq_free_tags>:
+{
+     ec0:	d503233f 	paciasp
+     ec4:	a9bd7bfd 	stp	x29, x30, [sp, #-48]!
+     ec8:	910003fd 	mov	x29, sp
+     ecc:	a90153f3 	stp	x19, x20, [sp, #16]
+     ed0:	aa0003f3 	mov	x19, x0
+     ed4:	f90013f5 	str	x21, [sp, #32]
+	kfree(sbq->ws);
+     ed8:	f9402400 	ldr	x0, [x0, #72]
+     edc:	94000000 	bl	0 <kfree>
+	free_percpu(sbq->alloc_hint);
+     ee0:	f9401e60 	ldr	x0, [x19, #56]
+     ee4:	94000000 	bl	0 <free_percpu>
+	kfree(sb->map);
+     ee8:	f9401a60 	ldr	x0, [x19, #48]
+     eec:	94000000 	bl	0 <kfree>
+	sb->map = NULL;
+     ef0:	f9001a7f 	str	xzr, [x19, #48]
+	kfree(sbq->ws);
+     ef4:	f9404660 	ldr	x0, [x19, #136]
+     ef8:	94000000 	bl	0 <kfree>
+	free_percpu(sbq->alloc_hint);
+     efc:	f9403e60 	ldr	x0, [x19, #120]
+     f00:	94000000 	bl	0 <free_percpu>
+	kfree(sb->map);
+     f04:	f9403a60 	ldr	x0, [x19, #112]
+     f08:	94000000 	bl	0 <kfree>
+	sb->map = NULL;
+     f0c:	f9003a7f 	str	xzr, [x19, #112]
+	kfree(tags);
+     f10:	aa1303e0 	mov	x0, x19
+     f14:	94000000 	bl	0 <kfree>
+}
+     f18:	f94013f5 	ldr	x21, [sp, #32]
+     f1c:	a94153f3 	ldp	x19, x20, [sp, #16]
+     f20:	a8c37bfd 	ldp	x29, x30, [sp], #48
+     f24:	d50323bf 	autiasp
+     f28:	d65f03c0 	ret
+     f2c:	d503201f 	nop
+
+0000000000000f30 <blk_mq_tag_update_depth>:
+{
+     f30:	d503233f 	paciasp
+     f34:	a9bc7bfd 	stp	x29, x30, [sp, #-64]!
+     f38:	12001c65 	and	w5, w3, #0xff
+     f3c:	910003fd 	mov	x29, sp
+     f40:	f9000bf3 	str	x19, [sp, #16]
+	struct blk_mq_tags *tags = *tagsptr;
+     f44:	f9400024 	ldr	x4, [x1]
+	if (tdepth <= tags->nr_reserved_tags)
+     f48:	b9400483 	ldr	w3, [x4, #4]
+     f4c:	6b02007f 	cmp	w3, w2
+     f50:	54000822 	b.cs	1054 <blk_mq_tag_update_depth+0x124>  // b.hs, b.nlast
+     f54:	f9000fb4 	str	x20, [x29, #24]
+     f58:	aa0003f4 	mov	x20, x0
+     f5c:	f90017b6 	str	x22, [x29, #40]
+     f60:	2a0203f3 	mov	w19, w2
+     f64:	aa0103f6 	mov	x22, x1
+	if (tdepth > tags->nr_tags) {
+     f68:	b9400080 	ldr	w0, [x4]
+     f6c:	6b02001f 	cmp	w0, w2
+     f70:	54000522 	b.cs	1014 <blk_mq_tag_update_depth+0xe4>  // b.hs, b.nlast
+     f74:	f90013b5 	str	x21, [x29, #32]
+		if (tdepth > 16 * BLKDEV_MAX_RQ)
+     f78:	7120005f 	cmp	w2, #0x800
+     f7c:	f9001fb8 	str	x24, [x29, #56]
+     f80:	1a9f97e0 	cset	w0, hi  // hi = pmore
+     f84:	520000a5 	eor	w5, w5, #0x1
+		struct blk_mq_tag_set *set = hctx->queue->tag_set;
+     f88:	f9406a81 	ldr	x1, [x20, #208]
+		if (tdepth > 16 * BLKDEV_MAX_RQ)
+     f8c:	2a050005 	orr	w5, w0, w5
+		struct blk_mq_tag_set *set = hctx->queue->tag_set;
+     f90:	f9431435 	ldr	x21, [x1, #1576]
+		unsigned int flags = set->flags;
+     f94:	b9405ab8 	ldr	w24, [x21, #88]
+		if (tdepth > 16 * BLKDEV_MAX_RQ)
+     f98:	35000545 	cbnz	w5, 1040 <blk_mq_tag_update_depth+0x110>
+     f9c:	f9001bb7 	str	x23, [x29, #48]
+		new = blk_mq_alloc_rq_map(set, hctx->queue_num, tdepth,
+     fa0:	2a1803e4 	mov	w4, w24
+     fa4:	aa1503e0 	mov	x0, x21
+     fa8:	b941ae81 	ldr	w1, [x20, #428]
+     fac:	94000000 	bl	0 <blk_mq_alloc_rq_map>
+     fb0:	aa0003f7 	mov	x23, x0
+		if (!new)
+     fb4:	b4000640 	cbz	x0, 107c <blk_mq_tag_update_depth+0x14c>
+		ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
+     fb8:	b941ae82 	ldr	w2, [x20, #428]
+     fbc:	2a1303e3 	mov	w3, w19
+     fc0:	aa0003e1 	mov	x1, x0
+     fc4:	aa1503e0 	mov	x0, x21
+     fc8:	94000000 	bl	0 <blk_mq_alloc_rqs>
+     fcc:	2a0003f3 	mov	w19, w0
+		if (ret) {
+     fd0:	35000460 	cbnz	w0, 105c <blk_mq_tag_update_depth+0x12c>
+		blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
+     fd4:	b941ae82 	ldr	w2, [x20, #428]
+     fd8:	aa1503e0 	mov	x0, x21
+     fdc:	f94002c1 	ldr	x1, [x22]
+     fe0:	94000000 	bl	0 <blk_mq_free_rqs>
+		blk_mq_free_rq_map(*tagsptr, flags);
+     fe4:	f94002c0 	ldr	x0, [x22]
+     fe8:	2a1803e1 	mov	w1, w24
+     fec:	94000000 	bl	0 <blk_mq_free_rq_map>
+		*tagsptr = new;
+     ff0:	f90002d7 	str	x23, [x22]
+     ff4:	a941d7b4 	ldp	x20, x21, [x29, #24]
+     ff8:	a942dfb6 	ldp	x22, x23, [x29, #40]
+     ffc:	f9401fb8 	ldr	x24, [x29, #56]
+}
+    1000:	2a1303e0 	mov	w0, w19
+    1004:	f9400bf3 	ldr	x19, [sp, #16]
+    1008:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    100c:	d50323bf 	autiasp
+    1010:	d65f03c0 	ret
+		sbitmap_queue_resize(tags->bitmap_tags,
+    1014:	f9400880 	ldr	x0, [x4, #16]
+    1018:	4b030041 	sub	w1, w2, w3
+	return 0;
+    101c:	52800013 	mov	w19, #0x0                   	// #0
+		sbitmap_queue_resize(tags->bitmap_tags,
+    1020:	94000000 	bl	0 <sbitmap_queue_resize>
+    1024:	f9400fb4 	ldr	x20, [x29, #24]
+}
+    1028:	2a1303e0 	mov	w0, w19
+    102c:	f94017b6 	ldr	x22, [x29, #40]
+    1030:	f9400bf3 	ldr	x19, [sp, #16]
+    1034:	a8c47bfd 	ldp	x29, x30, [sp], #64
+    1038:	d50323bf 	autiasp
+    103c:	d65f03c0 	ret
+		return -EINVAL;
+    1040:	128002b3 	mov	w19, #0xffffffea            	// #-22
+    1044:	f94017b6 	ldr	x22, [x29, #40]
+    1048:	a941d7b4 	ldp	x20, x21, [x29, #24]
+    104c:	f9401fb8 	ldr	x24, [x29, #56]
+    1050:	17ffffec 	b	1000 <blk_mq_tag_update_depth+0xd0>
+    1054:	128002b3 	mov	w19, #0xffffffea            	// #-22
+    1058:	17ffffea 	b	1000 <blk_mq_tag_update_depth+0xd0>
+			blk_mq_free_rq_map(new, flags);
+    105c:	2a1803e1 	mov	w1, w24
+    1060:	aa1703e0 	mov	x0, x23
+			return -ENOMEM;
+    1064:	12800173 	mov	w19, #0xfffffff4            	// #-12
+			blk_mq_free_rq_map(new, flags);
+    1068:	94000000 	bl	0 <blk_mq_free_rq_map>
+			return -ENOMEM;
+    106c:	a941d7b4 	ldp	x20, x21, [x29, #24]
+    1070:	a942dfb6 	ldp	x22, x23, [x29, #40]
+    1074:	f9401fb8 	ldr	x24, [x29, #56]
+    1078:	17ffffe2 	b	1000 <blk_mq_tag_update_depth+0xd0>
+			return -ENOMEM;
+    107c:	12800173 	mov	w19, #0xfffffff4            	// #-12
+    1080:	f9401fb8 	ldr	x24, [x29, #56]
+    1084:	a941d7b4 	ldp	x20, x21, [x29, #24]
+    1088:	a942dfb6 	ldp	x22, x23, [x29, #40]
+    108c:	17ffffdd 	b	1000 <blk_mq_tag_update_depth+0xd0>
+    1090:	f9800091 	prfm	pstl1strm, [x4]
+    1094:	c85f7c81 	ldxr	x1, [x4]
+    1098:	b27f0022 	orr	x2, x1, #0x2
+    109c:	c803fc82 	stlxr	w3, x2, [x4]
+    10a0:	35ffffa3 	cbnz	w3, 1094 <blk_mq_tag_update_depth+0x164>
+    10a4:	d5033bbf 	dmb	ish
+    10a8:	17fffd47 	b	5c4 <__blk_mq_tag_busy+0x4c>
+    10ac:	f9800011 	prfm	pstl1strm, [x0]
+    10b0:	885f7c01 	ldxr	w1, [x0]
+    10b4:	11000421 	add	w1, w1, #0x1
+    10b8:	88027c01 	stxr	w2, w1, [x0]
+    10bc:	35ffffa2 	cbnz	w2, 10b0 <blk_mq_tag_update_depth+0x180>
+    10c0:	17fffd4b 	b	5ec <__blk_mq_tag_busy+0x74>
+    10c4:	f9800011 	prfm	pstl1strm, [x0]
+    10c8:	c85f7c01 	ldxr	x1, [x0]
+    10cc:	8a220024 	bic	x4, x1, x2
+    10d0:	c805fc04 	stlxr	w5, x4, [x0]
+    10d4:	35ffffa5 	cbnz	w5, 10c8 <blk_mq_tag_update_depth+0x198>
+    10d8:	d5033bbf 	dmb	ish
+    10dc:	17fffd69 	b	680 <__blk_mq_tag_idle+0x50>
+    10e0:	f9800091 	prfm	pstl1strm, [x4]
+    10e4:	885f7c81 	ldxr	w1, [x4]
+    10e8:	4b000021 	sub	w1, w1, w0
+    10ec:	88027c81 	stxr	w2, w1, [x4]
+    10f0:	35ffffa2 	cbnz	w2, 10e4 <blk_mq_tag_update_depth+0x1b4>
+    10f4:	17fffd73 	b	6c0 <__blk_mq_tag_idle+0x90>
+    10f8:	d53cd041 	mrs	x1, tpidr_el2
+    10fc:	f9800071 	prfm	pstl1strm, [x3]
+    1100:	885f7c64 	ldxr	w4, [x3]
+    1104:	4a000081 	eor	w1, w4, w0
+    1108:	35000081 	cbnz	w1, 1118 <blk_mq_tag_update_depth+0x1e8>
+    110c:	8801fc62 	stlxr	w1, w2, [x3]
+    1110:	35ffff81 	cbnz	w1, 1100 <blk_mq_tag_update_depth+0x1d0>
+    1114:	d5033bbf 	dmb	ish
+    1118:	17fffe48 	b	a38 <blk_mq_get_tag+0x308>
+    111c:	f9800071 	prfm	pstl1strm, [x3]
+    1120:	885f7c64 	ldxr	w4, [x3]
+    1124:	4a000081 	eor	w1, w4, w0
+    1128:	35000081 	cbnz	w1, 1138 <blk_mq_tag_update_depth+0x208>
+    112c:	8801fc62 	stlxr	w1, w2, [x3]
+    1130:	35ffff81 	cbnz	w1, 1120 <blk_mq_tag_update_depth+0x1f0>
+    1134:	d5033bbf 	dmb	ish
+    1138:	17fffe48 	b	a58 <blk_mq_get_tag+0x328>
+    113c:	d53cd042 	mrs	x2, tpidr_el2
+    1140:	f823001f 	stadd	x3, [x0]
+    1144:	d503201f 	nop
+    1148:	d503201f 	nop
+    114c:	d503201f 	nop
+    1150:	f9800071 	prfm	pstl1strm, [x3]
+    1154:	c85f7c60 	ldxr	x0, [x3]
+    1158:	ca040001 	eor	x1, x0, x4
+    115c:	b5000081 	cbnz	x1, 116c <blk_mq_tag_update_depth+0x23c>
+    1160:	c801fc62 	stlxr	w1, x2, [x3]
+    1164:	35ffff81 	cbnz	w1, 1154 <blk_mq_tag_update_depth+0x224>
+    1168:	d5033bbf 	dmb	ish
+    116c:	17ffff08 	b	d8c <blk_mq_queue_tag_busy_iter+0x2fc>

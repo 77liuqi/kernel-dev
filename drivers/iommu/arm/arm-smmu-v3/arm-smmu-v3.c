@@ -658,22 +658,22 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		.max_n_shift	= cmdq->q.llq.max_n_shift,
 		.prod		= sprod,
 	};
+	int count = 0;
 	ktime_t init_time = ktime_get();
 	
 
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
 
-	int count = 0;
 
 	while (llq.prod != eprod) {
 		unsigned long mask;
 		atomic_long_t *ptr;
 		u32 limit = BITS_PER_LONG;
 
-		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (count == 0)) {
+		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (set == false)) {
 			count = 1;
-			pr_err("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
+			pr_err_once("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
 		}
 
 		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
@@ -963,7 +963,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.cons_owner = READ_ONCE(cmdq->q.llq.cons_owner);
 	space.prod = sprod;
 	while (!queue_has_space(&space, n + sync, cmdq, cpu, &print, owner)) {
-		ktime_t timeout = initial + ms_to_ktime(800);
+		ktime_t timeout = initial + ms_to_ktime(2000);
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 		if (ktime_after(ktime_get(), timeout)) {
@@ -1044,6 +1044,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
 		sync_count = tmp.sync;
+
+		if (eprod - sprod > 1 << llq.max_n_shift)
+			pr_err_once("%s cpu%d owner too much eprod=0x%x sprod=0x%x 1 << llq.max_n_shift=0x%x\n", __func__, cpu, eprod, sprod, 1 << llq.max_n_shift);
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
@@ -2982,8 +2985,8 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 	bits_for_cmdq_owner = ilog2(cpus) + 1;
 
 //#define EXTRA_SHIFT 3 //ok
-//#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
-#define EXTRA_SHIFT 0
+#define EXTRA_SHIFT 4//bad D05 dies at 64 D06ES dies at 64
+//#define EXTRA_SHIFT 0
 
 
 	/*

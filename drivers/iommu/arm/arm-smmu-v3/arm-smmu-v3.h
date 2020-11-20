@@ -388,7 +388,7 @@
 #define PRIQ_1_ADDR_MASK		GENMASK_ULL(63, 12)
 
 /* High-level queue structures */
-#define ARM_SMMU_POLL_TIMEOUT_US	1000000 /* 1s! */
+#define ARM_SMMU_POLL_TIMEOUT_US	5000000 /* 1s! */
 #define ARM_SMMU_POLL_SPIN_COUNT	10
 
 #define MSI_IOVA_BASE			0x8000000
