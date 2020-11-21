@@ -875,7 +875,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
-#define HACK
+#undef HACK
 extern int smmu_test;	
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
@@ -3025,8 +3025,9 @@ static int arm_smmu_init_cmd_queue(struct arm_smmu_device *smmu,
 		return -ENOMEM;
 
 	q->llq.max_n_shift = min(q->llq.max_n_shift, bits_available_for_prod);
+#ifdef HACK
 	q->llq.max_n_shift -= EXTRA_SHIFT;
-
+#endif
 	ret = arm_smmu_init_one_queue(smmu, q, prod_off, cons_off, dwords,
 				      "cmdq");
 	if (ret)
