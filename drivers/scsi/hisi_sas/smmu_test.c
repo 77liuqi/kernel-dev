@@ -186,11 +186,11 @@ void smmu_test_core(int cpus)
 	}
 	smmu_test = 0;
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average=%lld tries=%lld cmpxcgh tries=%lld\n", 
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average=%lld tries=%lld cmpxcgh tries=%lld (rate=%lld)\n", 
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
 	arm_smmu_cmdq_get_tries(),
-	arm_smmu_cmdq_get_cmpxcgh_fails());
+	arm_smmu_cmdq_get_cmpxcgh_fails(), arm_smmu_cmdq_get_cmpxcgh_fails() / arm_smmu_cmdq_get_tries());
 
 }
 EXPORT_SYMBOL(smmu_test_core);

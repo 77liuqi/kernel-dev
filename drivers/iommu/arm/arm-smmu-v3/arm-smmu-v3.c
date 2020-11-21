@@ -111,7 +111,7 @@ static void parse_driver_options(struct arm_smmu_device *smmu)
 }
 
 /* Low-level queue manipulation functions */
-static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, struct arm_smmu_cmdq *cmdq, unsigned cpu, int *print, bool owner)
+static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, struct arm_smmu_cmdq *cmdq, unsigned cpu, int *print)
 {
 	u32 space, prod, cons;
 	u32 space1, _xprod;
@@ -212,8 +212,8 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 
 	if (wrapped2) {
 		u32 prod_reg = readl(cmdq->q.prod_reg);
-		panic("%s 2nd wrapped much space cpu%d q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x prod=0x%x cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d prod_reg=0x%x owner=%d\n",
-		__func__, cpu, q->owner_prod, q->prod, q->cons, prod, cons, space, n, _xprod, result1, space1, wrapped, cons_owner, wrapped2, prod_reg, owner);
+		panic("%s 2nd wrapped much space cpu%d q->owner_prod=0x%x q->prod=0x%x q->cons=0x%x prod=0x%x cons=0x%x space=0x%x n=%d _xprod=0x%x result1=%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d prod_reg=0x%x\n",
+		__func__, cpu, q->owner_prod, q->prod, q->cons, prod, cons, space, n, _xprod, result1, space1, wrapped, cons_owner, wrapped2, prod_reg);
 	}
 
 
@@ -562,7 +562,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
  *   fails if the caller appears to be the last lock holder (yes, this is
  *   racy). All successful UNLOCK routines have RELEASE semantics.
  */
-static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
+static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq)
 {
 	int val;
 
@@ -572,12 +572,12 @@ static void arm_smmu_cmdq_shared_lock(struct arm_smmu_cmdq *cmdq, int count)
 	 * to INT_MIN so these increments won't hurt as the value will remain
 	 * negative.
 	 */
-	if (atomic_fetch_add_relaxed(count, &cmdq->lock) >= 0)
+	if (atomic_fetch_inc_relaxed(&cmdq->lock) >= 0)
 		return;
 
 	do {
 		val = atomic_cond_read_relaxed(&cmdq->lock, VAL >= 0);
-	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + count) != val);
+	} while (atomic_cmpxchg_relaxed(&cmdq->lock, val, val + 1) != val);
 }
 
 static void arm_smmu_cmdq_shared_unlock(struct arm_smmu_cmdq *cmdq)
@@ -791,6 +791,7 @@ static int __arm_smmu_cmdq_poll_until_consumed(struct arm_smmu_device *smmu,
 	int ret = 0;
 
 	queue_poll_init(smmu, &qp);
+	llq->prod = READ_ONCE(smmu->cmdq.q.llq.prod);
 	llq->cons = READ_ONCE(smmu->cmdq.q.llq.cons);
 	do {
 		if (queue_consumed(llq, prod))
@@ -874,7 +875,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
-#define HACK
+#undef HACK
 extern int smmu_test;	
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
@@ -914,25 +915,26 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq, space = {
 		.max_n_shift = cmdq->q.llq.max_n_shift,
-		/* We would need 2^16 CPUs gathered for overflow ... */
-		.count = 1,
-		.sync = sync,
 		.prod = n + sync,
 	};
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	int ret = 0;
 	ktime_t initial, final, *t, owner_time;
-	int test = READ_ONCE(smmu_test);
+	int test;
 	int n_orig = n;
 	int cpu;
 	u32 sprod;
 	static int print = 0;
-	u64 _tries;
+	u64 owner_val, _tries;
 	int count;
 	u32 shead;
-
 	#ifdef HACK
 	int i;
+	#endif
+
+	test = READ_ONCE(smmu_test);
+
+	#ifdef HACK
 	if (test)
 		n = CMDQ_BATCH_ENTRIES;
 	space.prod = n + sync;
@@ -947,10 +949,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 
-	llq.val = atomic64_fetch_add(space.val, &cmdq->q.llq.atomic);
+	llq.prod = atomic_fetch_add(space.prod, &cmdq->q.llq.atomic);
 	sprod = llq.prod;
 	llq.prod &= prod_mask;
-	owner = !llq.count;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
 
 	if (sprod > 0xf0000000)
@@ -962,7 +963,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	space.cons_owner = READ_ONCE(cmdq->q.llq.cons_owner);
 	space.prod = sprod;
-	while (!queue_has_space(&space, n + sync, cmdq, cpu, &print, owner)) {
+	while (!queue_has_space(&space, n + sync, cmdq, cpu, &print)) {
 		ktime_t timeout = initial + ms_to_ktime(2000);
 		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
 			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
@@ -982,14 +983,58 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
+	owner_val = sprod;
 
 	count = 0;
 	shead = sprod + n + sync;
 
+	owner = false;
 	
 	if (_tries < 5)
 		pr_err("%s u0 cpu%d sprod=0x%x shead=0x%x _tries=0x%llx\n", __func__, cpu, sprod, shead, _tries);
 	owner_time = ktime_get();
+	while (1) {
+		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
+		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
+	//	owner_val = sprod;
+
+	//	if ((u32)owner_val >= shead) {
+	//		pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
+	//		break;
+	//	}
+		
+		if (_tries < 5)
+			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
+		atomic64_inc(&cmpxchg_tries);
+		old = cmpxchg_relaxed(&cmdq->owner, owner_val, new_val);
+		if (_tries < 5)
+			pr_err("%s u2 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+		if (old == owner_val) {
+			owner = true;
+			break;
+		}
+		owner_val = (u32)old;
+		if (owner_val > shead) {
+			//pr_err_once("%s u3 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			if (owner)
+				panic("wft1");
+			break;
+		}
+		if (owner_val == shead) {
+			if (owner)
+				panic("wft2");
+			pr_err("%s u4 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
+			break;
+		}
+		count++;
+		if (ktime_after(ktime_get(), owner_time + ms_to_ktime(1800)))
+			panic("too many loops getting owner cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx old=0x%llx\n", 
+			cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), old);
+	}
+
+
+	if (_tries < 5)
+		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), owner);
 
 	#ifdef HACK
 	if (test) {
@@ -1012,6 +1057,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		prod = queue_inc_prod_n(&llq, n);
 		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
 		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+
+		/*
+		 * In order to determine completion of our CMD_SYNC, we must
+		 * ensure that the queue can't wrap twice without us noticing.
+		 * We achieve that by taking the cmdq lock as shared before
+		 * marking our slot as valid.
+		 */
+		arm_smmu_cmdq_shared_lock(cmdq);
 	}
 
 	/* 3. Mark our slots as valid, ensuring commands are visible first */
@@ -1020,30 +1073,21 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		struct arm_smmu_ll_queue tmp = {
-			.sync= ~0,
-			.count= ~0,
-		//	.prod = ~prod_mask,
-		};
 		u32 eprod;
-		int sync_count;
-		static int max_owner;
-		u32 val;
+		u64 val;
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== sprod);
+		atomic_cond_read_relaxed(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== owner_val);
 		
 		if (_tries < 5)
 			pr_err("%s v0 cpu%d sprod=0x%x shead=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/* b. Stop gathering work by clearing the owned mask */
-		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
-						       &cmdq->q.llq.atomic);
-		eprod = tmp.prod;
+		eprod = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
+	
 		if (_tries < 5)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
-		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
-		sync_count = tmp.sync;
+		prod = Q_WRP(&llq, eprod) | Q_IDX(&llq, eprod);
 
 		if (eprod - sprod > 1 << llq.max_n_shift)
 			pr_err_once("%s cpu%d owner too much eprod=0x%x sprod=0x%x 1 << llq.max_n_shift=0x%x\n", __func__, cpu, eprod, sprod, 1 << llq.max_n_shift);
@@ -1053,26 +1097,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Note that we read our own entries so that we have the control
 		 * dependency required by (d).
 		 */
-		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		arm_smmu_cmdq_poll_valid_map(cmdq, owner_val, prod);
 
-		/*
-		 * In order to determine completion of the CMD_SYNCs, we must
-		 * ensure that the queue can't wrap twice without us noticing.
-		 * We achieve that by taking the cmdq lock as shared before
-		 * progressing the prod pointer.
-		 * The owner does this for all the non-owners it has gathered.
-		 * Otherwise, some non-owner(s) may lock the cmdq, blocking the
-		 * cons being updating. This could be when the cmdq has just
-		 * become full. In this case, other sibling non-owners could be
-		 * blocked from progressing, leading to deadlock.
-		 */
-		arm_smmu_cmdq_shared_lock(cmdq, sync_count);
-
-		if (sync_count > max_owner) {
-
-			max_owner = sync_count;
-			pr_err("%s max sync=%d\n", __func__, sync_count);
-		}
 		/*
 		 * d. Advance the hardware prod pointer
 		 * Control dependency ordering from the entries becoming valid.
@@ -1086,7 +1112,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		val = eprod;
 		if (_tries < 5)
-			pr_err("%s v2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
+			pr_err("%s v2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%llx\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
 		/*
 		 * e. Tell the next owner we're done

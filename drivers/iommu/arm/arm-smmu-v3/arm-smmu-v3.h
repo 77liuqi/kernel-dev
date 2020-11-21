@@ -311,7 +311,7 @@
 #define CMDQ_ERR_CERROR_ABT_IDX		2
 #define CMDQ_ERR_CERROR_ATC_INV_IDX	3
 
-#define CMDQ_PROD_OWNED_FLAG		Q_OVERFLOW_FLAG
+#define CMDQ_PROD_OWNED_FLAG		(1UL << 32)
 
 /*
  * This is used to size the command queue and therefore must be at least
@@ -471,22 +471,15 @@ struct arm_smmu_cmdq_ent {
 
 struct arm_smmu_ll_queue {
 	union {
-		u64			val;
-		atomic64_t              atomic;
-		struct {
-			struct {
-				u16 	sync;
-				u16 	count;
-			};
-			u32		prod;
-		};
-		u8			__pad[SMP_CACHE_BYTES];
-	} ____cacheline_aligned_in_smp;
+		u32		prod;
+		atomic_t atomic;
+	};
 	union {
 		struct {
 			u32				cons;
 			u32				owner_prod;
 		}; 
+
 		struct {
 			atomic_t			cons;
 			atomic_t			owner_prod;
@@ -521,6 +514,10 @@ struct arm_smmu_queue_poll {
 struct arm_smmu_cmdq {
 	struct arm_smmu_queue		q;
 	atomic_long_t			*valid_map;
+	union {
+		u64				owner;
+		atomic64_t 		owner_a;
+	};
 	atomic_t			lock;
 };
 
