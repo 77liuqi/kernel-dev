@@ -882,6 +882,7 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
+static atomic64_t owners;
 
 #define smp_cond_load_relaxedx(ptr, cond_expr)				\
 ({									\
@@ -1092,6 +1093,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (eprod - sprod > 1 << llq.max_n_shift)
 			pr_err_once("%s cpu%d owner too much eprod=0x%x sprod=0x%x 1 << llq.max_n_shift=0x%x\n", __func__, cpu, eprod, sprod, 1 << llq.max_n_shift);
 
+		atomic64_inc(&owners);
+
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
 		 * Note that we read our own entries so that we have the control
@@ -1181,6 +1184,12 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
+u64 arm_smmu_cmdq_get_owners(void)
+{
+	return atomic64_read(&owners);
+}
+
+
 u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
 {
 	return atomic64_read(&cmpxchg_tries);
@@ -1190,6 +1199,7 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
 	atomic64_set(&cmpxchg_tries, 0);
+	atomic64_set(&owners, 0);
 }
 
 void arm_smmu_cmdq_zero_times(void)
