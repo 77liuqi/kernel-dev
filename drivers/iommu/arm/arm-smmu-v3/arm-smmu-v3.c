@@ -130,7 +130,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 			wrapped = true;
 			if (atomic_inc_return(&printx) <= 1) {
 			//	pr_err("%s wrapped (same WRP=%d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), q->prod, q->cons);
-				p = 1;
+			//	p = 1;
 			}
 			result1 = false;
 		//	goto end;
@@ -143,7 +143,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 			wrapped = true;
 			if (atomic_inc_return(&printx) <= 1) {
 			//	pr_err("%s wrapped (different WRP=%d, %d) q->prod=0x%x q->cons=0x%x\n", __func__, !!Q_WRP(q, q->prod), !!Q_WRP(q, q->cons), q->prod, q->cons);
-				p = 1;
+			//	p = 1;
 			}
 			result1 = false;
 		//	goto end;
