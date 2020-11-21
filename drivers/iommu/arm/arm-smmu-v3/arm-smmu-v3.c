@@ -984,10 +984,47 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
-	owner_val = sprod;
 
 	count = 0;
 	shead = sprod + n + sync;
+
+
+	#ifdef HACK
+	if (test) {
+		for (i=n_orig;i<CMDQ_BATCH_ENTRIES ;i++) {
+			prod = queue_inc_prod_n(&llq, i);
+			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
+		}
+		pr_err_once("%s padding up %d commands\n", __func__, CMDQ_BATCH_ENTRIES);
+		prod = queue_inc_prod_n(&llq, CMDQ_BATCH_ENTRIES);
+	} else {
+		prod = queue_inc_prod_n(&llq, n);
+	}
+	#else
+	prod = queue_inc_prod_n(&llq, n);
+	#endif
+
+	if (sync) {
+		prod = queue_inc_prod_n(&llq, n);
+		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
+		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
+
+		/*
+		 * In order to determine completion of our CMD_SYNC, we must
+		 * ensure that the queue can't wrap twice without us noticing.
+		 * We achieve that by taking the cmdq lock as shared before
+		 * marking our slot as valid.
+		 */
+		arm_smmu_cmdq_shared_lock(cmdq);
+	}
+
+	/* 3. Mark our slots as valid, ensuring commands are visible first */
+	dma_wmb();
+	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
+
+	owner_val = sprod;
 
 	owner = false;
 	
@@ -1036,41 +1073,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	if (_tries < 0)
 		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), owner);
-
-	#ifdef HACK
-	if (test) {
-		for (i=n_orig;i<CMDQ_BATCH_ENTRIES ;i++) {
-			prod = queue_inc_prod_n(&llq, i);
-			arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
-			queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
-			memset(cmd_sync, 0x0, CMDQ_ENT_DWORDS * sizeof(u64));
-		}
-		pr_err_once("%s padding up %d commands\n", __func__, CMDQ_BATCH_ENTRIES);
-		prod = queue_inc_prod_n(&llq, CMDQ_BATCH_ENTRIES);
-	} else {
-		prod = queue_inc_prod_n(&llq, n);
-	}
-	#else
-	prod = queue_inc_prod_n(&llq, n);
-	#endif
-
-	if (sync) {
-		prod = queue_inc_prod_n(&llq, n);
-		arm_smmu_cmdq_build_sync_cmd(cmd_sync, smmu, prod);
-		queue_write(Q_ENT(&cmdq->q, prod), cmd_sync, CMDQ_ENT_DWORDS);
-
-		/*
-		 * In order to determine completion of our CMD_SYNC, we must
-		 * ensure that the queue can't wrap twice without us noticing.
-		 * We achieve that by taking the cmdq lock as shared before
-		 * marking our slot as valid.
-		 */
-		arm_smmu_cmdq_shared_lock(cmdq);
-	}
-
-	/* 3. Mark our slots as valid, ensuring commands are visible first */
-	dma_wmb();
-	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
