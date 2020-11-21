@@ -991,7 +991,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	owner = false;
 	
-	if (_tries < 5)
+	if (_tries < 0)
 		pr_err("%s u0 cpu%d sprod=0x%x shead=0x%x _tries=0x%llx\n", __func__, cpu, sprod, shead, _tries);
 	owner_time = ktime_get();
 	while (1) {
@@ -1004,11 +1004,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	//		break;
 	//	}
 		
-		if (_tries < 5)
+		if (_tries < 0)
 			pr_err("%s u1 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
 		atomic64_inc(&cmpxchg_tries);
 		old = cmpxchg_relaxed(&cmdq->owner, owner_val, new_val);
-		if (_tries < 5)
+		if (_tries < 0)
 			pr_err("%s u2 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 		if (old == owner_val) {
 			owner = true;
@@ -1034,7 +1034,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	}
 
 
-	if (_tries < 5)
+	if (_tries < 0)
 		pr_err("%s u10 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x READ_ONCE(cmdq->owner)=0x%llx owner=%d\n", __func__, cpu, owner_val, sprod, shead, READ_ONCE(cmdq->owner), owner);
 
 	#ifdef HACK
@@ -1079,13 +1079,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== owner_val);
 		
-		if (_tries < 5)
+		if (_tries < 0)
 			pr_err("%s v0 cpu%d sprod=0x%x shead=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/* b. Stop gathering work by clearing the owned mask */
 		eprod = atomic64_fetch_andnot_relaxed(CMDQ_PROD_OWNED_FLAG, &cmdq->owner_a);
 	
-		if (_tries < 5)
+		if (_tries < 0)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		prod = Q_WRP(&llq, eprod) | Q_IDX(&llq, eprod);
@@ -1114,7 +1114,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			panic("sddd es prod\n");
 
 		val = eprod;
-		if (_tries < 5)
+		if (_tries < 0)
 			pr_err("%s v2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%llx\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
 		/*
