@@ -1078,10 +1078,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	dma_wmb();
 	arm_smmu_cmdq_set_valid_map(cmdq, llq.prod, head.prod);
 
-	owner_val = READ_ONCE(cmdq->owner);
-	if ((u32)owner_val >= shead)
-		goto finished_getting_owner;
+//	owner_val = READ_ONCE(cmdq->owner);
+//	if ((u32)owner_val >= shead)
+//		goto finished_getting_owner;
 
+	owner_val = shead;
 	owner = false;
 	
 //	if (_tries < 0)
