@@ -1093,9 +1093,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
 	//	owner_val = sprod;
 
-		if (arm_smmu_cmdq_is_map_set(cmdq, shead))
-			goto finished_getting_owner;
-
 	//	if ((u32)owner_val >= shead) {
 	//		pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
 	//		break;
@@ -1124,6 +1121,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		//	pr_err("%s u4 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx old=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val, old);
 			break;
 		}
+		
+		if (arm_smmu_cmdq_is_map_set(cmdq, shead))
+			goto finished_getting_owner;
 		count++;
 //		cpu_relax();
 	//	if (ktime_after(ktime_get(), owner_time + ms_to_ktime(1800)))
