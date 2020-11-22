@@ -719,6 +719,79 @@ static void arm_smmu_cmdq_poll_valid_map(struct arm_smmu_cmdq *cmdq,
 	__arm_smmu_cmdq_poll_set_valid_map(cmdq, sprod, eprod, false);
 }
 
+static bool arm_smmu_cmdq_is_map_set(struct arm_smmu_cmdq *cmdq,
+					 u32 sprod)
+{
+	u32 swidx, sbidx;
+	struct arm_smmu_ll_queue llq = {
+		.max_n_shift	= cmdq->q.llq.max_n_shift,
+		.prod		= sprod,
+	};  
+	unsigned long valid; 
+	static int caller_count;
+	
+	atomic_long_t *ptr;
+	unsigned long mask;
+	
+	swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
+	sbidx = Q_IDX(&llq, llq.prod) % BITS_PER_LONG;
+	
+	ptr = &cmdq->valid_map[swidx];
+
+
+	mask = BIT(sbidx);
+
+	valid = (ULONG_MAX + !!Q_WRP(&llq, llq.prod)) & mask;
+	if (caller_count < 10) {
+		pr_err("%s sprod=0x%x swidx=0x%x sbidx=0x%x mask=0x%lx valid=0x%lx *ptr=0x%lx\n", __func__, sprod, swidx, sbidx, mask, valid, atomic_long_read(ptr));
+	}
+	caller_count++;
+	if ((atomic_long_read(ptr) & mask) == valid) {
+		pr_err_once("%s1 found one sprod=0x%x swidx=0x%x sbidx=0x%x mask=0x%lx valid=0x%lx *ptr=0x%lx\n", __func__, sprod, swidx, sbidx, mask, valid, atomic_long_read(ptr));
+		return true;
+	}
+	return false;
+
+#ifdef dffdfd
+	while (llq.prod != eprod) {
+		unsigned long mask;
+		atomic_long_t *ptr;
+		u32 limit = BITS_PER_LONG;
+
+		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (set == false)) {
+			count = 1;
+			pr_err_once("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
+		}
+
+		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
+		sbidx = Q_IDX(&llq, llq.prod) % BITS_PER_LONG;
+
+		ptr = &cmdq->valid_map[swidx];
+
+		if ((swidx == ewidx) && (sbidx < ebidx))
+			limit = ebidx;
+
+		mask = GENMASK(limit - 1, sbidx);
+
+		/*
+		 * The valid bit is the inverse of the wrap bit. This means
+		 * that a zero-initialised queue is invalid and, after marking
+		 * all entries as valid, they become invalid again when we
+		 * wrap.
+		 */
+		if (set) {
+			atomic_long_xor(mask, ptr);
+		} else { /* Poll */
+			unsigned long valid;
+
+			valid = (ULONG_MAX + !!Q_WRP(&llq, llq.prod)) & mask;
+			atomic_long_cond_read_relaxed(ptr, (VAL & mask) == valid);
+		}
+	}
+#endif	
+}
+					 
+
 /* Wait for the command queue to become non-full */
 static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 					     struct arm_smmu_ll_queue *llq)
@@ -1038,6 +1111,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u64 old, new_val = shead | CMDQ_PROD_OWNED_FLAG;
 		owner_val &= ~CMDQ_PROD_OWNED_FLAG;
 	//	owner_val = sprod;
+
+		if (arm_smmu_cmdq_is_map_set(cmdq, shead))
+			goto finished_getting_owner;
 
 	//	if ((u32)owner_val >= shead) {
 	//		pr_err_once("%s u00 cpu%d owner_val=0x%llx sprod=0x%x shead=0x%x count=%d new_val=0x%llx\n", __func__, cpu, owner_val, sprod, shead, count, new_val);
