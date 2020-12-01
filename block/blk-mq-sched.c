@@ -615,7 +615,7 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->sched_tags)
-			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+			blk_mq_free_rqs_ext(q->tag_set, hctx->sched_tags, i, hctx->tags);
 	}
 }
 

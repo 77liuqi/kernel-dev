@@ -2286,8 +2286,8 @@ queue_exit:
 	return BLK_QC_T_NONE;
 }
 
-void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
-		     unsigned int hctx_idx)
+void __blk_mq_free_rqs_ext(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, struct blk_mq_tags *ref_tags)
 {
 	struct page *page;
 
@@ -2296,10 +2296,14 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 
 		for (i = 0; i < tags->nr_tags; i++) {
 			struct request *rq = tags->static_rqs[i];
+			int j;
 
 			if (!rq)
 				continue;
 			set->ops->exit_request(set, rq, hctx_idx);
+			/* clean up any references which occur in @ref_tags */
+			for (j = 0; ref_tags && j < ref_tags->nr_tags; j++)
+				cmpxchg(&ref_tags->rqs[j], rq, 0);
 			tags->static_rqs[i] = NULL;
 		}
 	}
@@ -2314,6 +2318,18 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		kmemleak_free(page_address(page));
 		__free_pages(page, page->private);
 	}
+}
+
+void blk_mq_free_rqs_ext(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx, struct blk_mq_tags *ref_tags)
+{
+	__blk_mq_free_rqs_ext(set, tags, hctx_idx, ref_tags);
+}
+			 
+void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
+		     unsigned int hctx_idx)
+{
+	__blk_mq_free_rqs_ext(set, tags, hctx_idx, NULL);
 }
 
 void blk_mq_free_rq_map(struct blk_mq_tags *tags, unsigned int flags)

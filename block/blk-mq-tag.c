@@ -580,7 +580,7 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 			return -ENOMEM;
 		}
 
-		blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
+		blk_mq_free_rqs_ext(set, *tagsptr, hctx->queue_num, hctx->tags);
 		blk_mq_free_rq_map(*tagsptr, flags);
 		*tagsptr = new;
 	} else {
