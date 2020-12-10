@@ -7426,7 +7426,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
-	
+	.sg_tablesize =         124,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 };
 
