@@ -478,6 +478,7 @@ atomic64_t atomic__iova_depot_full_at_insert;
 */
 atomic64_t iova_allocs;
 atomic64_t iova_allocs_rcache;
+atomic64_t iova_allocs_has_pfn_useful;
 atomic64_t iova_allocs_rcache_alloc_fail;
 atomic64_t iova_allocs_rcache_alloc_fail_flush;
 atomic64_t iova_allocs_new_iova;
@@ -1067,6 +1068,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 							cpu_rcache->loaded;
 				can_insert = true;
 				cpu_rcache->loaded = new_mag;
+			} else {
+				atomic64_inc(&atomic__iova_depot_full_at_insert);
 			}
 			spin_unlock(&rcache->lock);
 			if (!can_insert)
@@ -1109,6 +1112,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	bool has_pfn = false;
 	unsigned long flags;
 
+	atomic64_inc(&atomic__iova_rcache_get);
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
@@ -1123,12 +1127,19 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 			iova_magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
 			has_pfn = true;
+			atomic64_inc(&atomic__iova_rcache_grab_depot);
+		} else {
+			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
 		}
 		spin_unlock(&rcache->lock);
 	}
 
-	if (has_pfn)
+	if (has_pfn) {
+		atomic64_inc(&atomic__iova_rcache_get_has_pfn);
 		iova_pfn = iova_magazine_pop(cpu_rcache->loaded, limit_pfn);
+		if (iova_pfn)
+			atomic64_inc(&atomic__iova_rcache_get_has_pfn_success);
+	}
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 
@@ -1146,8 +1157,11 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 {
 	unsigned int log_size = order_base_2(size);
 
-	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE)
+	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
+		atomic64_inc_return(&iova_allocs_rcache_log_too_big);
+	
 		return 0;
+	}
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
