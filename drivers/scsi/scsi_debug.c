@@ -7401,6 +7401,7 @@ check_cond:
 err_out:
 	return schedule_resp(scp, NULL, DID_NO_CONNECT << 16, NULL, 0, 0);
 }
+#define HISI_SAS_SGE_PAGE_CNT (124)
 
 static struct scsi_host_template sdebug_driver_template = {
 	.show_info =		scsi_debug_show_info,
@@ -7421,11 +7422,12 @@ static struct scsi_host_template sdebug_driver_template = {
 	.eh_host_reset_handler = scsi_debug_host_reset,
 	.can_queue =		SDEBUG_CANQUEUE,
 	.this_id =		7,
-	.sg_tablesize =		64,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
+	
+	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 };
 
 static int sdebug_driver_probe(struct device *dev)
