@@ -2644,8 +2644,23 @@ static ssize_t smmu_test_store(struct device *dev, struct device_attribute *attr
 	return count;
 }
 
-
 static DEVICE_ATTR_WO(smmu_test);
+
+extern void iommu_flush_iova_main(struct device *dev);
+static ssize_t smmu_iova_clear_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+
+	iommu_flush_iova_main(hisi_hba->dev);
+	return count;
+}
+
+static DEVICE_ATTR_WO(smmu_iova_clear);
+
 
 static ssize_t intr_conv_v3_hw_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -2785,6 +2800,7 @@ static struct device_attribute *host_attrs_v3_hw[] = {
 	&dev_attr_smmu_test,
 	&dev_attr_intr_coal_ticks_v3_hw,
 	&dev_attr_intr_coal_count_v3_hw,
+	&dev_attr_smmu_iova_clear,
 	NULL
 };
 
