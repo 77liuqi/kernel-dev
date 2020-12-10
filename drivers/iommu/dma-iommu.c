@@ -479,6 +479,19 @@ static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
 				size >> iova_shift(iovad));
 }
 
+void iommu_flush_iova_main(struct device *dev)
+{
+	dev_err(dev, "%s dev=%pS\n", __func__, dev);
+	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	dev_err(dev, "%s1 domain=%pS\n", __func__, domain);
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	dev_err(dev, "%s2 cookie=%pS\n", __func__, cookie);
+	struct iova_domain *iovad = &cookie->iovad;
+	dev_err(dev, "%s3 iovad=%pS\n", __func__, iovad);
+
+	flush_iovad(iovad);
+}
+
 static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 		size_t size)
 {
