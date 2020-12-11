@@ -76,7 +76,7 @@ struct iova_fq {
 	spinlock_t lock;
 };
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 11	/* log of max cached IOVA range size (in pages) */
+#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
 
 /* holds all the iova translations for a domain */
 struct iova_domain {
