@@ -76,7 +76,7 @@ struct iova_fq {
 	spinlock_t lock;
 };
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
+#define IOVA_RANGE_CACHE_MAX_SIZE 11	/* log of max cached IOVA range size (in pages) */
 
 /* holds all the iova translations for a domain */
 struct iova_domain {
@@ -163,7 +163,7 @@ void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
 		unsigned long data);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-			      unsigned long limit_pfn, bool flush_rcache);
+			      unsigned long limit_pfn, bool flush_rcache, size_t real_size);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
