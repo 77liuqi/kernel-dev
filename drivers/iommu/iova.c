@@ -23,7 +23,8 @@ static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long size);
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
-				     unsigned long limit_pfn);
+				     unsigned long limit_pfn,
+				     size_t real_size);
 static void init_iova_rcaches(struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
 static void fq_destroy_all_entries(struct iova_domain *iovad);
@@ -620,7 +621,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 }
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-		unsigned long limit_pfn, bool flush_rcache)
+		unsigned long limit_pfn, bool flush_rcache, size_t real_size)
 {
 	unsigned long iova_pfn;
 	struct iova *new_iova;
@@ -637,7 +638,7 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 		}
 	}
 
-	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
+	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1, real_size);
 	if (iova_pfn) {
 		atomic64_inc(&iova_allocs_rcache);
 		return iova_pfn;
@@ -1145,7 +1146,8 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
  */
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
-				     unsigned long limit_pfn)
+				     unsigned long limit_pfn,
+				     size_t real_size)
 {
 	unsigned int log_size = order_base_2(size);
 	static unsigned long biggest_size;
@@ -1163,13 +1165,13 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 	}
 
 	if (changed)
-		pr_err("%s biggest_size=%lu biggest_limit_pfn=%lu log_size=%d too_big=%d\n",
+		pr_err("%s biggest_size=%lu biggest_limit_pfn=%lu log_size=%d too_big=%d real_size=%zu\n",
 			__func__, biggest_size, biggest_limit_pfn, log_size,
-			log_size >= IOVA_RANGE_CACHE_MAX_SIZE);
+			log_size >= IOVA_RANGE_CACHE_MAX_SIZE, real_size);
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
 		atomic64_inc_return(&iova_allocs_rcache_log_too_big);
-	
+		
 		return 0;
 	}
 
