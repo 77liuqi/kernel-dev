@@ -532,7 +532,17 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 	u64 _atomic__iova_rcache_grab_depot;
 	u64 too_big;
 	u64 diff;
+	static ktime_t last_time;
+	ktime_t current_time;
+	ktime_t diff_time;
+	int diff_seconds;
+	unsigned long diff_ms;
 
+	current_time = ktime_get();
+	diff_time = current_time - last_time;
+	last_time = current_time;
+	diff_ms = ktime_to_ms(diff_time);
+	diff_seconds = diff_ms / 1000;
 
 	_atomic__iova_depot_full_at_insert = atomic64_read(&atomic__iova_depot_full_at_insert);
 	_iova_allocs = atomic64_read(&iova_allocs);
@@ -590,7 +600,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 	else
 		diff = _iova_allocs_rcache + _iova_allocs_new_iova - _iova_allocs;
 
-	pr_err("%s2 iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu diff=%llu fail=%llu flush=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) insert depot full=%llu grab from depot=%llu too_big=%llu\n",
+	pr_err("%s2 iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu diff=%llu fail=%llu flush=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) insert depot full=%llu grab from depot=%llu too_big=%llu  rate per ms=%llu\n",
 		__func__, 
 		_iova_allocs,
 		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
@@ -604,7 +614,8 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 		_atomic__iova_rcache_get_zero_depot,
 		_atomic__iova_depot_full_at_insert,
 		_atomic__iova_rcache_grab_depot,
-		too_big);
+		too_big,
+		_iova_allocs / (diff_ms + 1));
 
 	atomic64_sub(_iova_allocs, &iova_allocs);
 	atomic64_sub(_iova_allocs_rcache, &iova_allocs_rcache);
