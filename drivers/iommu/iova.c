@@ -584,7 +584,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 
 			if (!depot)
 				continue;
-			if (depot->size <= MAX_GLOBAL_MAGS) {
+			if (depot->size <= IOVA_MAG_SIZE) {
 				depot_total += depot->size;
 				sprintf(string+strlen(string), "%lu ", depot->size);
 				dcount++;
