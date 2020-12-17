@@ -579,7 +579,7 @@ void print_iova(struct iova_domain *iovad, bool print_cpus)
 		sprintf(string, "%s rcache%d ", __func__, i);
 
 		spin_lock_irqsave(&rcache->lock, flags);
-		for (j = 0; j < MAX_GLOBAL_MAGS; ++j) {
+		for (j = 0; j < rcache->depot_size; ++j) {
 			struct iova_magazine *depot = rcache->depot[j];
 
 			if (!depot)
