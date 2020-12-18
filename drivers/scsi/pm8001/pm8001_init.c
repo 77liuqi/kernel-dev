@@ -81,6 +81,15 @@ LIST_HEAD(hba_list);
 
 struct workqueue_struct *pm8001_wq;
 
+static int pm8001_map_queues(struct Scsi_Host *shost)
+{
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+
+	return blk_mq_pci_map_queues(qmap, pm8001_ha->pdev, 0);
+}
+
 /*
  * The main structure which LLDD must register for scsi core.
  */
@@ -106,6 +115,7 @@ static struct scsi_host_template pm8001_sht = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sas_ioctl,
 #endif
+	.map_queues			= pm8001_map_queues,
 	.shost_attrs		= pm8001_host_attrs,
 	.track_queue_depth	= 1,
 };
@@ -923,9 +933,8 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
 static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 number_of_intr;
-	int rc, cpu_online_count;
+	int rc;
 	unsigned int allocated_irq_vectors;
-
 	/* SPCv controllers supports 64 msi-x */
 	if (pm8001_ha->chip_id == chip_8001) {
 		number_of_intr = 1;
@@ -933,16 +942,15 @@ static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 		number_of_intr = PM8001_MAX_MSIX_VEC;
 	}
 
-	cpu_online_count = num_online_cpus();
-	number_of_intr = min_t(int, cpu_online_count, number_of_intr);
-	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, number_of_intr,
-			number_of_intr, PCI_IRQ_MSIX);
+	/* Use default affinity descriptor, which spreads *all* vectors */
+	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, 1,
+			number_of_intr, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 	allocated_irq_vectors = rc;
 	if (rc < 0)
 		return rc;
 
 	/* Assigns the number of interrupts */
-	number_of_intr = min_t(int, allocated_irq_vectors, number_of_intr);
+	number_of_intr = allocated_irq_vectors;
 	pm8001_ha->number_of_intr = number_of_intr;
 
 	/* Maximum queue number updating in HBA structure */
@@ -1112,6 +1120,16 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	rc = pm8001_init_ccb_tag(pm8001_ha, shost, pdev);
 	if (rc)
 		goto err_out_enable;
+
+	if (pm8001_ha->number_of_intr > 1) {
+		shost->nr_hw_queues = pm8001_ha->number_of_intr;
+		/*
+		 * For now, ensure we're not sent too many commands by setting
+		 * host_tagset. This is also required if we start using request
+		 * tag.
+		 */
+		shost->host_tagset = 1;
+	}
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
