@@ -22,11 +22,22 @@ struct iova {
 	unsigned long	pfn_lo; /* Lowest allocated pfn */
 };
 
-struct iova_magazine;
-struct iova_cpu_rcache;
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
+#define IOVA_MAG_SIZE 128
+
+struct iova_magazine {
+	unsigned long size;
+	unsigned long pfns[IOVA_MAG_SIZE];
+};
+
+struct iova_cpu_rcache {
+	spinlock_t lock;
+	struct iova_magazine *loaded;
+	struct iova_magazine *prev;
+};
+
 #define MAX_GLOBAL_MAGS 32	/* magazines per bin */
+
 
 struct iova_rcache {
 	spinlock_t lock;
@@ -34,6 +45,7 @@ struct iova_rcache {
 	struct iova_magazine *depot[MAX_GLOBAL_MAGS];
 	struct iova_cpu_rcache __percpu *cpu_rcaches;
 };
+
 
 struct iova_domain;
 
@@ -63,6 +75,8 @@ struct iova_fq {
 	unsigned head, tail;
 	spinlock_t lock;
 };
+
+#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
 
 /* holds all the iova translations for a domain */
 struct iova_domain {
