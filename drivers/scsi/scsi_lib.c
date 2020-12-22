@@ -1804,11 +1804,15 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 		BUG_ON(shost->sg_prot_tablesize < shost->sg_tablesize);
 		blk_queue_max_integrity_segments(q, shost->sg_prot_tablesize);
 	}
+	
+	dev_err(dev, "%s1 shost->max_sectors=%d q=%pS\n", __func__, shost->max_sectors, q);
 
 	if (dev->dma_mask) {
 		shost->max_sectors = min_t(unsigned int, shost->max_sectors,
 				dma_max_mapping_size(dev) >> SECTOR_SHIFT);
+		dev_err(dev, "%s2 shost->max_sectors=%d q=%pS\n", __func__, shost->max_sectors, q);
 	}
+	
 	blk_queue_max_hw_sectors(q, shost->max_sectors);
 	if (shost->unchecked_isa_dma)
 		blk_queue_bounce_limit(q, BLK_BOUNCE_ISA);
@@ -1819,6 +1823,15 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	blk_queue_virt_boundary(q, shost->virt_boundary_mask);
 	dma_set_max_seg_size(dev, queue_max_segment_size(q));
 
+
+	dev_err(dev, "%s3 shost->max_sectors=%d q=%pS dma_boundary=0x%lx max_segment_size=0x%x seg_boundary_mask=0x%lx\n",
+		__func__, shost->max_sectors, q, shost->dma_boundary, shost->max_segment_size, dev->dma_parms ? dev->dma_parms->segment_boundary_mask : -2);
+
+	dev_err(dev, "%s4 shost->max_sectors=%d q=%pS dma_boundary=0x%lx max_segment_size=0x%x dma_parms max_segment_size=0x%x\n",
+		__func__, shost->max_sectors, q, shost->dma_boundary, shost->max_segment_size, dev->dma_parms ? dev->dma_parms->max_segment_size : -2);
+
+
+
 	/*
 	 * Set a reasonable default alignment:  The larger of 32-byte (dword),
 	 * which is a common minimum for HBAs, and the minimum DMA alignment,
@@ -1827,6 +1840,8 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	 * Devices that require a bigger alignment can increase it later.
 	 */
 	blk_queue_dma_alignment(q, max(4, dma_get_cache_alignment()) - 1);
+	dev_err(dev, "%s5 shost->max_sectors=%d q=%pS dma_boundary=0x%lx max_segment_size=0x%x dma_parms max_segment_size=0x%x dma_alignment=0x%x\n",
+		__func__, shost->max_sectors, q, shost->dma_boundary, shost->max_segment_size, dev->dma_parms ? dev->dma_parms->max_segment_size : -2, q->dma_alignment);
 }
 EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
