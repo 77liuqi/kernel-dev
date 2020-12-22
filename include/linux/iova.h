@@ -80,6 +80,8 @@ struct iova_fq {
 
 /* holds all the iova translations for a domain */
 struct iova_domain {
+	unsigned long biggest_size;
+	unsigned long biggest_limit_pfn;
 	spinlock_t	iova_rbtree_lock; /* Lock to protect update of rbtree */
 	struct rb_root	rbroot;		/* iova domain rbtree root */
 	struct rb_node	*cached_node;	/* Save last alloced node */
