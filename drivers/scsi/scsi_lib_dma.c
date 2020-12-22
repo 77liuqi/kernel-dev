@@ -23,6 +23,9 @@
 int scsi_dma_map(struct scsi_cmnd *cmd)
 {
 	int nseg = 0;
+	static int count1;
+
+	count1++;
 
 	if (scsi_sg_count(cmd)) {
 		struct device *dev = cmd->device->host->dma_dev;
@@ -32,6 +35,9 @@ int scsi_dma_map(struct scsi_cmnd *cmd)
 		if (unlikely(!nseg))
 			return -ENOMEM;
 	}
+	if ((count1 % 10000000) == 0)
+		pr_err("%s nseg=%d scsi_sg_count=%d\n", __func__, nseg, scsi_sg_count(cmd));
+	
 	return nseg;
 }
 EXPORT_SYMBOL(scsi_dma_map);
