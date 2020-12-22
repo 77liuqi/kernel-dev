@@ -10718,7 +10718,6 @@ static struct scsi_host_template mpt3sas_driver_template = {
 	.this_id			= -1,
 	.sg_tablesize			= MPT3SAS_SG_DEPTH,
 	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
-	.max_segment_size		= 0xffffffff,
 	.cmd_per_lun			= 1000,
 	.shost_attrs			= mpt3sas_host_attrs,
 	.sdev_attrs			= mpt3sas_dev_attrs,
