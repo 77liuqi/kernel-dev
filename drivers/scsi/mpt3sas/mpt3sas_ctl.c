@@ -3784,6 +3784,22 @@ enable_sdev_max_qd_store(struct device *cdev,
 	return strlen(buf);
 }
 static DEVICE_ATTR_RW(enable_sdev_max_qd);
+extern void iommu_flush_iova_main(struct device *dev);
+static ssize_t smmu_iova_clear_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct pci_dev *pdev = ioc->pdev;
+
+
+	iommu_flush_iova_main(&pdev->dev);
+	return count;
+}
+
+static DEVICE_ATTR_WO(smmu_iova_clear);
+
 
 struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_version_fw,
@@ -3813,6 +3829,7 @@ struct device_attribute *mpt3sas_host_attrs[] = {
 	&dev_attr_drv_support_bitmap,
 	&dev_attr_BRM_status,
 	&dev_attr_enable_sdev_max_qd,
+	&dev_attr_smmu_iova_clear,
 	NULL,
 };
 
