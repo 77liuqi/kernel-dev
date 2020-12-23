@@ -1212,23 +1212,21 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     size_t real_size)
 {
 	unsigned int log_size = order_base_2(size);
-	static unsigned long biggest_size;
-	static unsigned long biggest_limit_pfn;
 	int changed = 0;
 
-	if (size > biggest_size) {
-		biggest_size = size;
+	if (size > iovad->biggest_size) {
+		iovad->biggest_size = size;
 		changed = 1;
 	}
 
-	if (limit_pfn > biggest_limit_pfn) {
-		biggest_limit_pfn = limit_pfn;
+	if (limit_pfn > iovad->biggest_limit_pfn) {
+		iovad->biggest_limit_pfn = limit_pfn;
 		changed = 1;
 	}
 
 	if (changed)
 		pr_err("%s biggest_size=%lu biggest_limit_pfn=%lu log_size=%d too_big=%d real_size=%zu\n",
-			__func__, biggest_size, biggest_limit_pfn, log_size,
+			__func__, iovad->biggest_size, iovad->biggest_limit_pfn, log_size,
 			log_size >= IOVA_RANGE_CACHE_MAX_SIZE, real_size);
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {

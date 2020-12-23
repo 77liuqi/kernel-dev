@@ -311,10 +311,15 @@ static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
 		*n_elem = task->num_scatter;
 	} else {
 		unsigned int req_len;
+		static int count1;
+
+		count1++;
 
 		if (task->num_scatter) {
 			*n_elem = dma_map_sg(dev, task->scatter,
 					     task->num_scatter, task->data_dir);
+			if ((count1 % 1000000) == 0)
+				pr_err("%s *n_elem=%d task->num_scatter=%d\n", __func__, *n_elem, task->num_scatter);
 			if (!*n_elem) {
 				rc = -ENOMEM;
 				goto prep_out;
