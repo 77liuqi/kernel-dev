@@ -541,8 +541,12 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			pr_err("%s2\n", __func__);
 	} else if (rq->bio) {
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
-		if ((count % 1000000) == 0)
-			pr_err("%s3\n", __func__);
+		if ((count % 1000000) == 0) {
+			if (nsegs > 1)
+				WARN_ONCE(1, "%s3.1 nsegs=%d\n", __func__, nsegs);
+			WARN_ONCE(1, "%s3.2 nsegs=%d\n", __func__, nsegs);
+			pr_err("%s3.3\n", __func__);
+		}
 	}
 
 	if (*last_sg)
