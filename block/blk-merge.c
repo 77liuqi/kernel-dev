@@ -485,17 +485,29 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 	struct bvec_iter iter;
 	int nsegs = 0;
 	bool new_bio = false;
+	int bios = 0;
+	int bvecs = 0;
+	int merge = 0;
+	static int count;
+
+	count++;
+
+
 
 	for_each_bio(bio) {
+		bios++;
 		bio_for_each_bvec(bvec, bio, iter) {
+		bvecs++;
 			/*
 			 * Only try to merge bvecs from two bios given we
 			 * have done bio internal merge when adding pages
 			 * to bio
 			 */
 			if (new_bio &&
-			    __blk_segment_map_sg_merge(q, &bvec, &bvprv, sg))
+			    __blk_segment_map_sg_merge(q, &bvec, &bvprv, sg)) {
+			    merge = 1;
 				goto next_bvec;
+			 }
 
 			if (bvec.bv_offset + bvec.bv_len <= PAGE_SIZE)
 				nsegs += __blk_bvec_map_sg(bvec, sglist, sg);
@@ -509,6 +521,8 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 			new_bio = true;
 		}
 	}
+	if ((count % 1000000) == 0)
+		pr_err("%s nsegs=%d bios=%d bvecs=%d merge=%d\n", __func__, nsegs, bios, bvecs, merge);
 
 	return nsegs;
 }
