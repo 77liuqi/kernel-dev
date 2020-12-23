@@ -35,7 +35,7 @@ int scsi_dma_map(struct scsi_cmnd *cmd)
 		if (unlikely(!nseg))
 			return -ENOMEM;
 	}
-	if ((count1 % 10000000) == 0)
+	if ((count1 % 1000000) == 0)
 		pr_err("%s nseg=%d scsi_sg_count=%d\n", __func__, nseg, scsi_sg_count(cmd));
 	
 	return nseg;
