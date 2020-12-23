@@ -1010,6 +1010,10 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	blk_status_t ret;
 	bool need_drain = scsi_cmd_needs_dma_drain(sdev, rq);
 	int count;
+	static int count1;
+
+	count1++;
+
 
 	if (WARN_ON_ONCE(!nr_segs))
 		return BLK_STS_IOERR;
@@ -1033,6 +1037,9 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	 * each segment.
 	 */
 	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
+
+	if ((count1 % 1000000) == 0)
+		pr_err("%s nr_segs=%d need_drain=%d count=%d\n", __func__, nr_segs, need_drain, count);
 
 	if (blk_rq_bytes(rq) & rq->q->dma_pad_mask) {
 		unsigned int pad_len =
