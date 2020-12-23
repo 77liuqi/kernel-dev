@@ -521,13 +521,23 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		struct scatterlist *sglist, struct scatterlist **last_sg)
 {
 	int nsegs = 0;
+	static int count;
 
-	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+	count++;
+
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD) {
 		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, last_sg);
-	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
+		if ((count % 1000000) == 0)
+			pr_err("%s1\n", __func__);
+	} else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME) {
 		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, last_sg);
-	else if (rq->bio)
+		if ((count % 1000000) == 0)
+			pr_err("%s2\n", __func__);
+	} else if (rq->bio) {
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
+		if ((count % 1000000) == 0)
+			pr_err("%s3\n", __func__);
+	}
 
 	if (*last_sg)
 		sg_mark_end(*last_sg);
