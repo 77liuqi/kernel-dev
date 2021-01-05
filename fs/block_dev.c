@@ -348,6 +348,12 @@ static void blkdev_bio_end_io(struct bio *bio)
 	}
 }
 
+static unsigned long long _countdb1;
+static unsigned long long _countdb2;
+static unsigned long long _count_bio_loop;
+
+static unsigned long long _countplug;
+
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
@@ -362,6 +368,12 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	loff_t pos = iocb->ki_pos;
 	blk_qc_t qc = BLK_QC_T_NONE;
 	int ret = 0;
+
+	_countdb1++;
+	
+	if ((_countdb1 % 1000000) == 0)
+		pr_err("%s 1=%llu 2=%llu _countplug=%llu _count_bio_loop=%llu\n",
+		__func__, _countdb1 / 1000000, _countdb2 / 1000000, _countplug / 1000000, _count_bio_loop / 1000000);
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
@@ -390,6 +402,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		blk_start_plug(&plug);
 
 	for (;;) {
+		_count_bio_loop++;
 		bio_set_dev(bio, bdev);
 		bio->bi_iter.bi_sector = pos >> 9;
 		bio->bi_write_hint = iocb->ki_hint;
@@ -450,11 +463,15 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		bio = bio_alloc(GFP_KERNEL, nr_pages);
 	}
 
-	if (!is_poll)
+	if (!is_poll) {
+		_countplug++;
 		blk_finish_plug(&plug);
+	}
 
 	if (!is_sync)
 		return -EIOCBQUEUED;
+
+	_countdb2++;
 
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
