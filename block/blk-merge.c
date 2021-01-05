@@ -535,7 +535,8 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		struct scatterlist *sglist, struct scatterlist **last_sg)
 {
 	int nsegs = 0;
-	static int count;
+	static unsigned long long count;
+	static unsigned long long _n_segs;
 
 	count++;
 
@@ -552,10 +553,10 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		if ((count % 1000000) == 0) {
 			if (nsegs > 1) {
 				WARN_ONCE(1, "%s3.1 nsegs=%d\n", __func__, nsegs);
-				pr_err("%s3.11 nsegs=%d\n", __func__, nsegs);
+				//pr_err("%s3.11 nsegs=%d\n", __func__, nsegs);
 			}
 			WARN_ONCE(1, "%s3.2 nsegs=%d\n", __func__, nsegs);
-			pr_err("%s3.3 nsegs=%d\n", __func__, nsegs);
+			pr_err("%s3.3 nsegs=%d avg=%llu (%llu / %llu)\n", __func__, nsegs, _n_segs / count, _n_segs / 1000000, count / 1000000);
 		}
 	}
 
@@ -567,6 +568,8 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * segment is bigger than number of req's physical segments
 	 */
 	WARN_ON(nsegs > blk_rq_nr_phys_segments(rq));
+
+	_n_segs += nsegs;
 
 	return nsegs;
 }
