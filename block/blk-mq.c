@@ -1881,9 +1881,21 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return blk_rq_pos(rqa) > blk_rq_pos(rqb);
 }
 
+static unsigned long long flush_plug_count;
+static unsigned long long flush_plug;
+static unsigned long long flush_plug1;
+
+
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {
 	LIST_HEAD(list);
+
+	flush_plug++;
+		
+	if ((flush_plug % 1000000) == 0)
+		pr_err("%s flush_plug=%llu flush_plug1=%llu flush_plug_count=%llu\n", __func__, flush_plug  /1000000, flush_plug1 / 1000000, flush_plug_count / 1000000);
+
+	flush_plug_count += plug->rq_count;
 
 	if (list_empty(&plug->mq_list))
 		return;
@@ -1892,7 +1904,11 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	if (plug->rq_count > 2 && plug->multiple_queues)
 		list_sort(NULL, &list, plug_rq_cmp);
 
+
 	plug->rq_count = 0;
+	flush_plug1++;
+
+	
 
 	do {
 		struct list_head rq_list;
