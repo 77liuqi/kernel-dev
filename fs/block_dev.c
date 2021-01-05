@@ -476,16 +476,33 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	return ret;
 }
 
+static unsigned long long _countjpg1;
+static unsigned long long _countjpg2;
+static unsigned long long _countjpg3;
+static unsigned long long _nr_pages3;
+
+
 static ssize_t
 blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	int nr_pages;
 
+	_countjpg1++;
+
+	if ((_countjpg1 % 1000000) == 0)
+		pr_err("%s 1=%llu 2=%llu 3=%llu _nr_pages3=%llu\n",
+		__func__, _countjpg1 / 1000000, _countjpg2 / 1000000, _countjpg3 / 1000000, _nr_pages3 / 1000000);
+
 	nr_pages = iov_iter_npages(iter, BIO_MAX_PAGES + 1);
+	_nr_pages3 += nr_pages;
 	if (!nr_pages)
 		return 0;
+	_countjpg2++;
 	if (is_sync_kiocb(iocb) && nr_pages <= BIO_MAX_PAGES)
 		return __blkdev_direct_IO_simple(iocb, iter, nr_pages);
+
+
+	_countjpg3++;
 
 	return __blkdev_direct_IO(iocb, iter, min(nr_pages, BIO_MAX_PAGES));
 }
