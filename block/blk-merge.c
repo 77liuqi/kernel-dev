@@ -521,8 +521,8 @@ static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 			new_bio = true;
 		}
 	}
-	if ((count % 1000000) == 0)
-		pr_err("%s nsegs=%d bios=%d bvecs=%d merge=%d\n", __func__, nsegs, bios, bvecs, merge);
+	if (((count % 1000000) == 0) || (nsegs > 1))
+		pr_err("%s nsegs=%d bios=%d bvecs=%d merge=%d nsegs=%d\n", __func__, nsegs, bios, bvecs, merge, nsegs);
 
 	return nsegs;
 }
