@@ -545,7 +545,7 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			if (nsegs > 1)
 				WARN_ONCE(1, "%s3.1 nsegs=%d\n", __func__, nsegs);
 			WARN_ONCE(1, "%s3.2 nsegs=%d\n", __func__, nsegs);
-			pr_err("%s3.3\n", __func__);
+			pr_err("%s3.3 nsegs=%d\n", __func__, nsegs);
 		}
 	}
 
