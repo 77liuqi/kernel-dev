@@ -584,6 +584,11 @@ static inline void bio_list_init(struct bio_list *bl)
 #define bio_list_for_each(bio, bl) \
 	for (bio = (bl)->head; bio; bio = bio->bi_next)
 
+ 
+extern unsigned long long bio_list_add_john;
+extern unsigned long long bio_list_add_head_john;
+extern unsigned long long bio_list_merge_john;
+extern unsigned long long bio_list_merge_head_john;
 static inline unsigned bio_list_size(const struct bio_list *bl)
 {
 	unsigned sz = 0;
@@ -599,6 +604,8 @@ static inline void bio_list_add(struct bio_list *bl, struct bio *bio)
 {
 	bio->bi_next = NULL;
 
+	bio_list_add_john++;
+
 	if (bl->tail)
 		bl->tail->bi_next = bio;
 	else
@@ -610,6 +617,7 @@ static inline void bio_list_add(struct bio_list *bl, struct bio *bio)
 static inline void bio_list_add_head(struct bio_list *bl, struct bio *bio)
 {
 	bio->bi_next = bl->head;
+	bio_list_add_head_john++;
 
 	bl->head = bio;
 
@@ -619,6 +627,7 @@ static inline void bio_list_add_head(struct bio_list *bl, struct bio *bio)
 
 static inline void bio_list_merge(struct bio_list *bl, struct bio_list *bl2)
 {
+	bio_list_merge_john++;
 	if (!bl2->head)
 		return;
 
@@ -633,6 +642,7 @@ static inline void bio_list_merge(struct bio_list *bl, struct bio_list *bl2)
 static inline void bio_list_merge_head(struct bio_list *bl,
 				       struct bio_list *bl2)
 {
+	bio_list_merge_head_john++;
 	if (!bl2->head)
 		return;
 

@@ -1380,12 +1380,15 @@ void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 }
 EXPORT_SYMBOL(disk_end_io_acct);
 
+extern unsigned long long steal_bios_john;
 /*
  * Steal bios from a request and add them to a bio list.
  * The request must not have been partially completed before.
  */
 void blk_steal_bios(struct bio_list *list, struct request *rq)
 {
+	steal_bios_john++;
+
 	if (rq->bio) {
 		if (list->tail)
 			list->tail->bi_next = rq->bio;
