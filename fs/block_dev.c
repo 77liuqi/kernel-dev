@@ -358,6 +358,20 @@ static unsigned long long _count_bio_loop;
 
 static unsigned long long _countplug;
 
+
+unsigned long long bio_list_add_john;
+unsigned long long bio_list_merge_john;
+unsigned long long bio_list_merge_head_john;
+unsigned long long bio_add_hw_page_john;
+unsigned long long  steal_bios_john;
+unsigned long long bio_list_add_head_john;
+EXPORT_SYMBOL_GPL(bio_list_add_head_john);
+EXPORT_SYMBOL_GPL(bio_list_add_john);
+EXPORT_SYMBOL_GPL(bio_list_merge_john);
+EXPORT_SYMBOL_GPL(bio_list_merge_head_john);
+EXPORT_SYMBOL_GPL(bio_add_hw_page_john);
+EXPORT_SYMBOL_GPL(steal_bios_john);
+
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
@@ -375,9 +389,14 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 
 	_countdb1++;
 	
-	if ((_countdb1 % 1000000) == 0)
+	if ((_countdb1 % 1000000) == 0) {
 		pr_err("%s 1=%llu 2=%llu _countplug=%llu _count_bio_loop=%llu\n",
 		__func__, _countdb1 / 1000000, _countdb2 / 1000000, _countplug / 1000000, _count_bio_loop / 1000000);
+		pr_err("%s2 bio_list_add=%llu bio_list_merge=%llu bio_list_merge_head=%llu bio_add_hw_page=%llu steal_bios=%llu\n",
+				__func__, bio_list_add_john / 1000000, bio_list_merge_john / 1000000, bio_list_merge_head_john / 1000000,
+				bio_add_hw_page_john / 1000000, steal_bios_john/1000000);
+	}
+		
 
 	if ((pos | iov_iter_alignment(iter)) &
 	    (bdev_logical_block_size(bdev) - 1))
