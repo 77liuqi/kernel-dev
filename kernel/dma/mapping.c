@@ -553,7 +553,7 @@ EXPORT_SYMBOL_GPL(dma_free_noncoherent);
 
 int dma_supported(struct device *dev, u64 mask)
 {
-	#ifdef dfdf
+
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	/*
@@ -565,9 +565,6 @@ int dma_supported(struct device *dev, u64 mask)
 	if (!ops->dma_supported)
 		return 1;
 	return ops->dma_supported(dev, mask);
-	#else
-	return 1;
-	#endif
 }
 EXPORT_SYMBOL(dma_supported);
 
