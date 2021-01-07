@@ -1245,12 +1245,17 @@ EXPORT_SYMBOL(bio_copy_data);
  * copies min(src->bi_size, dst->bi_size) bytes (or the equivalent for lists of
  * bios).
  */
+extern unsigned long long bio_list_copy_data_john;
+extern unsigned long long bio_list_copy_data_john2;
 void bio_list_copy_data(struct bio *dst, struct bio *src)
 {
 	struct bvec_iter src_iter = src->bi_iter;
 	struct bvec_iter dst_iter = dst->bi_iter;
 
+	bio_list_copy_data_john++;
+
 	while (1) {
+		bio_list_copy_data_john2++;
 		if (!src_iter.bi_size) {
 			src = src->bi_next;
 			if (!src)
