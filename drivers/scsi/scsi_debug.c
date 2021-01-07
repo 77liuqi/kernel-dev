@@ -7444,6 +7444,7 @@ static int sdebug_driver_probe(struct device *dev)
 		dev_err(dev, "%s2 hisi_sas_dev coherent_dma_mask=0x%llx bus_dma_limit=0x%llx\n", __func__, hisi_sas_dev->coherent_dma_mask, hisi_sas_dev->bus_dma_limit);
 
 	if (hisi_sas_dev) {
+		dev->dma_parms = hisi_sas_dev->dma_parms;
 		dev->coherent_dma_mask = hisi_sas_dev->coherent_dma_mask;
 		dev->dma_mask = &dev->coherent_dma_mask;
 	}

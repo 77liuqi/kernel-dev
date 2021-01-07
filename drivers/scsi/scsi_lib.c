@@ -1859,6 +1859,9 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	blk_queue_dma_alignment(q, max(4, dma_get_cache_alignment()) - 1);
 	dev_err(dev, "%s5 shost->max_sectors=%d q=%pS dma_boundary=0x%lx max_segment_size=0x%x dma_parms max_segment_size=0x%x dma_alignment=0x%x\n",
 		__func__, shost->max_sectors, q, shost->dma_boundary, shost->max_segment_size, dev->dma_parms ? dev->dma_parms->max_segment_size : -2, q->dma_alignment);
+	
+	dev_err(dev, "%s shost->max_segment_size=%d virt_boundary_mask=%ld\n",
+		__func__, shost->max_segment_size, shost->virt_boundary_mask);
 }
 EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
