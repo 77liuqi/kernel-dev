@@ -1042,6 +1042,8 @@ no_merge:
 	req_set_nomerge(q, req);
 	return BIO_MERGE_FAILED;
 }
+		
+extern unsigned long blk_attempt_bio_merge_john;
 
 static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
 						   struct request *rq,
@@ -1051,6 +1053,7 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
 {
 	if (!blk_rq_merge_ok(rq, bio))
 		return BIO_MERGE_NONE;
+	blk_attempt_bio_merge_john++;
 
 	switch (blk_try_merge(rq, bio)) {
 	case ELEVATOR_BACK_MERGE:
@@ -1092,6 +1095,7 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
  *
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
+ extern unsigned long long blk_attempt_plug_merge_john;
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq)
 {
@@ -1104,6 +1108,7 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		return false;
 
 	plug_list = &plug->mq_list;
+	blk_attempt_plug_merge_john++;
 
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		if (rq->q == q && same_queue_rq) {
@@ -1130,11 +1135,13 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
  * Iterate list of requests and see if we can merge this bio with any
  * of them.
  */
+extern unsigned long long blk_bio_list_merge_john;
 bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 			struct bio *bio, unsigned int nr_segs)
 {
 	struct request *rq;
 	int checked = 8;
+	blk_bio_list_merge_john++;
 
 	list_for_each_entry_reverse(rq, list, queuelist) {
 		if (!checked--)
@@ -1155,10 +1162,12 @@ bool blk_bio_list_merge(struct request_queue *q, struct list_head *list,
 }
 EXPORT_SYMBOL_GPL(blk_bio_list_merge);
 
+extern unsigned long long blk_mq_sched_try_merge_john;
 bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **merged_request)
 {
 	struct request *rq;
+	blk_mq_sched_try_merge_john++;
 
 	switch (elv_merge(q, &rq, bio)) {
 	case ELEVATOR_BACK_MERGE:
