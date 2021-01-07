@@ -1431,6 +1431,7 @@ EXPORT_SYMBOL_GPL(blk_steal_bios);
  *     %true  - this request has more data
  **/
  extern unsigned long long blk_update_request_john;
+ extern unsigned long long blk_update_request_john2;
 bool blk_update_request(struct request *req, blk_status_t error,
 		unsigned int nr_bytes)
 {
@@ -1443,6 +1444,8 @@ bool blk_update_request(struct request *req, blk_status_t error,
 
 	if (!req->bio)
 		return false;
+
+	blk_update_request_john2++;
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 	if (blk_integrity_rq(req) && req_op(req) == REQ_OP_READ &&
