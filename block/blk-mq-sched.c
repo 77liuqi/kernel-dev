@@ -362,6 +362,9 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 
 	__blk_mq_sched_bio_merge_john1++;
 
+	if ((__blk_mq_sched_bio_merge_john % 1000000) == 0)
+		pr_err("%s q=%pS nr_segs=%d hctx->flags=0x%lx\n", __func__, q, nr_segs, hctx->flags);
+
 	type = hctx->type;
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
 	    list_empty_careful(&ctx->rq_lists[type]))
