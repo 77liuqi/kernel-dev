@@ -345,6 +345,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 }
 extern unsigned long long __blk_mq_sched_bio_merge_john;
 extern unsigned long long __blk_mq_sched_bio_merge_john1;
+extern unsigned long long __blk_mq_sched_bio_merge_john2;
 extern unsigned long long __blk_mq_sched_bio_merge_john_true;
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
@@ -359,12 +360,14 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	if (e && e->type->ops.bio_merge)
 		return e->type->ops.bio_merge(hctx, bio, nr_segs);
 
+	__blk_mq_sched_bio_merge_john1++;
+
 	type = hctx->type;
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
 	    list_empty_careful(&ctx->rq_lists[type]))
 		return false;
 
-	__blk_mq_sched_bio_merge_john1++;
+	__blk_mq_sched_bio_merge_john2++;
 
 	/* default per sw-queue merge */
 	spin_lock(&ctx->lock);

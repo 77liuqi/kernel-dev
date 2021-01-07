@@ -961,6 +961,7 @@ enum bio_merge_status {
 };
 
 extern unsigned long long bio_attempt_back_merge_john;
+extern unsigned long long bio_attempt_back_merge_john1;
 
 static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 		struct bio *bio, unsigned int nr_segs)
@@ -970,6 +971,8 @@ static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 
 	if (!ll_back_merge_fn(req, bio, nr_segs))
 		return BIO_MERGE_FAILED;
+
+	bio_attempt_back_merge_john1++;
 
 	trace_block_bio_backmerge(req->q, req, bio);
 	rq_qos_merge(req->q, req, bio);
