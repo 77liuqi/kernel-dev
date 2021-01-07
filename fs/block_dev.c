@@ -390,6 +390,12 @@ unsigned long long blk_attempt_bio_merge_john;
 unsigned long long blk_mq_sched_try_merge_john;
 unsigned long long blk_attempt_plug_merge_john;
 unsigned long long blk_bio_list_merge_john;
+unsigned long long __blk_mq_sched_bio_merge_john;
+unsigned long long __blk_mq_sched_bio_merge_john1;
+unsigned long long __blk_mq_sched_bio_merge_john_true;
+unsigned long long blk_attempt_plug_merge_john1;
+unsigned long long blk_attempt_plug_merge_john_ok;
+unsigned long long blk_mq_submit_bio_john;
 
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
@@ -423,6 +429,10 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		pr_err("%s5 blk_attempt_bio_merge=%llu blk_mq_sched_try_merge=%llu blk_attempt_plug_merge=%llu blk_bio_list_merge=%llu\n",
 				__func__, blk_attempt_bio_merge_john / 1000000, blk_mq_sched_try_merge_john / 1000000, blk_attempt_plug_merge_john / 1000000,
 				blk_bio_list_merge_john / 1000000);
+		pr_err("%s6 __blk_mq_sched_bio_merge=%llu (%llu )__blk_mq_sched_bio_merge_true=%llu blk_mq_submit_bio=%llu\n",
+				__func__, __blk_mq_sched_bio_merge_john / 1000000, __blk_mq_sched_bio_merge_john1 / 1000000, __blk_mq_sched_bio_merge_john_true / 1000000, blk_mq_submit_bio_john / 1000000);
+		pr_err("%s7 blk_attempt_plug_merge=%llu blk_attempt_plug_merge1=%llu blk_attempt_plug_merge_ok=%llu\n",
+				__func__, blk_attempt_plug_merge_john / 1000000, blk_attempt_plug_merge_john1 / 10000000, blk_attempt_plug_merge_john_ok / 1000000);
 	}
 		
 

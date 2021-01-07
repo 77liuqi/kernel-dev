@@ -1096,6 +1096,8 @@ static enum bio_merge_status blk_attempt_bio_merge(struct request_queue *q,
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
  extern unsigned long long blk_attempt_plug_merge_john;
+ extern unsigned long long blk_attempt_plug_merge_john1;
+ extern unsigned long long blk_attempt_plug_merge_john_ok;
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq)
 {
@@ -1119,13 +1121,17 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 			 **/
 			*same_queue_rq = rq;
 		}
+		
+		blk_attempt_plug_merge_john1++;
 
 		if (rq->q != q)
 			continue;
 
 		if (blk_attempt_bio_merge(q, rq, bio, nr_segs, false) ==
-		    BIO_MERGE_OK)
+		    BIO_MERGE_OK) {
+			blk_attempt_plug_merge_john_ok++;
 			return true;
+		}
 	}
 
 	return false;
