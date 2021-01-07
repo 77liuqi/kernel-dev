@@ -692,10 +692,12 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
  *     which can be mixed are set in each bio and mark @rq as mixed
  *     merged.
  */
+ extern unsigned long long blk_rq_set_mixed_merge_john;
 void blk_rq_set_mixed_merge(struct request *rq)
 {
 	unsigned int ff = rq->cmd_flags & REQ_FAILFAST_MASK;
 	struct bio *bio;
+	blk_rq_set_mixed_merge_john++;
 
 	if (rq->rq_flags & RQF_MIXED_MERGE)
 		return;
@@ -755,9 +757,13 @@ static enum elv_merge blk_try_req_merge(struct request *req,
  * For non-mq, this has to be called with the request spinlock acquired.
  * For mq with scheduling, the appropriate queue wide lock should be held.
  */
+ extern unsigned long long attempt_merge_john;
+ extern unsigned long long attempt_merge_john2;
 static struct request *attempt_merge(struct request_queue *q,
 				     struct request *req, struct request *next)
 {
+	attempt_merge_john++;
+
 	if (!rq_mergeable(req) || !rq_mergeable(next))
 		return NULL;
 
@@ -823,6 +829,8 @@ static struct request *attempt_merge(struct request_queue *q,
 	 */
 	if (next->start_time_ns < req->start_time_ns)
 		req->start_time_ns = next->start_time_ns;
+
+	attempt_merge_john2++;
 
 	req->biotail->bi_next = next->bio;
 	req->biotail = next->biotail;
@@ -952,10 +960,13 @@ enum bio_merge_status {
 	BIO_MERGE_FAILED,
 };
 
+extern unsigned long long bio_attempt_back_merge_john;
+
 static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 		struct bio *bio, unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
+	bio_attempt_back_merge_john++;
 
 	if (!ll_back_merge_fn(req, bio, nr_segs))
 		return BIO_MERGE_FAILED;
@@ -976,10 +987,13 @@ static enum bio_merge_status bio_attempt_back_merge(struct request *req,
 	return BIO_MERGE_OK;
 }
 
+extern unsigned long long bio_attempt_front_merge_john;
 static enum bio_merge_status bio_attempt_front_merge(struct request *req,
 		struct bio *bio, unsigned int nr_segs)
 {
 	const int ff = bio->bi_opf & REQ_FAILFAST_MASK;
+	
+	bio_attempt_front_merge_john++;
 
 	if (!ll_front_merge_fn(req, bio, nr_segs))
 		return BIO_MERGE_FAILED;
@@ -1001,11 +1015,13 @@ static enum bio_merge_status bio_attempt_front_merge(struct request *req,
 	blk_account_io_merge_bio(req);
 	return BIO_MERGE_OK;
 }
+extern unsigned long long bio_attempt_discard_merge_john;
 
 static enum bio_merge_status bio_attempt_discard_merge(struct request_queue *q,
 		struct request *req, struct bio *bio)
 {
 	unsigned short segments = blk_rq_nr_discard_segments(req);
+	bio_attempt_discard_merge_john++;
 
 	if (segments >= queue_max_discard_segments(q))
 		goto no_merge;

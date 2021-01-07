@@ -371,6 +371,20 @@ EXPORT_SYMBOL_GPL(bio_list_merge_john);
 EXPORT_SYMBOL_GPL(bio_list_merge_head_john);
 EXPORT_SYMBOL_GPL(bio_add_hw_page_john);
 EXPORT_SYMBOL_GPL(steal_bios_john);
+unsigned long long bio_list_copy_data_john;
+unsigned long long bio_list_pop_john;
+EXPORT_SYMBOL_GPL(bio_list_pop_john);
+unsigned long long bio_list_copy_data_john2;
+EXPORT_SYMBOL_GPL(bio_list_copy_data_john2);
+unsigned long long blk_update_request_john;
+unsigned long long blk_rq_append_bio_john;
+unsigned long long bio_attempt_front_merge_john;
+unsigned long long bio_attempt_back_merge_john;
+unsigned long long bio_attempt_discard_merge_john;
+unsigned long long attempt_merge_john;
+unsigned long long attempt_merge_john2;
+unsigned long long blk_rq_set_mixed_merge_john;
+unsigned long long blk_rq_prep_clone_john;
 
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
@@ -395,6 +409,12 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		pr_err("%s2 bio_list_add=%llu bio_list_merge=%llu bio_list_merge_head=%llu bio_add_hw_page=%llu steal_bios=%llu\n",
 				__func__, bio_list_add_john / 1000000, bio_list_merge_john / 1000000, bio_list_merge_head_john / 1000000,
 				bio_add_hw_page_john / 1000000, steal_bios_john/1000000);
+		pr_err("%s3 bio_list_copy_data=%llu bio_list_copy_data2=%llu blk_update_request=%llu blk_rq_append_bio=%llu blk_rq_append_bio=%llu blk_rq_prep_clone=%llu\n",
+				__func__, bio_list_copy_data_john / 1000000, bio_list_copy_data_john2 / 1000000, blk_update_request_john / 1000000,
+				blk_rq_append_bio_john / 1000000, blk_rq_append_bio_john/1000000, blk_rq_prep_clone_john / 1000000);
+		pr_err("%s4 attempt_merge=%llu attempt_merge2=%llu blk_rq_set_mixed_merge=%llu bio_attempt_front_merge/back/discard=%llu/%llu/%llu\n",
+				__func__, attempt_merge_john / 1000000, attempt_merge_john2 / 1000000, blk_rq_set_mixed_merge_john / 1000000,
+				bio_attempt_front_merge_john / 1000000, bio_attempt_back_merge_john / 1000000, bio_attempt_discard_merge_john / 1000000);
 	}
 		
 

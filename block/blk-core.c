@@ -1435,12 +1435,16 @@ EXPORT_SYMBOL_GPL(blk_steal_bios);
  *     %false - this request doesn't have any more data
  *     %true  - this request has more data
  **/
+ extern unsigned long long blk_update_request_john;
 bool blk_update_request(struct request *req, blk_status_t error,
 		unsigned int nr_bytes)
 {
 	int total_bytes;
 
 	trace_block_rq_complete(req, blk_status_to_errno(error), nr_bytes);
+
+
+	blk_update_request_john++;
 
 	if (!req->bio)
 		return false;
@@ -1602,12 +1606,14 @@ EXPORT_SYMBOL_GPL(blk_rq_unprep_clone);
  *     So cloned bios must be completed before original bios, which means
  *     the caller must complete @rq before @rq_src.
  */
+ extern unsigned long long blk_rq_prep_clone_john;
 int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 		      struct bio_set *bs, gfp_t gfp_mask,
 		      int (*bio_ctr)(struct bio *, struct bio *, void *),
 		      void *data)
 {
 	struct bio *bio, *bio_src;
+	blk_rq_prep_clone_john++;
 
 	if (!bs)
 		bs = &fs_bio_set;

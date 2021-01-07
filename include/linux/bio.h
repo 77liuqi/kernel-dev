@@ -576,6 +576,7 @@ extern unsigned long long bio_list_add_john;
 extern unsigned long long bio_list_add_head_john;
 extern unsigned long long bio_list_merge_john;
 extern unsigned long long bio_list_merge_head_john;
+extern unsigned long long bio_list_pop_john;
 static inline unsigned bio_list_size(const struct bio_list *bl)
 {
 	unsigned sz = 0;
@@ -649,6 +650,8 @@ static inline struct bio *bio_list_peek(struct bio_list *bl)
 static inline struct bio *bio_list_pop(struct bio_list *bl)
 {
 	struct bio *bio = bl->head;
+
+	bio_list_pop_john++;
 
 	if (bio) {
 		bl->head = bl->head->bi_next;

@@ -521,12 +521,14 @@ cleanup:
  * Append a bio to a passthrough request.  Only works if the bio can be merged
  * into the request based on the driver constraints.
  */
+extern unsigned long long blk_rq_append_bio_john;
 int blk_rq_append_bio(struct request *rq, struct bio **bio)
 {
 	struct bio *orig_bio = *bio;
 	struct bvec_iter iter;
 	struct bio_vec bv;
 	unsigned int nr_segs = 0;
+	blk_rq_append_bio_john++;
 
 	blk_queue_bounce(rq->q, bio);
 
