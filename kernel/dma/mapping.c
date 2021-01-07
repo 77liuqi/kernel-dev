@@ -589,8 +589,12 @@ int dma_set_mask(struct device *dev, u64 mask)
 	 */
 	mask = (dma_addr_t)mask;
 
+	dev_err(dev, "%s mask=0x%llx dev->dma_mask=%pS\n", __func__, mask, dev->dma_mask);
+
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
+
+	dev_err(dev, "%s2 mask=0x%llx dev->dma_mask=%pS\n", __func__, mask, dev->dma_mask );
 
 	arch_dma_set_mask(dev, mask);
 	*dev->dma_mask = mask;
