@@ -7438,6 +7438,18 @@ static int sdebug_driver_probe(struct device *dev)
 	int hprot;
 	int rc;
 
+	dev_err(dev, "%s coherent_dma_mask=0x%llx bus_dma_limit=0x%llx dma_mask=%pS\n", __func__, dev->coherent_dma_mask, dev->bus_dma_limit, dev->dma_mask);
+
+	if (hisi_sas_dev)
+		dev_err(dev, "%s2 hisi_sas_dev coherent_dma_mask=0x%llx bus_dma_limit=0x%llx\n", __func__, hisi_sas_dev->coherent_dma_mask, hisi_sas_dev->bus_dma_limit);
+
+	if (hisi_sas_dev) {
+		dev->coherent_dma_mask = hisi_sas_dev->coherent_dma_mask;
+		dev->dma_mask = &dev->coherent_dma_mask;
+	}
+
+	dev_err(dev, "%s3 coherent_dma_mask=0x%llx bus_dma_limit=0x%llx dma_mask=%pS\n", __func__, dev->coherent_dma_mask, dev->bus_dma_limit, dev->dma_mask);
+
 	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (rc)
 		rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
