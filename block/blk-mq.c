@@ -1017,12 +1017,14 @@ struct flush_busy_ctx_data {
 	struct list_head *list;
 };
 
+extern unsigned long long flush_busy_ctx_john;
 static bool flush_busy_ctx(struct sbitmap *sb, unsigned int bitnr, void *data)
 {
 	struct flush_busy_ctx_data *flush_data = data;
 	struct blk_mq_hw_ctx *hctx = flush_data->hctx;
 	struct blk_mq_ctx *ctx = hctx->ctxs[bitnr];
 	enum hctx_type type = hctx->type;
+	flush_busy_ctx_john++;
 
 	spin_lock(&ctx->lock);
 	list_splice_tail_init(&ctx->rq_lists[type], flush_data->list);
@@ -1051,6 +1053,9 @@ struct dispatch_rq_data {
 	struct request *rq;
 };
 
+extern unsigned long long dispatch_rq_from_ctx_john1;
+extern unsigned long long dispatch_rq_from_ctx_john2;
+
 static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 		void *data)
 {
@@ -1058,9 +1063,11 @@ static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 	struct blk_mq_hw_ctx *hctx = dispatch_data->hctx;
 	struct blk_mq_ctx *ctx = hctx->ctxs[bitnr];
 	enum hctx_type type = hctx->type;
+	dispatch_rq_from_ctx_john1++;
 
 	spin_lock(&ctx->lock);
 	if (!list_empty(&ctx->rq_lists[type])) {
+		dispatch_rq_from_ctx_john2++;
 		dispatch_data->rq = list_entry_rq(ctx->rq_lists[type].next);
 		list_del_init(&dispatch_data->rq->queuelist);
 		if (list_empty(&ctx->rq_lists[type]))
@@ -1809,13 +1816,16 @@ static void blk_mq_run_work_fn(struct work_struct *work)
 
 	__blk_mq_run_hw_queue(hctx);
 }
-
+extern unsigned long long __blk_mq_insert_req_list_john;
 static inline void __blk_mq_insert_req_list(struct blk_mq_hw_ctx *hctx,
 					    struct request *rq,
 					    bool at_head)
 {
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	enum hctx_type type = hctx->type;
+
+	__blk_mq_insert_req_list_john++;
+
 
 	lockdep_assert_held(&ctx->lock);
 
