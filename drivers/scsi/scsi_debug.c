@@ -7436,6 +7436,15 @@ static int sdebug_driver_probe(struct device *dev)
 	struct sdebug_host_info *sdbg_host;
 	struct Scsi_Host *hpnt;
 	int hprot;
+	int rc;
+
+	rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
+	if (rc)
+		rc = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (rc) {
+		dev_err(dev, "No usable DMA addressing method\n");
+		return -ENODEV;
+	}
 
 	sdbg_host = to_sdebug_host(dev);
 
