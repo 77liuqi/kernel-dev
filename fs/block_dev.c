@@ -377,6 +377,7 @@ unsigned long long blk_update_request_john2;
 unsigned long long blk_rq_append_bio_john;
 unsigned long long bio_attempt_front_merge_john;
 unsigned long long bio_attempt_back_merge_john;
+unsigned long long bio_attempt_back_merge_john1;
 unsigned long long bio_attempt_discard_merge_john;
 unsigned long long attempt_merge_john;
 unsigned long long attempt_merge_john2;
@@ -388,6 +389,7 @@ unsigned long long blk_attempt_plug_merge_john;
 unsigned long long blk_bio_list_merge_john;
 unsigned long long __blk_mq_sched_bio_merge_john;
 unsigned long long __blk_mq_sched_bio_merge_john1;
+unsigned long long __blk_mq_sched_bio_merge_john2;
 unsigned long long __blk_mq_sched_bio_merge_john_true;
 unsigned long long blk_attempt_plug_merge_john1;
 unsigned long long blk_attempt_plug_merge_john_ok;
@@ -419,14 +421,17 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		pr_err("%s3 bio_list_copy_data=%llu bio_list_copy_data2=%llu blk_update_request=%llu(%llu) blk_rq_append_bio=%llu blk_rq_append_bio=%llu blk_rq_prep_clone=%llu\n",
 				__func__, bio_list_copy_data_john / 1000000, bio_list_copy_data_john2 / 1000000, blk_update_request_john / 1000000,  blk_update_request_john2 / 1000000,
 				blk_rq_append_bio_john / 1000000, blk_rq_append_bio_john/1000000, blk_rq_prep_clone_john / 1000000);
-		pr_err("%s4 attempt_merge=%llu attempt_merge2=%llu blk_rq_set_mixed_merge=%llu bio_attempt_front_merge/back/discard=%llu/%llu/%llu\n",
+		pr_err("%s4 attempt_merge=%llu attempt_merge2=%llu blk_rq_set_mixed_merge=%llu bio_attempt_front_merge/back/back1/discard=%llu/%llu/%llu/%llu\n",
 				__func__, attempt_merge_john / 1000000, attempt_merge_john2 / 1000000, blk_rq_set_mixed_merge_john / 1000000,
-				bio_attempt_front_merge_john / 1000000, bio_attempt_back_merge_john / 1000000, bio_attempt_discard_merge_john / 1000000);
+				bio_attempt_front_merge_john / 1000000, bio_attempt_back_merge_john / 1000000, bio_attempt_back_merge_john1 / 1000000, 
+				bio_attempt_discard_merge_john / 1000000);
 		pr_err("%s5 blk_attempt_bio_merge=%llu blk_mq_sched_try_merge=%llu blk_attempt_plug_merge=%llu blk_bio_list_merge=%llu\n",
 				__func__, blk_attempt_bio_merge_john / 1000000, blk_mq_sched_try_merge_john / 1000000, blk_attempt_plug_merge_john / 1000000,
 				blk_bio_list_merge_john / 1000000);
-		pr_err("%s6 __blk_mq_sched_bio_merge=%llu (%llu )__blk_mq_sched_bio_merge_true=%llu blk_mq_submit_bio=%llu\n",
-				__func__, __blk_mq_sched_bio_merge_john / 1000000, __blk_mq_sched_bio_merge_john1 / 1000000, __blk_mq_sched_bio_merge_john_true / 1000000, blk_mq_submit_bio_john / 1000000);
+		pr_err("%s6 __blk_mq_sched_bio_merge=%llu (1:%llu 2:%llu) __blk_mq_sched_bio_merge_true=%llu blk_mq_submit_bio=%llu\n",
+				__func__, __blk_mq_sched_bio_merge_john / 1000000, __blk_mq_sched_bio_merge_john1 / 1000000, 
+				__blk_mq_sched_bio_merge_john2 / 1000000, 
+				__blk_mq_sched_bio_merge_john_true / 1000000, blk_mq_submit_bio_john / 1000000);
 		pr_err("%s7 blk_attempt_plug_merge=%llu blk_attempt_plug_merge1=%llu blk_attempt_plug_merge_ok=%llu\n",
 				__func__, blk_attempt_plug_merge_john / 1000000, blk_attempt_plug_merge_john1 / 10000000, blk_attempt_plug_merge_john_ok / 1000000);
 	}
