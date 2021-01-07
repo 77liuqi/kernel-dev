@@ -2142,6 +2142,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  *
  * Returns: Request queue cookie.
  */
+extern unsigned long long blk_mq_submit_bio_john;
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
 	struct request_queue *q = bio->bi_disk->queue;
@@ -2158,8 +2159,12 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	blk_status_t ret;
 	bool hipri;
 
+	blk_mq_submit_bio_john++;
+
 	blk_queue_bounce(q, &bio);
 	__blk_queue_split(&bio, &nr_segs);
+
+
 
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
