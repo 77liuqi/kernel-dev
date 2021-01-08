@@ -729,6 +729,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 };
 
 static int sdebug_num_hosts;
+static int sdebug_sdev_queue_depth = 64;  /* in sysfs this is relative */
 static int sdebug_add_host = DEF_NUM_HOST;  /* in sysfs this is relative */
 static int sdebug_ato = DEF_ATO;
 static int sdebug_cdb_len = DEF_CDB_LEN;
@@ -5008,6 +5009,7 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	if (sdebug_no_uld)
 		sdp->no_uld_attach = 1;
 	config_cdb_len(sdp);
+	scsi_change_queue_depth(sdp, sdebug_sdev_queue_depth);
 	return 0;
 }
 
@@ -5599,6 +5601,7 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
    as it can when the corresponding attribute in the
    /sys/bus/pseudo/drivers/scsi_debug directory is changed.
  */
+module_param_named(sdev_queue_depth, sdebug_sdev_queue_depth, int, S_IRUGO | S_IWUSR);
 module_param_named(add_host, sdebug_add_host, int, S_IRUGO | S_IWUSR);
 module_param_named(ato, sdebug_ato, int, S_IRUGO);
 module_param_named(cdb_len, sdebug_cdb_len, int, 0644);
@@ -7422,7 +7425,7 @@ static struct scsi_host_template sdebug_driver_template = {
 	.eh_host_reset_handler = scsi_debug_host_reset,
 	.can_queue =		SDEBUG_CANQUEUE,
 	.this_id =		7,
-	.cmd_per_lun =		DEF_CMD_PER_LUN,
+	.cmd_per_lun =		64,
 	.max_sectors		= SCSI_DEFAULT_MAX_SECTORS,
 	.module =		THIS_MODULE,
 	.sg_tablesize =         124,
