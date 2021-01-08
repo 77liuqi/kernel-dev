@@ -2089,12 +2089,18 @@ blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 
 	return ret;
 }
-
+extern unsigned long long blk_mq_try_issue_list_directly_john;
+extern unsigned long long blk_mq_try_issue_list_directly_john2;
+extern unsigned long long blk_mq_try_issue_list_directly_john3;
+extern unsigned long long blk_mq_try_issue_list_directly_john_bypass;
 void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		struct list_head *list)
 {
 	int queued = 0;
 	int errors = 0;
+
+	blk_mq_try_issue_list_directly_john++;
+
 
 	while (!list_empty(list)) {
 		blk_status_t ret;
@@ -2102,10 +2108,13 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 				queuelist);
 
 		list_del_init(&rq->queuelist);
+		blk_mq_try_issue_list_directly_john2++;
 		ret = blk_mq_request_issue_directly(rq, list_empty(list));
 		if (ret != BLK_STS_OK) {
+			blk_mq_try_issue_list_directly_john3++;
 			if (ret == BLK_STS_RESOURCE ||
 					ret == BLK_STS_DEV_RESOURCE) {
+				blk_mq_try_issue_list_directly_john_bypass++;
 				blk_mq_request_bypass_insert(rq, false,
 							list_empty(list));
 				break;

@@ -486,7 +486,9 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 {
 	struct elevator_queue *e;
 	struct request_queue *q = hctx->queue;
+	int second = false;
 	blk_mq_sched_insert_requests_john++;
+	
 
 	/*
 	 * blk_mq_sched_insert_requests() is called from flush plug
@@ -504,13 +506,15 @@ void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 		 * busy in case of 'none' scheduler, and this way may save
 		 * us one extra enqueue & dequeue to sw queue.
 		 */
-		if ((blk_mq_sched_insert_requests_john % 1000000) == 0)
+		if ((blk_mq_sched_insert_requests_john % 1000000) == 0) {
+			second = true;
 			pr_err("%s hctx->dispatch_busy=%d e=%pS run_queue_async=%d\n", __func__, hctx->dispatch_busy, e, run_queue_async);
+		}
 		if (!hctx->dispatch_busy && !e && !run_queue_async) {
 			blk_mq_try_issue_list_directly(hctx, list);
 			if (list_empty(list)) {
-			if ((blk_mq_sched_insert_requests_john % 1000000) == 0)
-				pr_err("%s2 hctx->dispatch_busy=%d e=%pS run_queue_async=%d\n", __func__, hctx->dispatch_busy, e, run_queue_async);
+				if (second)
+					pr_err("%s2 hctx->dispatch_busy=%d e=%pS run_queue_async=%d\n", __func__, hctx->dispatch_busy, e, run_queue_async);
 				goto out;
 			}
 		}

@@ -404,6 +404,10 @@ unsigned long long blk_mq_dequeue_from_ctx_john;
 unsigned long long flush_plug_count;
 unsigned long long flush_plug;
 unsigned long long flush_plug1;
+unsigned long long blk_mq_try_issue_list_directly_john;
+unsigned long long blk_mq_try_issue_list_directly_john2;
+unsigned long long blk_mq_try_issue_list_directly_john3;
+unsigned long long blk_mq_try_issue_list_directly_john_bypass;
 
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
@@ -452,6 +456,9 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 				__func__, flush_plug_count / 1000000, flush_plug / 1000000, flush_plug1 / 1000000);
 		pr_err("%s10 blk_mq_sched_insert_requests=%llu blk_mq_dequeue_from_ctx=%llu\n",
 				__func__, blk_mq_sched_insert_requests_john / 1000000, blk_mq_dequeue_from_ctx_john / 1000000);
+		pr_err("%s11 blk_mq_try_issue_list_directly=%llu %llu %llu bypass=%llu\n",
+				__func__, blk_mq_try_issue_list_directly_john / 1000000, blk_mq_try_issue_list_directly_john2 / 1000000,
+				blk_mq_try_issue_list_directly_john3 / 1000000, blk_mq_try_issue_list_directly_john_bypass / 1000000);
 	}
 		
 
