@@ -417,6 +417,11 @@ unsigned long long __blk_mq_try_issue_directly_john4;
 unsigned long long __blk_mq_try_issue_directly_john5;
 unsigned long long __blk_mq_try_issue_directly_john6;
 
+unsigned long long scsi_mq_get_budget_john;
+unsigned long long scsi_mq_get_budget_john1;
+unsigned long long scsi_mq_get_budget_john2;
+
+
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
@@ -475,6 +480,11 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 				__blk_mq_try_issue_directly_john4 / 1000000,
 				__blk_mq_try_issue_directly_john5 / 1000000,
 				__blk_mq_try_issue_directly_john6 / 1000000);
+
+		pr_err("%s13 scsi_mq_get_budget_john=%llu 1:%llu %llu\n",
+				__func__, scsi_mq_get_budget_john / 1000000, 
+				scsi_mq_get_budget_john1 / 1000000,
+				scsi_mq_get_budget_john2 / 1000000);
 	}
 		
 

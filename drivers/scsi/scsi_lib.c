@@ -1617,13 +1617,17 @@ static void scsi_mq_put_budget(struct request_queue *q)
 
 	atomic_dec(&sdev->device_busy);
 }
-
+extern unsigned long long scsi_mq_get_budget_john;
+extern unsigned long long scsi_mq_get_budget_john1;
+extern unsigned long long scsi_mq_get_budget_john2;
 static bool scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
+	scsi_mq_get_budget_john++;
 
 	if (scsi_dev_queue_ready(q, sdev))
 		return true;
+	scsi_mq_get_budget_john1++;
 
 	atomic_inc(&sdev->restarts);
 
@@ -1643,8 +1647,10 @@ static bool scsi_mq_get_budget(struct request_queue *q)
 	 * this request, see scsi_end_request().
 	 */
 	if (unlikely(atomic_read(&sdev->device_busy) == 0 &&
-				!scsi_device_blocked(sdev)))
+				!scsi_device_blocked(sdev))) {
 		blk_mq_delay_run_hw_queues(sdev->request_queue, SCSI_QUEUE_DELAY);
+		scsi_mq_get_budget_john2++;
+	}
 	return false;
 }
 
