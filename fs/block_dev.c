@@ -398,7 +398,7 @@ unsigned long long __blk_mq_insert_req_list_john;
 unsigned long long flush_busy_ctx_john;
 unsigned long long dispatch_rq_from_ctx_john1;
 unsigned long long dispatch_rq_from_ctx_john2;
-
+unsigned long long blk_mq_insert_requests_john;
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
@@ -438,9 +438,10 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 				__blk_mq_sched_bio_merge_john_true / 1000000, blk_mq_submit_bio_john / 1000000);
 		pr_err("%s7 blk_attempt_plug_merge=%llu blk_attempt_plug_merge1=%llu blk_attempt_plug_merge_ok=%llu\n",
 				__func__, blk_attempt_plug_merge_john / 1000000, blk_attempt_plug_merge_john1 / 10000000, blk_attempt_plug_merge_john_ok / 1000000);
-		pr_err("%s8 __blk_mq_insert_req_list=%llu flush_busy_ctx=%llu dispatch_rq_from_ctx =%llu / %llu\n",
+		pr_err("%s8 __blk_mq_insert_req_list=%llu flush_busy_ctx=%llu dispatch_rq_from_ctx =%llu / %llu blk_mq_insert_requests=%llu\n",
 				__func__, __blk_mq_insert_req_list_john / 1000000, flush_busy_ctx_john / 10000000,
-				dispatch_rq_from_ctx_john1 / 1000000, dispatch_rq_from_ctx_john2 / 1000000);
+				dispatch_rq_from_ctx_john1 / 1000000, dispatch_rq_from_ctx_john2 / 1000000, 
+				blk_mq_insert_requests_john / 1000000);
 	}
 		
 
