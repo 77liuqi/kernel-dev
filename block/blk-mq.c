@@ -2004,6 +2004,14 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	return ret;
 }
 
+extern unsigned long long __blk_mq_try_issue_directly_john;
+extern unsigned long long __blk_mq_try_issue_directly_john1;
+extern unsigned long long __blk_mq_try_issue_directly_john2;
+extern unsigned long long __blk_mq_try_issue_directly_john3;
+extern unsigned long long __blk_mq_try_issue_directly_john4;
+extern unsigned long long __blk_mq_try_issue_directly_john5;
+extern unsigned long long __blk_mq_try_issue_directly_john6;
+
 static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 						struct request *rq,
 						blk_qc_t *cookie,
@@ -2011,6 +2019,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 {
 	struct request_queue *q = rq->q;
 	bool run_queue = true;
+	__blk_mq_try_issue_directly_john++;
 
 	/*
 	 * RCU or SRCU read lock is needed before checking quiesced flag.
@@ -2025,21 +2034,32 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		goto insert;
 	}
 
+	__blk_mq_try_issue_directly_john1++;
+
 	if (q->elevator && !bypass_insert)
 		goto insert;
 
+	__blk_mq_try_issue_directly_john2++;
+
 	if (!blk_mq_get_dispatch_budget(q))
 		goto insert;
+
+	__blk_mq_try_issue_directly_john3++;
 
 	if (!blk_mq_get_driver_tag(rq)) {
 		blk_mq_put_dispatch_budget(q);
 		goto insert;
 	}
 
+	__blk_mq_try_issue_directly_john4++;
+
 	return __blk_mq_issue_directly(hctx, rq, cookie, last);
 insert:
+	__blk_mq_try_issue_directly_john5++;
 	if (bypass_insert)
 		return BLK_STS_RESOURCE;
+
+	__blk_mq_try_issue_directly_john6++;
 
 	blk_mq_sched_insert_request(rq, false, run_queue, false);
 

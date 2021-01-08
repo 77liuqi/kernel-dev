@@ -409,6 +409,14 @@ unsigned long long blk_mq_try_issue_list_directly_john2;
 unsigned long long blk_mq_try_issue_list_directly_john3;
 unsigned long long blk_mq_try_issue_list_directly_john_bypass;
 
+unsigned long long __blk_mq_try_issue_directly_john;
+unsigned long long __blk_mq_try_issue_directly_john1;
+unsigned long long __blk_mq_try_issue_directly_john2;
+unsigned long long __blk_mq_try_issue_directly_john3;
+unsigned long long __blk_mq_try_issue_directly_john4;
+unsigned long long __blk_mq_try_issue_directly_john5;
+unsigned long long __blk_mq_try_issue_directly_john6;
+
 static ssize_t
 __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 {
@@ -459,6 +467,14 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		pr_err("%s11 blk_mq_try_issue_list_directly=%llu %llu %llu bypass=%llu\n",
 				__func__, blk_mq_try_issue_list_directly_john / 1000000, blk_mq_try_issue_list_directly_john2 / 1000000,
 				blk_mq_try_issue_list_directly_john3 / 1000000, blk_mq_try_issue_list_directly_john_bypass / 1000000);
+		pr_err("%s12 __blk_mq_try_issue_directly=%llu 1:%llu %llu %llu %llu %llu %llu\n",
+				__func__, __blk_mq_try_issue_directly_john / 1000000, 
+				__blk_mq_try_issue_directly_john1 / 1000000,
+				__blk_mq_try_issue_directly_john2 / 1000000,
+				__blk_mq_try_issue_directly_john3 / 1000000,
+				__blk_mq_try_issue_directly_john4 / 1000000,
+				__blk_mq_try_issue_directly_john5 / 1000000,
+				__blk_mq_try_issue_directly_john6 / 1000000);
 	}
 		
 
