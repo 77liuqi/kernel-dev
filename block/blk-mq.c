@@ -1086,6 +1086,7 @@ static bool dispatch_rq_from_ctx(struct sbitmap *sb, unsigned int bitnr,
 	return !dispatch_data->rq;
 }
 
+extern unsigned long long blk_mq_dequeue_from_ctx_john;
 struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
 					struct blk_mq_ctx *start)
 {
@@ -1094,6 +1095,8 @@ struct request *blk_mq_dequeue_from_ctx(struct blk_mq_hw_ctx *hctx,
 		.hctx = hctx,
 		.rq   = NULL,
 	};
+
+	blk_mq_dequeue_from_ctx_john++;
 
 	__sbitmap_for_each_set(&hctx->ctx_map, off,
 			       dispatch_rq_from_ctx, &data);
@@ -1892,10 +1895,9 @@ static int plug_rq_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return blk_rq_pos(rqa) > blk_rq_pos(rqb);
 }
 
-static unsigned long long flush_plug_count;
-static unsigned long long flush_plug;
-static unsigned long long flush_plug1;
-
+extern unsigned long long flush_plug_count;
+extern unsigned long long flush_plug;
+extern unsigned long long flush_plug1;
 
 void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 {

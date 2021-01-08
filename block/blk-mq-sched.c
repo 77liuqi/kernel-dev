@@ -478,12 +478,15 @@ run:
 		blk_mq_run_hw_queue(hctx, async);
 }
 
+extern unsigned long long blk_mq_sched_insert_requests_john;
+
 void blk_mq_sched_insert_requests(struct blk_mq_hw_ctx *hctx,
 				  struct blk_mq_ctx *ctx,
 				  struct list_head *list, bool run_queue_async)
 {
 	struct elevator_queue *e;
 	struct request_queue *q = hctx->queue;
+	blk_mq_sched_insert_requests_john++;
 
 	/*
 	 * blk_mq_sched_insert_requests() is called from flush plug
