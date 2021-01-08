@@ -3651,21 +3651,8 @@ extern struct device *hisi_sas_dev;
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	/*
-	 * Check if we should defer the probe before we probe the
-	 * upper layer, as it's hard to defer later on.
-	 */
-	int ret = platform_get_irq(pdev, 0);
-
 	if (!hisi_sas_dev)
-		hisi_sas_dev = dev;
-
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "cannot obtain irq\n");
-		return ret;
-	}
+		hisi_sas_dev = &pdev->dev;
 
 	return hisi_sas_probe(pdev, &hisi_sas_v2_hw);
 }
