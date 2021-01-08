@@ -450,7 +450,7 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 				blk_mq_insert_requests_john / 1000000);
 		pr_err("%s9 flush_plug_count=%llu flush_plug=%llu flush_plug1=%llu\n",
 				__func__, flush_plug_count / 1000000, flush_plug / 1000000, flush_plug1 / 1000000);
-		pr_err("%s10 flush_plug_count=%llu blk_mq_dequeue_from_ctx=%llu\n",
+		pr_err("%s10 blk_mq_sched_insert_requests=%llu blk_mq_dequeue_from_ctx=%llu\n",
 				__func__, blk_mq_sched_insert_requests_john / 1000000, blk_mq_dequeue_from_ctx_john / 1000000);
 	}
 		
