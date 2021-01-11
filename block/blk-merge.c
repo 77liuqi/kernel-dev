@@ -521,14 +521,29 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		struct scatterlist *sglist, struct scatterlist **last_sg)
 {
 	int nsegs = 0;
+	static unsigned long long count;
+	static unsigned long long _n_segs;
 
+	count++;
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, last_sg);
 	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
 		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, last_sg);
-	else if (rq->bio)
+	else if (rq->bio) {
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
 
+		if ((count % 1000000) == 0) {
+			static int c2;
+
+			c2++;
+			if ((nsegs > 1) && (c2 < 10)) {
+				WARN(1, "%s3.1 nsegs=%d\n", __func__, nsegs);
+				//pr_err("%s3.11 nsegs=%d\n", __func__, nsegs);
+			}
+			WARN_ONCE(1, "%s3.2 nsegs=%d\n", __func__, nsegs);
+			pr_err("%s3.3 nsegs=%d avg=%llu (%llu / %llu)\n", __func__, nsegs, _n_segs / count, _n_segs / 1000000, count / 1000000);
+		}
+}
 	if (*last_sg)
 		sg_mark_end(*last_sg);
 
@@ -537,6 +552,8 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * segment is bigger than number of req's physical segments
 	 */
 	WARN_ON(nsegs > blk_rq_nr_phys_segments(rq));
+
+	_n_segs += nsegs;
 
 	return nsegs;
 }
