@@ -685,8 +685,12 @@ static void scsi_handle_queue_full(struct scsi_device *sdev)
 	struct scsi_host_template *sht = sdev->host->hostt;
 	struct scsi_device *tmp_sdev;
 
+
+	pr_err_ratelimited("%s track_queue_depth=%d\n", __func__, sht->track_queue_depth);
+
 	if (!sht->track_queue_depth)
 		return;
+
 
 	shost_for_each_device(tmp_sdev, sdev->host) {
 		if (tmp_sdev->channel != sdev->channel ||
