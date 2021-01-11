@@ -728,6 +728,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 };
 
 static int sdebug_num_hosts;
+static int sdebug_sdev_queue_depth;
 static int sdebug_add_host = DEF_NUM_HOST;  /* in sysfs this is relative */
 static int sdebug_ato = DEF_ATO;
 static int sdebug_cdb_len = DEF_CDB_LEN;
@@ -5000,6 +5001,8 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 	if (sdebug_no_uld)
 		sdp->no_uld_attach = 1;
 	config_cdb_len(sdp);
+	if (sdebug_sdev_queue_depth)
+		scsi_change_queue_depth(sdp, sdebug_sdev_queue_depth);
 	return 0;
 }
 
@@ -5564,6 +5567,7 @@ respond_in_thread:	/* call back to mid-layer using invocation thread */
    as it can when the corresponding attribute in the
    /sys/bus/pseudo/drivers/scsi_debug directory is changed.
  */
+module_param_named(sdev_queue_depth, sdebug_sdev_queue_depth, int, S_IRUGO | S_IWUSR);
 module_param_named(add_host, sdebug_add_host, int, S_IRUGO | S_IWUSR);
 module_param_named(ato, sdebug_ato, int, S_IRUGO);
 module_param_named(cdb_len, sdebug_cdb_len, int, 0644);
@@ -6706,6 +6710,13 @@ static int __init scsi_debug_init(void)
 
 	if ((sdebug_max_queue > SDEBUG_CANQUEUE) || (sdebug_max_queue < 1)) {
 		pr_err("max_queue must be in range [1, %d]\n", SDEBUG_CANQUEUE);
+		return -EINVAL;
+	}
+
+	if ((sdebug_sdev_queue_depth > sdebug_max_queue) ||
+	    (sdebug_sdev_queue_depth < 1)) {
+		pr_err("sdebug_sdev_queue_depth must be in range [1, %d]\n",
+		       SDEBUG_CANQUEUE);
 		return -EINVAL;
 	}
 
