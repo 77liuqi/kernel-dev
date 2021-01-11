@@ -223,10 +223,13 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
  */
 int scsi_change_queue_depth(struct scsi_device *sdev, int depth)
 {
+	pr_err("%s depth=%d sdev->queue_depth=%d\n", __func__, depth, sdev->queue_depth);
+	
 	if (depth > 0) {
 		sdev->queue_depth = depth;
 		wmb();
 	}
+
 
 	if (sdev->request_queue)
 		blk_set_queue_depth(sdev->request_queue, depth);
