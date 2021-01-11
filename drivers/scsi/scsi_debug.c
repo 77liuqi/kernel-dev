@@ -728,7 +728,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 };
 
 static int sdebug_num_hosts;
-static int sdebug_sdev_queue_depth;
+static int sdebug_sdev_queue_depth = SDEBUG_CANQUEUE;
 static int sdebug_add_host = DEF_NUM_HOST;  /* in sysfs this is relative */
 static int sdebug_ato = DEF_ATO;
 static int sdebug_cdb_len = DEF_CDB_LEN;
