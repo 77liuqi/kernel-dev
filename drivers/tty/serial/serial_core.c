@@ -2868,7 +2868,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct device *tty_dev;
 	int num_groups;
 
-	pr_err("%s drv=%pS uport=%pS\n", __func__, drv, uport);
+	pr_err("%s drv=%pS uport=%pS iobase=0x%lx\n", __func__, drv, uport, uport->iobase);
 
 	BUG_ON(in_interrupt());
 

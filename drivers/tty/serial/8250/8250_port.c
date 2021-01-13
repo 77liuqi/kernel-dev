@@ -443,6 +443,7 @@ static unsigned int mem32be_serial_in(struct uart_port *p, int offset)
 
 static unsigned int io_serial_in(struct uart_port *p, int offset)
 {
+	pr_err_once("%s p=%pS offset=%d iobase=0x%lx\n", __func__, p, offset, p->iobase);
 	offset = offset << p->regshift;
 	return inb(p->iobase + offset);
 }
@@ -3113,6 +3114,7 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	int ret;
+	pr_err("%s port=%pS iobase=0x%lx\n", __func__, port, port->iobase);	
 
 	/*
 	 * Find the region that we can probe for.  This in turn
@@ -3121,6 +3123,8 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 	ret = serial8250_request_std_resource(up);
 	if (ret < 0)
 		return;
+
+	pr_err("%s2 port=%pS iobase=0x%lx\n", __func__, port, port->iobase);
 
 	if (port->iotype != up->cur_iotype)
 		set_io_from_upio(port);

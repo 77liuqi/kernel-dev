@@ -234,6 +234,7 @@ type logic_in##bwl(unsigned long addr)					\
 {									\
 	type ret = (type)~0;						\
 									\
+	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
 	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		ret = _in##bwl(addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) { \
@@ -243,13 +244,14 @@ type logic_in##bwl(unsigned long addr)					\
 			ret = entry->ops->in(entry->hostdata,		\
 					addr, sizeof(type));		\
 		else							\
-			WARN_ON_ONCE(1);				\
+			WARN_ONCE(2, "%s addr=0x%lx\n", __func__, addr);	\
 	}								\
 	return ret;							\
 }									\
 									\
 void logic_out##bwl(type value, unsigned long addr)			\
 {									\
+	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
 	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		_out##bwl(value, addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
@@ -259,13 +261,14 @@ void logic_out##bwl(type value, unsigned long addr)			\
 			entry->ops->out(entry->hostdata,		\
 					addr, value, sizeof(type));	\
 		else							\
-			WARN_ON_ONCE(1);				\
+			WARN_ONCE(2, "%s addr=0x%lx\n", __func__, addr);	\
 	}								\
 }									\
 									\
 void logic_ins##bwl(unsigned long addr, void *buffer,			\
 		    unsigned int count)					\
 {									\
+	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
 	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		reads##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
@@ -275,7 +278,7 @@ void logic_ins##bwl(unsigned long addr, void *buffer,			\
 			entry->ops->ins(entry->hostdata,		\
 				addr, buffer, sizeof(type), count);	\
 		else							\
-			WARN_ON_ONCE(1);				\
+			WARN_ONCE(2, "%s addr=0x%lx\n", __func__, addr);	\
 	}								\
 									\
 }									\
@@ -283,6 +286,7 @@ void logic_ins##bwl(unsigned long addr, void *buffer,			\
 void logic_outs##bwl(unsigned long addr, const void *buffer,		\
 		     unsigned int count)				\
 {									\
+	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
 	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		writes##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
@@ -292,7 +296,7 @@ void logic_outs##bwl(unsigned long addr, const void *buffer,		\
 			entry->ops->outs(entry->hostdata,		\
 				addr, buffer, sizeof(type), count);	\
 		else							\
-			WARN_ON_ONCE(1);				\
+			WARN_ONCE(1, "%s2 addr=0x%lx\n", __func__, addr);	\
 	}								\
 }
 

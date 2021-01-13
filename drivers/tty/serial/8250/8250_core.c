@@ -990,6 +990,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 
 	mutex_lock(&serial_mutex);
 
+	pr_err("%s up=%pS iobase=0x%lx\n", __func__, up, up->port.iobase);
+
 	uart = serial8250_find_match_or_unused(&up->port);
 	if (uart && uart->port.type != PORT_8250_CIR) {
 		struct mctrl_gpios *gpios;
@@ -1023,6 +1025,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		/* Take tx_loadsz from fifosize if it wasn't set separately */
 		if (uart->port.fifosize && !uart->tx_loadsz)
 			uart->tx_loadsz = uart->port.fifosize;
+		
+		pr_err("%s1 up=%pS iobase=0x%lx\n", __func__, up, up->port.iobase);
 
 		if (up->port.dev) {
 			uart->port.dev = up->port.dev;

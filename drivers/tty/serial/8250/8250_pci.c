@@ -106,7 +106,7 @@ setup_port(struct serial_private *priv, struct uart_8250_port *port,
 	} else {
 		port->port.iotype = UPIO_PORT;
 		port->port.iobase = pci_resource_start(dev, bar) + offset;
-		pr_err("%s2 port->port.iobase=0x%lx\n", __func__, port->port.iobase);
+		pr_err("%s2 port->port.iobase=0x%lx bar=%d offset=%d\n", __func__, port->port.iobase, bar, offset);
 		port->port.mapbase = 0;
 		port->port.membase = NULL;
 		port->port.regshift = 0;
