@@ -439,8 +439,6 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	struct uart_8250_port uart, *port;
 	int ret, line, flags = dev_id->driver_data;
 
-	return -1;
-
 	if (flags & UNKNOWN_DEV) {
 		ret = serial_pnp_guess_board(dev);
 		if (ret < 0)
