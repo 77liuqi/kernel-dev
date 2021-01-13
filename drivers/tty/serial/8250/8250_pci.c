@@ -87,12 +87,16 @@ setup_port(struct serial_private *priv, struct uart_8250_port *port,
 {
 	struct pci_dev *dev = priv->dev;
 
+	pr_err("%s\n", __func__);
+
 	if (bar >= PCI_STD_NUM_BARS)
 		return -EINVAL;
 
 	if (pci_resource_flags(dev, bar) & IORESOURCE_MEM) {
 		if (!pcim_iomap(dev, bar, 0) && !pcim_iomap_table(dev))
 			return -ENOMEM;
+		
+		pr_err("%s1\n", __func__);
 
 		port->port.iotype = UPIO_MEM;
 		port->port.iobase = 0;
@@ -102,6 +106,7 @@ setup_port(struct serial_private *priv, struct uart_8250_port *port,
 	} else {
 		port->port.iotype = UPIO_PORT;
 		port->port.iobase = pci_resource_start(dev, bar) + offset;
+		pr_err("%s2 port->port.iobase=0x%lx\n", __func__, port->port.iobase);
 		port->port.mapbase = 0;
 		port->port.membase = NULL;
 		port->port.regshift = 0;
@@ -780,15 +785,21 @@ static int pci_netmos_9900_setup(struct serial_private *priv,
 {
 	unsigned int bar;
 
+	pr_err("%s\n", __func__);
+
 	if ((priv->dev->device != PCI_DEVICE_ID_NETMOS_9865) &&
 	    (priv->dev->subsystem_device & 0xff00) == 0x3000) {
 		/* netmos apparently orders BARs by datasheet layout, so serial
 		 * ports get BARs 0 and 3 (or 1 and 4 for memmapped)
 		 */
 		bar = 3 * idx;
+		
+		pr_err("%s1\n", __func__);
+		
 
 		return setup_port(priv, port, bar, 0, board->reg_shift);
 	} else {
+		pr_err("%s2\n", __func__);
 		return pci_default_setup(priv, board, port, idx);
 	}
 }
@@ -837,9 +848,13 @@ static int pci_netmos_init(struct pci_dev *dev)
 	/* subdevice 0x00PS means <P> parallel, <S> serial */
 	unsigned int num_serial = dev->subsystem_device & 0xf;
 
+	dev_err(&dev->dev, "%s\n", __func__);
+
 	if ((dev->device == PCI_DEVICE_ID_NETMOS_9901) ||
 		(dev->device == PCI_DEVICE_ID_NETMOS_9865))
 		return 0;
+
+	dev_err(&dev->dev, "%s2\n", __func__);
 
 	if (dev->subsystem_vendor == PCI_VENDOR_ID_IBM &&
 			dev->subsystem_device == 0x0299)
@@ -1324,6 +1339,8 @@ static int pci_default_setup(struct serial_private *priv,
 		  struct uart_8250_port *port, int idx)
 {
 	unsigned int bar, offset = board->first_offset, maxnr;
+
+	pr_err("%s\n", __func__);
 
 	bar = FL_GET_BASE(board->flags);
 	if (board->flags & FL_BASE_BARS)
@@ -3912,6 +3929,8 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 	 */
 	quirk = find_quirk(dev);
 
+	dev_err(&dev->dev, "%s quirk=%pS quirk->init=%pS\n", __func__, quirk, quirk->init);
+
 	/*
 	 * Run the new-style initialization function.
 	 * The initialization function returns:
@@ -3962,16 +3981,21 @@ pciserial_init_ports(struct pci_dev *dev, const struct pciserial_board *board)
 	uart.port.dev = &dev->dev;
 
 	for (i = 0; i < nr_ports; i++) {
+		dev_err(&dev->dev, "%s1 quirk=%pS quirk->init=%pS port 0x%lx i=%d quirk->setup=%pS uart.port.serial_out/in=%pS / %pS\n",
+			__func__, quirk, quirk->init, uart.port.iobase, i, quirk->setup, uart.port.serial_out, uart.port.serial_in);
 		if (quirk->setup(priv, board, &uart, i))
 			break;
 
-		dev_dbg(&dev->dev, "Setup PCI port: port %lx, irq %d, type %d\n",
+		dev_err(&dev->dev, "%s2 quirk=%pS quirk->init=%pS port 0x%lx i=%d quirk->setup=%pS  uart.port.serial_out/in=%pS / %pS\n",
+		__func__, quirk, quirk->init, uart.port.iobase, i, quirk->setup, uart.port.serial_out, uart.port.serial_in);
+
+		dev_err(&dev->dev, "Setup PCI port: port 0x%lx, irq %d, type %d\n",
 			uart.port.iobase, uart.port.irq, uart.port.iotype);
 
 		priv->line[i] = serial8250_register_8250_port(&uart);
 		if (priv->line[i] < 0) {
 			dev_err(&dev->dev,
-				"Couldn't register serial port %lx, irq %d, type %d, error %d\n",
+				"Couldn't register serial port 0x%lx, irq %d, type %d, error %d\n",
 				uart.port.iobase, uart.port.irq,
 				uart.port.iotype, priv->line[i]);
 			break;
@@ -4058,6 +4082,8 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	struct pciserial_board tmp;
 	int rc;
 
+	dev_err(&dev->dev, "%s\n", __func__);
+
 	quirk = find_quirk(dev);
 	if (quirk->probe) {
 		rc = quirk->probe(dev);
@@ -4081,6 +4107,8 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	pci_save_state(dev);
 	if (rc)
 		return rc;
+
+	dev_err(&dev->dev, "%s2\n", __func__);
 
 	if (ent->driver_data == pbn_default) {
 		/*
@@ -4110,6 +4138,8 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 			moan_device("Redundant entry in serial pci_table.",
 				    dev);
 	}
+
+	dev_err(&dev->dev, "%s3\n", __func__);
 
 	priv = pciserial_init_ports(dev, board);
 	if (IS_ERR(priv))

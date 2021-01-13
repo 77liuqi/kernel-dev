@@ -1048,7 +1048,11 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			}
 		}
 
+		pr_err("%s2  uart.port.serial_out/in=%pS / %pS\n", __func__, up->port.serial_out, up->port.serial_in);
+
 		serial8250_set_defaults(uart);
+
+		pr_err("%s3 uart.port.serial_out/in=%pS / %pS\n", __func__, up->port.serial_out, up->port.serial_in);
 
 		/* Possibly override default I/O functions.  */
 		if (up->port.serial_in)
@@ -1083,6 +1087,8 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		if (up->dl_write)
 			uart->dl_write = up->dl_write;
 
+		pr_err("%s4  uart.port.serial_out/in=%pS / %pS uart->port.type=%d\n", __func__, up->port.serial_out, up->port.serial_in, uart->port.type);
+
 		if (uart->port.type != PORT_8250_CIR) {
 			if (serial8250_isa_config != NULL)
 				serial8250_isa_config(0, &uart->port,
@@ -1091,6 +1097,7 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 			serial8250_apply_quirks(uart);
 			ret = uart_add_one_port(&serial8250_reg,
 						&uart->port);
+			pr_err("%s5 uart.port.serial_out/in=%pS / %pS ret=%d\n", __func__, up->port.serial_out, up->port.serial_in, ret);
 			if (ret)
 				goto err;
 
@@ -1117,12 +1124,15 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 	}
 
 	mutex_unlock(&serial_mutex);
+	
+	pr_err("%s8 uart.port.serial_out/in=%pS / %pS ret=%d\n", __func__, up->port.serial_out, up->port.serial_in, ret);
 
 	return ret;
 
 err:
 	uart->port.dev = NULL;
 	mutex_unlock(&serial_mutex);
+	pr_err("%s10 err uart.port.serial_out/in=%pS / %pS ret=%d\n", __func__, up->port.serial_out, up->port.serial_in, ret);
 	return ret;
 }
 EXPORT_SYMBOL(serial8250_register_8250_port);

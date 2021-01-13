@@ -2349,6 +2349,8 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 {
 	unsigned int flags;
 
+	pr_err("%s drv=%pS port=%pS\n", __func__, drv, port);
+
 	/*
 	 * If there isn't a port here, don't do anything further.
 	 */
@@ -2369,6 +2371,8 @@ uart_configure_port(struct uart_driver *drv, struct uart_state *state,
 		}
 		port->ops->config_port(port, flags);
 	}
+
+	pr_err("%s1 drv=%pS port=%pS port->type=%d PORT_UNKOWN=%d\n", __func__, drv, port, port->type, PORT_UNKNOWN);
 
 	if (port->type != PORT_UNKNOWN) {
 		unsigned long flags;
@@ -2864,6 +2868,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	struct device *tty_dev;
 	int num_groups;
 
+	pr_err("%s drv=%pS uport=%pS\n", __func__, drv, uport);
+
 	BUG_ON(in_interrupt());
 
 	if (uport->line >= drv->nr)
@@ -2878,6 +2884,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		ret = -EINVAL;
 		goto out;
 	}
+
+	pr_err("%s1 drv=%pS uport=%pS\n", __func__, drv, uport);
 
 	/* Link the port to the driver state table and vice versa */
 	atomic_set(&state->refcount, 1);
@@ -2894,6 +2902,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	pr_err("%s2 drv=%pS uport=%pS\n", __func__, drv, uport);
 
 	/*
 	 * If this port is in use as a console then the spinlock is already
@@ -2920,6 +2930,7 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		ret = -ENOMEM;
 		goto out;
 	}
+	pr_err("%s3 drv=%pS uport=%pS\n", __func__, drv, uport);
 	uport->tty_groups[0] = &tty_dev_attr_group;
 	if (uport->attr_group)
 		uport->tty_groups[1] = uport->attr_group;
@@ -2945,6 +2956,8 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
  out:
 	mutex_unlock(&port->mutex);
 	mutex_unlock(&port_mutex);
+
+	pr_err("%s10 out drv=%pS uport=%pS ret=%d\n", __func__, drv, uport, ret);
 
 	return ret;
 }
