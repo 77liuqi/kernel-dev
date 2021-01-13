@@ -235,7 +235,7 @@ type logic_in##bwl(unsigned long addr)					\
 	type ret = (type)~0;						\
 									\
 	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
-	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
+	if ((addr >= MMIO_LOWER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		ret = _in##bwl(addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) { \
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
@@ -252,7 +252,7 @@ type logic_in##bwl(unsigned long addr)					\
 void logic_out##bwl(type value, unsigned long addr)			\
 {									\
 	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
-	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
+	if ((addr >= MMIO_LOWER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		_out##bwl(value, addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
@@ -269,7 +269,7 @@ void logic_ins##bwl(unsigned long addr, void *buffer,			\
 		    unsigned int count)					\
 {									\
 	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
-	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
+	if ((addr >= MMIO_LOWER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		reads##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
@@ -287,7 +287,7 @@ void logic_outs##bwl(unsigned long addr, const void *buffer,		\
 		     unsigned int count)				\
 {									\
 	WARN_ONCE(addr < MMIO_LOWER_LIMIT, "%s1 addr=0x%lx\n", __func__, addr);	\
-	if ((addr >= MMIO_UPPER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
+	if ((addr >= MMIO_LOWER_LIMIT) && (addr < MMIO_UPPER_LIMIT)) {	\
 		writes##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
