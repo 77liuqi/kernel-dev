@@ -148,6 +148,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 #define arch_has_dev_port()	(1)
 #define IO_SPACE_LIMIT		(PCI_IO_SIZE - 1)
 #define PCI_IOBASE		((void __iomem *)PCI_IO_START)
+#define IO_SPACE_BASE		(0x10000)
 
 /*
  * String version of I/O memory access operations.
