@@ -36,7 +36,7 @@ int logic_pio_register_range(struct logic_pio_hwaddr *new_range)
 	struct logic_pio_hwaddr *range;
 	resource_size_t start;
 	resource_size_t end;
-	resource_size_t mmio_end = 0;
+	resource_size_t mmio_end = MMIO_LOWER_LIMIT;
 	resource_size_t iio_sz = MMIO_UPPER_LIMIT;
 	int ret = 0;
 
@@ -234,7 +234,9 @@ type logic_in##bwl(unsigned long addr)					\
 {									\
 	type ret = (type)~0;						\
 									\
-	if (addr < MMIO_UPPER_LIMIT) {					\
+	if (addr < MMIO_LOWER_LIMIT) {					\
+		WARN_ON_ONCE(1);					\
+	} else if (addr < MMIO_UPPER_LIMIT) {					\
 		ret = _in##bwl(addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) { \
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
@@ -250,8 +252,10 @@ type logic_in##bwl(unsigned long addr)					\
 									\
 void logic_out##bwl(type value, unsigned long addr)			\
 {									\
-	if (addr < MMIO_UPPER_LIMIT) {					\
-		_out##bwl(value, addr);				\
+	if (addr < MMIO_LOWER_LIMIT) {					\
+		WARN_ON_ONCE(1);					\
+	} else if (addr < MMIO_UPPER_LIMIT) {				\
+		_out##bwl(value, addr);					\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
 									\
@@ -266,7 +270,9 @@ void logic_out##bwl(type value, unsigned long addr)			\
 void logic_ins##bwl(unsigned long addr, void *buffer,			\
 		    unsigned int count)					\
 {									\
-	if (addr < MMIO_UPPER_LIMIT) {					\
+	if (addr < MMIO_LOWER_LIMIT) {					\
+		WARN_ON_ONCE(1);					\
+	} else if (addr < MMIO_UPPER_LIMIT) {				\
 		reads##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\
@@ -283,7 +289,9 @@ void logic_ins##bwl(unsigned long addr, void *buffer,			\
 void logic_outs##bwl(unsigned long addr, const void *buffer,		\
 		     unsigned int count)				\
 {									\
-	if (addr < MMIO_UPPER_LIMIT) {					\
+	if (addr < MMIO_LOWER_LIMIT) {					\
+		WARN_ON_ONCE(1);					\
+	} else if (addr < MMIO_UPPER_LIMIT) {				\
 		writes##bwl(PCI_IOBASE + addr, buffer, count);		\
 	} else if (addr >= MMIO_UPPER_LIMIT && addr < IO_SPACE_LIMIT) {	\
 		struct logic_pio_hwaddr *entry = find_io_range(addr);	\

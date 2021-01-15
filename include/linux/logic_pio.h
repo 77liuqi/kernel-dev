@@ -111,7 +111,12 @@ void logic_outsl(unsigned long addr, const void *buffer, unsigned int count);
 #else
 #define PIO_INDIRECT_SIZE 0
 #endif /* CONFIG_INDIRECT_PIO */
+
 #define MMIO_UPPER_LIMIT (IO_SPACE_LIMIT - PIO_INDIRECT_SIZE)
+#define MMIO_LOWER_LIMIT IO_SPACE_BASE
+#if MMIO_LOWER_LIMIT >= MMIO_UPPER_LIMIT
+#error MMIO_UPPPER_LIMIT should be above MMIO_LOWER_LIMIT
+#endif
 
 struct logic_pio_hwaddr *find_io_range_by_fwnode(struct fwnode_handle *fwnode);
 unsigned long logic_pio_trans_hwaddr(struct fwnode_handle *fwnode,
