@@ -29,7 +29,7 @@
 
 struct resource ioport_resource = {
 	.name	= "PCI IO",
-	.start	= 0,
+	.start	= IO_SPACE_BASE,
 	.end	= IO_SPACE_LIMIT,
 	.flags	= IORESOURCE_IO,
 };
