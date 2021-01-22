@@ -593,8 +593,12 @@ static int metricgroup__sys_event_iter(struct pmu_event *pe, void *data)
 	struct metricgroup_iter_data *d = data;
 	struct perf_pmu *pmu = NULL;
 
+	pr_err("%s pe=%p name=%s metric_name=%s metric_expr=%s compat=%s\n", 
+		__func__, pe, pe->name, pe->metric_name, pe->metric_expr, pe->compat);
+
 	if (!pe->metric_expr || !pe->compat)
 		return 0;
+
 
 	while ((pmu = perf_pmu__scan(pmu))) {
 
@@ -1091,13 +1095,19 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 {
 	struct expr_ids ids = { .cnt = 0, };
 	struct pmu_event *pe;
-	struct metric *m;
+	struct metric *m = NULL;
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
 
+	pr_err("%s metric=%s\n", __func__, metric);
+
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
+		pr_err("%s0 m=%p metric=%s pe=%p (name=%s metric_name=%s metric_expr=%s)\n",
+			__func__, m, metric, pe, pe->name, pe->metric_name, pe->metric_expr);
+		if (m)
+			pr_err("%s1 snake metric=%s\n", __func__, metric);
 		m = NULL;
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
@@ -1113,6 +1123,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		if (ret)
 			goto out;
 	}
+
+	pr_err("%s2 metric=%s\n", __func__, metric);
 
 	{
 		struct metricgroup_iter_data data = {
