@@ -1,0 +1,12 @@
+[
+
+   {
+           "BriefDescription": "ddr write-cycles event",
+           "EventCode": "0x2b",
+           "EventName": "imx8mm_ddr.write_cycles",
+           "Unit": "imx8_ddr",
+           "Compat": "i.MX8MM"
+   }
+]
+
+
