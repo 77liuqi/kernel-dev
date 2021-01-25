@@ -830,6 +830,8 @@ void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 {
 	int i = 0;
 
+	pr_err("%s\n", __func__);
+
 	while (1) {
 		struct pmu_sys_events *event_table;
 		int j = 0;
@@ -838,10 +840,15 @@ void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 
 		if (!event_table->table)
 			break;
+		
+		pr_err("%s1 event_table=%p (%s)\n", __func__, event_table, event_table->table->name);
 
 		while (1) {
 			struct pmu_event *pe = &event_table->table[j++];
 			int ret;
+			pr_err("%s2 event_table=%p (%s) pe=%p (%s, %s, %s)\n",
+				__func__, event_table, event_table->table->name,
+				pe, pe->name, pe->metric_group, pe->metric_name);
 
 			if (!pe->name && !pe->metric_group && !pe->metric_name)
 				break;
