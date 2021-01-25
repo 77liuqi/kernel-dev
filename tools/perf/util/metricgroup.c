@@ -599,17 +599,17 @@ static int metricgroup__sys_event_iter(struct pmu_event *pe, void *data)
 	if (!pe->metric_expr || !pe->compat)
 		return 0;
 
-	pr_err("%s1 pe=%p name=%s metric_name=%s metric_expr=%s compat=%s\n", 
-		__func__, pe, pe->name, pe->metric_name, pe->metric_expr, pe->compat);
+	pr_err("%s1\n", __func__);
 
 
 	while ((pmu = perf_pmu__scan(pmu))) {
 		
-		pr_err("%s2 pe=%p name=%s metric_name=%s metric_expr=%s compat=%s pmu=%p (id=%p)\n", 
-			__func__, pe, pe->name, pe->metric_name, pe->metric_expr, pe->compat, pmu, pmu->id);
+		pr_err("%s2 pmu=%p (name=%s, id=%s)\n", __func__,pmu, pmu->name, pmu->id);
 
 		if (!pmu->id || strcmp(pmu->id, pe->compat))
 			continue;
+
+		pr_err("%s3 pmu=%p (name=%s, id=%s)\n", __func__, pmu, pmu->name, pmu->id);
 
 		return d->fn(pe, d->data);
 	}
