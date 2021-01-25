@@ -281,6 +281,27 @@ static int test_memory_bandwidth(void)
 	return 0;
 }
 
+static int test_system_pmu(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "l1d.replacement", .val = 304334545 },
+		{ .event = "duration_time",  .val = 1001057587 },
+		{ .event = NULL, },
+	};
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric("system_pmu_M1", vals, &ratio) == 0);
+
+	pr_err("%s ratio=%f\n", __func__, ratio);
+
+	TEST_ASSERT_VAL("system_pmu_M1, wrong ratio",
+			fabs(ratio - 19.456) < 0.01);
+
+	return 0;
+}
+
+
 static int test_metric_group(void)
 {
 	double ratio1, ratio2;
@@ -307,12 +328,15 @@ static int test_metric_group(void)
 
 int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
+	if (subtest == 4545) {
 	TEST_ASSERT_VAL("IPC failed", test_ipc() == 0);
 	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 	TEST_ASSERT_VAL("cache_miss_cycles failed", test_cache_miss_cycles() == 0);
 	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
 	TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
+	}
 	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
+	TEST_ASSERT_VAL("System PMU events", test_system_pmu() == 0);
 	return 0;
 }

@@ -1,0 +1,14 @@
+[
+   {
+           "BriefDescription": "sys pmu write-cycles event",
+           "EventName": "sys_pmu.write_cycles",
+           "Unit": "sys_pmu"
+   },
+   {
+           "BriefDescription": "sys pmu read-cycles event",
+           "EventName": "sys_pmu.write_cycles",
+           "Unit": "sys_pmu"
+   }
+]
+
+

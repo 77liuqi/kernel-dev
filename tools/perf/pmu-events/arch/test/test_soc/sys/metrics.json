@@ -1,10 +1,9 @@
 [
    {
-	    "BriefDescription": "bytes all masters write to ddr based on write-cycles event",
-	    "MetricName": "imx8mm_ddr_write.all",
-	    "MetricExpr": "imx8mm_ddr.write_cycles * 4 * 4",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "imx8_ddr",
-	    "Compat": "i.MX8MM"
+	    "BriefDescription": "system PMU test metric M1",
+	    "MetricName": "sys_pmu_M1",
+	    "MetricExpr": "(sys_pmu.write_cycles + sys_pmu.read_cycles) / duration_time",
+	    "Unit": "sys_pmu",
+	    "Compat": "v1"
     }
 ]
