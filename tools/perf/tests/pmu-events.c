@@ -146,24 +146,10 @@ static bool is_same(const char *reference, const char *test)
 	return !strcmp(reference, test);
 }
 
-static struct pmu_events_map *__test_pmu_get_events_map(void)
-{
-	struct pmu_events_map *map;
-
-	for (map = &pmu_events_map[0]; map->cpuid; map++) {
-		if (!strcmp(map->cpuid, "testcpu"))
-			return map;
-	}
-
-	pr_err("could not find test events map\n");
-
-	return NULL;
-}
-
 /* Verify generated events from pmu-events.c is as expected */
 static int test_pmu_event_table(void)
 {
-	struct pmu_events_map *map = __test_pmu_get_events_map();
+	struct pmu_events_map *map = perf_pmu__find_test_cpu_map();
 	struct pmu_event *table;
 	int map_events = 0, expected_events;
 
@@ -286,7 +272,7 @@ static int __test__pmu_event_aliases(char *pmu_name, int *count)
 	LIST_HEAD(aliases);
 	int res = 0;
 	bool use_uncore_table;
-	struct pmu_events_map *map = __test_pmu_get_events_map();
+	struct pmu_events_map *map = perf_pmu__find_test_cpu_map();
 	struct perf_pmu_alias *a, *tmp;
 
 	if (!map)

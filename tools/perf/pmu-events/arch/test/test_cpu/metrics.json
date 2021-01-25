@@ -1,0 +1,74 @@
+[
+    {
+        "BriefDescription": "IPC test metric",
+	 "MetricExpr": "inst_retired.any / cpu_clk_unhalted.thread",
+	 "MetricName": "IPC",
+	 "MetricGroup": "group1"
+    },
+    {
+        "BriefDescription": "Frontend_Bound_SMT test metric",
+	"MetricExpr":  "idq_uops_not_delivered.core / (4 * (( ( cpu_clk_unhalted.thread / 2 ) * ( 1 + cpu_clk_unhalted.one_thread_active / cpu_clk_unhalted.ref_xclk ) )))",
+	"MetricName":  "Frontend_Bound_SMT"
+    },
+    {
+        "BriefDescription": "dcache_miss_cpi test metric",
+	"MetricExpr":  "l1d\\-loads\\-misses / inst_retired.any",
+	"MetricName":  "dcache_miss_cpi"
+    },
+    {
+        "BriefDescription": "icache_miss_cycles test metric",
+	"MetricExpr":  "l1i\\-loads\\-misses / inst_retired.any",
+	"MetricName":  "icache_miss_cycles"
+    },
+    {
+        "BriefDescription": "cache_miss_cycles test metric",
+	"MetricExpr":  "(dcache_miss_cpi + icache_miss_cycles)",
+	"MetricName":  "cache_miss_cycles",
+	"MetricGroup":  "group1"
+    },
+    {
+        "BriefDescription": "DCache_L2_All_Hits test metric",
+	"MetricExpr":  "l2_rqsts.demand_data_rd_hit + l2_rqsts.pf_hit + l2_rqsts.rfo_hit",
+	"MetricName":  "DCache_L2_All_Hits"
+    },
+    {
+        "BriefDescription": "DCache_L2_All_Miss test metric",
+	"MetricExpr":  "max(l2_rqsts.all_demand_data_rd - l2_rqsts.demand_data_rd_hit, 0) + l2_rqsts.pf_miss + l2_rqsts.rfo_miss",
+	"MetricName":  "DCache_L2_All_Miss"
+    },
+    {
+        "BriefDescription": "DCache_L2_All test metric",
+	"MetricExpr":  "dcache_l2_all_hits + dcache_l2_all_miss",
+	"MetricName":  "DCache_L2_All"
+    },
+    {
+        "BriefDescription": "DCache_L2_Hits test metric",
+	"MetricExpr":  "d_ratio(dcache_l2_all_hits, dcache_l2_all)",
+	"MetricName":  "DCache_L2_Hits"
+    },
+    {
+        "BriefDescription": "DCache_L2_Misses test metric",
+	"MetricExpr":  "d_ratio(dcache_l2_all_miss, dcache_l2_all)",
+	"MetricName":  "DCache_L2_Misses"
+    },
+    {
+        "BriefDescription": "M1 test metric",
+	"MetricExpr":  "ipc + m2",
+	"MetricName":  "M1"
+    },
+    {
+        "BriefDescription": "M2 test metric",
+	"MetricExpr":  "ipc + m1",
+	"MetricName":  "M2"
+    },
+    {
+        "BriefDescription": "M3 test metric",
+	"MetricExpr":  "1/m3",
+	"MetricName":  "M3"
+    },
+    {
+        "BriefDescription": "L1D_Cache_Fill_BW test metric",
+	"MetricExpr":  "64 * l1d.replacement / 1000000000 / duration_time",
+	"MetricName":  "L1D_Cache_Fill_BW"
+    }
+]
