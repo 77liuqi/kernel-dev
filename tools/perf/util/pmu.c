@@ -524,7 +524,7 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias,
  * located at:
  * /sys/bus/event_source/devices/<dev>/type as sysfs attribute.
  */
-static int pmu_type(const char *name, __u32 *type)
+static __maybe_unused int pmu_type(const char *name, __u32 *type)
 {
 	char path[PATH_MAX];
 	FILE *file;
@@ -934,7 +934,9 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	struct perf_pmu *pmu;
 	LIST_HEAD(format);
 	LIST_HEAD(aliases);
-	__u32 type;
+	__u32 type = 0;
+
+	pr_err("%s name=%s\n", __func__, name);
 
 	/*
 	 * The pmu data we store & need consists of the pmu
@@ -944,18 +946,26 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_format(name, &format))
 		return NULL;
 
+	pr_err("%s1 name=%s\n", __func__, name);
+
 	/*
 	 * Check the type first to avoid unnecessary work.
 	 */
-	if (pmu_type(name, &type))
-		return NULL;
+//	if (pmu_type(name, &type))
+//		return NULL;
+
+	pr_err("%s2 name=%s\n", __func__, name);
 
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
+	pr_err("%s3 name=%s\n", __func__, name);
+
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
+
+	pr_err("%s4 name=%s\n", __func__, name);
 
 	pmu->cpus = pmu_cpumask(name);
 	pmu->name = strdup(name);

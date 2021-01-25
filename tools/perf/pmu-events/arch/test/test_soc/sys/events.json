@@ -6,7 +6,7 @@
    },
    {
            "BriefDescription": "sys pmu read-cycles event",
-           "EventName": "sys_pmu.write_cycles",
+           "EventName": "sys_pmu.read_cycles",
            "Unit": "sys_pmu"
    }
 ]

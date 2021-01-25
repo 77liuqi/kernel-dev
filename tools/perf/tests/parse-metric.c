@@ -285,17 +285,24 @@ static int test_system_pmu(void)
 {
 	double ratio;
 	struct value vals[] = {
-		{ .event = "l1d.replacement", .val = 304334545 },
-		{ .event = "duration_time",  .val = 1001057587 },
+		{ .event = "sys_pmu.write_cycles", .val = 300000000 },
+		{ .event = "sys_pmu.read_cycles",  .val = 100000000 },
+		{ .event = "duration_time",  .val = 20000000 },
 		{ .event = NULL, },
 	};
+	struct perf_pmu *p1 = perf_pmu__find("test_sys_pmu_0");
+	static const char *version = "v1";
+
+	pr_err("%s p1=%p\n", __func__, p1);
+	if (p1)
+		p1->id = (char *)version;
 
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_metric("system_pmu_M1", vals, &ratio) == 0);
+			compute_metric("sys_pmu_M1", vals, &ratio) == 0);
 
 	pr_err("%s ratio=%f\n", __func__, ratio);
 
-	TEST_ASSERT_VAL("system_pmu_M1, wrong ratio",
+	TEST_ASSERT_VAL("sys_pmu_M1, wrong ratio",
 			fabs(ratio - 19.456) < 0.01);
 
 	return 0;
