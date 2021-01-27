@@ -81,6 +81,9 @@ static int __compute_metric(const char *name, struct value *vals,
 	struct evlist *evlist;
 	int err;
 
+	struct evsel *evsel;
+
+
 	pr_err("%s name=%s\n", __func__, name);
 
 	map = perf_pmu__find_test_cpu_map();
@@ -95,14 +98,32 @@ static int __compute_metric(const char *name, struct value *vals,
 	if (!evlist)
 		return -ENOMEM;
 
+	pr_err("%s1 name=%s\n", __func__, name);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 	cpus = perf_cpu_map__new("0");
 	if (!cpus) {
 		evlist__delete(evlist);
 		return -ENOMEM;
 	}
 
+	pr_err("%s2 name=%s\n", __func__, name);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 	perf_evlist__set_maps(&evlist->core, cpus, NULL);
 	runtime_stat__init(&st);
+
+	pr_err("%s3 name=%s\n", __func__, name);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s3.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	/* Parse the metric into metric_events list. */
 	err = metricgroup__parse_groups_test(evlist, map, name,
@@ -110,6 +131,12 @@ static int __compute_metric(const char *name, struct value *vals,
 					     &metric_events);
 	if (err)
 		goto out;
+
+	pr_err("%s4 name=%s\n", __func__, name);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s4.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	err = evlist__alloc_stats(evlist, false);
 	if (err)
@@ -297,10 +324,13 @@ static int test_system_pmu(void)
 		{ .event = "duration_time",  .val = 200 },
 		{ .event = NULL, },
 	};
-	struct perf_pmu *p1 = perf_pmu__find("test_sys_pmu_0");
+	struct perf_pmu *p0 = perf_pmu__find("test_sys_pmu_0");
+	struct perf_pmu *p1 = perf_pmu__find("test_sys_pmu_1");
 	static const char *version = "v1";
 
-	pr_err("%s p1=%p\n", __func__, p1);
+	pr_err("%s p0=%p p1=%p\n", __func__, p0, p1);
+	if (p0)
+		p0->id = (char *)version;
 	if (p1)
 		p1->id = (char *)version;
 

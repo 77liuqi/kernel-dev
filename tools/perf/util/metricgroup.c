@@ -1241,7 +1241,14 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	struct parse_events_error parse_error;
 	struct strbuf extra_events;
 	LIST_HEAD(metric_list);
+	struct evsel *evsel;
 	int ret;
+
+	pr_err("%s str=%s perf_evlist=%p fake_pmu=%p\n", __func__, str, perf_evlist, fake_pmu);
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s1 perf_evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, perf_evlist, evsel, evsel->name, evsel->pmu_name);
 
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);

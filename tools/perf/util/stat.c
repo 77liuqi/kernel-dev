@@ -193,7 +193,11 @@ int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw)
 {
 	struct evsel *evsel;
 
+	pr_err("%s evlist=%p\n", __func__, evlist);
+
 	evlist__for_each_entry(evlist, evsel) {
+		pr_err("%s1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 		if (evsel__alloc_stats(evsel, alloc_raw))
 			goto out_free;
 	}

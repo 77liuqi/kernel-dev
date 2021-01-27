@@ -2170,20 +2170,59 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
 	};
+	struct evsel *evsel;
 	int ret;
+
+	pr_err("%s str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s1.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 
 	ret = parse_events__scanner(str, &parse_state);
 	perf_pmu__parse_cleanup();
+
+	pr_err("%s2 str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s2.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	if (!ret && list_empty(&parse_state.list)) {
 		WARN_ONCE(true, "WARNING: event parser found nothing\n");
 		return -1;
 	}
 
+	pr_err("%s3 str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s3.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s3.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 	/*
 	 * Add list to the evlist even with errors to allow callers to clean up.
 	 */
 	evlist__splice_list_tail(evlist, &parse_state.list);
+
+	pr_err("%s4 str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s4.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s4.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 
 	if (!ret) {
 		struct evsel *last;
@@ -2194,6 +2233,15 @@ int __parse_events(struct evlist *evlist, const char *str,
 
 		return 0;
 	}
+
+	pr_err("%s5 str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s5.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s5.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	/*
 	 * There are 2 users - builtin-record and builtin-test objects.
