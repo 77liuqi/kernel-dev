@@ -951,8 +951,8 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	/*
 	 * Check the type first to avoid unnecessary work.
 	 */
-//	if (pmu_type(name, &type))
-//		return NULL;
+	if (pmu_type(name, &type) && !strstr(name, "test_sys_pmu"))
+		return NULL;
 
 //	pr_err("%s2 name=%s\n", __func__, name);
 
