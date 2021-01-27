@@ -936,7 +936,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	LIST_HEAD(aliases);
 	__u32 type = 0;
 
-	pr_err("%s name=%s\n", __func__, name);
+//	pr_err("%s name=%s\n", __func__, name);
 
 	/*
 	 * The pmu data we store & need consists of the pmu
@@ -946,7 +946,7 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	if (pmu_format(name, &format))
 		return NULL;
 
-	pr_err("%s1 name=%s\n", __func__, name);
+//	pr_err("%s1 name=%s\n", __func__, name);
 
 	/*
 	 * Check the type first to avoid unnecessary work.
@@ -954,18 +954,18 @@ static struct perf_pmu *pmu_lookup(const char *name)
 //	if (pmu_type(name, &type))
 //		return NULL;
 
-	pr_err("%s2 name=%s\n", __func__, name);
+//	pr_err("%s2 name=%s\n", __func__, name);
 
 	if (pmu_aliases(name, &aliases))
 		return NULL;
 
-	pr_err("%s3 name=%s\n", __func__, name);
+//	pr_err("%s3 name=%s\n", __func__, name);
 
 	pmu = zalloc(sizeof(*pmu));
 	if (!pmu)
 		return NULL;
 
-	pr_err("%s4 name=%s\n", __func__, name);
+//	pr_err("%s4 name=%s\n", __func__, name);
 
 	pmu->cpus = pmu_cpumask(name);
 	pmu->name = strdup(name);

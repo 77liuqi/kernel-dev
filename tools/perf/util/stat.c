@@ -19,6 +19,11 @@ void update_stats(struct stats *stats, u64 val)
 {
 	double delta;
 
+	if (stats == &walltime_nsecs_stats)
+		pr_err("%s stats=%p val=%lu walltime_nsecs_stats=%p *****\n", __func__, stats, val, &walltime_nsecs_stats);
+	else
+		pr_err("%s stats=%p val=%lu walltime_nsecs_stats=%p\n", __func__, stats, val, &walltime_nsecs_stats);
+
 	stats->n++;
 	delta = val - stats->mean;
 	stats->mean += delta / stats->n;

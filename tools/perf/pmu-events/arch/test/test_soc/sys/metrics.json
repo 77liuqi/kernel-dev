@@ -2,7 +2,7 @@
    {
 	    "BriefDescription": "system PMU test metric M1",
 	    "MetricName": "sys_pmu_M1",
-	    "MetricExpr": "(sys_pmu.write_cycles + sys_pmu.read_cycles) / 1000000000 / duration_time",
+	    "MetricExpr": "(sys_pmu.write_cycles + sys_pmu.read_cycles) / duration_time / 1000000000",
 	    "Unit": "sys_pmu",
 	    "Compat": "v1"
     }
