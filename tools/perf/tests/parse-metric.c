@@ -70,7 +70,8 @@ static double compute_single(struct rblist *metric_events, struct evlist *evlist
 
 static int __compute_metric(const char *name, struct value *vals,
 			    const char *name1, double *ratio1,
-			    const char *name2, double *ratio2)
+			    const char *name2, double *ratio2,
+			    struct perf_pmu *fake_pmu)
 {
 	struct rblist metric_events = {
 		.nr_entries = 0,
@@ -128,7 +129,8 @@ static int __compute_metric(const char *name, struct value *vals,
 	/* Parse the metric into metric_events list. */
 	err = metricgroup__parse_groups_test(evlist, map, name,
 					     false, false,
-					     &metric_events);
+					     &metric_events,
+					     fake_pmu);
 	if (err)
 		goto out;
 
@@ -165,14 +167,21 @@ out:
 
 static int compute_metric(const char *name, struct value *vals, double *ratio)
 {
-	return __compute_metric(name, vals, name, ratio, NULL, NULL);
+	return __compute_metric(name, vals, name, ratio, NULL, NULL, &perf_pmu__fake);
 }
+
+
+static int compute_metric2(const char *name, struct value *vals, double *ratio, struct perf_pmu *fake_pmu)
+{
+	return __compute_metric(name, vals, name, ratio, NULL, NULL, fake_pmu);
+}
+
 
 static int compute_metric_group(const char *name, struct value *vals,
 				const char *name1, double *ratio1,
 				const char *name2, double *ratio2)
 {
-	return __compute_metric(name, vals, name1, ratio1, name2, ratio2);
+	return __compute_metric(name, vals, name1, ratio1, name2, ratio2, &perf_pmu__fake);
 }
 
 static int test_ipc(void)
@@ -324,20 +333,13 @@ static int test_system_pmu(void)
 		{ .event = "duration_time",  .val = 200 },
 		{ .event = NULL, },
 	};
-	#if 0
-	struct perf_pmu *p0 = perf_pmu__find("test_sys_pmu_0");
-	struct perf_pmu *p1 = perf_pmu__find("test_sys_pmu_1");
-	static const char *version = "v1";
-
-	pr_err("%s p0=%p p1=%p\n", __func__, p0, p1);
-	if (p0)
-		p0->id = (char *)version;
-	if (p1)
-		p1->id = (char *)version;
-	#endif
+	struct perf_pmu p0 = {
+		.name = (char *)"sys_pmu0",
+		.id = (char *)"v1",
+	};
 
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_metric("sys_pmu_M1", vals, &ratio) == 0);
+			compute_metric2("sys_pmu_M1", vals, &ratio, &p0) == 0);
 
 	pr_err("%s ratio=%f\n", __func__, ratio);
 

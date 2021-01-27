@@ -1315,12 +1315,11 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const char *str,
 				   bool metric_no_group,
 				   bool metric_no_merge,
-				   struct rblist *metric_events)
+				   struct rblist *metric_events,
+				   struct perf_pmu *fake_pmu)
 {
-	perf_pmu__fake.name = (char *)"test_sfys_pmwu_2";
-	perf_pmu__fake.id = (char *)"v1";
 	return parse_groups(evlist, str, metric_no_group,
-			    metric_no_merge, &perf_pmu__fake, metric_events, map);
+			    metric_no_merge, fake_pmu, metric_events, map);
 }
 
 bool metricgroup__has_metric(const char *metric)

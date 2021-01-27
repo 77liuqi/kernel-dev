@@ -14,6 +14,7 @@ struct option;
 struct rblist;
 struct pmu_events_map;
 struct cgroup;
+struct perf_pmu;
 
 struct metric_event {
 	struct rb_node nd;
@@ -50,7 +51,8 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const char *str,
 				   bool metric_no_group,
 				   bool metric_no_merge,
-				   struct rblist *metric_events);
+				   struct rblist *metric_events,
+				   struct perf_pmu *fake_pmu);
 
 void metricgroup__print(bool metrics, bool groups, char *filter,
 			bool raw, bool details);
