@@ -1406,6 +1406,14 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 	struct perf_pmu_alias *alias;
 	int ret;
 
+	pr_err("%s pmu=%p name=%s info=%p\n",
+		__func__, pmu, pmu->name, info);
+
+
+//	if (info && pmu)
+//	pr_err("%s pmu=%p name=%s info=%p unit=%s metric_expr=%s metric_name=%s\n",
+//		__func__, pmu, pmu->name, info, info->unit, info->metric_expr, info->metric_name);
+
 	info->per_pkg = false;
 
 	/*
@@ -1449,6 +1457,9 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct list_head *head_terms,
 
 	if (info->scale == 0.0)
 		info->scale  = 1.0;
+
+	pr_err("%s2 pmu=%p name=%s info=%p unit=%s metric_expr=%s metric_name=%s\n",
+		__func__, pmu, pmu->name, info, info->unit, info->metric_expr, info->metric_name);
 
 	return 0;
 }

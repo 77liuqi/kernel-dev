@@ -1467,6 +1467,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
+	pr_err("%s parse_state=%p list=%p name=%s head_config=%p verbose=%d\n", __func__, parse_state, list, name, head_config, verbose);
+
 	if (verbose > 1) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
 			name);
@@ -1561,12 +1563,15 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	evsel = __add_event(list, &parse_state->idx, &attr, true,
 			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats, NULL);
+	pr_err("%s1 parse_state=%p list=%p name=%s evsel=%p (name=%s, pmu_name=%s)\n", __func__, parse_state, list, name, evsel, evsel->name, evsel->pmu_name);
 	if (!evsel)
 		return -ENOMEM;
 
 	evsel->pmu_name = name ? strdup(name) : NULL;
 	evsel->use_uncore_alias = use_uncore_alias;
 	evsel->percore = config_term_percore(&evsel->config_terms);
+
+	pr_err("%s2 parse_state=%p list=%p name=%s evsel=%p (name=%s, pmu_name=%s)\n", __func__, parse_state, list, name, evsel, evsel->name, evsel->pmu_name);
 
 	if (parse_state->fake_pmu)
 		return 0;
@@ -1598,11 +1603,15 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	INIT_LIST_HEAD(list);
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 		struct perf_pmu_alias *alias;
+		
 
 		list_for_each_entry(alias, &pmu->aliases, list) {
 			if (!strcasecmp(alias->name, str)) {
 				struct list_head *head;
 				char *config;
+				
+				pr_err("%s2 parse_state=%p str=%s listp=%p pmu=%p name=%s alias->name=%s\n",
+				__func__, parse_state, str, listp, pmu, pmu->name, alias->name);
 
 				head = malloc(sizeof(struct list_head));
 				if (!head)

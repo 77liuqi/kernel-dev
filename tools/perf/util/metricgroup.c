@@ -1087,7 +1087,7 @@ static int metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
 	struct metric *m = NULL;
 	int ret;
 
-	pr_err("%s pe=%p (name=%s, pmu=%s)\n", __func__, pe, pe->name, pe->pmu);
+	pr_err("%s pe=%p (name=%s, pmu=%s) metric=%s\n", __func__, pe, pe->name, pe->pmu, d->metric);
 
 	if (!match_pe_metric(pe, d->metric))
 		return 0;
