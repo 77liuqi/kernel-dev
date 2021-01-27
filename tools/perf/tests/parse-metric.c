@@ -324,6 +324,7 @@ static int test_system_pmu(void)
 		{ .event = "duration_time",  .val = 200 },
 		{ .event = NULL, },
 	};
+	#if 0
 	struct perf_pmu *p0 = perf_pmu__find("test_sys_pmu_0");
 	struct perf_pmu *p1 = perf_pmu__find("test_sys_pmu_1");
 	static const char *version = "v1";
@@ -333,6 +334,7 @@ static int test_system_pmu(void)
 		p0->id = (char *)version;
 	if (p1)
 		p1->id = (char *)version;
+	#endif
 
 	TEST_ASSERT_VAL("failed to compute metric",
 			compute_metric("sys_pmu_M1", vals, &ratio) == 0);

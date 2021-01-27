@@ -401,15 +401,19 @@ static int check_parse_id(const char *id, struct parse_events_error *error,
 	struct evlist *evlist;
 	int ret;
 
+	pr_err("%s id=%s error=%p fake_pmu=%p\n", __func__, id, error, fake_pmu);
+
 	/* Numbers are always valid. */
 	if (is_number(id))
 		return 0;
 
 	evlist = evlist__new();
+	pr_err("%s2 id=%s error=%p fake_pmu=%p evlist=%p\n", __func__, id, error, fake_pmu, evlist);
 	if (!evlist)
 		return -ENOMEM;
 	ret = __parse_events(evlist, id, error, fake_pmu);
 	evlist__delete(evlist);
+	pr_err("%s3 id=%s error=%p fake_pmu=%p evlist=%p ret=%d\n", __func__, id, error, fake_pmu, evlist, ret);
 	return ret;
 }
 

@@ -1588,6 +1588,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	struct perf_pmu *pmu = NULL;
 	int ok = 0;
 
+	pr_err("%s parse_state=%p str=%s listp=%p\n", __func__, parse_state, str, listp);
+
 	*listp = NULL;
 	/* Add it for all PMUs that support the alias */
 	list = malloc(sizeof(struct list_head));
@@ -1622,7 +1624,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, head,
 							  true, true)) {
-					pr_debug("%s -> %s/%s/\n", str,
+					pr_debug("%s -> snake %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
 				}
@@ -2117,7 +2119,10 @@ static int parse_events__scanner(const char *str,
 	void *scanner;
 	int ret;
 
+//	pr_err("%s str=%s\n", __func__, str);
+
 	ret = parse_events_lex_init_extra(parse_state, &scanner);
+//	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 	if (ret)
 		return ret;
 
@@ -2132,6 +2137,7 @@ static int parse_events__scanner(const char *str,
 	parse_events__flush_buffer(buffer, scanner);
 	parse_events__delete_buffer(buffer, scanner);
 	parse_events_lex_destroy(scanner);
+//	pr_err("%s10 out str=%s ret=%d\n", __func__, str, ret);
 	return ret;
 }
 
@@ -2173,7 +2179,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	struct evsel *evsel;
 	int ret;
 
-	pr_err("%s str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+	pr_err("%s str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
 
 	evlist__for_each_entry(evlist, evsel)
 		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
@@ -2184,6 +2190,14 @@ int __parse_events(struct evlist *evlist, const char *str,
 
 
 	ret = parse_events__scanner(str, &parse_state);
+
+	pr_err("%s1.3 str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s1.4 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s1.5 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 	perf_pmu__parse_cleanup();
 
 	pr_err("%s2 str=%s vlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);

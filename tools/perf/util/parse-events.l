@@ -16,6 +16,7 @@
 #include "parse-events.h"
 #include "parse-events-bison.h"
 #include "evsel.h"
+#include "debug.h"
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
@@ -23,7 +24,6 @@ YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
 static int __value(YYSTYPE *yylval, char *str, int base, int token)
 {
 	u64 num;
-
 	errno = 0;
 	num = strtoull(str, NULL, base);
 	if (errno)
@@ -139,9 +139,14 @@ static int pmu_str_check(yyscan_t scanner, struct parse_events_state *parse_stat
 
 	yylval->str = strdup(text);
 
+	pr_err("%s parse_state=%p fake_pmu=%p text=%s\n", __func__, parse_state, parse_state->fake_pmu, text);
+	
 	if (parse_state->fake_pmu)
 		return PE_PMU_EVENT_FAKE;
 
+	pr_err("%s2 parse_state=%p fake_pmu=%p text=%s val=%d\n",
+	__func__, parse_state, parse_state->fake_pmu, text, perf_pmu__parse_check(text));
+	
 	switch (perf_pmu__parse_check(text)) {
 		case PMU_EVENT_SYMBOL_PREFIX:
 			return PE_PMU_EVENT_PRE;
