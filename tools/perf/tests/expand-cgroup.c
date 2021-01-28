@@ -8,6 +8,7 @@
 #include "parse-events.h"
 #include "pmu-events/pmu-events.h"
 #include "pfm.h"
+#include "pmu.h"
 #include <subcmd/parse-options.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -205,7 +206,7 @@ static int expand_metric_events(void)
 
 	rblist__init(&metric_events);
 	ret = metricgroup__parse_groups_test(evlist, &ev_map, metric_str,
-					     false, false, &metric_events);
+					     false, false, &metric_events, &perf_pmu__fake);
 	if (ret < 0) {
 		pr_debug("failed to parse '%s' metric\n", metric_str);
 		goto out;
