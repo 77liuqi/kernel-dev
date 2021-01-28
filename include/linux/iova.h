@@ -151,7 +151,7 @@ unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
-void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
+int init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
 bool has_iova_flush_queue(struct iova_domain *iovad);
 int init_iova_flush_queue(struct iova_domain *iovad,
@@ -217,10 +217,11 @@ static inline void copy_reserved_iova(struct iova_domain *from,
 {
 }
 
-static inline void init_iova_domain(struct iova_domain *iovad,
+static inline int init_iova_domain(struct iova_domain *iovad,
 				    unsigned long granule,
 				    unsigned long start_pfn)
 {
+	return -ENODEV;
 }
 
 static inline bool has_iova_flush_queue(struct iova_domain *iovad)
