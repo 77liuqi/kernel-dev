@@ -1588,6 +1588,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	struct perf_pmu *pmu = NULL;
 	int ok = 0;
 
+	pr_err("%s str=%s\n", __func__, str);
+
 	*listp = NULL;
 	/* Add it for all PMUs that support the alias */
 	list = malloc(sizeof(struct list_head));
@@ -1601,6 +1603,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			if (!strcasecmp(alias->name, str)) {
 				struct list_head *head;
 				char *config;
+				pr_err("%s2 str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 
 				head = malloc(sizeof(struct list_head));
 				if (!head)
@@ -1615,6 +1618,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 						   NULL) < 0) {
 					free(list);
 					free(config);
+					pr_err("%s2.1 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 					return -1;
 				}
 				list_add_tail(&term->list, head);
@@ -1625,7 +1629,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
-				}
+				} else
+					pr_err("%s2.2 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 
 				parse_events_terms__delete(head);
 			}
@@ -1636,6 +1641,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		return -1;
 	}
 	*listp = list;
+	pr_err("%s10 out str=%s\n", __func__, str);
 	return 0;
 }
 
@@ -1978,6 +1984,8 @@ comp_pmu(const void *p1, const void *p2)
 	struct perf_pmu_event_symbol *pmu1 = (struct perf_pmu_event_symbol *) p1;
 	struct perf_pmu_event_symbol *pmu2 = (struct perf_pmu_event_symbol *) p2;
 
+//	pr_err("%s p1=%s p2=%s\n", __func__, pmu1->symbol, pmu2->symbol);
+
 	return strcasecmp(pmu1->symbol, pmu2->symbol);
 }
 
@@ -2040,6 +2048,8 @@ static void perf_pmu__parse_init(void)
 			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
 			char *tmp = strchr(alias->name, '-');
 
+			pr_err("%s snake pmu name=%s alias name=%s\n", __func__, pmu->name, alias->name);
+
 			if (tmp != NULL) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
 						PMU_EVENT_SYMBOL_PREFIX);
@@ -2090,6 +2100,7 @@ enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name)
 {
 	struct perf_pmu_event_symbol p, *r;
+	pr_err("%s snake name=%s\n", __func__, name);
 
 	/* scan kernel pmu events from sysfs if needed */
 	if (perf_pmu_events_list_num == 0)
@@ -2099,15 +2110,20 @@ perf_pmu__parse_check(const char *name)
 	 * cpu-cycles has been handled by hardcode.
 	 * So it must be cpu// events, not kernel pmu event.
 	 */
-	if ((perf_pmu_events_list_num <= 0) || !strcmp(name, "cpu"))
+	if ((perf_pmu_events_list_num <= 0) || !strcmp(name, "cpu")) {
+		pr_err("%s1 err snake name=%s\n", __func__, name);
 		return PMU_EVENT_SYMBOL_ERR;
+	}
 
 	p.symbol = strdup(name);
 	r = bsearch(&p, perf_pmu_events_list,
 			(size_t) perf_pmu_events_list_num,
 			sizeof(struct perf_pmu_event_symbol), comp_pmu);
 	zfree(&p.symbol);
-	return r ? r->type : PMU_EVENT_SYMBOL_ERR;
+	pr_err("%s2 snake name=%s r=%p  type=0x%x PMU_EVENT_SYMBOL_ERR=0x%x\n", __func__, name, r, r ? r->type : PMU_EVENT_SYMBOL_ERR, PMU_EVENT_SYMBOL_ERR);
+	if (r)
+		return r->type;
+	return PMU_EVENT_SYMBOL_ERR;
 }
 
 static int parse_events__scanner(const char *str,
@@ -2116,10 +2132,13 @@ static int parse_events__scanner(const char *str,
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
-
+	pr_err("%s str=%s\n", __func__, str);
 	ret = parse_events_lex_init_extra(parse_state, &scanner);
+	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 	if (ret)
 		return ret;
+
+	pr_err("%s3 str=%s ret=%d\n", __func__, str, ret);
 
 	buffer = parse_events__scan_string(str, scanner);
 
@@ -2127,11 +2146,13 @@ static int parse_events__scanner(const char *str,
 	parse_events_debug = 1;
 	parse_events_set_debug(1, scanner);
 #endif
+	pr_err("%s4 str=%s ret=%d\n", __func__, str, ret);
 	ret = parse_events_parse(parse_state, scanner);
 
 	parse_events__flush_buffer(buffer, scanner);
 	parse_events__delete_buffer(buffer, scanner);
 	parse_events_lex_destroy(scanner);
+	pr_err("%s10 out ret=%d str=%s\n", __func__, ret, str);
 	return ret;
 }
 
@@ -2170,9 +2191,20 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
 	};
+	struct evsel *evsel;
 	int ret;
 
+	pr_err("%s str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
+
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s1.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+
 	ret = parse_events__scanner(str, &parse_state);
+	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
@@ -2294,9 +2326,11 @@ int parse_events_option(const struct option *opt, const char *str,
 	struct evlist *evlist = *(struct evlist **)opt->value;
 	struct parse_events_error err;
 	int ret;
-
+	pr_err("%s str=%s\n", __func__, str);
 	bzero(&err, sizeof(err));
 	ret = parse_events(evlist, str, &err);
+
+	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 
 	if (ret) {
 		parse_events_print_error(&err, str);

@@ -16,6 +16,7 @@
 #include "pmu.h"
 #include "evsel.h"
 #include "parse-events.h"
+#include "debug.h"
 #include "parse-events-bison.h"
 
 void parse_events_error(YYLTYPE *loc, void *parse_state, void *scanner, char const *msg);

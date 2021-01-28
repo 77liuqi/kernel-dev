@@ -626,6 +626,8 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	struct rb_node *node, *next;
 	struct strlist *metriclist = NULL;
 
+	pr_err("%s\n", __func__);
+
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
 		if (!metriclist)
@@ -643,6 +645,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			break;
 		if (!pe->metric_expr)
 			continue;
+		pr_err("%s2\n", __func__);
 		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
 						 raw, details, &groups,
 						 metriclist) < 0)
@@ -695,7 +698,7 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 	bool no_group = true, has_duration = false;
 
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
-		pr_debug("found event %s\n", (const char *)cur->key);
+		pr_debug("%s found event %s\n", __func__, (const char *)cur->key);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
@@ -1098,6 +1101,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 
+	pr_err("%s metric=%s\n", __func__, metric);
+
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
@@ -1115,6 +1120,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		if (ret)
 			goto out;
 	}
+
+	pr_err("%s2 metric=%s has_match=%d\n", __func__, metric, has_match);
 
 	{
 		struct metricgroup_iter_data data = {
@@ -1139,6 +1146,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	}
 
 	list_for_each_entry(m, &list, nd) {
+		pr_err("%s3 metric=%s has_match=%d m=%p has_constraint=%d\n", __func__, metric, has_match, m, m->has_constraint);
 		if (events->len > 0)
 			strbuf_addf(events, ",");
 
@@ -1151,6 +1159,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		}
 	}
 
+	pr_err("%s4 metric=%s ret=%d events len=%zd buf=%s\n", __func__, metric, ret, events->len, events->buf);
+
 out:
 	/*
 	 * add to metric_list so that they can be released
@@ -1158,6 +1168,7 @@ out:
 	 */
 	list_splice(&list, metric_list);
 	expr_ids__exit(&ids);
+	pr_err("%s10 out metric=%s ret=%d\n", __func__, metric, ret);
 	return ret;
 }
 
@@ -1235,9 +1246,10 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 					   &extra_events, &metric_list, map, fake_pmu);
 	if (ret)
 		goto out;
-	pr_debug("adding %s\n", extra_events.buf);
+	pr_debug("%s str=%s adding %s\n",__func__,  str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
+	pr_debug("%s2 str=%s %s\n", __func__, str, extra_events.buf);
 	if (ret) {
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
