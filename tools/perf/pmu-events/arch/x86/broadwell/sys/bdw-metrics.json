@@ -5,10 +5,4 @@
         "MetricGroup": "Test",
         "MetricName": "test_metric_inc"
     },
-    {
-        "BriefDescription": "test metric2",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 2",
-        "MetricGroup": "Test2",
-        "MetricName": "test_metric_inc2"
-    }
 ]

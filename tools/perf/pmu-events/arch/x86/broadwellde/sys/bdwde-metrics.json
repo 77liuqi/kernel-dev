@@ -1,14 +1,8 @@
 [
     {
         "BriefDescription": "test metric",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
+        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 8",
         "MetricGroup": "Test",
         "MetricName": "test_metric_inc"
     },
-    {
-        "BriefDescription": "test metric2",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE2 * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
-        "MetricGroup": "Test2",
-        "MetricName": "test_metric_inc2"
-    }
 ]

@@ -25,6 +25,7 @@
 #include "util.h"
 #include <asm/bug.h>
 #include "cgroup.h"
+#include "pmu-events/pmu-events.h"
 
 struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 					 struct evsel *evsel,
@@ -506,6 +507,13 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 		putchar('\n');
 }
 
+static int metricgroup__add_metric(const char *metric, bool metric_no_group,
+				   struct strbuf *events,
+				   struct list_head *metric_list,
+				   struct pmu_events_map *map,
+				   struct perf_pmu *fake_pmu);
+
+
 struct perf_metricgroup_sys_pmu_metric {
 
 };
@@ -513,19 +521,49 @@ static struct perf_metricgroup_sys_pmu_metric *sys_pmu_metric_list;
 
 static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
-	static int count1;
+	int ret;
+
+	struct strbuf extra_events;
+	struct metric *m;
+
+	struct pmu_event event_table[] = {
+		{
+			.metric_name = pe->metric_name,
+			.metric_expr = pe->metric_expr,
+		},
+		{}
+	};
+	struct pmu_events_map map[] = {
+		{
+			.table = event_table,
+		},
+		{}
+	};
+
+	LIST_HEAD(mlist);
+
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	pr_err("%s pe=%p data=%p table=%p\n", __func__, pe, data, table);
-	if (count1 == 0) {
+
+	ret = metricgroup__add_metric(pe->metric_name, 0, &extra_events, &mlist, map , NULL);
+
+	pr_err("%s2 pe=%p (metric_name=%s, matric_expr=%s compat=%s) data=%p table=%p ret=%d extra_events (len=%zd, buf=%s)\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, pe->compat, data, table, ret, extra_events.len, extra_events.buf);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(m, &mlist, nd)
+		pr_err("%s3 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
+
+	{
 		struct pmu_event *event = table->table;
 		int count = 0;
-		count1 = 1;
-		while (event != NULL) {
-			
-			pr_err("%s pe=%p data=%p event=%p (name=%s, metric_name=%s, metric_expr=%s, compat=%s)\n", 
-				__func__, pe, data, event, event->name, event->metric_name, event->metric_expr, event->compat);
+		while (event->name || event->metric_name) {
+
+			if (!event->metric_expr && !event->metric_name)
+				pr_err("%s4 pe=%p data=%p event=%p (name=%s, compat=%s)\n", 
+					__func__, pe, data, event, event->name, event->compat);
 
 			event++;
 			count++;
@@ -538,7 +576,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	return 0;
 }
 
-static void perf_metricgroup_init_sys_pmu_list(void)
+static void metricgroup_init_sys_pmu_list(void)
 {
 	int count = 0;
 
@@ -687,7 +725,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 
 	pr_err("%s\n", __func__);
 
-	perf_metricgroup_init_sys_pmu_list();
+	metricgroup_init_sys_pmu_list();
 
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
@@ -757,9 +795,11 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 	struct hashmap_entry *cur;
 	size_t bkt;
 	bool no_group = true, has_duration = false;
+	
+	pr_err("%s\n", __func__);
 
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
-		pr_debug("%s found event %s\n", __func__, (const char *)cur->key);
+		pr_err("%s2 found event %s\n", __func__, (const char *)cur->key);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
@@ -1167,6 +1207,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
+		
+		pr_err("%s1 metric=%s pe=%p (metric_name=%s)\n", __func__, metric, pe, pe->metric_name);
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
