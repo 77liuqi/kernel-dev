@@ -1,5 +1,5 @@
 Family-model,Version,Filename,EventType
-GenuineIntel-6-56,v5,broadwellde,core
+GenuineIntel-6-56,v5,broadwellde/cpu,core
 GenuineIntel-6-3D,v17,broadwell/cpu,core
 GenuineIntel-6-1C,v4,bonnell,core
 GenuineIntel-6-26,v4,bonnell,core
@@ -24,6 +24,7 @@ GenuineIntel-6-2E,v2,nehalemex,core
 GenuineIntel-6-[4589]E,v24,skylake,core
 GenuineIntel-6-37,v13,silvermont,core
 GenuineIntel-6-4D,v13,silvermont,core
+GenuineIntel-6-4F,v10,broadwellx/cpu,core
 GenuineIntel-6-4C,v13,silvermont,core
 GenuineIntel-6-2A,v15,sandybridge,core
 GenuineIntel-6-2C,v2,westmereep-dp,core

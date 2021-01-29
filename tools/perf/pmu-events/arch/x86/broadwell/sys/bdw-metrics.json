@@ -348,14 +348,14 @@
         "MetricExpr": "(cstate_pkg@c7\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
         "MetricName": "C7_Pkg_Residency"
-    }
-    {,
+    },
+    {
         "BriefDescription": "test metric",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
         "MetricGroup": "Test",
         "MetricName": "test_metric_inc"
-    }
-    {,
+    },
+    {
         "BriefDescription": "test metric2",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE2 * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION",
         "MetricGroup": "Test2",
