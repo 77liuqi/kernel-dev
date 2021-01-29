@@ -1606,7 +1606,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			if (!strcasecmp(alias->name, str)) {
 				struct list_head *head;
 				char *config;
-				pr_err("%s2 str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
+				pr_err("%s2 str=%s pmu name=%s id=%s alias->name=%s\n", __func__, str, pmu->name, pmu->id, alias->name);
 
 				head = malloc(sizeof(struct list_head));
 				if (!head)
@@ -1629,11 +1629,11 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, head,
 							  true, true)) {
-					pr_err("%s -> %s/%s/\n", str,
+					pr_err("%s2.2 %s -> %s/%s/\n", __func__, str,
 						 pmu->name, alias->str);
 					ok++;
 				} else
-					pr_err("%s2.2 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
+					pr_err("%s2.3 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 
 				parse_events_terms__delete(head);
 			}
@@ -2053,7 +2053,8 @@ static void perf_pmu__parse_init(void)
 			char *tmp = strchr(alias->name, '-');
 
 			if (strstr(pmu->name, "cbox"))
-				pr_err("%s2 pmu name=%s alias name=%s\n", __func__, pmu->name, alias->name);
+				pr_err("%s2 pmu name=%s id=%s alias name=%s\n",
+				__func__, pmu->name, pmu->id, alias->name);
 
 			if (tmp != NULL) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
@@ -2199,7 +2200,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	struct evsel *evsel;
 	int ret;
 
-	pr_err("%s str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
+	pr_err("%s^^^^^^^ str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
 
 	evlist__for_each_entry(evlist, evsel)
 		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
@@ -2209,7 +2210,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	ret = parse_events__scanner(str, &parse_state);
-	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
+	pr_err("%s2^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
 	evlist__for_each_entry(evlist, evsel)
 		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
 			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
