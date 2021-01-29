@@ -529,10 +529,11 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
 	int ret = 0;
-
+	static int cc1;
 //	struct strbuf extra_events;
 	struct metric *m;
 	struct evlist *evlist;
+	struct evsel *evsel;
 	struct perf_pmu fake_pmu;
 	struct rblist metric_events = { 
 			.nr_entries = 0,
@@ -552,9 +553,13 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		{}
 	};
 
+
 	LIST_HEAD(mlist);
 
 	if (!pe->metric_expr || !pe->metric_name)
+		return 0;
+
+	if (cc1 > 110)
 		return 0;
 
 	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
@@ -571,14 +576,20 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	list_for_each_entry(m, &mlist, nd)
 		pr_err("%s3 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
+
 	evlist = evlist__new();
 	ret = parse_groups(evlist, pe->metric_name,
-							 false, false, &fake_pmu,
+							 false, false, NULL,
 							 &metric_events,
 							 map);
 	
 	pr_err("%s4 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s5 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+
+
+	cc1++;
 
 	if (0)
 	{
@@ -597,6 +608,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		}
 
 	}
+
+	pr_err("%s10 out m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
 	return 0;
 }
@@ -1369,9 +1382,10 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	struct parse_events_error parse_error;
 	struct strbuf extra_events;
 	LIST_HEAD(metric_list);
+	struct evsel *evsel;
 	int ret;
 
-	pr_err("%s str=%s\n",__func__,  str);;
+	pr_err("%s********* str=%s\n",__func__, str);
 
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);
@@ -1379,14 +1393,28 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 					   &extra_events, &metric_list, map, fake_pmu);
 	if (ret)
 		goto out;
-	pr_err("%s1 str=%s adding %s\n",__func__,  str, extra_events.buf);
+	pr_err("%s1********* str=%s adding %s\n",__func__,  str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
+	
+	pr_err("%s2********* str=%s\n",__func__, str);
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s2.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s2.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
-	pr_err("%s2 str=%s %s\n", __func__, str, extra_events.buf);
+	pr_err("%s3********* str=%s %s\n", __func__, str, extra_events.buf);
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s3.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
 	if (ret) {
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
 	}
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s4 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+
 	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
 					perf_evlist, metric_events);
 out:
