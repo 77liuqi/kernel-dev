@@ -16,6 +16,7 @@
 #include "parse-events.h"
 #include "parse-events-bison.h"
 #include "evsel.h"
+#include "debug.h"
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
@@ -138,6 +139,7 @@ static int pmu_str_check(yyscan_t scanner, struct parse_events_state *parse_stat
 	char *text = parse_events_get_text(scanner);
 
 	yylval->str = strdup(text);
+	pr_err("%s parse_state->fake_pmu=%p\n", __func__, parse_state->fake_pmu);
 
 	if (parse_state->fake_pmu)
 		return PE_PMU_EVENT_FAKE;

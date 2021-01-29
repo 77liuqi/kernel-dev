@@ -1467,6 +1467,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
+	pr_err("%s name=%s\n", __func__, name);
+
 	if (verbose > 1) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
 			name);
@@ -1481,6 +1483,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	}
 
 	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
+	pr_err("%s1 name=%s pmu=%p fake_pmu=%p\n", __func__, name, pmu, parse_state->fake_pmu);
 	if (!pmu) {
 		char *err_str;
 
@@ -2022,6 +2025,7 @@ static void perf_pmu__parse_init(void)
 	struct perf_pmu *pmu = NULL;
 	struct perf_pmu_alias *alias;
 	int len = 0;
+	pr_err("%s\n", __func__);
 
 	pmu = NULL;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
@@ -2048,7 +2052,8 @@ static void perf_pmu__parse_init(void)
 			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
 			char *tmp = strchr(alias->name, '-');
 
-			pr_err("%s snake pmu name=%s alias name=%s\n", __func__, pmu->name, alias->name);
+			if (strstr(pmu->name, "cbox"))
+				pr_err("%s2 pmu name=%s alias name=%s\n", __func__, pmu->name, alias->name);
 
 			if (tmp != NULL) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
@@ -2100,7 +2105,7 @@ enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name)
 {
 	struct perf_pmu_event_symbol p, *r;
-	pr_err("%s snake name=%s\n", __func__, name);
+	pr_err("%s name=%s\n", __func__, name);
 
 	/* scan kernel pmu events from sysfs if needed */
 	if (perf_pmu_events_list_num == 0)

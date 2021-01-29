@@ -557,7 +557,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	pr_err("%s pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
+	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 
 
 //	ret = metricgroup__add_metric(pe->metric_name, 0, &extra_events, &mlist, map , NULL);
