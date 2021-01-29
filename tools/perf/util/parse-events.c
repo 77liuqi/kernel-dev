@@ -206,7 +206,7 @@ void parse_events__handle_error(struct parse_events_error *err, int idx,
 		err->help = help;
 		break;
 	default:
-		pr_debug("Multiple errors dropping message: %s (%s)\n",
+		pr_err("Multiple errors dropping message: %s (%s)\n",
 			err->str, err->help);
 		free(err->str);
 		err->str = str;
@@ -694,7 +694,7 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 	if (group[0] == '!')
 		return 0;
 
-	pr_debug("add bpf event %s:%s and attach bpf program %d\n",
+	pr_err("add bpf event %s:%s and attach bpf program %d\n",
 		 group, event, fd);
 
 	err = parse_events_add_tracepoint(&new_evsels, &parse_state->idx, group,
@@ -703,7 +703,7 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 	if (err) {
 		struct evsel *evsel, *tmp;
 
-		pr_debug("Failed to add BPF event %s:%s\n",
+		pr_err("Failed to add BPF event %s:%s\n",
 			 group, event);
 		list_for_each_entry_safe(evsel, tmp, &new_evsels, core.node) {
 			list_del_init(&evsel->core.node);
@@ -711,10 +711,10 @@ static int add_bpf_event(const char *group, const char *event, int fd, struct bp
 		}
 		return err;
 	}
-	pr_debug("adding %s:%s\n", group, event);
+	pr_err("adding %s:%s\n", group, event);
 
 	list_for_each_entry(pos, &new_evsels, core.node) {
-		pr_debug("adding %s:%s to %p\n",
+		pr_err("adding %s:%s to %p\n",
 			 group, event, pos);
 		pos->bpf_fd = fd;
 		pos->bpf_obj = obj;
@@ -1626,7 +1626,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, head,
 							  true, true)) {
-					pr_debug("%s -> %s/%s/\n", str,
+					pr_err("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
 				} else
@@ -2132,13 +2132,13 @@ static int parse_events__scanner(const char *str,
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
-	pr_err("%s str=%s\n", __func__, str);
+//	pr_err("%s str=%s\n", __func__, str);
 	ret = parse_events_lex_init_extra(parse_state, &scanner);
-	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 	if (ret)
 		return ret;
 
-	pr_err("%s3 str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s3 str=%s ret=%d\n", __func__, str, ret);
 
 	buffer = parse_events__scan_string(str, scanner);
 
@@ -2146,13 +2146,13 @@ static int parse_events__scanner(const char *str,
 	parse_events_debug = 1;
 	parse_events_set_debug(1, scanner);
 #endif
-	pr_err("%s4 str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s4 str=%s ret=%d\n", __func__, str, ret);
 	ret = parse_events_parse(parse_state, scanner);
 
 	parse_events__flush_buffer(buffer, scanner);
 	parse_events__delete_buffer(buffer, scanner);
 	parse_events_lex_destroy(scanner);
-	pr_err("%s10 out ret=%d str=%s\n", __func__, ret, str);
+//	pr_err("%s10 out ret=%d str=%s\n", __func__, ret, str);
 	return ret;
 }
 
@@ -2205,6 +2205,12 @@ int __parse_events(struct evlist *evlist, const char *str,
 
 	ret = parse_events__scanner(str, &parse_state);
 	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
+	evlist__for_each_entry(evlist, evsel)
+		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+	__evlist__for_each_entry(&parse_state.list, evsel)
+		pr_err("%s2.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
@@ -2693,12 +2699,12 @@ void print_sdt_events(const char *subsys_glob, const char *event_glob,
 
 	sdtlist = strlist__new(NULL, &cfg);
 	if (!sdtlist) {
-		pr_debug("Failed to allocate new strlist for SDT\n");
+		pr_err("Failed to allocate new strlist for SDT\n");
 		return;
 	}
 	bidlist = build_id_cache__list_all(true);
 	if (!bidlist) {
-		pr_debug("Failed to get buildids: %d\n", errno);
+		pr_err("Failed to get buildids: %d\n", errno);
 		return;
 	}
 	strlist__for_each_entry(nd, bidlist) {

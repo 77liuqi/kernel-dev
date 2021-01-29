@@ -5,4 +5,10 @@
         "MetricGroup": "Test",
         "MetricName": "test_metric_inc"
     },
+    {
+        "BriefDescription": "test metric2",
+        "MetricExpr": "1 / test_metric_inc",
+        "MetricGroup": "Test",
+        "MetricName": "test_metric_inc2"
+    },
 ]

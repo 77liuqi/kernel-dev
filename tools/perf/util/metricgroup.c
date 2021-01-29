@@ -333,7 +333,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 					 m->has_constraint, metric_events,
 					 evlist_used);
 		if (!evsel) {
-			pr_debug("Cannot resolve %s: %s\n",
+			pr_err("Cannot resolve %s: %s\n",
 					m->metric_name, m->metric_expr);
 			free(metric_events);
 			continue;
@@ -519,12 +519,24 @@ struct perf_metricgroup_sys_pmu_metric {
 };
 static struct perf_metricgroup_sys_pmu_metric *sys_pmu_metric_list;
 
+static int parse_groups(struct evlist *perf_evlist, const char *str,
+			bool metric_no_group,
+			bool metric_no_merge,
+			struct perf_pmu *fake_pmu,
+			struct rblist *metric_events,
+			struct pmu_events_map *map);
+
 static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
-	int ret;
+	int ret = 0;
 
-	struct strbuf extra_events;
+//	struct strbuf extra_events;
 	struct metric *m;
+	struct evlist *evlist;
+	struct perf_pmu fake_pmu;
+	struct rblist metric_events = { 
+			.nr_entries = 0,
+		};
 
 	struct pmu_event event_table[] = {
 		{
@@ -545,17 +557,29 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
+	pr_err("%s pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
 
-	ret = metricgroup__add_metric(pe->metric_name, 0, &extra_events, &mlist, map , NULL);
 
-	pr_err("%s2 pe=%p (metric_name=%s, matric_expr=%s compat=%s) data=%p table=%p ret=%d extra_events (len=%zd, buf=%s)\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, pe->compat, data, table, ret, extra_events.len, extra_events.buf);
+//	ret = metricgroup__add_metric(pe->metric_name, 0, &extra_events, &mlist, map , NULL);
+
+//	pr_err("%s2 pe=%p (metric_name=%s, matric_expr=%s compat=%s) data=%p table=%p ret=%d extra_events (len=%zd, buf=%s)\n",
+//	__func__, pe, pe->metric_name, pe->metric_expr, pe->compat, data, table, ret, extra_events.len, extra_events.buf);
 	if (ret)
 		return ret;
 
 	list_for_each_entry(m, &mlist, nd)
 		pr_err("%s3 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
+	evlist = evlist__new();
+	ret = parse_groups(evlist, pe->metric_name,
+							 false, false, &fake_pmu,
+							 &metric_events,
+							 map);
+	
+	pr_err("%s4 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
+
+
+	if (0)
 	{
 		struct pmu_event *event = table->table;
 		int count = 0;
@@ -1144,7 +1168,7 @@ static int add_metric(struct list_head *metric_list,
 	struct metric *orig = *m;
 	int ret = 0;
 
-	pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+	pr_err("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
 	if (!strstr(pe->metric_expr, "?")) {
 		ret = __add_metric(metric_list, pe, metric_no_group, 1, m, parent, ids);
@@ -1285,6 +1309,8 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 	char *llist, *nlist, *p;
 	int ret = -EINVAL;
 
+	pr_err("%s events len=%zd\n", __func__, events->len);
+
 	nlist = strdup(list);
 	if (!nlist)
 		return -ENOMEM;
@@ -1344,16 +1370,18 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	LIST_HEAD(metric_list);
 	int ret;
 
+	pr_err("%s str=%s\n",__func__,  str);;
+
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);
 	ret = metricgroup__add_metric_list(str, metric_no_group,
 					   &extra_events, &metric_list, map, fake_pmu);
 	if (ret)
 		goto out;
-	pr_debug("%s str=%s adding %s\n",__func__,  str, extra_events.buf);
+	pr_err("%s1 str=%s adding %s\n",__func__,  str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
-	pr_debug("%s2 str=%s %s\n", __func__, str, extra_events.buf);
+	pr_err("%s2 str=%s %s\n", __func__, str, extra_events.buf);
 	if (ret) {
 		parse_events_print_error(&parse_error, extra_events.buf);
 		goto out;
@@ -1438,7 +1466,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 		if (!new_me)
 			return -ENOMEM;
 
-		pr_debug("copying metric event for cgroup '%s': %s (idx=%d)\n",
+		pr_err("copying metric event for cgroup '%s': %s (idx=%d)\n",
 			 cgrp ? cgrp->name : "root", evsel->name, evsel->idx);
 
 		list_for_each_entry(old_expr, &old_me->head, nd) {
