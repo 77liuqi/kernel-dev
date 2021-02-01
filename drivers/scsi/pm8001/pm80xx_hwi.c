@@ -4451,7 +4451,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct scsi_cmnd *scmd = qc->scsicmd;
 	u32 tag = ccb->ccb_tag;
 	int ret;
-	u32 q_index, blk_tag;
+	u32 q_index = 0, blk_tag;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
 	u64 phys_addr, start_addr, end_addr;
@@ -4463,8 +4463,10 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
 
-	blk_tag = blk_mq_unique_tag(scmd->request);
-	q_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	if (scmd) {
+		blk_tag = blk_mq_unique_tag(scmd->request);
+		q_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	}
 	circularQ = &pm8001_ha->inbnd_q_tbl[q_index];
 
 	if (task->data_dir == DMA_NONE) {
