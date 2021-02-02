@@ -1045,10 +1045,18 @@ static int parse_metric_groups(const struct option *opt,
 			       const char *str,
 			       int unset __maybe_unused)
 {
-	return metricgroup__parse_groups(opt, str,
+
+	int ret;
+
+	pr_err("%s str=%s\n", __func__, str);
+
+	ret = metricgroup__parse_groups(opt, str,
 					 stat_config.metric_no_group,
 					 stat_config.metric_no_merge,
 					 &stat_config.metric_events);
+
+	pr_err("%s10 out ret=%d\n", __func__, ret);
+	return ret;
 }
 
 static int parse_control_option(const struct option *opt,
@@ -1647,6 +1655,8 @@ static int add_default_attributes(void)
 		 */
 		if (metricgroup__has_metric("transaction")) {
 			struct option opt = { .value = &evsel_list };
+			
+			pr_err("%s 3434 snake t_config.metric_event\n", __func__);
 
 			return metricgroup__parse_groups(&opt, "transaction",
 							 stat_config.metric_no_group,
@@ -2070,6 +2080,8 @@ int cmd_stat(int argc, const char **argv)
 	unsigned int interval, timeout;
 	const char * const stat_subcommands[] = { "record", "report" };
 
+	pr_err("%s\n", __func__);
+
 	setlocale(LC_ALL, "");
 
 	evsel_list = evlist__new();
@@ -2078,16 +2090,24 @@ int cmd_stat(int argc, const char **argv)
 
 	parse_events__shrink_config_terms();
 
+	pr_err("%s a\n", __func__);
+
 	/* String-parsing callback-based options would segfault when negated */
 	set_option_flag(stat_options, 'e', "event", PARSE_OPT_NONEG);
 	set_option_flag(stat_options, 'M', "metrics", PARSE_OPT_NONEG);
 	set_option_flag(stat_options, 'G', "cgroup", PARSE_OPT_NONEG);
 
+	pr_err("%s b\n", __func__);
+
 	argc = parse_options_subcommand(argc, argv, stat_options, stat_subcommands,
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);
+	pr_err("%s b1\n", __func__);
 	perf_stat__collect_metric_expr(evsel_list);
+	pr_err("%s c\n", __func__);
 	perf_stat__init_shadow_stats();
+
+	pr_err("%s0\n", __func__);
 
 	if (stat_config.csv_sep) {
 		stat_config.csv_output = true;
@@ -2111,6 +2131,8 @@ int cmd_stat(int argc, const char **argv)
 	 */
 	if (!STAT_RECORD && output_name && strcmp(output_name, "-"))
 		output = NULL;
+
+	pr_err("%s00\n", __func__);
 
 	if (output_name && output_fd) {
 		fprintf(stderr, "cannot use both --output and --log-fd\n");
@@ -2244,6 +2266,7 @@ int cmd_stat(int argc, const char **argv)
 			goto out;
 		}
 
+		pr_err("%s  snake 233 t_config.metric_event\n", __func__);
 		if (evlist__expand_cgroup(evsel_list, stat_config.cgroup_list,
 					  &stat_config.metric_events, true) < 0) {
 			parse_options_usage(stat_usage, stat_options,
@@ -2251,6 +2274,8 @@ int cmd_stat(int argc, const char **argv)
 			goto out;
 		}
 	}
+
+	pr_err("%s1\n", __func__);
 
 	target__validate(&target);
 
@@ -2286,6 +2311,8 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
+	pr_err("%s2\n", __func__);
+
 	if (stat_config.aggr_mode == AGGR_NODE)
 		cpu__setup_cpunode_map();
 
@@ -2316,6 +2343,8 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
+	pr_err("%s4\n", __func__);
+
 	if (evlist__alloc_stats(evsel_list, interval))
 		goto out;
 
@@ -2332,6 +2361,8 @@ int cmd_stat(int argc, const char **argv)
 	 * stat sessions.
 	 */
 	stat_config.identifier = !(STAT_RECORD && perf_stat.data.is_pipe);
+
+	pr_err("%s4\n", __func__);
 
 	/*
 	 * We dont want to block the signals - that would cause
@@ -2415,6 +2446,8 @@ out:
 		sysfs__write_int(FREEZE_ON_SMI_PATH, 0);
 
 	evlist__delete(evsel_list);
+	
+	pr_err("%s  snake 232323 t_config.metric_event\n", __func__);
 
 	metricgroup__rblist_exit(&stat_config.metric_events);
 	runtime_stat_delete(&stat_config);

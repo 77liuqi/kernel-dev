@@ -350,7 +350,7 @@ static struct evsel *perf_stat__find_event(struct evlist *evsel_list,
 	}
 	return NULL;
 }
-
+#include "debug.h"
 /* Mark MetricExpr target events and link events using them to them. */
 void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 {
@@ -364,6 +364,8 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 	expr__ctx_init(&ctx);
 	evlist__for_each_entry(evsel_list, counter) {
 		bool invalid = false;
+
+		pr_err("%s counter name=%s pmu_name=%s\n", __func__, counter->name, counter->pmu_name);
 
 		leader = counter->leader;
 		if (!counter->metric_expr)

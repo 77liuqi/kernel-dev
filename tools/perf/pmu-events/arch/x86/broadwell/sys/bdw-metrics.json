@@ -4,24 +4,5 @@
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 2",
         "MetricGroup": "Test",
         "MetricName": "TEST_METRIC_INC"
-    },
-    {
-        "BriefDescription": "test metric2",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 3",
-        "MetricGroup": "Test",
-        "MetricName": "test_metric_inc2"
-    },
-    {
-        "BriefDescription": "test metric3",
-        "MetricExpr": "1/test_metric_inc",
-        "MetricGroup": "Test",
-        "MetricName": "test_metric_inc3"
-    },
-    {
-        "BriefDescription": "test metric4",
-        "MetricExpr": "uncore_cbox_1@umask\\=0x81\\,event\\=0x006d@",
-        "MetricGroup": "Test",
-        "MetricName": "test_metric_inc4"
-        "Compat": "broadwell"
-    },
+    }
 ]

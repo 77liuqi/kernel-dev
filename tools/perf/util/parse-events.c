@@ -2025,7 +2025,11 @@ static void perf_pmu__parse_init(void)
 	struct perf_pmu *pmu = NULL;
 	struct perf_pmu_alias *alias;
 	int len = 0;
-	pr_err("%s\n", __func__);
+	static int count;
+
+	count++;
+	if (count == 1)
+		pr_err("%s\n", __func__);
 
 	pmu = NULL;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
@@ -2052,9 +2056,13 @@ static void perf_pmu__parse_init(void)
 			struct perf_pmu_event_symbol *p = perf_pmu_events_list + len;
 			char *tmp = strchr(alias->name, '-');
 
-			if (strstr(pmu->name, "cbox"))
-				pr_err("%s2 pmu name=%s id=%s alias name=%s\n",
-				__func__, pmu->name, pmu->id, alias->name);
+			if (strstr(pmu->name, "cbox")) {
+				if (count == 1) {
+					count++;
+					pr_err("%s2 pmu name=%s id=%s alias name=%s\n",
+					__func__, pmu->name, pmu->id, alias->name);
+				}
+			}
 
 			if (tmp != NULL) {
 				SET_SYMBOL(strndup(alias->name, tmp - alias->name),
@@ -2200,7 +2208,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	struct evsel *evsel;
 	int ret;
 
-	pr_err("%s^^^^^^^ str=%s evlist=%p fake_pmu=%p str=%s\n", __func__, str, evlist, fake_pmu, str);
+	pr_err("%s^^^^^^^ str=%s evlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
 
 	evlist__for_each_entry(evlist, evsel)
 		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
@@ -2218,6 +2226,8 @@ int __parse_events(struct evlist *evlist, const char *str,
 		pr_err("%s2.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
 			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 	perf_pmu__parse_cleanup();
+
+	pr_err("%s3^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
 
 	if (!ret && list_empty(&parse_state.list)) {
 		WARN_ONCE(true, "WARNING: event parser found nothing\n");
