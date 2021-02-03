@@ -515,7 +515,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 
 
 
-static struct pmu_event *sys_pmu_map;
+static struct pmu_events_map sys_pmu_map[2] = {};
 
 static int parse_groups(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
@@ -694,10 +694,10 @@ static void metricgroup_init_sys_pmu_list(void)
 {
 	static int done = 0;
 	unsigned int event_count = 0;
-	struct pmu_event *map;
+	struct pmu_event *table;
 	int size;
 
-	if (sys_pmu_map || done)
+	if (sys_pmu_map[0].table || done)
 		return;
 
 	pmu_for_each_sys_event(metricgroup__metric_event_iter2, &event_count);
@@ -711,10 +711,10 @@ static void metricgroup_init_sys_pmu_list(void)
 		done = 1;
 		return;
 	}
-	map = sys_pmu_map = malloc(size);
-	if (!sys_pmu_map)
+	table = sys_pmu_map[0].table = malloc(size);
+	if (!table)
 		return;
-	memset(sys_pmu_map, 0, size);
+	memset(table, 0, size);
 #ifdef dedsd
 	struct metricgroup_iter_data data = {
 		.fn = metricgroup__add_metric_sys_event_iter,
@@ -729,15 +729,15 @@ static void metricgroup_init_sys_pmu_list(void)
 		.fake_pmu = fake_pmu,
 	};
 #endif
-	pmu_for_each_sys_event(metricgroup__metric_event_iter, &map);
+	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table);
 
-	map = sys_pmu_map;
+	table = sys_pmu_map[0].table;
 
-	while (map->name || map->metric_name) {
-		pr_err("%s1 map=%p sys_pmu_map=%p name=%s metric_name=%s\n",
-			__func__, map, &sys_pmu_map, map->name, map->metric_name);
+	while (table->name || table->metric_name) {
+		pr_err("%s1 table=%p sys_pmu_map[0].table=%p name=%s metric_name=%s\n",
+			__func__, table, sys_pmu_map[0].table, table->name, table->metric_name);
 
-		map++;
+		table++;
 	}
 
 }
@@ -895,8 +895,8 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 						 metriclist) < 0)
 			return;
 	}
-	for (i = 0; ; i++) {
-		pe = &sys_pmu_map[i];
+	for (i = 0; sys_pmu_map[0].table; i++) {
+		pe = &sys_pmu_map[0].table[i];
 
 		//pr_err("%s2 pe=%p (name=%s, metric_group=%s, metric_name=%s)\n",
 		//__func__, pe, pe->name, pe->metric_group, pe->metric_name);
@@ -905,12 +905,13 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			break;
 		if (!pe->metric_expr)
 			continue;
-		pr_err("%s4 pe=%p (metric_expr=%s)\n",
-		__func__, pe, pe->metric_expr);
+		pr_err("%s4 pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
 		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
 						 raw, details, &groups,
 						 metriclist) < 0)
 			return;
+		
+		pr_err("%s5 pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
 	}
 #ifdef dsdsd
 	{
@@ -1370,12 +1371,46 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
+	struct pmu_events_map *sys_pmu_map1 = &sys_pmu_map[0];
 
 	pr_err("%s metric=%s\n", __func__, metric);
 
 	metricgroup_init_sys_pmu_list();
 
 	map_for_each_metric(pe, i, map, metric) {
+		has_match = true;
+		m = NULL;
+		
+		pr_err("%s1 metric=%s pe=%p (metric_name=%s, expr=%s)\n", __func__, metric, pe, pe->metric_name, pe->metric_expr);
+
+		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
+		pr_err("%s1.1 metric=%s pe=%p (metric_name=%s) ret=%d\n", __func__, metric, pe, pe->metric_name, ret);
+		if (ret)
+			goto out;
+
+		list_for_each_entry(m, &list, nd)
+			pr_err("%s1.2 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
+
+
+		/*
+		 * Process any possible referenced metrics
+		 * included in the expression.
+		 */
+		 // add metrics referenced in pe to list
+		 // ignores aliases for events
+		ret = resolve_metric(metric_no_group,
+				     &list, map, &ids);
+		pr_err("%s1.3 metric=%s pe=%p (metric_name=%s) ret=%d\n", __func__, metric, pe, pe->metric_name, ret);
+		if (ret)
+			goto out;
+		list_for_each_entry(m, &list, nd) {
+			pr_err("%s1.4 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
+		}
+	}
+
+	map_for_each_metric(pe, i, sys_pmu_map1, metric) {
 		has_match = true;
 		m = NULL;
 		

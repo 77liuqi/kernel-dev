@@ -29,6 +29,6 @@
         "BriefDescription": "broadwell john cpu metric2 .. MATCHED CPUID",
         "MetricExpr": "1 / (L2MPKx + 1)",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "broadwelljohncpumetric2"
+        "MetricName": "Broadwelljohncpumetric2"
     }
 ]
