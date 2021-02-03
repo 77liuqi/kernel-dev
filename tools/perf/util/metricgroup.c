@@ -1202,11 +1202,9 @@ static int __resolve_metric(struct metric *m,
 
 			pe = find_metric(cur->key, map);
 			if (pe)
-				pr_err("%s1 m=%p (metric_name=%s metric_expr=%s) pe=%p (name=%s,metric_name=%s) cur->key=%s\n", __func__,
-					m, m->metric_name, m->metric_expr, pe, pe->name, pe->metric_name, (char *)cur->key);
+				pr_err("%s1 pe=%p (name=%s,metric_name=%s) cur->key=%s\n", __func__, pe, pe->name, pe->metric_name, (char *)cur->key);
 			else
-				pr_err("%s1 m=%p (metric_name=%s metric_expr=%s) pe=%p cur->key=%s\n", __func__,
-					m, m->metric_name, m->metric_expr, pe, (char *)cur->key);
+				pr_err("%s1 pe=%p cur->key=%s\n", __func__, pe, (char *)cur->key);
 			if (!pe)
 				continue;
 
@@ -1343,6 +1341,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		 * included in the expression.
 		 */
 		 // add metrics referenced in pe to list
+		 // ignores aliases for events
 		ret = resolve_metric(metric_no_group,
 				     &list, map, &ids);
 		pr_err("%s1.3 metric=%s pe=%p (metric_name=%s) ret=%d\n", __func__, metric, pe, pe->metric_name, ret);
