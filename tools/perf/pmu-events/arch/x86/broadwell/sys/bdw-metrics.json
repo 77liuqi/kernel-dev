@@ -1,28 +1,5 @@
 [
-    {
-        "BriefDescription": "test metric broadwell 1 ...  sys events without compat",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 2",
-        "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC"
-    },
-    {
-        "BriefDescription": "test metric broadwell 2 ...  sys events without compat",
-        "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION / duration_time",
-        "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC2"
-    },
-    {
-        "BriefDescription": "test metric broadwell 3 ... sys events without compat",
-        "MetricExpr": "1 / TEST_METRIC_INC",
-        "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC3"
-    },
-    {
-        "BriefDescription": "test metric broadwell 4 ... sys events without compat",
-        "MetricExpr": "1 / TEST_METRIC_INC5",
-        "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC4"
-    },
+
    {
 	    "BriefDescription": "test metric broadwell 10 ... sys events with compat",
 	    "MetricName": "TEST_METRIC_INC_broadwell_10",
@@ -31,12 +8,4 @@
 	    "Unit": "CBO",
 	    "Compat": "broadwell"
    },
-   {
-	    "BriefDescription": "test metric broadwell 11 ... sys events with compat",
-	    "MetricName": "TEST_METRIC_INC_broadwell_11",
-	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0011@",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "CBO",
-	    "Compat": "broadwell"
-   }, 
 ]
