@@ -538,6 +538,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	struct rblist metric_events = { 
 			.nr_entries = 0,
 		};
+	int events = 0, found_events;
 
 	struct pmu_event event_table[] = {
 		{
@@ -559,7 +560,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	if (cc1 > 1)
+	if (cc1 > 5)
 		return 0;
 
 	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
@@ -582,8 +583,15 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 							 false, false, &perf_pmu__fake,
 							 &metric_events,
 							 map);
-	pr_err("%s4\n", __func__);
+	pr_err("%s4 metric_events.nr_entries=%d\n", __func__, metric_events.nr_entries);
 //	pr_err("%s4.1 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
+
+	evlist__for_each_entry(evlist, evsel) {
+		pr_err("%s4.1 evsel=%p (name=%s pmu_name=%s)\n", __func__, evsel, evsel->name, evsel->pmu_name);
+		events++;
+	}
+	found_events = 0;
+
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct rb_node *nd;
@@ -595,6 +603,11 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		struct metric_event *mx;
 		nd = rblist__find(&metric_events, &me);
 		pr_err("%s5 evsel=%p (name=%s pmu_name=%s) nd=%p\n", __func__, evsel, evsel->name, evsel->pmu_name, nd);
+
+		if (!strcmp(evsel->name, "duration_time")) {
+			found_events++;
+			continue;
+		}
 
 		if (!nd)
 			continue;
@@ -611,7 +624,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 				if (!event->metric_expr && !event->metric_name && event->name) {
 					pr_err("%s6 pe=%p metric_name=%s data=%p event=%p (name=%s, compat=%s)\n", 
 						__func__, pe, pe->metric_name, data, event, event->name, event->compat);
-					if (strcmp(event->name, evsel->name)) {
+					if (!strcmp(event->name, evsel->name)) {
 						pr_err("%s6.1 pe=%p metric_name=%s data=%p event=%p (name=%s, compat=%s) evsel=%p (name=%s)\n", 
 							__func__, pe, pe->metric_name, data, event, event->name, event->compat, evsel, evsel->name);
 						found_event = event;
@@ -640,20 +653,24 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 					if (!strcasecmp(alias->name, found_event->name) && !strcasecmp(found_event->compat, pmu->id)) {
 						pr_err("%s7 found_event=%p (name=%s compat=%s) pmu=%p (name=%s, id=%s) alias->name=%s\n",
 							__func__, found_event, found_event->name, found_event->compat, pmu, pmu->name, pmu->id, alias->name);
+						found_events++;
+						break;
 					}
 				}
 			}
 		}	
-
-		
 	}
 	
 	cc1++;
 
 
+pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
+__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
+
 
 //	pr_err("%s10 out m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
-	pr_err("%s10 out\n\n", __func__);
+	pr_err("%s10 out  pe=%p (metric_name=%s metric_expr=%s) events=%d found_events=%d\n\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, events, found_events);
 
 	return 0;
 }
