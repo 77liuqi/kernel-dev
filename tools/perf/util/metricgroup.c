@@ -662,19 +662,19 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	
 	cc1++;
 
+	if (found_events == events) {
+		memcpy(*map, pe, sizeof(*pe));
+		(*map)++;
+	} else {
+		pr_err("%s8  pe=%p (metric_name=%s metric_expr=%s) not found\n",
+		__func__, pe, pe->metric_name, pe->metric_expr);
 
-	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
-
+	}
 
 //	pr_err("%s10 out m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 	pr_err("%s10 out  pe=%p (metric_name=%s metric_expr=%s) events=%d found_events=%d\n\n",
 	__func__, pe, pe->metric_name, pe->metric_expr, events, found_events);
 
-	if (found_events == events) {
-		memcpy(*map, pe, sizeof(*pe));
-		(*map)++;
-	}
 
 	return 0;
 }
