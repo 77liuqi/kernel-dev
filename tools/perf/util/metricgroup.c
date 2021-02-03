@@ -514,10 +514,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				   struct perf_pmu *fake_pmu);
 
 
-struct perf_metricgroup_sys_pmu_metric {
 
-};
-static struct perf_metricgroup_sys_pmu_metric *sys_pmu_metric_list;
+static struct pmu_event *sys_pmu_map;
 
 static int parse_groups(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
@@ -539,6 +537,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 			.nr_entries = 0,
 		};
 	int events = 0, found_events;
+	struct pmu_event **map = data;
 
 	struct pmu_event event_table[] = {
 		{
@@ -547,7 +546,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		},
 		{}
 	};
-	struct pmu_events_map map[] = {
+	struct pmu_events_map map1[] = {
 		{
 			.table = event_table,
 		},
@@ -560,7 +559,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	if (cc1 > 5)
+	if (cc1 > 20)
 		return 0;
 
 	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
@@ -582,7 +581,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	ret = parse_groups(evlist, pe->metric_name,
 							 false, false, &perf_pmu__fake,
 							 &metric_events,
-							 map);
+							 map1);
 	pr_err("%s4 metric_events.nr_entries=%d\n", __func__, metric_events.nr_entries);
 //	pr_err("%s4.1 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
@@ -672,19 +671,50 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	pr_err("%s10 out  pe=%p (metric_name=%s metric_expr=%s) events=%d found_events=%d\n\n",
 	__func__, pe, pe->metric_name, pe->metric_expr, events, found_events);
 
+	if (found_events == events) {
+		memcpy(*map, pe, sizeof(*pe));
+		(*map)++;
+	}
+
+	return 0;
+}
+
+static int metricgroup__metric_event_iter2(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
+{
+	unsigned int *count = data;
+	(*count)++;
+	if (pe->name)
+		pr_err("%s pe=%p (name=%s) *count=%d table=%p\n", __func__, pe, pe->name, *count, table);
+	else
+		pr_err("%s pe=%p (metric_name=%s) *count=%d table=%p\n", __func__, pe, pe->metric_name, *count, table);
 	return 0;
 }
 
 static void metricgroup_init_sys_pmu_list(void)
 {
-	static int count = 0;
+	static int done = 0;
+	unsigned int event_count = 0;
+	struct pmu_event *map;
+	int size;
 
-	if (sys_pmu_metric_list || count)
+	if (sys_pmu_map || done)
 		return;
 
-	count++;
+	pmu_for_each_sys_event(metricgroup__metric_event_iter2, &event_count);
 
-	pr_err("%s count=%d sys_pmu_metric_list=%p\n", __func__, count, sys_pmu_metric_list);
+
+	size = event_count * sizeof(*sys_pmu_map);
+
+	pr_err("%s done=%d sys_pmu_map=%p event_count=%d size=%d\n", __func__,
+		done, sys_pmu_map, event_count, size);
+	if (event_count == 0) {
+		done = 1;
+		return;
+	}
+	map = sys_pmu_map = malloc(size);
+	if (!sys_pmu_map)
+		return;
+	memset(sys_pmu_map, 0, size);
 #ifdef dedsd
 	struct metricgroup_iter_data data = {
 		.fn = metricgroup__add_metric_sys_event_iter,
@@ -699,8 +729,16 @@ static void metricgroup_init_sys_pmu_list(void)
 		.fake_pmu = fake_pmu,
 	};
 #endif
-	pmu_for_each_sys_event(metricgroup__metric_event_iter, NULL);
+	pmu_for_each_sys_event(metricgroup__metric_event_iter, &map);
 
+	map = sys_pmu_map;
+
+	while (map->name || map->metric_name) {
+		pr_err("%s1 map=%p sys_pmu_map=%p name=%s metric_name=%s\n",
+			__func__, map, &sys_pmu_map, map->name, map->metric_name);
+
+		map++;
+	}
 
 }
 
