@@ -895,6 +895,23 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 						 metriclist) < 0)
 			return;
 	}
+	for (i = 0; ; i++) {
+		pe = &sys_pmu_map[i];
+
+		//pr_err("%s2 pe=%p (name=%s, metric_group=%s, metric_name=%s)\n",
+		//__func__, pe, pe->name, pe->metric_group, pe->metric_name);
+
+		if (!pe->name && !pe->metric_group && !pe->metric_name)
+			break;
+		if (!pe->metric_expr)
+			continue;
+		pr_err("%s4 pe=%p (metric_expr=%s)\n",
+		__func__, pe, pe->metric_expr);
+		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
+						 raw, details, &groups,
+						 metriclist) < 0)
+			return;
+	}
 #ifdef dsdsd
 	{
 		struct metricgroup_iter_data data = {
