@@ -664,8 +664,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	cc1++;
 
 
-pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
-__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
+	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 
 
 //	pr_err("%s10 out m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
@@ -834,6 +834,8 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			return;
 	}
 
+	pr_err("%s1 map=%p\n", __func__, map);
+
 	rblist__init(&groups);
 	groups.node_new = mep_new;
 	groups.node_cmp = mep_cmp;
@@ -841,11 +843,15 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	for (i = 0; map; i++) {
 		pe = &map->table[i];
 
+		//pr_err("%s2 pe=%p (name=%s, metric_group=%s, metric_name=%s)\n",
+		//__func__, pe, pe->name, pe->metric_group, pe->metric_name);
+
 		if (!pe->name && !pe->metric_group && !pe->metric_name)
 			break;
 		if (!pe->metric_expr)
 			continue;
-		//pr_err("%s2\n", __func__);
+		pr_err("%s3 pe=%p (metric_expr=%s)\n",
+		__func__, pe, pe->metric_expr);
 		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
 						 raw, details, &groups,
 						 metriclist) < 0)
@@ -1185,13 +1191,22 @@ static int __resolve_metric(struct metric *m,
 	 * Iterate all the parsed IDs and if there's metric,
 	 * add it to the context.
 	 */
+	pr_err("%s m=%p metric_name=%s metric_expr=%s\n", __func__,
+		m, m->metric_name, m->metric_expr);
 	do {
 		all = true;
 		hashmap__for_each_entry((&m->pctx.ids), cur, bkt) {
 			struct expr_id *parent;
 			struct pmu_event *pe;
+			
 
 			pe = find_metric(cur->key, map);
+			if (pe)
+				pr_err("%s1 m=%p (metric_name=%s metric_expr=%s) pe=%p (name=%s,metric_name=%s) cur->key=%s\n", __func__,
+					m, m->metric_name, m->metric_expr, pe, pe->name, pe->metric_name, (char *)cur->key);
+			else
+				pr_err("%s1 m=%p (metric_name=%s metric_expr=%s) pe=%p cur->key=%s\n", __func__,
+					m, m->metric_name, m->metric_expr, pe, (char *)cur->key);
 			if (!pe)
 				continue;
 
@@ -1245,7 +1260,7 @@ static int add_metric(struct list_head *metric_list,
 	struct metric *orig = *m;
 	int ret = 0;
 
-	pr_err("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
+	pr_err("%s metric expr %s for %s\n", __func__, pe->metric_expr, pe->metric_name);
 
 	if (!strstr(pe->metric_expr, "?")) {
 		ret = __add_metric(metric_list, pe, metric_no_group, 1, m, parent, ids);
@@ -1311,20 +1326,32 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		has_match = true;
 		m = NULL;
 		
-		pr_err("%s1 metric=%s pe=%p (metric_name=%s)\n", __func__, metric, pe, pe->metric_name);
+		pr_err("%s1 metric=%s pe=%p (metric_name=%s, expr=%s)\n", __func__, metric, pe, pe->metric_name, pe->metric_expr);
 
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
+		pr_err("%s1.1 metric=%s pe=%p (metric_name=%s) ret=%d\n", __func__, metric, pe, pe->metric_name, ret);
 		if (ret)
 			goto out;
+
+		list_for_each_entry(m, &list, nd)
+			pr_err("%s1.2 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
+
 
 		/*
 		 * Process any possible referenced metrics
 		 * included in the expression.
 		 */
+		 // add metrics referenced in pe to list
 		ret = resolve_metric(metric_no_group,
 				     &list, map, &ids);
+		pr_err("%s1.3 metric=%s pe=%p (metric_name=%s) ret=%d\n", __func__, metric, pe, pe->metric_name, ret);
 		if (ret)
 			goto out;
+		list_for_each_entry(m, &list, nd) {
+			pr_err("%s1.4 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
+		}
 	}
 
 	pr_err("%s2 metric=%s has_match=%d fake_pmu=%p\n", __func__, metric, has_match, fake_pmu);

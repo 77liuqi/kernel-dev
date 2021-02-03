@@ -1,0 +1,29 @@
+[
+   
+    {
+        "BriefDescription": "L1 cache true misses per kilo instruction for retired demand loads",
+        "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L1_MISS / INST_RETIRED.ANY",
+        "MetricGroup": "Cache_Misses",
+        "MetricName": "L1MPKI"
+    },
+    {
+        "BriefDescription": "L2 cache true misses per kilo instruction for retired demand loads",
+        "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L2_MISS / INST_RETIRED.ANY",
+        "MetricGroup": "Cache_Misses",
+        "MetricName": "L2MPKI"
+    },
+    
+    {
+        "BriefDescription": "broadwell john cpu metric1",
+        "MetricExpr": "1 / (L2MPKI + 1)",
+        "MetricGroup": "Cache_Misses",
+        "MetricName": "broadwelljohncpumetric1"
+    },
+    
+    {
+        "BriefDescription": "broadwell john cpu metric2",
+        "MetricExpr": "1 / (L2MPKx + 1)",
+        "MetricGroup": "Cache_Misses",
+        "MetricName": "broadwelljohncpumetric2"
+    }
+]
