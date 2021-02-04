@@ -24,19 +24,19 @@
         "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT2_DEREF_BRK"
     },
    {
-	    "BriefDescription": "test metric broadwell 10 ... sys events with COMPAT",
-	    "MetricName": "TM_BDW_SYS_EVENT_COMPAT4_1EVENT",
-	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0010@",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "CBO",
-	    "Compat": "broadwell"
+        "BriefDescription": "test metric broadwell 10 ... sys events with COMPAT",
+        "MetricName": "TM_BDW_SYS_EVENT_COMPAT4_1EVENT",
+        "MetricExpr": "uncore_cbox_0@config\\=5@",
+        "ScaleUnit": "9.765625e-4KB",
+        "Unit": "CBO",
+        "Compat": "broadwell"
    },
    {
-	    "BriefDescription": "test metric broadwell 11 ... sys events with compat",
-	    "MetricName": "TM_BDW_SYS_EVENT_COMPAT5_2EVENT",
-	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0011@",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "CBO",
-	    "Compat": "broadwell"
+        "BriefDescription": "test metric broadwell 11 ... sys events with compat",
+        "MetricName": "TM_BDW_SYS_EVENT_COMPAT5_2EVENT",
+        "MetricExpr": "uncore_cbox_0@config\\=5@ / ( uncore_cbox_1@config\\=5@ + 1)",
+        "ScaleUnit": "9.765625e-4KB",
+        "Unit": "CBO",
+        "Compat": "broadwell"
    }, 
 ]

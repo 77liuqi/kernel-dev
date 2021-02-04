@@ -565,11 +565,11 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		return 0;
 	needle = strstr(pe->metric_name, "EVENT_COMP");
 	needle1 = NULL;//strstr(pe->metric_name, "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"); 
-	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p needle=%s\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu, needle);
+	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p needle=%s needle1=%s\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu, needle, needle1);
 
-	if (!needle && !needle1)
-		return 0;
+//	if (!needle && !needle1)
+//		return 0;
 
 pr_err("%s1 ------ pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
 __func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
@@ -609,7 +609,7 @@ __func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 		struct metric_event me = {
 			.evsel = evsel
 		};
-		struct metric_event *mx;
+	//	struct metric_event *mx;
 		nd = rblist__find(&metric_events, &me);
 		pr_err("%s5 ------ evsel=%p (name=%s pmu_name=%s) nd=%p\n", __func__, evsel, evsel->name, evsel->pmu_name, nd);
 
@@ -618,11 +618,12 @@ __func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 			continue;
 		}
 
-		if (!nd)
-			continue;
-		mx = container_of(nd, struct metric_event, nd);
+	//	if (!nd)
+	//		continue;
+	//	mx = container_of(nd, struct metric_event, nd);
 
-		pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s) nd=%p mx=%p pmu=%pS\n", __func__, evsel, evsel->name, evsel->pmu_name, nd, mx, pmu);
+	//	pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s) nd=%p mx=%p pmu=%pS\n", __func__, evsel, evsel->name, evsel->pmu_name, nd, mx, pmu);
+		pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s)n", __func__, evsel, evsel->name, evsel->pmu_name);
 
 		// Find the event in table of other events
 		{
