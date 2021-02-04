@@ -30,5 +30,17 @@
         "MetricExpr": "1 / (L2MPKx + 1)",
         "MetricGroup": "Cache_Misses",
         "MetricName": "Broadwelljohncpumetric2"
-    }
+    },
+    {
+        "BriefDescription": "Average number of parallel data read .. MATCHED CPUID",
+        "MetricExpr": "cbox@event\\=0x36\\,umask\\=0x3\\,edge\\=0x1@ / cbox@event\\=0x36\\,umask\\=0x3\\,edge\\=1@",
+        "MetricGroup": "Memory_BW",
+        "MetricName": "DRAM_Parallel_Readsjohncpumetric3"
+    },
+    {
+        "BriefDescription": "Socket actual clocks when any core is .. MATCHED CPUID",
+        "MetricExpr": "cbox_0@event\\=0x0@",
+        "MetricGroup": "",
+        "MetricName": "Socket_CLKSjohncpumetric4"
+    },
 ]
