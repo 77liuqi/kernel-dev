@@ -563,8 +563,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 
 	if (cc1 > 20)
 		return 0;
-	needle = strstr(pe->metric_name, "TM_BDW_SYS_EVENT_COMPAT4_1EVENT");
-	needle1 = strstr(pe->metric_name, "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"); 
+	needle = strstr(pe->metric_name, "EVENT_COMP");
+	needle1 = NULL;//strstr(pe->metric_name, "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"); 
 	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p needle=%s\n",
 	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu, needle);
 
@@ -657,7 +657,7 @@ __func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 			struct perf_pmu_alias *alias;
 			
-			pr_err("%s7 evsel=%p (name=%s pmu_name=%s) pmu=%p (name=%s, id=%s)\n", __func__, 
+			pr_debug("%s7 evsel=%p (name=%s pmu_name=%s) pmu=%p (name=%s, id=%s)\n", __func__, 
 			evsel, evsel->name, evsel->pmu_name, pmu, pmu->name, pmu->id);
 			if (found_event) {
 				list_for_each_entry(alias, &pmu->aliases, list) {
@@ -668,10 +668,10 @@ __func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 						goto evsel_loop_end;
 					}
 				}
-			} else if (!strcmp(pmu->name, evsel->pmu_name)) {
+			} else if (!strcmp(pmu->name, evsel->pmu_name) && !strcmp(pmu->id, pe->compat)) {
 				found_events++;
-				pr_err("%s7.2 evsel=%p (name=%s pmu_name=%s) matched evsel by pmu name pmu=%p (name=%s id=%s)\n",
-					__func__,evsel, evsel->name, evsel->pmu_name, pmu, pmu->name, pmu->id);
+				pr_err("%s7.2 evsel=%p (name=%s pmu_name=%s) matched evsel by pmu name pmu=%p (name=%s id=%s) pe->compat=%s\n",
+					__func__,evsel, evsel->name, evsel->pmu_name, pmu, pmu->name, pmu->id, pe->compat);
 				goto evsel_loop_end;
 			}
 			
@@ -760,6 +760,7 @@ static void metricgroup_init_sys_pmu_list(void)
 
 		table++;
 	}
+		pr_err("\n\n\n");
 
 }
 
