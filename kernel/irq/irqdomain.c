@@ -1399,8 +1399,15 @@ static void irq_domain_free_irqs_hierarchy(struct irq_domain *domain,
 		return;
 
 	for (i = 0; i < nr_irqs; i++) {
-		if (irq_domain_get_irq_data(domain, irq_base + i))
-			domain->ops->free(domain, irq_base + i, 1);
+		int n ;
+		/* Find the largest possible span of IRQs to free in one go */
+		for (n = 0; ((i + n) < nr_irqs && irq_domain_get_irq_data(domain, irq_base + i + n)); n++) {
+			if (!n)
+				continue;
+		}
+		pr_err("%s nr_irqs=%d i=%d n=%d\n", __func__, nr_irqs, i, n);
+		domain->ops->free(domain, irq_base + i, n);
+		i += n;
 	}
 }
 
