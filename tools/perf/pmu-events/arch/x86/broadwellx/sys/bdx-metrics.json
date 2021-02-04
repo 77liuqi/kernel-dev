@@ -5,4 +5,12 @@
         "MetricGroup": "Test",
         "MetricName": "TM_BDWX_SYS_EVENT_NO_COMPAT1"
     },
+   {
+	    "BriefDescription": "test metric broadwellx 10 ... sys events with COMPAT",
+	    "MetricName": "TM_BDWX_SYS_EVENT_COMPAT4_1EVENT",
+	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x0002\\,axi_id\\=0x008@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "CBO",
+	    "Compat": "broadwellx"
+   }
 ]
