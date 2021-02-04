@@ -4,43 +4,43 @@
         "BriefDescription": "L1 cache true misses .. MATCHED CPUID",
         "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L1_MISS / INST_RETIRED.ANY",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "L1MPKI"
+	"MetricName": "TM_BDW_CPU1",
     },
     {
         "BriefDescription": "L2 cache true misses .. MATCHED CPUID",
         "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L2_MISS / INST_RETIRED.ANY",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "L2MPKI"
+	"MetricName": "TM_BDW_CPU2",
     },
     {
         "BriefDescription": "L3 cache true misses .. MATCHED CPUID",
-        "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L2_MISS / INST_RETIRED.ANY + L2MPKI",
+        "MetricExpr": "1000 * MEM_LOAD_UOPS_RETIRED.L2_MISS / INST_RETIRED.ANY + TM_BDW_CPU2",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "L3MPKI"
+	"MetricName": "TM_BDW_CPU3_DEREF",
     },    
     {
         "BriefDescription": "broadwell john cpu metric1 .. MATCHED CPUID",
         "MetricExpr": "1 / (L2MPKI + 1)",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "broadwelljohncpumetric1"
+        "MetricName": "TM_BDW_CPU4_DEREF"
     },
     
     {
         "BriefDescription": "broadwell john cpu metric2 .. MATCHED CPUID",
         "MetricExpr": "1 / (L2MPKx + 1)",
         "MetricGroup": "Cache_Misses",
-        "MetricName": "Broadwelljohncpumetric2"
+        "MetricName": "TM_BDW_CPU5_DEREF_BRK"
     },
     {
         "BriefDescription": "Average number of parallel data read .. MATCHED CPUID",
         "MetricExpr": "cbox@event\\=0x36\\,umask\\=0x3\\,edge\\=0x1@ / cbox@event\\=0x36\\,umask\\=0x3\\,edge\\=1@",
         "MetricGroup": "Memory_BW",
-        "MetricName": "DRAM_Parallel_Readsjohncpumetric3"
+        "MetricName": "TM_BDW_CPU6_2EVENT"
     },
     {
         "BriefDescription": "Socket actual clocks when any core is .. MATCHED CPUID",
         "MetricExpr": "cbox_0@event\\=0x0@",
         "MetricGroup": "",
-        "MetricName": "Socket_CLKSjohncpumetric4"
+        "MetricName": "TM_BDW_CPU7_1EVENT"
     },
 ]

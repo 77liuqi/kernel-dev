@@ -538,6 +538,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		};
 	int events = 0, found_events;
 	struct pmu_event **map = data;
+	char *needle;
 
 	struct pmu_event event_table[] = {
 		{
@@ -561,10 +562,16 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 
 	if (cc1 > 20)
 		return 0;
+	needle = strstr(pe->metric_name, "TM_BDW_SYS_EVENT_COMPAT");
 
-	pr_err("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
+	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p needle=%s\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu, needle);
 
+	if (!needle)
+		return 0;
+
+pr_err("%s1 pe=%p (metric_name=%s metric_expr=%s) fake_pmu=%p\n",
+__func__, pe, pe->metric_name, pe->metric_expr, &fake_pmu);
 
 //	ret = metricgroup__add_metric(pe->metric_name, 0, &extra_events, &mlist, map , NULL);
 
@@ -681,14 +688,14 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	return 0;
 }
 
-static int metricgroup__metric_event_iter2(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
+static int metricgroup__metric_event_iterx(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
 	unsigned int *count = data;
 	(*count)++;
 	if (pe->name)
-		pr_err("%s pe=%p (name=%s) *count=%d table=%p\n", __func__, pe, pe->name, *count, table);
+		pr_debug("%s pe=%p (name=%s) *count=%d table=%p\n", __func__, pe, pe->name, *count, table);
 	else
-		pr_err("%s pe=%p (metric_name=%s) *count=%d table=%p\n", __func__, pe, pe->metric_name, *count, table);
+		pr_debug("%s pe=%p (metric_name=%s) *count=%d table=%p\n", __func__, pe, pe->metric_name, *count, table);
 	return 0;
 }
 
@@ -702,7 +709,7 @@ static void metricgroup_init_sys_pmu_list(void)
 	if (sys_pmu_map[0].table || done)
 		return;
 
-	pmu_for_each_sys_event(metricgroup__metric_event_iter2, &event_count);
+	pmu_for_each_sys_event(metricgroup__metric_event_iterx, &event_count);
 
 
 	size = event_count * sizeof(*sys_pmu_map);

@@ -3,29 +3,29 @@
         "BriefDescription": "test metric broadwell 1 ...  sys events without compat",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 2",
         "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC"
+        "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT1"
     },
     {
         "BriefDescription": "test metric broadwell 2 ...  sys events without compat",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION / duration_time",
         "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC2"
+        "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"
     },
     {
         "BriefDescription": "test metric broadwell 3 ... sys events without compat",
-        "MetricExpr": "1 / TEST_METRIC_INC",
+        "MetricExpr": "1 / TEST_METRIC_BROADWELL_SYS_EVENT_NO_COMPAT1",
         "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC3"
+        "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT3_DEREF"
     },
     {
         "BriefDescription": "test metric broadwell 4 ... sys events without compat",
         "MetricExpr": "1 / TEST_METRIC_INC5",
         "MetricGroup": "Test",
-        "MetricName": "TEST_METRIC_INC4"
+        "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT2_DEREF_BRK"
     },
    {
 	    "BriefDescription": "test metric broadwell 10 ... sys events with COMPAT",
-	    "MetricName": "TEST_METRIC_INC_broadwell_10",
+	    "MetricName": "TM_BDW_SYS_EVENT_COMPAT4_1EVENT",
 	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0010@",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "CBO",
@@ -33,7 +33,7 @@
    },
    {
 	    "BriefDescription": "test metric broadwell 11 ... sys events with compat",
-	    "MetricName": "TEST_METRIC_INC_broadwell_11",
+	    "MetricName": "TM_BDW_SYS_EVENT_COMPAT5_2EVENT",
 	    "MetricExpr": "uncore_cbox_0@axid\\-read\\,axi_mask\\=0x000f\\,axi_id\\=0x0011@",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "CBO",
