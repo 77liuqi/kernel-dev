@@ -507,7 +507,7 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 		putchar('\n');
 }
 
-static struct pmu_events_map sys_pmu_map[2] = {};
+static struct pmu_events_map *sys_pmu_map;
 
 static int parse_groups(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
@@ -707,6 +707,7 @@ static void metricgroup_init_sys_pmu_list(void)
 	static int done = 0;
 	unsigned int event_count = 0;
 	struct pmu_event *table, *table_tmp;
+	static struct pmu_events_map *map;
 	int size;
 
 	if (done)
@@ -726,10 +727,15 @@ static void metricgroup_init_sys_pmu_list(void)
 	table_tmp = table = malloc(size);
 	if (!table)
 		return;
+	map = malloc(2 * sizeof(*sys_pmu_map));
+	if (!map) {
+		free(table);
+		return;
+	}
 	memset(table, 0, size);
 	done = 1;
 	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
-
+	sys_pmu_map = map;
 	sys_pmu_map[0].table = table;
 
 	while (table->name || table->metric_name) {
@@ -1371,11 +1377,14 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
-	struct pmu_events_map *sys_pmu_map1 = &sys_pmu_map[0];
+	struct pmu_events_map *sys_pmu_map1;
 
 	pr_err("%s metric=%s map=%p\n", __func__, metric, map);
 
 	metricgroup_init_sys_pmu_list();
+	sys_pmu_map1 = sys_pmu_map ? &sys_pmu_map[0] : NULL;
+
+	pr_err("%s0 metric=%s map=%p sys_pmu_map1=%p\n", __func__, metric, map, sys_pmu_map1);
 
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
@@ -1411,7 +1420,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	}
 
 	pr_err("%s2 metric=%s sys_pmu_map1=%p table=%p\n", __func__, metric, sys_pmu_map1, sys_pmu_map1 ? sys_pmu_map1->table : NULL);
-#if 0
+
 	map_for_each_metric(pe, i, sys_pmu_map1, metric) {
 		has_match = true;
 		m = NULL;
@@ -1446,7 +1455,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
 		}
 	}
-#endif
+
 	pr_err("%s3 metric=%s has_match=%d fake_pmu=%p\n", __func__, metric, has_match, fake_pmu);
 #ifdef dedede
 	{
