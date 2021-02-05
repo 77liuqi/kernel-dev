@@ -1467,7 +1467,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
-	pr_err("%s name=%s\n", __func__, name);
+//	pr_err("%s name=%s\n", __func__, name);
 
 	if (verbose > 1) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
@@ -1483,7 +1483,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	}
 
 	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
-	pr_err("%s1 name=%s pmu=%p fake_pmu=%p\n", __func__, name, pmu, parse_state->fake_pmu);
+//	pr_err("%s1 name=%s pmu=%p fake_pmu=%p\n", __func__, name, pmu, parse_state->fake_pmu);
 	if (!pmu) {
 		char *err_str;
 
@@ -2205,29 +2205,29 @@ int __parse_events(struct evlist *evlist, const char *str,
 		.stoken	  = PE_START_EVENTS,
 		.fake_pmu = fake_pmu,
 	};
-	struct evsel *evsel;
+//	struct evsel *evsel;
 	int ret;
 
-	pr_err("%s^^^^^^^ str=%s evlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
+//	pr_err("%s^^^^^^^ str=%s evlist=%p fake_pmu=%p\n", __func__, str, evlist, fake_pmu);
 
-	evlist__for_each_entry(evlist, evsel)
-		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
-			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
-	__evlist__for_each_entry(&parse_state.list, evsel)
-		pr_err("%s1.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
-			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+//	evlist__for_each_entry(evlist, evsel)
+//		pr_err("%s1.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+//			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+//	__evlist__for_each_entry(&parse_state.list, evsel)
+//		pr_err("%s1.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+//			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 
 	ret = parse_events__scanner(str, &parse_state);
-	pr_err("%s2^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
-	evlist__for_each_entry(evlist, evsel)
-		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
-			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
-	__evlist__for_each_entry(&parse_state.list, evsel)
-		pr_err("%s2.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
-			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+//	pr_err("%s2^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
+//	evlist__for_each_entry(evlist, evsel)
+//		pr_err("%s2.1 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+//			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
+//	__evlist__for_each_entry(&parse_state.list, evsel)
+//		pr_err("%s2.2 evlist=%p evsel=%p (name=%s, pmu_name=%s)\n",
+//			__func__, evlist, evsel, evsel->name, evsel->pmu_name);
 	perf_pmu__parse_cleanup();
 
-	pr_err("%s3^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s3^^^^^^^ str=%s ret=%d\n", __func__, str, ret);
 
 	if (!ret && list_empty(&parse_state.list)) {
 		WARN_ONCE(true, "WARNING: event parser found nothing\n");
