@@ -778,7 +778,6 @@ static void metricgroup_init_sys_pmu_list(void)
 	static int done = 0;
 	unsigned int event_count = 0;
 	struct pmu_event *table, *table_tmp;
-	static struct pmu_events_map *map;
 	int size;
 
 	if (done)
@@ -795,21 +794,22 @@ static void metricgroup_init_sys_pmu_list(void)
 	}
 	size = event_count * sizeof(*table);
 	table_tmp = table = malloc(size);
+	pr_err("%s1 table=%p\n", __func__, table);
 	if (!table)
 		return;
-	map = malloc(sizeof(*sys_pmu_map));
-	if (!map) {
+	memset(table, 0, size);
+	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
+	sys_pmu_map = malloc(sizeof(*sys_pmu_map));
+	pr_err("%s2 table=%p table_tmp=%p sys_pmu_map=%p\n", __func__, table, table_tmp, sys_pmu_map);
+	if (!sys_pmu_map) {
 		free(table);
 		return;
 	}
-	memset(table, 0, size);
-	done = 1;
-	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
-	sys_pmu_map = map;
 	sys_pmu_map->table = table;
+	done = 1;
 
 	while (table->name || table->metric_name) {
-		pr_err("%s1 table=%p sys_pmu_map[0].table=%p name=%s metric_name=%s table=%p table_tmp=%p\n",
+		pr_err("%s5 table=%p sys_pmu_map[0].table=%p name=%s metric_name=%s table=%p table_tmp=%p\n",
 			__func__, table, sys_pmu_map[0].table, table->name, table->metric_name, table, table_tmp);
 
 		table++;
@@ -1357,14 +1357,13 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	LIST_HEAD(list);
 	int i, ret;
 	bool has_match = false;
-	struct pmu_events_map *sys_pmu_map1;
 
 	pr_err("%s metric=%s map=%p\n", __func__, metric, map);
 
 	metricgroup_init_sys_pmu_list();
-	sys_pmu_map1 = sys_pmu_map ? &sys_pmu_map[0] : NULL;
 
-	pr_err("%s0 metric=%s map=%p sys_pmu_map1=%p\n", __func__, metric, map, sys_pmu_map1);
+	pr_err("%s0 metric=%s map=%p sys_pmu_map=%p table=%p\n",
+		__func__, metric, map, sys_pmu_map, sys_pmu_map ? sys_pmu_map->table : NULL);
 
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
@@ -1399,9 +1398,9 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		}
 	}
 
-	pr_err("%s2 metric=%s sys_pmu_map1=%p table=%p\n", __func__, metric, sys_pmu_map1, sys_pmu_map1 ? sys_pmu_map1->table : NULL);
+	pr_err("%s2 metric=%s\n", __func__, metric);
 
-	map_for_each_metric(pe, i, sys_pmu_map1, metric) {
+	map_for_each_metric(pe, i, sys_pmu_map, metric) {
 		has_match = true;
 		m = NULL;
 		if (pe)
