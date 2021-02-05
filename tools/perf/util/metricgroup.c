@@ -583,13 +583,13 @@ static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 		goto out;
 	}
 
-	pr_err("%s4********* str=%s\n",__func__, str);
+	pr_err("%s4********* str=%s metric_no_merge=%d\n",__func__, str, metric_no_merge);
 
 	evlist__for_each_entry(perf_evlist, evsel)
-		pr_err("%s4. evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+		pr_err("%s4.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
 
-	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
-					perf_evlist, metric_events);
+	//ret = metricgroup__setup_events(&metric_list, metric_no_merge,
+	//				perf_evlist, metric_events);
 	pr_err("%s5********* str=%s\n",__func__, str);
 	evlist__for_each_entry(perf_evlist, evsel)
 		pr_err("%s5.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
