@@ -20,7 +20,7 @@
     },    
     {
         "BriefDescription": "broadwell john cpu metric1 .. MATCHED CPUID",
-        "MetricExpr": "1 / (L2MPKI + 1)",
+        "MetricExpr": "1 / (TM_BDW_CPU2 + 1)",
         "MetricGroup": "Cache_Misses",
         "MetricName": "TM_BDW_CPU4_DEREF"
     },

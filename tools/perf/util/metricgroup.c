@@ -691,7 +691,7 @@ out:
 	return ret;
 }
 
-static int metricgroup__metric_event_iterx(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
+static int metricgroup__metric_sys_event_count(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
 	unsigned int *count = data;
 	(*count)++;
@@ -713,17 +713,16 @@ static void metricgroup_init_sys_pmu_list(void)
 	if (done)
 		return;
 
-	pmu_for_each_sys_event(metricgroup__metric_event_iterx, &event_count);
+	pmu_for_each_sys_event(metricgroup__metric_sys_event_count, &event_count);
 
 
-	size = event_count * sizeof(*table);
-
-	pr_err("%s done=%d sys_pmu_map=%p event_count=%d size=%d\n", __func__,
-		done, sys_pmu_map, event_count, size);
+	pr_err("%s done=%d sys_pmu_map=%p event_count=%d\n", __func__,
+		done, sys_pmu_map, event_count);
 	if (event_count == 0) {
 		done = 1;
 		return;
 	}
+	size = event_count * sizeof(*table);
 	table_tmp = table = malloc(size);
 	if (!table)
 		return;
@@ -744,8 +743,7 @@ static void metricgroup_init_sys_pmu_list(void)
 
 		table++;
 	}
-		pr_err("\n\n\n");
-
+	pr_err("\n\n\n");
 }
 
 static int metricgroup__print_pmu_event(struct pmu_event *pe,
@@ -823,41 +821,6 @@ struct metricgroup_print_sys_idata {
 	bool details;
 };
 
-typedef int (*metricgroup_sys_event_iter_fn)(struct pmu_event *pe, void *);
-
-struct metricgroup_iter_data {
-	metricgroup_sys_event_iter_fn fn;
-	struct perf_pmu *fake_pmu;
-	void *data;
-};
-
-static __maybe_unused int metricgroup__sys_event_iter(struct pmu_event *pe, void *data)
-{
-	struct metricgroup_iter_data *d = data;
-	struct perf_pmu *pmu = NULL;
-
-	if (!pe->metric_expr || !pe->compat)
-		return 0;
-
-	while ((pmu = perf_pmu__scan(pmu))) {
-
-		if (!pmu->id || strcmp(pmu->id, pe->compat))
-			continue;
-
-		return d->fn(pe, d->data);
-	}
-
-	return 0;
-}
-
-static __maybe_unused int metricgroup__print_sys_event_iter(struct pmu_event *pe, void *data)
-{
-	struct metricgroup_print_sys_idata *d = data;
-
-	return metricgroup__print_pmu_event(pe, d->metricgroups, d->filter, d->raw,
-				     d->details, d->groups, d->metriclist);
-}
-
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
 {
@@ -919,23 +882,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 		
 		pr_err("%s5 pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
 	}
-#ifdef dsdsd
-	{
-		struct metricgroup_iter_data data = {
-			.fn = metricgroup__print_sys_event_iter,
-			.data = (void *) &(struct metricgroup_print_sys_idata){
-				.metriclist = metriclist,
-				.metricgroups = metricgroups,
-				.filter = filter,
-				.raw = raw,
-				.details = details,
-				.groups = &groups,
-			},
-		};
 
-		pmu_for_each_sys_event(metricgroup__sys_event_iter, &data);
-	}
-#endif
 	if (!filter || !rblist__empty(&groups)) {
 		if (metricgroups && !raw)
 			printf("\nMetric Groups:\n\n");
@@ -1457,24 +1404,6 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	}
 
 	pr_err("%s3 metric=%s has_match=%d fake_pmu=%p\n", __func__, metric, has_match, fake_pmu);
-#ifdef dedede
-	{
-		struct metricgroup_iter_data data = {
-			.fn = metricgroup__add_metric_sys_event_iter,
-			.data = (void *) &(struct metricgroup_add_iter_data) {
-				.metric_list = &list,
-				.metric = metric,
-				.metric_no_group = metric_no_group,
-				.ids = &ids,
-				.has_match = &has_match,
-				.ret = &ret,
-			},
-			.fake_pmu = fake_pmu,
-		};
-
-		pmu_for_each_sys_event(metricgroup__sys_event_iter, &data);
-	}
-#endif
 	/* End of pmu events. */
 	if (!has_match) {
 		ret = -EINVAL;
