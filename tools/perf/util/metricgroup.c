@@ -547,13 +547,13 @@ static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 	if (ret)
 		goto out;
 	list_for_each_entry(m, &metric_list, nd)
-		pr_err("%s1.1*********  str=%s m=%pS (metric_name=%s,  metric_expr=%s)\n",
-			__func__, str, m, m->metric_name, m->metric_expr);
 
 	strbuf_init(&extra_events, 100);
 	strbuf_addf(&extra_events, "%s", "");
 
 	list_for_each_entry(m, &metric_list, nd) {
+		pr_err("%s1.1*********  str=%s m=%pS (metric_name=%s,  metric_expr=%s, has_constraint=%d)\n",
+			__func__, str, m, m->metric_name, m->metric_expr, m->has_constraint);
 		if (extra_events.len > 0)
 			strbuf_addf(&extra_events, ",");
 
