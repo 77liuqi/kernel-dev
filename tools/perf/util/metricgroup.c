@@ -519,7 +519,6 @@ static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
 			bool metric_no_merge,
 			struct perf_pmu *fake_pmu,
-			struct rblist *metric_events,
 			struct pmu_event *pe)
 {
 	struct parse_events_error parse_error;
@@ -532,8 +531,8 @@ static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 
 	pr_err("%s********* str=%s\n",__func__, str);
 
-	if (metric_events->nr_entries == 0)
-		metricgroup__rblist_init(metric_events);
+//	if (metric_events->nr_entries == 0)
+//		metricgroup__rblist_init(metric_events);
 //	ret = metricgroup__add_metric_list(str, metric_no_group,
 //					   &extra_events, &metric_list, map, fake_pmu);
 
@@ -610,9 +609,6 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 //	struct metric *m;
 	struct evlist *evlist;
 	struct evsel *evsel;
-	struct rblist metric_events = { 
-			.nr_entries = 0,
-		};
 	int events = 0, found_events;
 	struct pmu_event **map = data;
 	char *needle;
@@ -650,11 +646,10 @@ __func__, pe, pe->metric_name, pe->metric_expr);
 	evlist = evlist__new();
 	ret = parse_groupsx(evlist, pe->metric_name,
 							 false, false, &perf_pmu__fake,
-							 &metric_events,
 							 pe);
 	if (ret)
 		goto out;
-	pr_err("%s4 ------ metric_events.nr_entries=%d\n", __func__, metric_events.nr_entries);
+	pr_err("%s4 ------ \n", __func__);
 //	pr_err("%s4.1 m=%p (metric_name=%s, metric_expr=%s, metric_unit=%s)\n", __func__, m, m->metric_name, m->metric_expr, m->metric_unit);
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -757,7 +752,7 @@ evsel_loop_end:
 	__func__, pe, pe->metric_name, pe->metric_expr, events, found_events);
 
 out:
-	metricgroup__rblist_exit(&metric_events);
+//	metricgroup__rblist_exit(&metric_events);
 	evlist__delete(evlist);
 	return ret;
 }
