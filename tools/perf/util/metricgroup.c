@@ -503,12 +503,105 @@ static void metricgroup__print_strlist(struct strlist *metrics, bool raw)
 
 static struct pmu_events_map *sys_pmu_map;
 
-static int parse_groups(struct evlist *perf_evlist, const char *str,
+static void metricgroup__free_metrics(struct list_head *metric_list);
+static int add_metric(struct list_head *metric_list,
+		      struct pmu_event *pe,
+		      bool metric_no_group,
+		      struct metric **m,
+		      struct expr_id *parent,
+		      struct expr_ids *ids);
+static void metricgroup__add_metric_non_group(struct strbuf *events,
+					      struct expr_parse_ctx *ctx);
+static void metricgroup__add_metric_weak_group(struct strbuf *events,
+					       struct expr_parse_ctx *ctx);
+
+static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 			bool metric_no_group,
 			bool metric_no_merge,
 			struct perf_pmu *fake_pmu,
 			struct rblist *metric_events,
-			struct pmu_events_map *map);
+			struct pmu_event *pe)
+{
+	struct parse_events_error parse_error;
+	struct strbuf extra_events;
+	LIST_HEAD(metric_list);
+	struct evsel *evsel;
+	struct metric *m = NULL;
+	struct expr_ids ids = { .cnt = 0, };
+	int ret;
+
+	pr_err("%s********* str=%s\n",__func__, str);
+
+	if (metric_events->nr_entries == 0)
+		metricgroup__rblist_init(metric_events);
+//	ret = metricgroup__add_metric_list(str, metric_no_group,
+//					   &extra_events, &metric_list, map, fake_pmu);
+
+//	ret = metricgroup__add_metric(str, metric_no_group, &extra_events,
+//					  &metric_list, map, fake_pmu);
+	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
+
+	pr_err("%s0********* str=%s ret=%d m=%p\n",__func__, str, ret, m);
+	
+
+	if (ret)
+		goto out;
+	list_for_each_entry(m, &metric_list, nd)
+		pr_err("%s1.1*********  str=%s m=%pS (metric_name=%s,  metric_expr=%s)\n",
+			__func__, str, m, m->metric_name, m->metric_expr);
+
+	strbuf_init(&extra_events, 100);
+	strbuf_addf(&extra_events, "%s", "");
+
+	list_for_each_entry(m, &metric_list, nd) {
+		if (extra_events.len > 0)
+			strbuf_addf(&extra_events, ",");
+
+		if (m->has_constraint) {
+			metricgroup__add_metric_non_group(&extra_events,
+							  &m->pctx);
+		} else {
+			metricgroup__add_metric_weak_group(&extra_events,
+							   &m->pctx);
+		}
+	}
+
+	pr_err("%s1.2********* str=%s adding %s\n",__func__,  str, extra_events.buf);
+	bzero(&parse_error, sizeof(parse_error));
+	
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s2.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s2.2 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
+	pr_err("%s3********* str=%s %s\n", __func__, str, extra_events.buf);
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s3.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+	if (ret) {
+		parse_events_print_error(&parse_error, extra_events.buf);
+		goto out;
+	}
+
+	pr_err("%s4********* str=%s\n",__func__, str);
+
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s4. evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+
+	ret = metricgroup__setup_events(&metric_list, metric_no_merge,
+					perf_evlist, metric_events);
+	pr_err("%s5********* str=%s\n",__func__, str);
+	evlist__for_each_entry(perf_evlist, evsel)
+		pr_err("%s5.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+out:
+	expr_ids__exit(&ids);
+	metricgroup__free_metrics(&metric_list);
+	strbuf_release(&extra_events);
+	pr_err("%s10 out ********* str=%s ret=%d\n",__func__, str, ret);
+	return ret;
+}
+
 
 static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
 {
@@ -550,8 +643,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		return 0;
 	needle = strstr(pe->metric_name, "TM_BDW_SYS_EVENT_COMPAT5_2EVENT");
 	needle1 = NULL;//strstr(pe->metric_name, "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"); 
-	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) needle=%s needle1=%s\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, needle, needle1);
+	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) needle=%s needle1=%s map1=%p\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, needle, needle1, &map1);
 
 //	if (!needle && !needle1)
 //	if (!needle)
@@ -571,10 +664,10 @@ __func__, pe, pe->metric_name, pe->metric_expr);
 
 
 	evlist = evlist__new();
-	ret = parse_groups(evlist, pe->metric_name,
+	ret = parse_groupsx(evlist, pe->metric_name,
 							 false, false, &perf_pmu__fake,
 							 &metric_events,
-							 map1);
+							 pe);
 	if (ret)
 		goto out;
 	pr_err("%s4 ------ metric_events.nr_entries=%d\n", __func__, metric_events.nr_entries);
@@ -987,6 +1080,8 @@ static int __add_metric(struct list_head *metric_list,
 	struct metric_ref_node *ref;
 	struct metric *m;
 
+	pr_err("%s metric_list=%p pe=%p mp=%p parent=%p ids=%p\n", __func__, metric_list, pe, mp, parent, ids);
+
 	if (*mp == NULL) {
 		/*
 		 * We got in here for the parent group,
@@ -1007,6 +1102,7 @@ static int __add_metric(struct list_head *metric_list,
 
 		parent = expr_ids__alloc(ids);
 		if (!parent) {
+			pr_err("%s pe=%p err1 no parent *mp == NULL\n", __func__, pe);
 			free(m);
 			return -EINVAL;
 		}
@@ -1014,6 +1110,7 @@ static int __add_metric(struct list_head *metric_list,
 		parent->id = strdup(pe->metric_name);
 		if (!parent->id) {
 			free(m);
+			pr_err("%s pe=%p err1 no parent id *mp == NULL\n", __func__, pe);
 			return -ENOMEM;
 		}
 		*mp = m;
@@ -1056,6 +1153,7 @@ static int __add_metric(struct list_head *metric_list,
 			free(m);
 			*mp = NULL;
 		}
+		pr_err("%s pe=%p err2 expr__find_other\n", __func__, pe);
 		return -EINVAL;
 	}
 
@@ -1154,12 +1252,6 @@ static int recursion_check(struct metric *m, const char *id, struct expr_id **pa
 	return p->id ? 0 : -ENOMEM;
 }
 
-static int add_metric(struct list_head *metric_list,
-		      struct pmu_event *pe,
-		      bool metric_no_group,
-		      struct metric **mp,
-		      struct expr_id *parent,
-		      struct expr_ids *ids);
 
 static int __resolve_metric(struct metric *m,
 			    bool metric_no_group,
@@ -1243,7 +1335,8 @@ static int add_metric(struct list_head *metric_list,
 	struct metric *orig = *m;
 	int ret = 0;
 
-	pr_err("%s metric expr %s for %s\n", __func__, pe->metric_expr, pe->metric_name);
+	pr_err("%s metric expr %s for %s orig=%p metric_list=%p pe=%p m=%p parent=%p ids=%p\n",
+		__func__, pe->metric_expr, pe->metric_name, orig, metric_list, pe, m, parent, ids);
 
 	if (!strstr(pe->metric_expr, "?")) {
 		ret = __add_metric(metric_list, pe, metric_no_group, 1, m, parent, ids);
@@ -1251,6 +1344,8 @@ static int add_metric(struct list_head *metric_list,
 		int j, count;
 
 		count = arch_get_runtimeparam(pe);
+		
+		pr_err("%s4 metric expr %s for %s orig=%p count=%d\n", __func__, pe->metric_expr, pe->metric_name, orig, count);
 
 		/* This loop is added to create multiple
 		 * events depend on count value and add
@@ -1260,6 +1355,8 @@ static int add_metric(struct list_head *metric_list,
 		for (j = 0; j < count && !ret; j++, *m = orig)
 			ret = __add_metric(metric_list, pe, metric_no_group, j, m, parent, ids);
 	}
+
+	pr_err("%s10 out metric expr %s for %s ret=%d\n", __func__, pe->metric_expr, pe->metric_name, ret);
 
 	return ret;
 }
@@ -1471,13 +1568,12 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	pr_err("%s1********* str=%s adding %s\n",__func__,  str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
 	
-	pr_err("%s2********* str=%s\n",__func__, str);
 
 	evlist__for_each_entry(perf_evlist, evsel)
 		pr_err("%s2.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
 
 	evlist__for_each_entry(perf_evlist, evsel)
-		pr_err("%s2.1 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
+		pr_err("%s2.2 evsel=%p name=%s pmu_name=%s\n", __func__, evsel, evsel->name, evsel->pmu_name);
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
 	pr_err("%s3********* str=%s %s\n", __func__, str, extra_events.buf);
 	evlist__for_each_entry(perf_evlist, evsel)
