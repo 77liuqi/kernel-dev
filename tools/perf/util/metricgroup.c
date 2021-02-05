@@ -546,25 +546,24 @@ static int parse_groupsx(struct evlist *perf_evlist, const char *str,
 
 	if (ret)
 		goto out;
-	list_for_each_entry(m, &metric_list, nd)
+	if (!list_is_singular(&metric_list)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	m = list_first_entry(&metric_list, struct metric, nd);
+	if (m->has_constraint) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	strbuf_init(&extra_events, 100);
 	strbuf_addf(&extra_events, "%s", "");
 
-	list_for_each_entry(m, &metric_list, nd) {
-		pr_err("%s1.1*********  str=%s m=%pS (metric_name=%s,  metric_expr=%s, has_constraint=%d)\n",
-			__func__, str, m, m->metric_name, m->metric_expr, m->has_constraint);
-		if (extra_events.len > 0)
-			strbuf_addf(&extra_events, ",");
+	pr_err("%s1********* str=%s ret=%d m=%p list is singular=%d extra_events.buf=%s m=%p extra_events.len=%zd\n",
+	__func__, str, ret, m, list_is_singular(&metric_list), extra_events.buf, m, extra_events.len);
 
-		if (m->has_constraint) {
-			metricgroup__add_metric_non_group(&extra_events,
-							  &m->pctx);
-		} else {
-			metricgroup__add_metric_weak_group(&extra_events,
-							   &m->pctx);
-		}
-	}
+	metricgroup__add_metric_weak_group(&extra_events, &m->pctx);
 
 	pr_err("%s1.2********* str=%s adding %s\n",__func__,  str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
@@ -619,21 +618,6 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	char *needle;
 	char *needle1;
 
-	struct pmu_event event_table[] = {
-		{
-			.metric_name = pe->metric_name,
-			.metric_expr = pe->metric_expr,
-		},
-		{}
-	};
-	struct pmu_events_map map1[] = {
-		{
-			.table = event_table,
-		},
-		{}
-	};
-
-
 	LIST_HEAD(mlist);
 
 	if (!pe->metric_expr || !pe->metric_name)
@@ -643,8 +627,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 		return 0;
 	needle = strstr(pe->metric_name, "TM_BDW_SYS_EVENT_COMPAT5_2EVENT");
 	needle1 = NULL;//strstr(pe->metric_name, "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"); 
-	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) needle=%s needle1=%s map1=%p\n",
-	__func__, pe, pe->metric_name, pe->metric_expr, needle, needle1, &map1);
+	pr_debug("%s pe=%p (metric_name=%s metric_expr=%s) needle=%s needle1=%s\n",
+	__func__, pe, pe->metric_name, pe->metric_expr, needle, needle1);
 
 //	if (!needle && !needle1)
 //	if (!needle)
@@ -697,7 +681,7 @@ __func__, pe, pe->metric_name, pe->metric_expr);
 	//		continue;
 	//	mx = container_of(nd, struct metric_event, nd);
 
-	//	pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s) nd=%p mx=%p pmu=%pS\n", __func__, evsel, evsel->name, evsel->pmu_name, nd, mx, pmu);
+	//	pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s) nd=%p mx=%p pmu=%p\n", __func__, evsel, evsel->name, evsel->pmu_name, nd, mx, pmu);
 		pr_err("%s5.1 ------ evsel=%p (name=%s pmu_name=%s)n", __func__, evsel, evsel->name, evsel->pmu_name);
 
 		// Find the event in table of other events
@@ -1394,7 +1378,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			goto out;
 
 		list_for_each_entry(m, &list, nd)
-			pr_err("%s1.2 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+			pr_err("%s1.2 metric=%s pe=%p (metric_name=%s) m=%p (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
 				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
 
 
@@ -1410,7 +1394,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		if (ret)
 			goto out;
 		list_for_each_entry(m, &list, nd) {
-			pr_err("%s1.4 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+			pr_err("%s1.4 metric=%s pe=%p (metric_name=%s) m=%p (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
 				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
 		}
 	}
@@ -1431,7 +1415,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			goto out;
 
 		list_for_each_entry(m, &list, nd)
-			pr_err("%s2.2 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+			pr_err("%s2.2 metric=%s pe=%p (metric_name=%s) m=%p (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
 				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
 
 
@@ -1447,7 +1431,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		if (ret)
 			goto out;
 		list_for_each_entry(m, &list, nd) {
-			pr_err("%s2.4 metric=%s pe=%p (metric_name=%s) m=%pS (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
+			pr_err("%s2.4 metric=%s pe=%p (metric_name=%s) m=%p (metric_name=%s,  metric_expr=%s, metric_unit=%s)\n",
 				__func__, metric, pe, pe->metric_name, m, m->metric_name, m->metric_expr, m->metric_unit);
 		}
 	}
