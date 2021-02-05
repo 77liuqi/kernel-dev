@@ -423,12 +423,6 @@ static bool match_metric(const char *n, const char *list)
 	return false;
 }
 
-static bool match_pe_metric(struct pmu_event *pe, const char *metric)
-{
-	return match_metric(pe->metric_group, metric) ||
-	       match_metric(pe->metric_name, metric);
-}
-
 struct mep {
 	struct rb_node nd;
 	const char *name;
@@ -991,15 +985,6 @@ int __weak arch_get_runtimeparam(struct pmu_event *pe __maybe_unused)
 	return 1;
 }
 
-struct metricgroup_add_iter_data {
-	struct list_head *metric_list;
-	const char *metric;
-	struct expr_ids *ids;
-	int *ret;
-	bool *has_match;
-	bool metric_no_group;
-};
-
 static int __add_metric(struct list_head *metric_list,
 			struct pmu_event *pe,
 			bool metric_no_group,
@@ -1286,30 +1271,6 @@ static int add_metric(struct list_head *metric_list,
 	}
 
 	return ret;
-}
-
-static int __maybe_unused metricgroup__add_metric_sys_event_iter(struct pmu_event *pe,
-						  void *data)
-{
-	struct metricgroup_add_iter_data *d = data;
-	struct metric *m = NULL;
-	int ret;
-
-	if (!match_pe_metric(pe, d->metric))
-		return 0;
-
-	ret = add_metric(d->metric_list, pe, d->metric_no_group, &m, NULL, d->ids);
-	if (ret)
-		return ret;
-
-	ret = resolve_metric(d->metric_no_group,
-				     d->metric_list, NULL, d->ids);
-	if (ret)
-		return ret;
-
-	*(d->has_match) = true;
-
-	return *d->ret;
 }
 
 static int metricgroup__add_metric(const char *metric, bool metric_no_group,
