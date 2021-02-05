@@ -1,0 +1,11 @@
+
+parse_events_add_pmu name=uncore_cbox_0
+parse_events_add_pmu1 name=uncore_cbox_0 pmu=0x160af10 fake_pmu=(nil)
+Multiple errors dropping message: unknown term 'filter_opc' for pmu 'uncore_cbox_1' (valid terms: cmask,event,edge,inv,umask,config,config1,config2,name,period,percore)
+__parse_events2^^^^^^^ str={cbox/event=0x36,umask=0x3,filter_opc=0x182,thresh=1/,cbox/event=0x36,umask=0x3,filter_opc=0x182/}:W ret=1
+__parse_events3^^^^^^^ str={cbox/event=0x36,umask=0x3,filter_opc=0x182,thresh=1/,cbox/event=0x36,umask=0x3,filter_opc=0x182/}:W ret=1
+parse_groups3********* str=DRAM_Parallel_Readsjohncpumetric3 {cbox/event=0x36,umask=0x3,filter_opc=0x182,thresh=1/,cbox/event=0x36,umask=0x3,filter_opc=0x182/}:W
+event syntax error: '..,umask=0x3,filter_opc=0x182,thresh=1/,cbox/event=0x36,..'
+                                  \___ unknown term 'filter_opc' for pmu 'uncore_cbox_0'
+
+valid terms: cmask,event,edge,inv,umask,config,config1,config2,name,period,percore

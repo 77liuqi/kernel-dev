@@ -1119,8 +1119,8 @@ static int __resolve_metric(struct metric *m,
 	 * Iterate all the parsed IDs and if there's metric,
 	 * add it to the context.
 	 */
-	pr_err("%s m=%p metric_name=%s metric_expr=%s\n", __func__,
-		m, m->metric_name, m->metric_expr);
+//	pr_err("%s m=%p metric_name=%s metric_expr=%s\n", __func__,
+//		m, m->metric_name, m->metric_expr);
 	do {
 		all = true;
 		hashmap__for_each_entry((&m->pctx.ids), cur, bkt) {
@@ -1129,10 +1129,10 @@ static int __resolve_metric(struct metric *m,
 			
 
 			pe = find_metric(cur->key, map);
-			if (pe)
-				pr_err("%s1 pe=%p (name=%s,metric_name=%s) cur->key=%s\n", __func__, pe, pe->name, pe->metric_name, (char *)cur->key);
-			else
-				pr_err("%s1 pe=%p cur->key=%s\n", __func__, pe, (char *)cur->key);
+	//		if (pe)
+	//			pr_err("%s1 pe=%p (name=%s,metric_name=%s) cur->key=%s\n", __func__, pe, pe->name, pe->metric_name, (char *)cur->key);
+	//		else
+	//			pr_err("%s1 pe=%p cur->key=%s\n", __func__, pe, (char *)cur->key);
 			if (!pe)
 				continue;
 

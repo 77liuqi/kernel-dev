@@ -365,7 +365,7 @@ void perf_stat__collect_metric_expr(struct evlist *evsel_list)
 	evlist__for_each_entry(evsel_list, counter) {
 		bool invalid = false;
 
-		pr_err("%s counter name=%s pmu_name=%s\n", __func__, counter->name, counter->pmu_name);
+//		pr_err("%s counter name=%s pmu_name=%s\n", __func__, counter->name, counter->pmu_name);
 
 		leader = counter->leader;
 		if (!counter->metric_expr)

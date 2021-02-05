@@ -2,25 +2,24 @@
     {
         "BriefDescription": "test metric broadwell 1 ...  sys events without compat",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION * 2",
-        "MetricGroup": "Test",
+        "MetricGroup": "SYS_METRIC_ALIAS",
         "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT1"
     },
     {
         "BriefDescription": "test metric broadwell 2 ...  sys events without compat",
         "MetricExpr": "UNC_CBO_XSNP_RESPONSE.MISS_XCORE * UNC_CBO_XSNP_RESPONSE.MISS_EVICTION / duration_time",
-        "MetricGroup": "Test",
+        "MetricGroup": "SYS_METRIC_ALIAS",
         "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT2_DUR"
     },
     {
         "BriefDescription": "test metric broadwell 3 ... sys events without compat",
         "MetricExpr": "1 / TEST_METRIC_BROADWELL_SYS_EVENT_NO_COMPAT1",
-        "MetricGroup": "Test",
         "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT3_DEREF"
     },
     {
         "BriefDescription": "test metric broadwell 4 ... sys events without compat",
         "MetricExpr": "1 / TEST_METRIC_INC5",
-        "MetricGroup": "Test",
+        "MetricGroup": "",
         "MetricName": "TM_BDW_SYS_EVENT_NO_COMPAT2_DEREF_BRK"
     },
    {
@@ -28,6 +27,7 @@
         "MetricName": "TM_BDW_SYS_EVENT_COMPAT4_1EVENT",
         "MetricExpr": "uncore_cbox_0@config\\=5@",
         "ScaleUnit": "9.765625e-4KB",
+        "MetricGroup": "SYS_METRIC_PMU_EVENT",
         "Unit": "CBO",
         "Compat": "broadwell"
    },
@@ -36,6 +36,7 @@
         "MetricName": "TM_BDW_SYS_EVENT_COMPAT5_2EVENT",
         "MetricExpr": "uncore_cbox_0@config\\=5@ / ( uncore_cbox_1@config\\=5@ + 1)",
         "ScaleUnit": "9.765625e-4KB",
+        "MetricGroup": "SYS_METRIC_PMU_EVENT",
         "Unit": "CBO",
         "Compat": "broadwell"
    }, 

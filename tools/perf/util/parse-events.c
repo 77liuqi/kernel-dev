@@ -1591,7 +1591,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 	struct perf_pmu *pmu = NULL;
 	int ok = 0;
 
-	pr_err("%s str=%s\n", __func__, str);
+//	pr_err("%s str=%s\n", __func__, str);
 
 	*listp = NULL;
 	/* Add it for all PMUs that support the alias */
@@ -1606,7 +1606,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 			if (!strcasecmp(alias->name, str)) {
 				struct list_head *head;
 				char *config;
-				pr_err("%s2 str=%s pmu name=%s id=%s alias->name=%s\n", __func__, str, pmu->name, pmu->id, alias->name);
+			//	pr_err("%s2 str=%s pmu name=%s id=%s alias->name=%s\n", __func__, str, pmu->name, pmu->id, alias->name);
 
 				head = malloc(sizeof(struct list_head));
 				if (!head)
@@ -1621,7 +1621,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 						   NULL) < 0) {
 					free(list);
 					free(config);
-					pr_err("%s2.1 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
+				//	pr_err("%s2.1 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 					return -1;
 				}
 				list_add_tail(&term->list, head);
@@ -1629,11 +1629,12 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, head,
 							  true, true)) {
-					pr_err("%s2.2 %s -> %s/%s/\n", __func__, str,
-						 pmu->name, alias->str);
+				//	pr_err("%s2.2 %s -> %s/%s/\n", __func__, str,
+				//		 pmu->name, alias->str);
 					ok++;
-				} else
-					pr_err("%s2.3 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
+				} 
+			//	else
+			//		pr_err("%s2.3 error str=%s pmu name=%s alias->name=%s\n", __func__, str, pmu->name, alias->name);
 
 				parse_events_terms__delete(head);
 			}
@@ -1644,7 +1645,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		return -1;
 	}
 	*listp = list;
-	pr_err("%s10 out str=%s\n", __func__, str);
+//	pr_err("%s10 out str=%s\n", __func__, str);
 	return 0;
 }
 
@@ -2114,7 +2115,7 @@ enum perf_pmu_event_symbol_type
 perf_pmu__parse_check(const char *name)
 {
 	struct perf_pmu_event_symbol p, *r;
-	pr_err("%s name=%s\n", __func__, name);
+//	pr_err("%s name=%s\n", __func__, name);
 
 	/* scan kernel pmu events from sysfs if needed */
 	if (perf_pmu_events_list_num == 0)
@@ -2134,7 +2135,7 @@ perf_pmu__parse_check(const char *name)
 			(size_t) perf_pmu_events_list_num,
 			sizeof(struct perf_pmu_event_symbol), comp_pmu);
 	zfree(&p.symbol);
-	pr_err("%s2 snake name=%s r=%p  type=0x%x PMU_EVENT_SYMBOL_ERR=0x%x\n", __func__, name, r, r ? r->type : PMU_EVENT_SYMBOL_ERR, PMU_EVENT_SYMBOL_ERR);
+//	pr_err("%s2 snake name=%s r=%p  type=0x%x PMU_EVENT_SYMBOL_ERR=0x%x\n", __func__, name, r, r ? r->type : PMU_EVENT_SYMBOL_ERR, PMU_EVENT_SYMBOL_ERR);
 	if (r)
 		return r->type;
 	return PMU_EVENT_SYMBOL_ERR;
