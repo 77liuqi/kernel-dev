@@ -510,8 +510,8 @@ static int add_metric(struct list_head *metric_list,
 		      struct metric **m,
 		      struct expr_id *parent,
 		      struct expr_ids *ids);
-static void metricgroup__add_metric_non_group(struct strbuf *events,
-					      struct expr_parse_ctx *ctx);
+//static void metricgroup__add_metric_non_group(struct strbuf *events,
+//					      struct expr_parse_ctx *ctx);
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
 					       struct expr_parse_ctx *ctx);
 
@@ -601,7 +601,7 @@ out:
 }
 
 
-static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *const table, void *data)
+static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_events *const sys_table, void *data)
 {
 	int ret;
 	static int cc1;
@@ -610,11 +610,10 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe, struct pmu_sys_e
 	struct evlist *evlist;
 	struct evsel *evsel;
 	int events = 0, found_events;
-	struct pmu_event **map = data;
+	struct pmu_event **event_table = data;
 	char *needle;
 	char *needle1;
 
-	LIST_HEAD(mlist);
 
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
@@ -662,7 +661,7 @@ __func__, pe, pe->metric_name, pe->metric_expr);
 	pr_err("%s4.2 ------ events=%d\n", __func__, events);
 
 	evlist__for_each_entry(evlist, evsel) {
-		struct pmu_event *found_event = NULL, *event = table->table;
+		struct pmu_event *found_event = NULL, *event = sys_table->table;
 		struct perf_pmu *pmu = NULL;
 			struct pmu_event ;
 	//	struct metric_event *mx;
@@ -736,8 +735,8 @@ evsel_loop_end:
 	cc1++;
 
 	if (found_events == events) {
-		memcpy(*map, pe, sizeof(*pe));
-		(*map)++;
+		memcpy(*event_table, pe, sizeof(*pe));
+		(*event_table)++;
 	} else {
 		pr_err("%s8  ------ pe=%p (metric_name=%s metric_expr=%s) not found\n",
 		__func__, pe, pe->metric_name, pe->metric_expr);
