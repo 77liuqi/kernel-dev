@@ -617,8 +617,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 		/*
 		 * Try to match against an PMU event/alias:
-		 * a. If an event was found, match against all PMU aliases
-		 * b. Alternatively, try to match against PMU+ID
+		 * a. If a matching event was found, match against all PMU aliases
+		 * b. Alternatively, try to match against PMU+ID for expression term not using an alias
 		 */
 		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 			if (found_event) {
@@ -631,7 +631,6 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 				found_events++;
 				break;
 			}
-			
 		}
 	}
 
@@ -671,7 +670,7 @@ static void metricgroup_init_sys_pmu_list(void)
 		done = 1;
 		return;
 	}
-	event_count++; // Add 1 as a sentinel
+	event_count++; // Add a sentinel
 	table_tmp = table = zalloc(event_count * sizeof(*table));
 	if (!table)
 		return;
