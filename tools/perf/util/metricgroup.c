@@ -583,6 +583,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		return 0;
 
 	evlist = evlist__new();
+	if (!evlist)
+		return -ENOMEM;
 	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe);
 	if (ret)
 		goto out;
@@ -615,7 +617,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		}
 
 		/*
-		 * Try to match against an PMU event:
+		 * Try to match against an PMU event/alias:
 		 * a. If an event was found, match against all PMU aliases
 		 * b. Alternatively, try to match against PMU+ID
 		 */
@@ -644,59 +646,43 @@ out:
 	return ret;
 }
 
-static int metricgroup__metric_sys_event_count(struct pmu_event *pe, struct pmu_sys_events *table, void *data)
+static int
+metricgroup__metric_sys_event_count(__maybe_unused struct pmu_event *pe,
+				    __maybe_unused struct pmu_sys_events *e,
+				    void *data)
 {
 	unsigned int *count = data;
 	(*count)++;
-	if (pe->name)
-		pr_debug("%s pe=%p (name=%s) *count=%d table=%p\n", __func__, pe, pe->name, *count, table);
-	else
-		pr_debug("%s pe=%p (metric_name=%s) *count=%d table=%p\n", __func__, pe, pe->metric_name, *count, table);
 	return 0;
 }
 
 static void metricgroup_init_sys_pmu_list(void)
 {
-	static int done = 0;
-	unsigned int event_count = 0;
 	struct pmu_event *table, *table_tmp;
-	int size;
+	unsigned int event_count = 0;
+	static int done = 0;
 
 	if (done)
 		return;
 
 	pmu_for_each_sys_event(metricgroup__metric_sys_event_count, &event_count);
 
-
-	pr_err("%s done=%d sys_pmu_map=%p event_count=%d\n", __func__,
-		done, sys_pmu_map, event_count);
 	if (event_count == 0) {
 		done = 1;
 		return;
 	}
-	size = event_count * sizeof(*table);
-	table_tmp = table = malloc(size);
-	pr_err("%s1 table=%p\n", __func__, table);
+	event_count++; // Add 1 as a sentinel
+	table_tmp = table = zalloc(event_count * sizeof(*table));
 	if (!table)
 		return;
-	memset(table, 0, size);
 	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
 	sys_pmu_map = malloc(sizeof(*sys_pmu_map));
-	pr_err("%s2 table=%p table_tmp=%p sys_pmu_map=%p\n", __func__, table, table_tmp, sys_pmu_map);
 	if (!sys_pmu_map) {
 		free(table);
 		return;
 	}
 	sys_pmu_map->table = table;
 	done = 1;
-
-	while (table->name || table->metric_name) {
-		pr_err("%s5 table=%p sys_pmu_map[0].table=%p name=%s metric_name=%s table=%p table_tmp=%p\n",
-			__func__, table, sys_pmu_map[0].table, table->name, table->metric_name, table, table_tmp);
-
-		table++;
-	}
-	pr_err("\n\n\n");
 }
 
 static int metricgroup__print_pmu_event(struct pmu_event *pe,
