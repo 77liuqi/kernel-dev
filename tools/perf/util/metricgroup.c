@@ -720,7 +720,7 @@ static void metricgroup_init_sys_pmu_list(void)
 	table_tmp = table = malloc(size);
 	if (!table)
 		return;
-	map = malloc(2 * sizeof(*sys_pmu_map));
+	map = malloc(sizeof(*sys_pmu_map));
 	if (!map) {
 		free(table);
 		return;
@@ -729,7 +729,7 @@ static void metricgroup_init_sys_pmu_list(void)
 	done = 1;
 	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
 	sys_pmu_map = map;
-	sys_pmu_map[0].table = table;
+	sys_pmu_map->table = table;
 
 	while (table->name || table->metric_name) {
 		pr_err("%s1 table=%p sys_pmu_map[0].table=%p name=%s metric_name=%s table=%p table_tmp=%p\n",
@@ -805,15 +805,6 @@ static int metricgroup__print_pmu_event(struct pmu_event *pe,
 
 	return 0;
 }
-
-struct metricgroup_print_sys_idata {
-	struct strlist *metriclist;
-	char *filter;
-	struct rblist *groups;
-	bool metricgroups;
-	bool raw;
-	bool details;
-};
 
 void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			bool raw, bool details)
