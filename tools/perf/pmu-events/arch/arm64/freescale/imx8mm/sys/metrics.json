@@ -4,19 +4,31 @@
 	    "MetricName": "imx8mm_ddr_read.all",
 	    "MetricExpr": "imx8mm_ddr.read_cycles * 4 * 4",
 	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "imx8_ddr",
     },
    {
 	    "BriefDescription": "bytes all masters write to ddr based on write-cycles event mm",
 	    "MetricName": "imx8mm_ddr_write.all",
 	    "MetricExpr": "imx8mm_ddr.write_cycles * 4 * 4",
 	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "imx8_ddr",
+   },
+   {
+	    "BriefDescription": "bytes all masters write to ddr based on write-cycles event mm dur",
+	    "MetricName": "imx8mm_ddr_write.all_dur",
+	    "MetricExpr": "imx8mm_ddr.write_cycles * 4 * 4 / duration_time",
+	    "ScaleUnit": "9.765625e-4KB",
    },
    {
 	   "BriefDescription": "bytes of audio sdma3_burst write to ddr john mm",
 	   "MetricName": "imx8mm_ddr_write.audio_sdma3_burst_john",
 	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0065@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MM"
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_burst write to ddr john mm dur",
+	   "MetricName": "imx8mm_ddr_write.audio_sdma3_burst_john_dur",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0065@ / duration_time",
 	   "ScaleUnit": "9.765625e-4KB",
 	   "Unit": "imx8_ddr",
 	   "Compat": "i.MX8MM"
