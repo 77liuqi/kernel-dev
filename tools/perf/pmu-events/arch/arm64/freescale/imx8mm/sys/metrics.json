@@ -14,5 +14,13 @@
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imx8_ddr",
 	    "Compat": "i.MX8MM"
-    }
+   },
+   {
+	   "BriefDescription": "bytes of audio sdma3_burst write to ddr john",
+	   "MetricName": "imx8mm_ddr_write.audio_sdma3_burst_john",
+	   "MetricExpr": "imx8_ddr0@axid\\-write\\,axi_mask\\=0x0000\\,axi_id\\=0x0065@",
+	   "ScaleUnit": "9.765625e-4KB",
+	   "Unit": "imx8_ddr",
+	   "Compat": "i.MX8MM"
+   }
 ]
