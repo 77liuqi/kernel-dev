@@ -542,8 +542,8 @@ static int register_pcc_channel(int pcc_ss_idx)
 		pcc_data[pcc_ss_idx]->pcc_comm_addr =
 			acpi_os_ioremap(cppc_ss->base_address, cppc_ss->length);
 		if (!pcc_data[pcc_ss_idx]->pcc_comm_addr) {
-			pr_err("Failed to ioremap PCC comm region mem for %d\n",
-			       pcc_ss_idx);
+//			pr_err("Failed to ioremap PCC comm region mem for %d\n",
+//			       pcc_ss_idx);
 			return -ENOMEM;
 		}
 

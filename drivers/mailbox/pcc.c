@@ -244,7 +244,7 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 	chan = get_pcc_channel(subspace_id);
 
 	if (IS_ERR(chan) || chan->cl) {
-		dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
+	//	dev_err(dev, "Channel not found for idx: %d\n", subspace_id);
 		return ERR_PTR(-EBUSY);
 	}
 
@@ -266,8 +266,8 @@ struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 		rc = devm_request_irq(dev, pcc_doorbell_irq[subspace_id],
 				      pcc_mbox_irq, 0, MBOX_IRQ_NAME, chan);
 		if (unlikely(rc)) {
-			dev_err(dev, "failed to register PCC interrupt %d\n",
-				pcc_doorbell_irq[subspace_id]);
+//			dev_err(dev, "failed to register PCC interrupt %d\n",
+//				pcc_doorbell_irq[subspace_id]);
 			pcc_mbox_free_channel(chan);
 			chan = ERR_PTR(rc);
 		}
@@ -413,7 +413,7 @@ static int pcc_parse_subspace_irq(int id,
 				pcct2_ss->platform_ack_register.address,
 				pcct2_ss->platform_ack_register.bit_width / 8);
 		if (!pcc_doorbell_ack_vaddr[id]) {
-			pr_err("Failed to ioremap PCC ACK register\n");
+		//	pr_err("Failed to ioremap PCC ACK register\n");
 			return -ENOMEM;
 		}
 	}
