@@ -926,6 +926,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		for (i = 0; i < 6; i++)
 			atomic64_set(&sizes[i], 0);
 		atomic64_set(&total_inserts, 0);
+		atomic64_set(&total_inserts_too_big, 0);
 	}
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
