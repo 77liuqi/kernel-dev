@@ -689,6 +689,7 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 	finish_wait(&nq->wait, &wait);
 	return cmd;
 }
+extern struct device *hisi_sas_dev;
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
@@ -696,6 +697,10 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
+ 		if (cmd->n_sg) {
+			pr_err_once("%s hisi_sas_dev=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, cmd, cmd->n_sg);
+			dma_unmap_sg(hisi_sas_dev, &cmd->sgl[0], cmd->n_sg, cmd->dma_dir);
+ 		}
 		blk_mq_end_request(cmd->rq, cmd->error);
 		return;
 	case NULL_Q_BIO:
@@ -1456,7 +1461,6 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 	return BLK_EH_DONE;
 }
 
-extern struct device *hisi_sas_dev;
 
 
 static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue *q)
@@ -1467,7 +1471,7 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	int n_sg;
 	static int count;
 
-	//count++;
+	count++;
 
 	cmd->sg_byte_count = 0;
 
@@ -1485,7 +1489,8 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	 * Map scatterlist to PCI bus addresses.
 	 * Note PCI might change the number of entries.
 	 */
-	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, DMA_TO_DEVICE);
+	cmd->dma_dir = DMA_TO_DEVICE;
+	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, cmd->dma_dir);
 	if (count <= 1)
 		pr_err("%s2 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
 	if (n_sg <= 0)

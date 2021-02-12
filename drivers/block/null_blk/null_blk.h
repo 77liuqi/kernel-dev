@@ -28,7 +28,7 @@ struct nullb_cmd {
 	struct hrtimer timer;
 	u32 n_sg;
 	u32 sg_byte_count;
-
+	enum dma_data_direction dma_dir;
 	dma_addr_t dma_address;	
 	struct scatterlist sgl[SKD_N_SG_PER_REQ_DEFAULT];
 };
