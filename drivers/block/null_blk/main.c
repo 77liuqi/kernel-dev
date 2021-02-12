@@ -1468,9 +1468,9 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 
 	struct request *rq = cmd->rq;
 	struct scatterlist *sgl = &cmd->sgl[0];
-	int n_sg;
+	int n_sg, n_sg1;
 	static int count;
-
+	static int n_sg_max, n_sg1_max;
 	count++;
 
 	cmd->sg_byte_count = 0;
@@ -1484,7 +1484,7 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 		pr_err("%s1 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
 	if (n_sg <= 0)
 		return BLK_STS_IOERR;
-
+	n_sg1 = n_sg;
 	/*
 	 * Map scatterlist to PCI bus addresses.
 	 * Note PCI might change the number of entries.
@@ -1496,6 +1496,13 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	if (n_sg <= 0)
 		return BLK_STS_IOERR;
 
+	if (n_sg > n_sg_max) {
+		pr_err("%s n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		n_sg_max = n_sg;
+	} else if (n_sg1 > n_sg1_max) {
+		pr_err("%s n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		n_sg1_max = n_sg1;
+	}
 	cmd->n_sg = n_sg;
 
 	if (count <= 1)
