@@ -197,7 +197,11 @@ MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware.
 
 static int g_hw_queue_depth = 4096;
 module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
-MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 64");
+MODULE_PARM_DESC(hw_queue_depth, "Queue depth for each hardware queue. Default: 4096");
+
+static int g_queue_depth = 64;
+module_param_named(queue_depth, g_queue_depth, int, 0444);
+MODULE_PARM_DESC(queue_depth, "Queue depth for each device. Default: 64");
 
 static bool g_use_per_node_hctx;
 module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
@@ -355,7 +359,7 @@ NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
 NULLB_DEVICE_ATTR(blocksize, uint, NULL);
 NULLB_DEVICE_ATTR(max_sectors, uint, NULL);
 NULLB_DEVICE_ATTR(irqmode, uint, NULL);
-NULLB_DEVICE_ATTR(hw_queue_depth, uint, NULL);
+NULLB_DEVICE_ATTR(queue_depth, uint, NULL);
 NULLB_DEVICE_ATTR(index, uint, NULL);
 NULLB_DEVICE_ATTR(blocking, bool, NULL);
 NULLB_DEVICE_ATTR(use_per_node_hctx, bool, NULL);
@@ -473,7 +477,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_blocksize,
 	&nullb_device_attr_max_sectors,
 	&nullb_device_attr_irqmode,
-	&nullb_device_attr_hw_queue_depth,
+	&nullb_device_attr_queue_depth,
 	&nullb_device_attr_index,
 	&nullb_device_attr_blocking,
 	&nullb_device_attr_use_per_node_hctx,
@@ -599,7 +603,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->blocksize = g_bs;
 	dev->max_sectors = g_max_sectors;
 	dev->irqmode = g_irqmode;
-	dev->hw_queue_depth = g_hw_queue_depth;
+	dev->queue_depth = g_hw_queue_depth;
 	dev->blocking = g_blocking;
 	dev->use_per_node_hctx = g_use_per_node_hctx;
 	dev->zoned = g_zoned;
@@ -1629,18 +1633,43 @@ int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
 static void null_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 			     unsigned int hctx_idx)
 {
-	#ifdef dfdf
-	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
-
-	struct request_queue *q = rq->q;
-	struct nullb *nullb = q->queuedata;
-
-	struct skd_device *skdev = set->driver_data;
-	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
-
-	skd_free_sg_list(skdev, skreq->sksg_list, skreq->sksg_dma_address);
-	#endif
 }
+
+static inline int dev_queue_ready(struct request_queue *q,
+				  struct nullb_device *dev)
+{
+	unsigned int busy;
+
+	busy = atomic_inc_return(&dev->device_busy) - 1;
+
+	if (busy >= dev->queue_depth)
+		goto out_dec;
+
+	return 1;
+out_dec:
+	atomic_dec(&dev->device_busy);
+	return 0;
+}
+
+
+static void scsi_mq_put_budget(struct request_queue *q)
+{
+	struct nullb *nullb = q->queuedata;
+	struct nullb_device *dev = nullb->dev;
+
+	atomic_dec(&dev->device_busy);
+}
+
+static bool scsi_mq_get_budget(struct request_queue *q)
+{
+	struct nullb *nullb = q->queuedata;
+	struct nullb_device *dev = nullb->dev;
+
+	if (dev_queue_ready(q, dev))
+		return true;
+
+	return false;
+}				 
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
@@ -1650,6 +1679,8 @@ static const struct blk_mq_ops null_mq_ops = {
 	.exit_hctx	= null_exit_hctx,
 	.init_request = null_init_request,
 	.exit_request = null_exit_request,
+	.get_budget	= scsi_mq_get_budget,
+	.put_budget	= scsi_mq_put_budget,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -1750,7 +1781,7 @@ static int setup_queues(struct nullb *nullb)
 	if (!nullb->queues)
 		return -ENOMEM;
 
-	nullb->queue_depth = nullb->dev->hw_queue_depth;
+	nullb->queue_depth = nullb->dev->queue_depth;
 
 	return 0;
 }
@@ -1810,8 +1841,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->ops = &null_mq_ops;
 	set->nr_hw_queues = nullb ? nullb->dev->submit_queues :
 						g_submit_queues;
-	set->queue_depth = nullb ? nullb->dev->hw_queue_depth :
-						g_hw_queue_depth;
+	set->queue_depth = g_hw_queue_depth;
 	set->numa_node = nullb ? nullb->dev->home_node : g_home_node;
 	set->cmd_size	= sizeof(struct nullb_cmd);
 	set->flags = BLK_MQ_F_SHOULD_MERGE;

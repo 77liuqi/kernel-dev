@@ -71,6 +71,7 @@ struct nullb_device {
 	unsigned long flags; /* device flags */
 	unsigned int curr_cache;
 	struct badblocks badblocks;
+	atomic_t device_busy;
 
 	unsigned int nr_zones;
 	unsigned int nr_zones_imp_open;
@@ -96,7 +97,7 @@ struct nullb_device {
 	unsigned int blocksize; /* block size */
 	unsigned int max_sectors; /* Max sectors per command */
 	unsigned int irqmode; /* IRQ completion handler */
-	unsigned int hw_queue_depth; /* queue depth */
+	unsigned int queue_depth; /* queue depth */
 	unsigned int index; /* index of the disk, only valid with a disk */
 	unsigned int mbps; /* Bandwidth throttle cap (in MB/s) */
 	bool blocking; /* blocking blk-mq device */
