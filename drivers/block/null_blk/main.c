@@ -1458,20 +1458,21 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 
 extern struct device *hisi_sas_dev;
 
+
 static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue *q)
 {
 
 	struct request *rq = cmd->rq;
-	struct scatterlist *sgl = &cmd->sg[0];
+	struct scatterlist *sgl = &cmd->sgl[0];
 	int n_sg;
 	static int count;
 
-	count++;
+	//count++;
 
 	cmd->sg_byte_count = 0;
 
 	if (count <= 1)
-		pr_err("%s hisi_sas_dev=%pS q=%pS cmd=%pS\n", __func__, hisi_sas_dev, q, cmd);
+		pr_err("%s hisi_sas_dev=%pS q=%pS cmd=%pS rq=%pS sgl=%pS\n", __func__, hisi_sas_dev, q, cmd, rq, sgl);
 
 	n_sg = blk_rq_map_sg(q, rq, sgl);
 
@@ -1491,19 +1492,7 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 		return BLK_STS_IOERR;
 
 	cmd->n_sg = n_sg;
-#ifdef dedddsd
-	for_each_sg(sgl, sg, n_sg, i) {
-		struct fit_sg_descriptor *sgd = &cmd->sksg_list[i];
-		u32 cnt = sg_dma_len(sg);
-		uint64_t dma_addr = sg_dma_address(sg);
 
-		sgd->control = FIT_SGD_CONTROL_NOT_LAST;
-		sgd->byte_count = cnt;
-		skreq->sg_byte_count += cnt;
-		sgd->host_side_addr = dma_addr;
-		sgd->dev_side_addr = 0;
-	}
-#endif
 	if (count <= 1)
 		pr_err("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
 	return BLK_STS_OK;
@@ -1525,11 +1514,12 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 		cmd->timer.function = null_cmd_timer_expired;
 	}
 
-	if (null_dma_map_rq(cmd, q) != BLK_STS_OK)
-		return BLK_STS_IOERR;
 	cmd->rq = bd->rq;
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
+
+	if (null_dma_map_rq(cmd, q) != BLK_STS_OK)
+		return BLK_STS_IOERR;
 
 	blk_mq_start_request(bd->rq);
 
@@ -1601,6 +1591,41 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 
 	return 0;
 }
+//struct skd_device *skdev = set->driver_data;/
+//struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
+
+//skreq->state = SKD_REQ_STATE_IDLE;
+//skreq->sg = (void *)(skreq + 1);
+//sg_init_table(skreq->sg, skd_sgs_per_request);
+//skreq->sksg_list = skd_cons_sg_list(skdev, skd_sgs_per_request,
+//					&skreq->sksg_dma_address);
+
+int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
+			unsigned int hctx_idx, unsigned int numa_node)
+{
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+
+	pr_err_once("%s set=%pS rq=%pS cmd=%pS\n", __func__, set, rq, cmd);
+	sg_init_table(&cmd->sgl[0], SKD_N_SG_PER_REQ_DEFAULT);
+
+	return 0;
+}
+
+static void null_exit_request(struct blk_mq_tag_set *set, struct request *rq,
+			     unsigned int hctx_idx)
+{
+	#ifdef dfdf
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+
+	struct request_queue *q = rq->q;
+	struct nullb *nullb = q->queuedata;
+
+	struct skd_device *skdev = set->driver_data;
+	struct skd_request_context *skreq = blk_mq_rq_to_pdu(rq);
+
+	skd_free_sg_list(skdev, skreq->sksg_list, skreq->sksg_dma_address);
+	#endif
+}
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
@@ -1608,6 +1633,8 @@ static const struct blk_mq_ops null_mq_ops = {
 	.timeout	= null_timeout_rq,
 	.init_hctx	= null_init_hctx,
 	.exit_hctx	= null_exit_hctx,
+	.init_request = null_init_request,
+	.exit_request = null_exit_request,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -1936,6 +1963,10 @@ static int null_add_dev(struct nullb_device *dev)
 	dev->max_sectors = min_t(unsigned int, dev->max_sectors,
 				 BLK_DEF_MAX_SECTORS);
 	blk_queue_max_hw_sectors(nullb->q, dev->max_sectors);
+
+	blk_queue_max_segment_size(nullb->q, 0x400000);
+
+	dma_set_max_seg_size(hisi_sas_dev, 0x400000);
 
 	null_config_discard(nullb);
 
