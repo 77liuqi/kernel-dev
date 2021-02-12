@@ -84,7 +84,7 @@ enum {
 	NULL_Q_MQ		= 2,
 };
 
-static int g_no_sched;
+static int g_no_sched = 1;
 module_param_named(no_sched, g_no_sched, int, 0444);
 MODULE_PARM_DESC(no_sched, "No io scheduler");
 
