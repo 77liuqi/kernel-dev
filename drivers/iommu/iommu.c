@@ -29,7 +29,7 @@ static struct kset *iommu_group_kset;
 static DEFINE_IDA(iommu_group_ida);
 
 static unsigned int iommu_def_domain_type __read_mostly;
-static bool iommu_dma_strict __read_mostly = true;
+static bool iommu_dma_strict __read_mostly = false;
 static u32 iommu_cmd_line __read_mostly;
 
 struct iommu_group {
@@ -329,7 +329,7 @@ early_param("iommu.passthrough", iommu_set_def_domain_type);
 
 static int __init iommu_dma_setup(char *str)
 {
-	return kstrtobool(str, &iommu_dma_strict);
+	return 0;//kstrtobool(str, &iommu_dma_strict);
 }
 early_param("iommu.strict", iommu_dma_setup);
 

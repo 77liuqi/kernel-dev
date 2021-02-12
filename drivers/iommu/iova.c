@@ -195,8 +195,10 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
-			size >= iovad->max32_alloc_size)
+			size >= iovad->max32_alloc_size) {
+		pr_err_once("%s full1\n", __func__);
 		goto iova32_full;
+	}
 
 	curr = __get_cached_rbnode(iovad, limit_pfn);
 	curr_iova = rb_entry(curr, struct iova, node);
@@ -217,9 +219,11 @@ retry:
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
+			pr_err_once("%s going to retry\n", __func__);
 			goto retry;
 		}
 		iovad->max32_alloc_size = size;
+		pr_err_once("%s full2\n", __func__);
 		goto iova32_full;
 	}
 

@@ -15,6 +15,8 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
+#include <linux/dma-mapping.h>
+
 struct nullb_cmd {
 	struct request *rq;
 	struct bio *bio;
@@ -22,6 +24,12 @@ struct nullb_cmd {
 	blk_status_t error;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
+	struct scatterlist *sg;
+	u32 n_sg;
+	u32 sg_byte_count;
+
+	struct fit_sg_descriptor *sksg_list;
+	dma_addr_t dma_address;	
 };
 
 struct nullb_queue {

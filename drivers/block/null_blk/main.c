@@ -1456,6 +1456,59 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 	return BLK_EH_DONE;
 }
 
+extern struct device *hisi_sas_dev;
+
+static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue *q)
+{
+
+	struct request *rq = cmd->rq;
+	struct scatterlist *sgl = &cmd->sg[0];
+	int n_sg;
+	static int count;
+
+	count++;
+
+	cmd->sg_byte_count = 0;
+
+	if (count <= 1)
+		pr_err("%s hisi_sas_dev=%pS q=%pS cmd=%pS\n", __func__, hisi_sas_dev, q, cmd);
+
+	n_sg = blk_rq_map_sg(q, rq, sgl);
+
+	if (count <= 1)
+		pr_err("%s1 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	if (n_sg <= 0)
+		return BLK_STS_IOERR;
+
+	/*
+	 * Map scatterlist to PCI bus addresses.
+	 * Note PCI might change the number of entries.
+	 */
+	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, DMA_TO_DEVICE);
+	if (count <= 1)
+		pr_err("%s2 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	if (n_sg <= 0)
+		return BLK_STS_IOERR;
+
+	cmd->n_sg = n_sg;
+#ifdef dedddsd
+	for_each_sg(sgl, sg, n_sg, i) {
+		struct fit_sg_descriptor *sgd = &cmd->sksg_list[i];
+		u32 cnt = sg_dma_len(sg);
+		uint64_t dma_addr = sg_dma_address(sg);
+
+		sgd->control = FIT_SGD_CONTROL_NOT_LAST;
+		sgd->byte_count = cnt;
+		skreq->sg_byte_count += cnt;
+		sgd->host_side_addr = dma_addr;
+		sgd->dev_side_addr = 0;
+	}
+#endif
+	if (count <= 1)
+		pr_err("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	return BLK_STS_OK;
+}
+
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1463,6 +1516,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nullb_queue *nq = hctx->driver_data;
 	sector_t nr_sectors = blk_rq_sectors(bd->rq);
 	sector_t sector = blk_rq_pos(bd->rq);
+	struct request_queue *q = hctx->queue;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
@@ -1470,6 +1524,9 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
 	}
+
+	if (null_dma_map_rq(cmd, q) != BLK_STS_OK)
+		return BLK_STS_IOERR;
 	cmd->rq = bd->rq;
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
