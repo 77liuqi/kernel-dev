@@ -1978,7 +1978,7 @@ static int null_add_dev(struct nullb_device *dev)
 
 	blk_queue_max_segment_size(nullb->q, 0x400000);
 
-	dma_set_max_seg_size(hisi_sas_dev, 0x400000);
+	dma_set_max_seg_size(hisi_sas_dev, 65536);
 
 	null_config_discard(nullb);
 
