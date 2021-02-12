@@ -1306,6 +1306,16 @@ static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
 	}
 }
 
+void scsi_device_unbusy(struct nullb_cmd *cmd)
+{
+	struct request *rq = cmd->rq;
+	struct request_queue *q = rq->q;
+	struct nullb *nullb = q->queuedata;
+	struct nullb_device *dev = nullb->dev;
+
+	atomic_dec(&dev->device_busy);
+}
+
 static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 {
 	/*
@@ -1323,6 +1333,7 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
 		case NULL_Q_MQ:
+			scsi_device_unbusy(cmd);
 			if (likely(!blk_should_fake_timeout(cmd->rq->q)))
 				blk_mq_complete_request(cmd->rq);
 			break;
@@ -1667,7 +1678,7 @@ static void scsi_mq_put_budget(struct request_queue *q)
 	static int count;
 
 	busy = atomic_dec_return(&dev->device_busy);
-	if ((count % 10000) == 0)
+	if ((count % 100) == 0)
 		pr_err("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
 }
