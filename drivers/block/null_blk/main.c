@@ -1642,11 +1642,14 @@ static inline int dev_queue_ready(struct request_queue *q,
 
 	busy = atomic_inc_return(&dev->device_busy) - 1;
 
+	pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
+
 	if (busy >= dev->queue_depth)
 		goto out_dec;
 
 	return 1;
 out_dec:
+	pr_err_once("%s2 busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	atomic_dec(&dev->device_busy);
 	return 0;
 }
