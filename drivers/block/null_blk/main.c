@@ -603,7 +603,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->blocksize = g_bs;
 	dev->max_sectors = g_max_sectors;
 	dev->irqmode = g_irqmode;
-	dev->queue_depth = g_hw_queue_depth;
+	dev->queue_depth = g_queue_depth;
 	dev->blocking = g_blocking;
 	dev->use_per_node_hctx = g_use_per_node_hctx;
 	dev->zoned = g_zoned;
@@ -1639,17 +1639,21 @@ static inline int dev_queue_ready(struct request_queue *q,
 				  struct nullb_device *dev)
 {
 	unsigned int busy;
+	static int count;
 
 	busy = atomic_inc_return(&dev->device_busy) - 1;
 
-	pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
+	pr_err_once("%s busy=%d queue_depth=%d dev=%pS\n", __func__, busy, dev->queue_depth, dev);
 
 	if (busy >= dev->queue_depth)
 		goto out_dec;
 
 	return 1;
 out_dec:
-	pr_err_once("%s2 busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
+	
+	if ((count % 100000) == 0)
+		pr_err("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
+	count++;
 	atomic_dec(&dev->device_busy);
 	return 0;
 }
@@ -1659,8 +1663,13 @@ static void scsi_mq_put_budget(struct request_queue *q)
 {
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
+	int busy;
+	static int count;
 
-	atomic_dec(&dev->device_busy);
+	busy = atomic_dec_return(&dev->device_busy);
+	if ((count % 10000) == 0)
+		pr_err("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
+	count++;
 }
 
 static bool scsi_mq_get_budget(struct request_queue *q)
