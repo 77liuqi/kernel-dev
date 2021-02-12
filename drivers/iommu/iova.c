@@ -357,6 +357,7 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
  */
 bool use_alloc_iova_old;
 EXPORT_SYMBOL_GPL(use_alloc_iova_old);
+atomic64_t total_inserts_from_alloc_iova;
 
 struct iova *
 alloc_iova(struct iova_domain *iovad, unsigned long size,
@@ -369,6 +370,8 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	new_iova = alloc_iova_mem();
 	if (!new_iova)
 		return NULL;
+
+	atomic64_inc(&total_inserts_from_alloc_iova);
 
 	if (use_alloc_iova_old)
 		ret = __alloc_and_insert_iova_range_old(iovad, size, limit_pfn + 1,
@@ -985,18 +988,20 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 	int i;
 
 	if ((val % 1000000) == 0) {
-		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld]\n",
+		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
 		atomic64_read(&sizes[0]),
 		atomic64_read(&sizes[1]),
 		atomic64_read(&sizes[2]),
 		atomic64_read(&sizes[3]),
 		atomic64_read(&sizes[4]),
-		atomic64_read(&sizes[5]));
+		atomic64_read(&sizes[5]),
+		atomic64_read(&total_inserts_from_alloc_iova));
 		for (i = 0; i < 6; i++)
 			atomic64_set(&sizes[i], 0);
 		atomic64_set(&total_inserts, 0);
 		atomic64_set(&total_inserts_too_big, 0);
+		atomic64_set(&total_inserts_from_alloc_iova, 0);
 	}
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
