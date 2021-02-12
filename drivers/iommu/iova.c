@@ -923,7 +923,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 {
 	unsigned int log_size = order_base_2(size);
 	unsigned long long val = atomic64_inc_return(&total_inserts);
-	static atomic64_t sizes[IOVA_RANGE_CACHE_MAX_SIZE];
+	static atomic64_t sizes[6];
 
 	if ((val % 2000000) == 0)
 		pr_err("%s total inserts=%lld too big=%lld [%lld %lld %lld %lld %lld %lld]\n",
