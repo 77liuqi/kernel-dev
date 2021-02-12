@@ -1497,10 +1497,10 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 		return BLK_STS_IOERR;
 
 	if (n_sg > n_sg_max) {
-		pr_err("%s n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		pr_err("%s1 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
 		n_sg_max = n_sg;
 	} else if (n_sg1 > n_sg1_max) {
-		pr_err("%s n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		pr_err("%s2 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
 		n_sg1_max = n_sg1;
 	}
 	cmd->n_sg = n_sg;

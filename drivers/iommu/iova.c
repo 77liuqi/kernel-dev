@@ -912,8 +912,9 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 	unsigned int log_size = order_base_2(size);
 	unsigned long long val = atomic64_inc_return(&total_inserts);
 	static atomic64_t sizes[6];
+	int i;
 
-	if ((val % 2000000) == 0)
+	if ((val % 1000000) == 0) {
 		pr_err("%s total inserts=%lld too big=%lld [%lld %lld %lld %lld %lld %lld]\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), 
 		atomic64_read(&sizes[0]),
@@ -922,6 +923,10 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_read(&sizes[3]),
 		atomic64_read(&sizes[4]),
 		atomic64_read(&sizes[5]));
+		for (i = 0; i < 6; i++)
+			atomic64_set(&sizes[i], 0);
+		atomic64_set(&total_inserts_too_big, 0);
+	}
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
 		atomic64_inc(&total_inserts_too_big);
