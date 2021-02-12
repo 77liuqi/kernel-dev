@@ -1663,7 +1663,7 @@ static inline int dev_queue_ready(struct request_queue *q,
 out_dec:
 	
 	if ((count % 100000) == 0)
-		pr_err("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
+		pr_err_once("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
 	count++;
 	atomic_dec(&dev->device_busy);
 	return 0;
@@ -1679,7 +1679,7 @@ static void scsi_mq_put_budget(struct request_queue *q)
 
 	busy = atomic_dec_return(&dev->device_busy);
 	if ((count % 100) == 0)
-		pr_err("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
+		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
 }
 
