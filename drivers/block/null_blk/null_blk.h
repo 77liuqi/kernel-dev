@@ -17,7 +17,7 @@
 
 #include <linux/dma-mapping.h>
 
-#define SKD_N_SG_PER_REQ_DEFAULT 256u
+#define SKD_N_SG_PER_REQ_DEFAULT 64
 
 struct nullb_cmd {
 	struct request *rq;
