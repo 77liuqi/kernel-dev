@@ -178,7 +178,7 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
-static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
+static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
 {
@@ -224,6 +224,57 @@ retry:
 		}
 		iovad->max32_alloc_size = size;
 		pr_err_once("%s full2\n", __func__);
+		goto iova32_full;
+	}
+
+	/* pfn_lo will point to size aligned address if size_aligned is set */
+	new->pfn_lo = new_pfn;
+	new->pfn_hi = new->pfn_lo + size - 1;
+
+	/* If we have 'prev', it's a valid place to start the insertion. */
+	iova_insert_rbtree(&iovad->rbroot, new, prev);
+	__cached_rbnode_insert_update(iovad, new);
+
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	return 0;
+
+iova32_full:
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	return -ENOMEM;
+}
+
+
+static int __alloc_and_insert_iova_range_old(struct iova_domain *iovad,
+		unsigned long size, unsigned long limit_pfn,
+			struct iova *new, bool size_aligned)
+{
+	struct rb_node *curr, *prev;
+	struct iova *curr_iova;
+	unsigned long flags;
+	unsigned long new_pfn;
+	unsigned long align_mask = ~0UL;
+
+	if (size_aligned)
+		align_mask <<= fls_long(size - 1);
+
+	/* Walk the tree backwards */
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	if (limit_pfn <= iovad->dma_32bit_pfn &&
+			size >= iovad->max32_alloc_size)
+		goto iova32_full;
+
+	curr = __get_cached_rbnode(iovad, limit_pfn);
+	curr_iova = rb_entry(curr, struct iova, node);
+	do {
+		limit_pfn = min(limit_pfn, curr_iova->pfn_lo);
+		new_pfn = (limit_pfn - size) & align_mask;
+		prev = curr;
+		curr = rb_prev(curr);
+		curr_iova = rb_entry(curr, struct iova, node);
+	} while (curr && new_pfn <= curr_iova->pfn_hi);
+
+	if (limit_pfn < size || new_pfn < iovad->start_pfn) {
+		iovad->max32_alloc_size = size;
 		goto iova32_full;
 	}
 
@@ -304,6 +355,9 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
  * flag is set then the allocated address iova->pfn_lo will be naturally
  * aligned on roundup_power_of_two(size).
  */
+bool use_alloc_iova_old;
+EXPORT_SYMBOL_GPL(use_alloc_iova_old);
+
 struct iova *
 alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
@@ -316,8 +370,12 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 	if (!new_iova)
 		return NULL;
 
-	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
-			new_iova, size_aligned);
+	if (use_alloc_iova_old)
+		ret = __alloc_and_insert_iova_range_old(iovad, size, limit_pfn + 1,
+				new_iova, size_aligned);
+	else
+		ret = __alloc_and_insert_iova_range_new(iovad, size, limit_pfn + 1,
+				new_iova, size_aligned);
 
 	if (ret) {
 		free_iova_mem(new_iova);

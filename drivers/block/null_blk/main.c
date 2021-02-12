@@ -156,6 +156,9 @@ static int g_max_sectors;
 module_param_named(max_sectors, g_max_sectors, int, 0444);
 MODULE_PARM_DESC(max_sectors, "Maximum size of a command (in 512B sectors)");
 
+static bool g_use_alloc_iova_old;
+module_param_named(use_alloc_iova_old, g_use_alloc_iova_old, bool, 0444);
+
 static unsigned int nr_devices = 1;
 module_param(nr_devices, uint, 0444);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
@@ -2009,12 +2012,18 @@ out:
 	return rv;
 }
 
+extern bool use_alloc_iova_old;
 static int __init null_init(void)
 {
 	int ret = 0;
 	unsigned int i;
 	struct nullb *nullb;
 	struct nullb_device *dev;
+
+	if (g_use_alloc_iova_old)
+		use_alloc_iova_old = true;
+	else
+		use_alloc_iova_old = false;
 
 	if (g_bs > PAGE_SIZE) {
 		pr_warn("invalid block size\n");
