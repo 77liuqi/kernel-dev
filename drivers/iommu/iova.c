@@ -197,14 +197,15 @@ static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
 			size >= iovad->max32_alloc_size) {
-		static int countjh3dd;
 		if (iovad->divisor3 == 0)
 			iovad->divisor3 = 1;
-		if ((countjh3dd % iovad->divisor3) == 0) {
-			pr_err("%s4 limit_pfn=0x%lx iovad->dma_32bit_pfn=0x%lx size=0x%lx iovad->max32_alloc_size=0x%lx divisor=%lld\n", 
+		if ((iovad->countjh3dd % iovad->divisor3) == 0) {
+			pr_err("%s4 limit_pfn=0x%lx iovad->dma_32bit_pfn=0x%lx size=0x%lx iovad->max32_alloc_size=0x%lx divisor=%lld iovad\n", 
 				__func__, limit_pfn, iovad->dma_32bit_pfn, size, iovad->max32_alloc_size, iovad->divisor3);
-			iovad->divisor3 *= 2;
+			iovad->divisor3 <<= 1;
+			iovad->countjh3dd = 0;
 		}
+		iovad->countjh3dd++;
 		atomic64_inc(&total_inserts_iova_range_full[2]);
 		goto iova32_full;
 	}
