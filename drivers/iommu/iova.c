@@ -483,6 +483,43 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(free_iova);
 
+static void
+iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad);
+static void iova_magazine_free(struct iova_magazine *mag);
+
+
+void flush_iovad(struct iova_domain *iovad)
+{
+	int cpu, i, j;
+
+	pr_err("%s iovad=%pS\n", __func__, iovad);
+
+	for_each_online_cpu(cpu)
+		free_cpu_cached_iovas(cpu, iovad);
+
+	pr_err("%s1 iovad=%pS\n", __func__, iovad);
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
+		struct iova_rcache *rcache = &iovad->rcaches[i];
+		int depot_size = rcache->depot_size;
+		unsigned long flags;
+		
+		pr_err("%s2 i=%d iovad=%pS\n", __func__, i, iovad);
+
+		spin_lock_irqsave(&rcache->lock, flags);
+		depot_size = rcache->depot_size;
+		for (j = 0; j < depot_size; j++) {
+			iova_magazine_free_pfns(rcache->depot[j], iovad);
+			iova_magazine_free(rcache->depot[j]);
+			rcache->depot[j] = NULL;
+		}
+		rcache->depot_size = 0;
+		spin_unlock_irqrestore(&rcache->lock, flags);
+	}
+	pr_err("%s out iovad=%pS\n", __func__, iovad);
+}
+EXPORT_SYMBOL_GPL(flush_iovad);
+
 /**
  * alloc_iova_fast - allocates an iova from rcache
  * @iovad: - iova domain in question
@@ -993,7 +1030,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 	static atomic64_t sizes[6];
 	int i;
 
-	if ((val % 1000000) == 0) {
+	if ((val % 14000000) == 0) {
 		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
 		atomic64_read(&sizes[0]),
