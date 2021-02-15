@@ -364,6 +364,7 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
 bool use_alloc_iova_old;
 EXPORT_SYMBOL_GPL(use_alloc_iova_old);
 atomic64_t total_inserts_from_alloc_iova;
+atomic64_t total_inserts_from_alloc_iova_fail;
 
 struct iova *
 alloc_iova(struct iova_domain *iovad, unsigned long size,
@@ -387,6 +388,7 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 				new_iova, size_aligned);
 
 	if (ret) {
+		atomic64_inc(&total_inserts_from_alloc_iova_fail);
 		free_iova_mem(new_iova);
 		return NULL;
 	}
@@ -1021,7 +1023,8 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 static atomic64_t total_inserts;
 
 static atomic64_t total_inserts_too_big;
-
+extern atomic64_t sac_trick_attempt;
+extern atomic64_t sac_trick_fail;
 static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 			       unsigned long size)
 {
@@ -1031,7 +1034,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 	int i;
 
 	if ((val % 14000000) == 0) {
-		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld\n",
+		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld fail=%lld sac_trick_attempt=%lld fail=%lld\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
 		atomic64_read(&sizes[0]),
 		atomic64_read(&sizes[1]),
@@ -1039,12 +1042,18 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_read(&sizes[3]),
 		atomic64_read(&sizes[4]),
 		atomic64_read(&sizes[5]),
-		atomic64_read(&total_inserts_from_alloc_iova));
+		atomic64_read(&total_inserts_from_alloc_iova),
+		atomic64_read(&total_inserts_from_alloc_iova_fail),
+		atomic64_read(&sac_trick_attempt),
+		atomic64_read(&sac_trick_fail));
 		for (i = 0; i < 6; i++)
 			atomic64_set(&sizes[i], 0);
 		atomic64_set(&total_inserts, 0);
 		atomic64_set(&total_inserts_too_big, 0);
 		atomic64_set(&total_inserts_from_alloc_iova, 0);
+		atomic64_set(&sac_trick_attempt, 0);
+		atomic64_set(&sac_trick_fail, 0);
+		atomic64_set(&total_inserts_from_alloc_iova_fail, 0);
 	}
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {

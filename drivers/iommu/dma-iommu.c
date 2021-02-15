@@ -422,6 +422,9 @@ static int dma_info_to_prot(enum dma_data_direction dir, bool coherent,
 	}
 }
 
+atomic64_t sac_trick_attempt;
+atomic64_t sac_trick_fail;
+
 static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 		size_t size, u64 dma_limit, struct device *dev)
 {
@@ -453,9 +456,11 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	/* Try to get PCI devices a SAC address */
 	if (dma_limit > DMA_BIT_MASK(32) && dev_is_pci(dev)) {
 		dev_err_once(dev, "%s SAC trick\n", __func__);
-	
+		atomic64_inc(&sac_trick_attempt);
 		iova = alloc_iova_fast(iovad, iova_len,
 				       DMA_BIT_MASK(32) >> shift, false);
+		if (!iova)
+			atomic64_inc(&sac_trick_fail);
 	}
 
 	if (!iova) {
