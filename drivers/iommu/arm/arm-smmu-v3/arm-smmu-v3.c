@@ -1048,6 +1048,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 */
 		//arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 
+		if (_tries < 5)
+			pr_err("%s v1.1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
+			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
+
 		/*
 		 * In order to determine completion of the CMD_SYNCs, we must
 		 * ensure that the queue can't wrap twice without us noticing.
@@ -1059,7 +1063,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * become full. In this case, other sibling non-owners could be
 		 * blocked from progressing, leading to deadlock.
 		 */
-		arm_smmu_cmdq_shared_lock(cmdq, sync_count);
+		arm_smmu_cmdq_shared_lock(cmdq, sync);
+
+		if (_tries < 5)
+			pr_err("%s v1.2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
+			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 
 		if (sync_count > max_owner) {
 
@@ -1117,6 +1125,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
 	}
+	
+	if (_tries < 5)
+		pr_err("%s v10 out cpu%d sprod=0x%x shead=0x%x\n",
+		__func__, cpu, sprod, shead);
 
 	final = ktime_get();
 	*t += final - initial;
