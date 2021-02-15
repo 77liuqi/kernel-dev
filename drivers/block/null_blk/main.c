@@ -1678,7 +1678,7 @@ static void scsi_mq_put_budget(struct request_queue *q)
 	static int count;
 
 	busy = atomic_dec_return(&dev->device_busy);
-	if ((count % 100) == 0)
+	if ((count % 100000) == 0)
 		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
 }

@@ -452,20 +452,17 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 
 	/* Try to get PCI devices a SAC address */
 	if (dma_limit > DMA_BIT_MASK(32) && dev_is_pci(dev)) {
-		static int countsss;
-		if ((countsss % 1000000) == 0)
-			dev_err(dev, "%s SAC trick\n", __func__);
-		countsss++;
+		dev_err_once(dev, "%s SAC trick\n", __func__);
 	
 		iova = alloc_iova_fast(iovad, iova_len,
 				       DMA_BIT_MASK(32) >> shift, false);
 	}
 
 	if (!iova) {
-		static int countsss;
-		if ((countsss % 1000000) == 0)
-			dev_err(dev, "%s no SAC trick\n", __func__);
-		countsss++;
+		bool dev_pci = dev_is_pci(dev);
+		struct pci_dev *pdev = dev_pci ? to_pci_dev(dev) : NULL;
+		bool dev_pcie = pdev ? pci_is_pcie(pdev) : 0;
+		dev_err_once(dev, "%s no SAC trick dma_limit=0x%llx dev is pci=%d dev_pcie=%d\n", __func__, dma_limit, !!pdev, dev_pcie);
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
 				       true);
 	}

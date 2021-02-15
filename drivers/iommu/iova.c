@@ -215,11 +215,17 @@ retry:
 
 	if (high_pfn < size || new_pfn < low_pfn) {
 		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
+			static int countjh;
+			int divisor = 10;
 			high_pfn = limit_pfn;
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
-			pr_err_once("%s going to retry\n", __func__);
+			if ((countjh % divisor) == 0) {
+				pr_err("%s going to retry divisor=%d\n", __func__, divisor);
+				divisor *= 10;
+			}
+			countjh++;
 			goto retry;
 		}
 		iovad->max32_alloc_size = size;
