@@ -149,7 +149,7 @@ __cached_rbnode_delete_update(struct iova_domain *iovad, struct iova *free)
 	if (free->pfn_lo >= cached_iova->pfn_lo)
 		iovad->cached_node = rb_next(&free->node);
 }
-
+atomic64_t total_inserts_iova_range_full[4];
 /* Insert the iova into domain rbtree by holding writer lock */
 static void
 iova_insert_rbtree(struct rb_root *root, struct iova *iova,
@@ -196,7 +196,14 @@ static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
 			size >= iovad->max32_alloc_size) {
-		pr_err_once("%s full1\n", __func__);
+		static int countjh3;
+		static int divisor3 = 100;
+		if ((countjh3 % divisor3) == 0) {
+			pr_err("%s4 limit_pfn=0x%lx iovad->dma_32bit_pfn=0x%lx size=0x%lx iovad->max32_alloc_size=0x%lx divisor=%d\n", 
+				__func__, limit_pfn, iovad->dma_32bit_pfn, size, iovad->max32_alloc_size, divisor3);
+				divisor3 *= 2;
+		}
+		atomic64_inc(&total_inserts_iova_range_full[2]);
 		goto iova32_full;
 	}
 
@@ -222,7 +229,7 @@ retry:
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
 			if ((countjh % divisor) == 0) {
-				pr_err("%s going to retry divisor=%d\n", __func__, divisor);
+				pr_err("%s5 going to retry divisor=%d\n", __func__, divisor);
 				divisor *= 2;
 			}
 			countjh++;
@@ -230,6 +237,7 @@ retry:
 		}
 		iovad->max32_alloc_size = size;
 		pr_err_once("%s full2\n", __func__);
+		atomic64_inc(&total_inserts_iova_range_full[3]);
 		goto iova32_full;
 	}
 
@@ -266,8 +274,10 @@ static int __alloc_and_insert_iova_range_old(struct iova_domain *iovad,
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
-			size >= iovad->max32_alloc_size)
+			size >= iovad->max32_alloc_size) {
+		atomic64_inc(&total_inserts_iova_range_full[0]);
 		goto iova32_full;
+	}
 
 	curr = __get_cached_rbnode(iovad, limit_pfn);
 	curr_iova = rb_entry(curr, struct iova, node);
@@ -281,6 +291,7 @@ static int __alloc_and_insert_iova_range_old(struct iova_domain *iovad,
 
 	if (limit_pfn < size || new_pfn < iovad->start_pfn) {
 		iovad->max32_alloc_size = size;
+		atomic64_inc(&total_inserts_iova_range_full[1]);
 		goto iova32_full;
 	}
 
@@ -1025,6 +1036,7 @@ static atomic64_t total_inserts;
 static atomic64_t total_inserts_too_big;
 extern atomic64_t sac_trick_attempt;
 extern atomic64_t sac_trick_fail;
+atomic64_t total_inserts_iova_range_full[4];
 static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 			       unsigned long size)
 {
@@ -1046,6 +1058,18 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_read(&total_inserts_from_alloc_iova_fail),
 		atomic64_read(&sac_trick_attempt),
 		atomic64_read(&sac_trick_fail));
+
+
+		pr_err("%s2 total inserts=%lld total_inserts_iova_range_full 0=%lld 1=%lld 2=%lld 3=%lld\n", __func__, val,
+			atomic64_read(&total_inserts_iova_range_full[0]),
+			atomic64_read(&total_inserts_iova_range_full[1]),
+			atomic64_read(&total_inserts_iova_range_full[2]),
+			atomic64_read(&total_inserts_iova_range_full[3]));			
+
+		for (i = 0; i < 4; i++)
+			atomic64_set(&total_inserts_iova_range_full[i], 0);
+
+		
 		for (i = 0; i < 6; i++)
 			atomic64_set(&sizes[i], 0);
 		atomic64_set(&total_inserts, 0);
@@ -1054,6 +1078,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_set(&sac_trick_attempt, 0);
 		atomic64_set(&sac_trick_fail, 0);
 		atomic64_set(&total_inserts_from_alloc_iova_fail, 0);
+		
 	}
 	
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
