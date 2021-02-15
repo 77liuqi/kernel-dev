@@ -73,7 +73,7 @@ struct iova_domain {
 	unsigned long	granule;	/* pfn granularity for this domain */
 	unsigned long	start_pfn;	/* Lower limit for this domain */
 	unsigned long	dma_32bit_pfn;
-	int divisor3;
+	unsigned long long divisor3;
 	unsigned long	max32_alloc_size; /* Size of last failed allocation */
 	struct iova_fq __percpu *fq;	/* Flush Queue */
 
