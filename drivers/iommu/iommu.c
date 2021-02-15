@@ -329,7 +329,7 @@ early_param("iommu.passthrough", iommu_set_def_domain_type);
 
 static int __init iommu_dma_setup(char *str)
 {
-	return kstrtobool(str, &iommu_dma_strict);
+	return 0;
 }
 early_param("iommu.strict", iommu_dma_setup);
 
