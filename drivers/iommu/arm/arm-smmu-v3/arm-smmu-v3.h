@@ -482,9 +482,20 @@ struct arm_smmu_ll_queue {
 		};
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
-	u32				cons;
-	u32				max_cmd_per_batch;
+	union {
+		struct {
+			u32				cons;
+			u32				owner_prod;
+		}; 
+
+		struct {
+			atomic_t			cons;
+			atomic_t			owner_prod;
+		} atomic_cons_owner_prod;
+		u64 cons_owner;
+	};
 	u32				max_n_shift;
+	u32				owner_count_shift;
 };
 
 struct arm_smmu_queue {
@@ -511,7 +522,6 @@ struct arm_smmu_queue_poll {
 struct arm_smmu_cmdq {
 	struct arm_smmu_queue		q;
 	atomic_long_t			*valid_map;
-	atomic_t			owner_prod;
 	atomic_t			lock;
 };
 
