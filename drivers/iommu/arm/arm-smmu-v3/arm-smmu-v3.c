@@ -1083,7 +1083,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
 		if (eprod < sprod)
-			panic("sddd es prod\n");
+			panic("%s v1.x cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
+			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
 
 		val = eprod;
 		if (_tries < 5)
