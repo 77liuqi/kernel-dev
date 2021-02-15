@@ -946,7 +946,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.val = atomic64_fetch_add(space.val, &cmdq->q.llq.atomic);
 	sprod = llq.prod;
 	llq.prod &= prod_mask;
-	owner = !llq.count;
+	owner = 1;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
 
 	if (sprod > 0xf0000000)
@@ -1032,8 +1032,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err("%s v0 cpu%d sprod=0x%x shead=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/* b. Stop gathering work by clearing the owned mask */
-		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
-						       &cmdq->q.llq.atomic);
+		tmp.val = head.val;//atomic64_fetch_andnot_relaxed(tmp.val,
+				//		       &cmdq->q.llq.atomic);
 		eprod = tmp.prod;
 		if (_tries < 5)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
@@ -1046,7 +1046,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * Note that we read our own entries so that we have the control
 		 * dependency required by (d).
 		 */
-		arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
+		//arm_smmu_cmdq_poll_valid_map(cmdq, llq.prod, prod);
 
 		/*
 		 * In order to determine completion of the CMD_SYNCs, we must
