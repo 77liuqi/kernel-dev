@@ -1691,7 +1691,6 @@ out_dec:
 
 static void null_blk_put_budget(struct request_queue *q)
 {
-#ifdef dsdsd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
@@ -1703,12 +1702,10 @@ static void null_blk_put_budget(struct request_queue *q)
 	if ((count % 100000) == 0)
 		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
-#endif
 }
 
 static bool null_blk_get_budget(struct request_queue *q)
 {
-	#ifdef dsdsd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 
@@ -1716,9 +1713,6 @@ static bool null_blk_get_budget(struct request_queue *q)
 		return true;
 
 	return false;
-	#else
-	return true;
-	#endif
 }				 
 
 static const struct blk_mq_ops null_mq_ops = {
