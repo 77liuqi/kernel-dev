@@ -804,30 +804,31 @@ static inline bool rq_is_sync(struct request *rq)
 }
 
 
-extern unsigned long long rq_mergeable_count;
+extern atomic64_t rq_mergeable_count;
 extern unsigned long long count_pass;
 extern unsigned long long count_flush;
 extern unsigned long long count_zeroes;
 extern unsigned long long count_append;
 extern unsigned long long count_nomerge;
 extern unsigned long long count_nomerge2;
-
+extern unsigned long long count_worked;
+extern unsigned long long  divisorjjg;
 static inline bool rq_mergeable(struct request *rq)
 {
-
-	if ((rq_mergeable_count & 1000000) == 0) {
-		pr_err("%s count=%lld pass=%lld flush=%lld zeroes=%lld append=%lld nomerge=%lld nomerge2=%lld\n",
-			__func__, rq_mergeable_count, count_pass, count_flush, count_zeroes, count_append, count_nomerge, count_nomerge2);
-		rq_mergeable_count = 0;		
+	unsigned long long count = atomic64_inc_return(&rq_mergeable_count);
+	if ((count % divisorjjg) == 0) {
+		pr_err("%s count=%lld pass=%lld flush=%lld zeroes=%lld append=%lld nomerge=%lld nomerge2=%lld worked=%lld\n",
+			__func__, count, count_pass, count_flush, count_zeroes, count_append, count_nomerge, count_nomerge2, count_worked);
 		count_pass = 0;
 		count_flush = 0;
 		count_zeroes = 0;
 		count_append = 0;
 		count_nomerge = 0;
 		count_nomerge2 = 0;
+		atomic64_set(&rq_mergeable_count, 2);
+		divisorjjg <<= 1;
 	}
 
-	rq_mergeable_count++;
 
 	if (blk_rq_is_passthrough(rq)) {
 		count_pass++;
@@ -857,6 +858,8 @@ static inline bool rq_mergeable(struct request *rq)
 		count_nomerge2++;
 		return false;
 	}
+	
+	count_worked++;
 
 	return true;
 }

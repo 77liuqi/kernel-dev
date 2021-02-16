@@ -276,7 +276,7 @@ void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments
 EXPORT_SYMBOL(blk_queue_max_segments);
 
 
-unsigned long long rq_mergeable_count;
+atomic64_t rq_mergeable_count;
 EXPORT_SYMBOL(rq_mergeable_count);
 unsigned long long count_pass;
 EXPORT_SYMBOL(count_pass);
@@ -290,6 +290,11 @@ unsigned long long count_nomerge;
 EXPORT_SYMBOL(count_nomerge);
 unsigned long long count_nomerge2;
 EXPORT_SYMBOL(count_nomerge2);
+unsigned long long count_worked;
+EXPORT_SYMBOL(count_worked);
+unsigned long long divisorjjg = 4;
+EXPORT_SYMBOL(divisorjjg);
+
 
 
 /**
