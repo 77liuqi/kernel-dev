@@ -656,12 +656,12 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		.prod		= sprod,
 	};
 	ktime_t init_time = ktime_get();
+	int count = 0;
 	
 
 	ewidx = BIT_WORD(Q_IDX(&llq, eprod));
 	ebidx = Q_IDX(&llq, eprod) % BITS_PER_LONG;
 
-	int count = 0;
 
 	while (llq.prod != eprod) {
 		unsigned long mask;
@@ -671,6 +671,7 @@ static void __arm_smmu_cmdq_poll_set_valid_map(struct arm_smmu_cmdq *cmdq,
 		if (ktime_after(ktime_get(), init_time + ms_to_ktime(300)) && (count == 0)) {
 			count = 1;
 			pr_err("%s cpu%d sprod=0x%x sprod=0x%x set=%d\n", __func__, smp_processor_id(), sprod, eprod, set);
+			panic("dsdsd");
 		}
 
 		swidx = BIT_WORD(Q_IDX(&llq, llq.prod));
@@ -890,8 +891,8 @@ static atomic64_t cmpxchg_tries;
 		if (cond_expr)						\
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
-		if (ktime_after(ktime_get(), hjhj + ms_to_ktime(700)))\
-			pr_err_once("relaxed cpu%d VAL=0x%llx sprod=0x%x\n", cpu, VAL, sprod);\
+		if (ktime_after(ktime_get(), hjhj + ms_to_ktime(200)))\
+			pr_err_once("relaxed cpu%d VAL=0x%x sprod=0x%x\n", cpu, VAL, sprod);\
 	}								\
 	(typeof(*ptr))VAL;						\
 })
@@ -920,7 +921,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 prod_mask = GENMASK(cmdq->q.llq.max_n_shift, 0);
 	int ret = 0;
 	ktime_t initial, final, *t, owner_time;
+	#ifdef HACK
 	int test = READ_ONCE(smmu_test);
+	#endif
 	int n_orig = n;
 	int cpu;
 	u32 sprod;
@@ -1021,7 +1024,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		struct arm_smmu_ll_queue tmp = {
+		struct arm_smmu_ll_queue tmp1 = {
 			.sync= ~0,
 			.count= ~0,
 		//	.prod = ~prod_mask,
@@ -1031,28 +1034,20 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		static int max_owner;
 		u32 val;
 		/* a. Wait for previous owner to finish */
-		atomic_cond_read_relaxed(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== sprod);
+		atomic64_cond_read_relaxedx(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== sprod);
 		
 		if (_tries < 5)
 			pr_err("%s v0 cpu%d sprod=0x%x shead=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/* b. Stop gathering work by clearing the owned mask */
-		val = tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
+		atomic64_fetch_andnot_relaxed(tmp1.val,
 						       &cmdq->q.llq.atomic);
-		tmp.prod = head_full32b_prod;
-		if (val & (1 << (llq.max_n_shift + 1))) {
-			if (tmp.prod & (1 << (llq.max_n_shift + 1))) {
 
-			} else {
-				pr_err_once("%s this could be a problem val=0x%x tmp.prod=0x%x\n", __func__, val, tmp.prod);
-			}
-
-		}
-		eprod = tmp.prod;
+		eprod = head_full32b_prod;
 		if (_tries < 5)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
-		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
+		prod = Q_WRP(&llq, head_full32b_prod) | Q_IDX(&llq, head_full32b_prod);
 		sync_count = sync;//tmp.sync;
 
 		/*
