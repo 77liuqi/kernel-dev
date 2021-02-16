@@ -300,11 +300,34 @@ struct request *elv_rb_find(struct rb_root *root, sector_t sector)
 }
 EXPORT_SYMBOL(elv_rb_find);
 
+atomic64_t elv_merge_count;
+
+unsigned long long no_merge1;
+unsigned long long no_merge2a;
+unsigned long long no_merge2b;
+unsigned long long no_merge3;
+unsigned long long no_merge4;
+unsigned long long divisorjj2g = 2;
 enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 		struct bio *bio)
 {
 	struct elevator_queue *e = q->elevator;
 	struct request *__rq;
+ 
+ 	unsigned long long count = atomic64_inc_return(&elv_merge_count);
+
+	if ((count % divisorjj2g) == 0) {
+		pr_err("%s count=%lld 1=%lld 2a=%lld 2b=%lld 3=%lld 4=%lld\n",
+			__func__, count, no_merge1, no_merge2a, no_merge2b, no_merge3, no_merge4);
+		no_merge1 = 0;
+		no_merge2a = 0;
+		no_merge2b = 0;
+		no_merge3 = 0;
+		no_merge4 = 0;
+		
+		atomic64_set(&elv_merge_count, 2);
+		divisorjj2g <<= 1;
+	}
 
 	/*
 	 * Levels of merges:
@@ -312,23 +335,29 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 	 * 	noxmerges: Only simple one-hit cache try
 	 * 	merges:	   All merge tries attempted
 	 */
-	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
+	if (blk_queue_nomerges(q) || !bio_mergeable(bio)) {
+		no_merge1++;
 		return ELEVATOR_NO_MERGE;
+	}
 
 	/*
 	 * First try one-hit cache.
 	 */
 	if (q->last_merge && elv_bio_merge_ok(q->last_merge, bio)) {
 		enum elv_merge ret = blk_try_merge(q->last_merge, bio);
-
+		no_merge2a++;
 		if (ret != ELEVATOR_NO_MERGE) {
 			*req = q->last_merge;
+			no_merge2b++;
+			
 			return ret;
 		}
 	}
 
-	if (blk_queue_noxmerges(q))
+	if (blk_queue_noxmerges(q)) {
+		no_merge3++;
 		return ELEVATOR_NO_MERGE;
+	}
 
 	/*
 	 * See if our hash lookup can find a potential backmerge.
@@ -341,6 +370,8 @@ enum elv_merge elv_merge(struct request_queue *q, struct request **req,
 
 	if (e->type->ops.request_merge)
 		return e->type->ops.request_merge(q, req, bio);
+	
+	no_merge4++;
 
 	return ELEVATOR_NO_MERGE;
 }
