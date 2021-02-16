@@ -345,6 +345,7 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 }
 extern atomic64_t submit_bio_count;
 extern unsigned long long bm_b;
+extern unsigned long long bm_b1;
 extern unsigned long long bm_c;
 extern unsigned long long bm_d;
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
@@ -363,6 +364,9 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		return e->type->ops.bio_merge(hctx, bio, nr_segs);
 	}
 	bm_b++;
+
+	if (hctx->flags & BLK_MQ_F_SHOULD_MERGE)
+		bm_b1++;
 
 	type = hctx->type;
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
