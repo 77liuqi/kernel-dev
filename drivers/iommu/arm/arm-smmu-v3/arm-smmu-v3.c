@@ -927,6 +927,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u64 _tries;
 	int count;
 	u32 shead;
+	u32 head_full32b_prod;
 
 	#ifdef HACK
 	int i;
@@ -949,6 +950,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod &= prod_mask;
 	owner = 1;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
+	head_full32b_prod = llq.prod + n + sync;
 
 	if (sprod > 0xf0000000)
 		pr_err_once("%s cpu%d sprod=0x%x\n", __func__, cpu, sprod);
@@ -1035,7 +1037,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		/* b. Stop gathering work by clearing the owned mask */
 		val = tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
 						       &cmdq->q.llq.atomic);
-		tmp.prod = head.prod;
+		tmp.prod = head_full32b_prod;
 		if (val & (1 << (llq.max_n_shift + 1))) {
 			if (tmp.prod & (1 << (llq.max_n_shift + 1))) {
 
@@ -1092,7 +1094,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
 		if (eprod < sprod)
-			pr_err_once("%s v1.x cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
+			pr_err_once("%s v1.4 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
 
 		val = eprod;
