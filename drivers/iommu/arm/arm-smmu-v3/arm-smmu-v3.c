@@ -1033,9 +1033,17 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err("%s v0 cpu%d sprod=0x%x shead=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/* b. Stop gathering work by clearing the owned mask */
-		tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
+		val = tmp.val = atomic64_fetch_andnot_relaxed(tmp.val,
 						       &cmdq->q.llq.atomic);
 		tmp.prod = head.prod;
+		if (val & (1 << (llq.max_n_shift + 1))) {
+			if (tmp.prod & (1 << (llq.max_n_shift + 1))) {
+
+			} else {
+				pr_err_once("%s this could be a problem val=0x%x tmp.prod=0x%x\n", __func__, val, tmp.prod);
+			}
+
+		}
 		eprod = tmp.prod;
 		if (_tries < 5)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
