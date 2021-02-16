@@ -725,14 +725,15 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 	static int count;
 	struct nullb_cmd *cmd = container_of(timer, struct nullb_cmd, timer);
 	
-	scsi_device_unbusy(cmd);
 
 	count++;
 
-	if (count < 100)
-		pr_err("%s cmd=%pS\n", __func__, cmd);
+//	if (count < 100)
+//		pr_err("%s cmd=%pS\n", __func__, cmd);
 	
 	end_cmd(container_of(timer, struct nullb_cmd, timer));
+
+	scsi_device_unbusy(cmd);
 
 	return HRTIMER_NORESTART;
 }
@@ -742,10 +743,10 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 	ktime_t kt = cmd->nq->dev->completion_nsec;
 	static int count;
 
-	count++;
-
-	if (count < 100)
-		pr_err("%s cmd=%pS\n", __func__, cmd);
+//	count++;
+//
+//	if (count < 100)
+//		pr_err("%s cmd=%pS\n", __func__, cmd);
 
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
