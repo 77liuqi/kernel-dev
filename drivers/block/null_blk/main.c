@@ -1689,8 +1689,9 @@ out_dec:
 }
 
 
-static void scsi_mq_put_budget(struct request_queue *q)
+static void null_blk_put_budget(struct request_queue *q)
 {
+#ifdef dsdsd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
@@ -1702,10 +1703,12 @@ static void scsi_mq_put_budget(struct request_queue *q)
 	if ((count % 100000) == 0)
 		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
+#endif
 }
 
-static bool scsi_mq_get_budget(struct request_queue *q)
+static bool null_blk_get_budget(struct request_queue *q)
 {
+	#ifdef dsdsd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 
@@ -1713,6 +1716,9 @@ static bool scsi_mq_get_budget(struct request_queue *q)
 		return true;
 
 	return false;
+	#else
+	return true;
+	#endif
 }				 
 
 static const struct blk_mq_ops null_mq_ops = {
@@ -1723,8 +1729,8 @@ static const struct blk_mq_ops null_mq_ops = {
 	.exit_hctx	= null_exit_hctx,
 	.init_request = null_init_request,
 	.exit_request = null_exit_request,
-	.get_budget	= scsi_mq_get_budget,
-	.put_budget	= scsi_mq_put_budget,
+	.get_budget	= null_blk_get_budget,
+	.put_budget	= null_blk_put_budget,
 };
 
 static void null_del_dev(struct nullb *nullb)
