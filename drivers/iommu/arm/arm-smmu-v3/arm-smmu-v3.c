@@ -244,8 +244,9 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 
 	//pr_err("%s2 cpu%d prod=0x%x sprod=0x%x cons=0x%x space=0x%x n=%d llq_prod=0x%x result=%d\n", __func__, cpu, prod, sprod, cons, space, n, llq_prod, result);
 
-//	if (result2 == 0)
-//		panic("%s3 cpu%d prod=0x%x new_prod=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d\n", __func__, cpu, prod, new_prod, cons, space, n, _sprod, result1, result2);
+	if (result2 == 0)
+		panic("%s3 cpu%d prod=0x%x _xprod=0x%x q->prod=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x q->owner_prod=0x%x result1=%d result2=%d\n",
+		__func__, cpu, prod, _xprod, q->prod, cons, space, n, _sprod, q->owner_prod, result1, result2);
 
 //	if (result1 != result2)
 //		pr_err_once("%s differ results cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x result1=%d result2=%d space1=0x%x wrapped=%d owner_prod=0x%llx wrapped2=%d\n",
@@ -968,7 +969,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (ktime_after(ktime_get(), timeout)) {
 			if (print == 0)
 				print = 1;
-			dev_err_once(smmu->dev, "CMDQ timeout1 sprod=0x%x owner=%d cpu%d space cons_owner=0x%llx space.prod=0x%x\n", sprod, owner, cpu, space.cons_owner, space.prod);
+			dev_err_once(smmu->dev, "CMDQ timeout1 sprod=0x%x owner=%d cpu%d space cons_owner=0x%llx space.prod=0x%x\n",
+			sprod, owner, cpu, space.cons_owner, space.prod);
 			panic("CMDQ timeout1 cpu%d", cpu);
 		}
 
