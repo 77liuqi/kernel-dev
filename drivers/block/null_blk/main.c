@@ -175,7 +175,7 @@ static bool g_shared_tag_bitmap;
 module_param_named(shared_tag_bitmap, g_shared_tag_bitmap, bool, 0444);
 MODULE_PARM_DESC(shared_tag_bitmap, "Use shared tag bitmap for all submission queues for blk-mq");
 
-static int g_irqmode = NULL_IRQ_SOFTIRQ;
+static int g_irqmode = NULL_IRQ_TIMER;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 {
@@ -191,9 +191,9 @@ static const struct kernel_param_ops null_irqmode_param_ops = {
 device_param_cb(irqmode, &null_irqmode_param_ops, &g_irqmode, 0444);
 MODULE_PARM_DESC(irqmode, "IRQ completion handler. 0-none, 1-softirq, 2-timer");
 
-static unsigned long g_completion_nsec = 10000;
+static unsigned long g_completion_nsec = 10000000;
 module_param_named(completion_nsec, g_completion_nsec, ulong, 0444);
-MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000ns");
+MODULE_PARM_DESC(completion_nsec, "Time in ns to complete a request in hardware. Default: 10,000,000ns");
 
 static int g_hw_queue_depth = 4096;
 module_param_named(hw_queue_depth, g_hw_queue_depth, int, 0444);
@@ -697,6 +697,7 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 	return cmd;
 }
 extern struct device *hisi_sas_dev;
+void scsi_device_unbusy(struct nullb_cmd *cmd);
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
@@ -721,6 +722,16 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
+	static int count;
+	struct nullb_cmd *cmd = container_of(timer, struct nullb_cmd, timer);
+	
+	scsi_device_unbusy(cmd);
+
+	count++;
+
+	if (count < 100)
+		pr_err("%s cmd=%pS\n", __func__, cmd);
+	
 	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
 	return HRTIMER_NORESTART;
@@ -729,6 +740,12 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
 {
 	ktime_t kt = cmd->nq->dev->completion_nsec;
+	static int count;
+
+	count++;
+
+	if (count < 100)
+		pr_err("%s cmd=%pS\n", __func__, cmd);
 
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }
@@ -1349,7 +1366,6 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 		end_cmd(cmd);
 		break;
 	case NULL_IRQ_TIMER:
-		scsi_device_unbusy(cmd);
 		null_cmd_end_timer(cmd);
 		break;
 	}
