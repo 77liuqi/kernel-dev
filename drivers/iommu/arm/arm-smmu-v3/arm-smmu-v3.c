@@ -252,7 +252,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue * const q, const u32 n, str
 //		__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, result1, result2, space1, wrapped, owner_prod, wrapped2);
 
 	if ((*print == 1) || (p == 1)) {
-		pr_err("%s print stuff =1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d printx=%d\n",
+		pr_err("%s print stuff=1 cpu%d prod=0x%x q->prod=0x%x q->cons=0x%x cons=0x%x space=0x%x n=%d _sprod=0x%x _eprod=0x%x _xprod=0x%x  result1=%d result2=0x%d space1=0x%x wrapped=%d cons_owner=0x%llx wrapped2=%d printx=%d\n",
 	__func__, cpu, prod, q->prod, q->cons, cons, space, n, _sprod, _eprod, _xprod, result1, result2, space1, wrapped, cons_owner, wrapped2, p);
 		*print = 2;
 	}
@@ -1041,7 +1041,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		prod = Q_WRP(&llq, tmp.prod) | Q_IDX(&llq, tmp.prod);
-		sync_count = 1;//tmp.sync;
+		sync_count = sync;//tmp.sync;
 
 		/*
 		 * c. Wait for any gathered work to be written to the queue.
