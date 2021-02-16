@@ -697,7 +697,6 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 	return cmd;
 }
 extern struct device *hisi_sas_dev;
-void scsi_device_unbusy(struct nullb_cmd *cmd);
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
@@ -719,6 +718,7 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	free_cmd(cmd);
 }
+void nullb_device_unbusy(struct nullb_cmd *cmd);
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
@@ -731,9 +731,10 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 //	if (count < 100)
 //		pr_err("%s cmd=%pS\n", __func__, cmd);
 	
-	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
-	scsi_device_unbusy(cmd);
+	nullb_device_unbusy(cmd);
+
+	end_cmd(container_of(timer, struct nullb_cmd, timer));
 
 	return HRTIMER_NORESTART;
 }
@@ -752,6 +753,7 @@ static void null_cmd_end_timer(struct nullb_cmd *cmd)
 
 static void null_complete_rq(struct request *rq)
 {
+	pr_err("%s rq=%pS\n", __func__, rq);
 	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
@@ -1323,7 +1325,7 @@ static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
 	}
 }
 
-void scsi_device_unbusy(struct nullb_cmd *cmd)
+void nullb_device_unbusy(struct nullb_cmd *cmd)
 {
 	struct request *rq = cmd->rq;
 	struct request_queue *q = rq->q;
@@ -1352,7 +1354,8 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
 		case NULL_Q_MQ:
-			scsi_device_unbusy(cmd);
+			BUG();
+			nullb_device_unbusy(cmd);
 			if (likely(!blk_should_fake_timeout(cmd->rq->q)))
 				blk_mq_complete_request(cmd->rq);
 			break;
