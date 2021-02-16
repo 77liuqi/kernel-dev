@@ -343,7 +343,10 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 			blk_mq_run_hw_queue(hctx, true);
 	}
 }
-
+extern atomic64_t submit_bio_count;
+extern unsigned long long bm_b;
+extern unsigned long long bm_c;
+extern unsigned long long bm_d;
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
@@ -355,11 +358,13 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 
 	if (e && e->type->ops.bio_merge)
 		return e->type->ops.bio_merge(hctx, bio, nr_segs);
+	bm_b++;
 
 	type = hctx->type;
 	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
 	    list_empty_careful(&ctx->rq_lists[type]))
 		return false;
+	bm_c++;
 
 	/* default per sw-queue merge */
 	spin_lock(&ctx->lock);
@@ -370,6 +375,7 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	 */
 	if (blk_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs)) {
 		ctx->rq_merged++;
+		bm_d++;
 		ret = true;
 	}
 

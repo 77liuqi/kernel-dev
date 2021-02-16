@@ -27,13 +27,14 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx);
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e);
 void blk_mq_exit_sched(struct request_queue *q, struct elevator_queue *e);
 void blk_mq_sched_free_requests(struct request_queue *q);
-
+extern unsigned long long bm_a;
 static inline bool
 blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
 	if (blk_queue_nomerges(q) || !bio_mergeable(bio))
 		return false;
+	bm_a++;
 
 	return __blk_mq_sched_bio_merge(q, bio, nr_segs);
 }

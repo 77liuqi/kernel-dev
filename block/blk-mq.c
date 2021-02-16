@@ -2140,7 +2140,11 @@ unsigned long long goth;
 unsigned long long goti;
 unsigned long long gotj;
 unsigned long long gotk;
-unsigned long long  divisorjj3g = 1;
+unsigned long long bm_a;
+unsigned long long bm_b;
+unsigned long long bm_c;
+unsigned long long bm_d;
+unsigned long long  divisorjj3g = 1000000;
 
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
@@ -2164,8 +2168,9 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	__blk_queue_split(&bio, &nr_segs);
 
 	if ((count % divisorjj3g) == 0) {
-		pr_err("%s count=%lld a=%lld b=%lld c=%lld d=%lld e=%lld f=%lld g=%lld h=%lld i=%lld j=%lld k=%lld\n",
-			__func__, count, gota, gotb, gotc, gotd, gote, gotf, gotg, goth, goti, gotj, gotk);
+		pr_err("%s count=%lld a=%lld b=%lld c=%lld d=%lld e=%lld f=%lld g=%lld h=%lld i=%lld j=%lld k=%lld bm_a=%lld bm_b=%lld bm_c=%lld bm_d=%lld\n",
+			__func__, count, gota, gotb, gotc, gotd, gote, gotf, gotg, goth, goti, gotj, gotk,
+			bm_a, bm_d, bm_c, bm_d);
 		gota = 0;
 		gotb = 0;
 		gotc = 0;
@@ -2177,8 +2182,13 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		goti = 0;
 		gotj = 0;
 		gotk = 0;
+		
+		bm_a = 0;
+		bm_b = 0;
+		bm_c = 0;
+		bm_d = 0;
 		atomic64_set(&submit_bio_count, 2);
-		divisorjj3g <<= 1;
+	//	divisorjj3g <<= 1;
 	}
 
 	if (!bio_integrity_prep(bio))
