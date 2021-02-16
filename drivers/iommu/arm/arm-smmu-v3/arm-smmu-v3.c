@@ -1061,7 +1061,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * become full. In this case, other sibling non-owners could be
 		 * blocked from progressing, leading to deadlock.
 		 */
-		arm_smmu_cmdq_shared_lock(cmdq, sync_count);
+		if (sync_count)
+			arm_smmu_cmdq_shared_lock(cmdq, sync_count);
+		else
+			pr_err_once("%s may have fixed something\n", __func__);
 
 		if (_tries < 5)
 			pr_err("%s v1.2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
