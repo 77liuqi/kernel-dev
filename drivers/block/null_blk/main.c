@@ -741,7 +741,6 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
 {
 	ktime_t kt = cmd->nq->dev->completion_nsec;
-	static int count;
 
 //	count++;
 //
@@ -1330,8 +1329,10 @@ void scsi_device_unbusy(struct nullb_cmd *cmd)
 	struct request_queue *q = rq->q;
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
+	int busy;
 
-	atomic_dec(&dev->device_busy);
+	busy = atomic_dec_return(&dev->device_busy);
+	WARN_ON_ONCE(busy < 0);
 }
 
 static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
@@ -1696,6 +1697,8 @@ static void scsi_mq_put_budget(struct request_queue *q)
 	static int count;
 
 	busy = atomic_dec_return(&dev->device_busy);
+	WARN_ON_ONCE(busy < 0);
+		
 	if ((count % 100000) == 0)
 		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
 	count++;
