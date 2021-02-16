@@ -2170,7 +2170,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	if ((count % divisorjj3g) == 0) {
 		pr_err("%s count=%lld a=%lld b=%lld c=%lld d=%lld e=%lld f=%lld g=%lld h=%lld i=%lld j=%lld k=%lld bm_a=%lld bm_b=%lld bm_c=%lld bm_d=%lld\n",
 			__func__, count, gota, gotb, gotc, gotd, gote, gotf, gotg, goth, goti, gotj, gotk,
-			bm_a, bm_d, bm_c, bm_d);
+			bm_a, bm_b, bm_c, bm_d);
 		gota = 0;
 		gotb = 0;
 		gotc = 0;

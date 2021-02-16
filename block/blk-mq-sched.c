@@ -355,9 +355,13 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 	struct blk_mq_hw_ctx *hctx = blk_mq_map_queue(q, bio->bi_opf, ctx);
 	bool ret = false;
 	enum hctx_type type;
+	
+//	if ((bm_b % 500000) == 0)
+//		pr_err("%s e=%pS bio_merge=%pS\n", __func__, e, e ? e->type->ops.bio_merge :  NULL);
 
-	if (e && e->type->ops.bio_merge)
+	if (e && e->type->ops.bio_merge) {
 		return e->type->ops.bio_merge(hctx, bio, nr_segs);
+	}
 	bm_b++;
 
 	type = hctx->type;
