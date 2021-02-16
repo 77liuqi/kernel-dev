@@ -1349,6 +1349,7 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 		end_cmd(cmd);
 		break;
 	case NULL_IRQ_TIMER:
+		scsi_device_unbusy(cmd);
 		null_cmd_end_timer(cmd);
 		break;
 	}
