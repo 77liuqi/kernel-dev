@@ -275,6 +275,23 @@ void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments
 }
 EXPORT_SYMBOL(blk_queue_max_segments);
 
+
+unsigned long long rq_mergeable_count;
+EXPORT_SYMBOL(rq_mergeable_count);
+unsigned long long count_pass;
+EXPORT_SYMBOL(count_pass);
+unsigned long long count_flush;
+EXPORT_SYMBOL(count_flush);
+unsigned long long count_zeroes;
+EXPORT_SYMBOL(count_zeroes);
+unsigned long long count_append;
+EXPORT_SYMBOL(count_append);
+unsigned long long count_nomerge;
+EXPORT_SYMBOL(count_nomerge);
+unsigned long long count_nomerge2;
+EXPORT_SYMBOL(count_nomerge2);
+
+
 /**
  * blk_queue_max_discard_segments - set max segments for discard requests
  * @q:  the request queue for the device

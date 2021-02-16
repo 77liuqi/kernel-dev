@@ -803,24 +803,60 @@ static inline bool rq_is_sync(struct request *rq)
 	return op_is_sync(rq->cmd_flags);
 }
 
+
+extern unsigned long long rq_mergeable_count;
+extern unsigned long long count_pass;
+extern unsigned long long count_flush;
+extern unsigned long long count_zeroes;
+extern unsigned long long count_append;
+extern unsigned long long count_nomerge;
+extern unsigned long long count_nomerge2;
+
 static inline bool rq_mergeable(struct request *rq)
 {
-	if (blk_rq_is_passthrough(rq))
-		return false;
 
-	if (req_op(rq) == REQ_OP_FLUSH)
-		return false;
+	if ((rq_mergeable_count & 1000000) == 0) {
+		pr_err("%s count=%lld pass=%lld flush=%lld zeroes=%lld append=%lld nomerge=%lld nomerge2=%lld\n",
+			__func__, rq_mergeable_count, count_pass, count_flush, count_zeroes, count_append, count_nomerge, count_nomerge2);
+		rq_mergeable_count = 0;		
+		count_pass = 0;
+		count_flush = 0;
+		count_zeroes = 0;
+		count_append = 0;
+		count_nomerge = 0;
+		count_nomerge2 = 0;
+	}
 
-	if (req_op(rq) == REQ_OP_WRITE_ZEROES)
-		return false;
+	rq_mergeable_count++;
 
-	if (req_op(rq) == REQ_OP_ZONE_APPEND)
+	if (blk_rq_is_passthrough(rq)) {
+		count_pass++;
 		return false;
+	}
 
-	if (rq->cmd_flags & REQ_NOMERGE_FLAGS)
+	if (req_op(rq) == REQ_OP_FLUSH) {
+		count_flush++;
 		return false;
-	if (rq->rq_flags & RQF_NOMERGE_FLAGS)
+	}
+
+	if (req_op(rq) == REQ_OP_WRITE_ZEROES) {
+		count_zeroes++;
 		return false;
+	}
+
+	if (req_op(rq) == REQ_OP_ZONE_APPEND) {
+		count_append++;
+		return false;
+	}
+
+	if (rq->cmd_flags & REQ_NOMERGE_FLAGS) {
+		count_nomerge++;
+		return false;
+	}
+	if (rq->rq_flags & RQF_NOMERGE_FLAGS) {
+		count_nomerge2++;
+		return false;
+	}
 
 	return true;
 }
