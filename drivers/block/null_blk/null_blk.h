@@ -17,7 +17,7 @@
 
 #include <linux/dma-mapping.h>
 
-#define SKD_N_SG_PER_REQ_DEFAULT 64
+#define NULL_BLK_MAX_SEGMENTS 64
 
 struct nullb_cmd {
 	struct request *rq;
@@ -30,7 +30,7 @@ struct nullb_cmd {
 	u32 sg_byte_count;
 	enum dma_data_direction dma_dir;
 	dma_addr_t dma_address;	
-	struct scatterlist sgl[SKD_N_SG_PER_REQ_DEFAULT];
+	struct scatterlist sgl[NULL_BLK_MAX_SEGMENTS];
 };
 
 struct nullb_queue {

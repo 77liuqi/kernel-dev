@@ -1637,7 +1637,7 @@ int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	pr_err_once("%s set=%pS rq=%pS cmd=%pS\n", __func__, set, rq, cmd);
-	sg_init_table(&cmd->sgl[0], SKD_N_SG_PER_REQ_DEFAULT);
+	sg_init_table(&cmd->sgl[0], NULL_BLK_MAX_SEGMENTS);
 
 	return 0;
 }
@@ -2036,7 +2036,8 @@ static int null_add_dev(struct nullb_device *dev)
 
 	blk_queue_max_segment_size(nullb->q, 65536);
 	
-	blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, nullb->q);
+	blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, nullb->q);	
+	blk_queue_max_segments(nullb->q, NULL_BLK_MAX_SEGMENTS);
 
 	dma_set_max_seg_size(hisi_sas_dev, 65536);
 
