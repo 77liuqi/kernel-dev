@@ -2126,6 +2126,22 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
  *
  * Returns: Request queue cookie.
  */
+
+
+ atomic64_t submit_bio_count;
+unsigned long long gota;
+unsigned long long gotb;
+unsigned long long gotc;
+unsigned long long gotd;
+unsigned long long gote;
+unsigned long long gotf;
+unsigned long long gotg;
+unsigned long long goth;
+unsigned long long goti;
+unsigned long long gotj;
+unsigned long long gotk;
+unsigned long long  divisorjj3g = 1;
+
 blk_qc_t blk_mq_submit_bio(struct bio *bio)
 {
 	struct request_queue *q = bio->bi_disk->queue;
@@ -2142,18 +2158,42 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 	blk_status_t ret;
 	bool hipri;
 
+	unsigned long long count = atomic64_inc_return(&submit_bio_count);
+
 	blk_queue_bounce(q, &bio);
 	__blk_queue_split(&bio, &nr_segs);
+
+	if ((count % divisorjj3g) == 0) {
+		pr_err("%s count=%lld a=%lld b=%lld c=%lld d=%lld e=%lld f=%lld g=%lld h=%lld i=%lld j=%lld k=%lld\n",
+			__func__, count, gota, gotb, gotc, gotd, gote, gotf, gotg, goth, goti, gotj, gotk);
+		gota = 0;
+		gotb = 0;
+		gotc = 0;
+		gotd = 0;
+		gote = 0;
+		gotf = 0;
+		gotg = 0;
+		goth = 0;
+		goti = 0;
+		gotj = 0;
+		gotk = 0;
+		atomic64_set(&submit_bio_count, 2);
+		divisorjj3g <<= 1;
+	}
 
 	if (!bio_integrity_prep(bio))
 		goto queue_exit;
 
+	gota++;
+
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
 		goto queue_exit;
+	gotb++;
 
 	if (blk_mq_sched_bio_merge(q, bio, nr_segs))
 		goto queue_exit;
+	gotc++;
 
 	rq_qos_throttle(q, bio);
 
@@ -2167,6 +2207,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 			bio_wouldblock_error(bio);
 		goto queue_exit;
 	}
+	gotd++;
 
 	trace_block_getrq(bio);
 
@@ -2183,9 +2224,11 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		blk_mq_free_request(rq);
 		return BLK_QC_T_NONE;
 	}
+	gote++;
 
 	plug = blk_mq_plug(q, bio);
 	if (unlikely(is_flush_fua)) {
+		gotf++;
 		/* Bypass scheduler for flush requests */
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(data.hctx, true);
@@ -2201,6 +2244,8 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		unsigned int request_count = plug->rq_count;
 		struct request *last = NULL;
 
+		gotg++;
+
 		if (!request_count)
 			trace_block_plug(q);
 		else
@@ -2215,8 +2260,10 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		blk_add_rq_to_plug(plug, rq);
 	} else if (q->elevator) {
 		/* Insert the request at the IO scheduler queue */
+		goth++;
 		blk_mq_sched_insert_request(rq, false, true, true);
 	} else if (plug && !blk_queue_nomerges(q)) {
+		goti++;
 		/*
 		 * We do limited plugging. If the bio can be merged, do that.
 		 * Otherwise the existing request in the plug list will be
@@ -2241,12 +2288,14 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		}
 	} else if ((q->nr_hw_queues > 1 && is_sync) ||
 			!data.hctx->dispatch_busy) {
+			gotj++;
 		/*
 		 * There is no scheduler and we can try to send directly
 		 * to the hardware.
 		 */
 		blk_mq_try_issue_directly(data.hctx, rq, &cookie);
 	} else {
+		gotk++;
 		/* Default case. */
 		blk_mq_sched_insert_request(rq, false, true, true);
 	}
