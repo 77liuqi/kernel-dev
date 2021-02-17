@@ -1732,7 +1732,6 @@ out_dec:
 
 static void null_blk_put_budget(struct request_queue *q)
 {
-	#ifdef dffdf 
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
@@ -1754,7 +1753,7 @@ static void null_blk_put_budget(struct request_queue *q)
 		pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
 		divisor <<= 1;
 	}
-	#endif
+	blk_mq_delay_run_hw_queues(q, 3);
 }
 
 static bool null_blk_get_budget(struct request_queue *q)
