@@ -2042,7 +2042,6 @@ static bool __null_setup_fault(struct fault_attr *attr, char *str)
 	return true;
 }
 #endif
-
 static bool null_setup_fault(void)
 {
 #ifdef CONFIG_BLK_DEV_NULL_BLK_FAULT_INJECTION
@@ -2282,6 +2281,10 @@ err_tagset:
 	return ret;
 }
 
+extern unsigned long long iova_rcache_insert_divisor;
+
+extern unsigned long long __alloc_and_insert_iova_range_new_divisor;
+
 static void __exit null_exit(void)
 {
 	struct nullb *nullb;
@@ -2289,6 +2292,8 @@ static void __exit null_exit(void)
 	configfs_unregister_subsystem(&nullb_subsys);
 
 	unregister_blkdev(null_major, "nullb");
+	iova_rcache_insert_divisor = 1000000;
+	__alloc_and_insert_iova_range_new_divisor = 2;
 
 	mutex_lock(&lock);
 	while (!list_empty(&nullb_list)) {

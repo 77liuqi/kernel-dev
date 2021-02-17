@@ -178,6 +178,8 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+unsigned long long __alloc_and_insert_iova_range_new_divisor = 1;
+EXPORT_SYMBOL_GPL(__alloc_and_insert_iova_range_new_divisor);
 
 static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
@@ -226,14 +228,13 @@ retry:
 	if (high_pfn < size || new_pfn < low_pfn) {
 		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
 			static int countjh;
-			static int divisor = 1;
 			high_pfn = limit_pfn;
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
-			if ((countjh % divisor) == 0) {
-				pr_err("%s5 going to retry divisor=%d\n", __func__, divisor);
-				divisor *= 2;
+			if ((countjh % __alloc_and_insert_iova_range_new_divisor) == 0) {
+				pr_err("%s5 going to retry divisor=%lld\n", __func__, __alloc_and_insert_iova_range_new_divisor);
+				__alloc_and_insert_iova_range_new_divisor *= 2;
 			}
 			countjh++;
 			goto retry;
@@ -1040,16 +1041,18 @@ static atomic64_t total_inserts_too_big;
 extern atomic64_t sac_trick_attempt;
 extern atomic64_t sac_trick_fail;
 atomic64_t total_inserts_iova_range_full[4];
+
+unsigned long long iova_rcache_insert_divisor = 1000000;
+EXPORT_SYMBOL_GPL(iova_rcache_insert_divisor);
 static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 			       unsigned long size)
 {
 	unsigned int log_size = order_base_2(size);
 	unsigned long long val = atomic64_inc_return(&total_inserts);
 	static atomic64_t sizes[6];
-	static unsigned long long divwisor = 1000000;
 	int i;
 
-	if ((val % divwisor) == 0) {
+	if ((val % iova_rcache_insert_divisor) == 0) {
 		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld fail=%lld sac_trick_attempt=%lld fail=%lld\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
 		atomic64_read(&sizes[0]),
@@ -1082,7 +1085,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_set(&sac_trick_attempt, 0);
 		atomic64_set(&sac_trick_fail, 0);
 		atomic64_set(&total_inserts_from_alloc_iova_fail, 0);
-		divwisor <<= 1;
+		iova_rcache_insert_divisor <<= 1;
 		
 	}
 	
