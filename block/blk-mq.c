@@ -1311,6 +1311,7 @@ static enum prep_dispatch blk_mq_prep_dispatch_rq(struct request *rq,
 	}
 
 	if (!blk_mq_get_driver_tag(rq)) {
+		pr_err_ratelimited("%s fail\n", __func__);
 		/*
 		 * The initial allocation attempt failed, so we need to
 		 * rerun the hardware queue when a tag is freed. The
@@ -2004,6 +2005,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 
 	if (!blk_mq_get_driver_tag(rq)) {
 		blk_mq_put_dispatch_budget(q);
+			pr_err_ratelimited("%s fail\n", __func__);
 		goto insert;
 	}
 

@@ -145,6 +145,7 @@ static int __blk_mq_do_dispatch_sched(struct blk_mq_hw_ctx *hctx)
 
 		rq = e->type->ops.dispatch_request(hctx);
 		if (!rq) {
+			pr_err_ratelimited("%s fail\n", __func__);
 			blk_mq_put_dispatch_budget(q);
 			/*
 			 * We're releasing without dispatching. Holding the
@@ -243,6 +244,7 @@ static int blk_mq_do_dispatch_ctx(struct blk_mq_hw_ctx *hctx)
 
 		rq = blk_mq_dequeue_from_ctx(hctx, ctx);
 		if (!rq) {
+			pr_err_ratelimited("%s fail\n", __func__);
 			blk_mq_put_dispatch_budget(q);
 			/*
 			 * We're releasing without dispatching. Holding the
