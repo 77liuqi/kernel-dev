@@ -173,6 +173,11 @@ static bool shared_tags = 1;
 module_param(shared_tags, bool, 0444);
 MODULE_PARM_DESC(shared_tags, "Share tag set between devices for blk-mq");
 
+
+static bool iova_spread = 0;
+module_param(iova_spread, bool, 0444);
+MODULE_PARM_DESC(iova_spread, "configure to spread over all CPUS for IOVA");
+
 static bool g_shared_tag_bitmap;
 module_param_named(shared_tag_bitmap, g_shared_tag_bitmap, bool, 0444);
 MODULE_PARM_DESC(shared_tag_bitmap, "Use shared tag bitmap for all submission queues for blk-mq");
@@ -1580,6 +1585,29 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	return BLK_STS_OK;
 }
 
+struct drv_dev_and_id {
+	struct nullb_cmd *cmd;
+	struct request_queue *q;
+	blk_status_t error;
+};
+
+
+static long null_dma_map_rq_cpu(void *_ddi)
+{
+	struct drv_dev_and_id *ddi = _ddi;
+	struct request_queue *q = ddi->q;
+	struct nullb_cmd *cmd = ddi->cmd;
+	
+	if (null_dma_map_rq(cmd, q) != BLK_STS_OK) {
+		pr_err_once("%s errr1\n", __func__);
+		ddi->error = BLK_STS_IOERR;
+		return -1;
+	}
+	ddi->error = BLK_STS_OK;
+
+	return 0;
+}
+
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1600,9 +1628,33 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
 
-	if (null_dma_map_rq(cmd, q) != BLK_STS_OK) {
-		pr_err_once("%s errr1\n", __func__);
-		return BLK_STS_IOERR;
+	if (iova_spread) {
+		static atomic64_t IOs;
+		int error;
+
+		static int cpu;
+		struct drv_dev_and_id ddi = { cmd, q, BLK_STS_IOERR};
+		u64 _IOs = atomic64_inc_return(&IOs);
+		if ((_IOs % 1000000) == 0) {
+			cpu++;
+			if (cpu >= nr_cpu_ids) {
+				pr_err("%s done all CPUs... cycling\n", __func__);
+				cpu = 0;
+			}
+		}
+		error = work_on_cpu(cpu, null_dma_map_rq_cpu, &ddi);
+		if (error || ddi.error != BLK_STS_OK) {
+			pr_err_once("%s errr0\n", __func__); 
+			return BLK_STS_IOERR;
+		}
+
+
+	} else {
+
+		if (null_dma_map_rq(cmd, q) != BLK_STS_OK) {
+			pr_err_once("%s errr1\n", __func__);
+			return BLK_STS_IOERR;
+		}
 	}
 
 	blk_mq_start_request(bd->rq);
