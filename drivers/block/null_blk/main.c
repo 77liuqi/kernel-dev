@@ -1544,19 +1544,17 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	struct request *rq = cmd->rq;
 	struct scatterlist *sgl = &cmd->sgl[0];
 	int n_sg, n_sg1;
-	static int count;
 	static int n_sg_max, n_sg1_max;
-	count++;
+
 
 	cmd->sg_byte_count = 0;
 
-	if (count <= 1)
-		pr_err("%s hisi_sas_dev=%pS q=%pS cmd=%pS rq=%pS sgl=%pS\n", __func__, hisi_sas_dev, q, cmd, rq, sgl);
+	pr_err_once("%s hisi_sas_dev=%pS q=%pS cmd=%pS rq=%pS sgl=%pS\n", __func__, hisi_sas_dev, q, cmd, rq, sgl);
+
 
 	n_sg = blk_rq_map_sg(q, rq, sgl);
 
-	if (count <= 1)
-		pr_err("%s1 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	pr_err_once("%s1 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
 	if (n_sg <= 0)
 		return BLK_STS_IOERR;
 	n_sg1 = n_sg;
@@ -1566,8 +1564,7 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	 */
 	cmd->dma_dir = DMA_TO_DEVICE;
 	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, cmd->dma_dir);
-	if (count <= 1)
-		pr_err("%s2 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	pr_err_once("%s2 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
 	if (n_sg <= 0)
 		return BLK_STS_IOERR;
 
@@ -1580,8 +1577,8 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 	}
 	cmd->n_sg = n_sg;
 
-	if (count <= 1)
-		pr_err("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	pr_err_once("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+
 	return BLK_STS_OK;
 }
 
