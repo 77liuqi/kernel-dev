@@ -827,7 +827,7 @@ static inline bool rq_mergeable(struct request *rq)
 		count_nomerge2 = 0;
 		count_worked = 0;
 		atomic64_set(&rq_mergeable_count, 2);
-		divisorjjg <<= 1;
+		divisorjjg <<= 2;
 	}
 
 

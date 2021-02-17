@@ -17,6 +17,8 @@
 
 #define FREE_BATCH		16
 
+
+
 #define TICKS_PER_SEC		50ULL
 #define TIMER_INTERVAL		(NSEC_PER_SEC / TICKS_PER_SEC)
 
@@ -520,8 +522,10 @@ config_item *nullb_group_make_item(struct config_group *group, const char *name)
 	struct nullb_device *dev;
 
 	dev = null_alloc_dev();
-	if (!dev)
+	if (!dev) {
+		pr_err_once("%s errr1\n", __func__);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	config_item_init_type_name(&dev->item, name, &nullb_device_type);
 
@@ -713,6 +717,9 @@ static void end_cmd(struct nullb_cmd *cmd)
 	case NULL_Q_BIO:
 		cmd->bio->bi_status = cmd->error;
 		bio_endio(cmd->bio);
+		break;
+	default:
+		pr_err_once("%s errr1\n", __func__);
 		break;
 	}
 
@@ -1016,8 +1023,10 @@ again:
 		if (c_pages[i] == NULL)
 			continue;
 		err = null_flush_cache_page(nullb, c_pages[i]);
-		if (err)
+		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			return err;
+		}
 		one_round++;
 	}
 	flushed += one_round << PAGE_SHIFT;
@@ -1146,8 +1155,10 @@ static int null_handle_flush(struct nullb *nullb)
 	while (true) {
 		err = null_make_cache_space(nullb,
 			nullb->dev->cache_size * 1024 * 1024);
-		if (err || nullb->dev->curr_cache == 0)
+		if (err || nullb->dev->curr_cache == 0) {
+			pr_err_once("%s errr1\n", __func__);
 			break;
+		}
 	}
 
 	WARN_ON(!radix_tree_empty(&nullb->dev->cache));
@@ -1183,6 +1194,9 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 		err = copy_to_nullb(nullb, page, off, sector, len, is_fua);
 	}
 
+	if (err)
+		pr_err_once("%s errr1\n", __func__);
+
 	return err;
 }
 
@@ -1203,6 +1217,7 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 				     op_is_write(req_op(rq)), sector,
 				     rq->cmd_flags & REQ_FUA);
 		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			spin_unlock_irq(&nullb->lock);
 			return err;
 		}
@@ -1230,6 +1245,7 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 				     op_is_write(bio_op(bio)), sector,
 				     bio->bi_opf & REQ_FUA);
 		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			spin_unlock_irq(&nullb->lock);
 			return err;
 		}
@@ -1284,8 +1300,10 @@ static inline blk_status_t null_handle_badblocks(struct nullb_cmd *cmd,
 	sector_t first_bad;
 	int bad_sectors;
 
-	if (badblocks_check(bb, sector, nr_sectors, &first_bad, &bad_sectors))
+	if (badblocks_check(bb, sector, nr_sectors, &first_bad, &bad_sectors)) {
+		pr_err_once("%s errr1\n", __func__);
 		return BLK_STS_IOERR;
+	}
 
 	return BLK_STS_OK;
 }
@@ -1305,6 +1323,9 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 		err = null_handle_bio(cmd);
 	else
 		err = null_handle_rq(cmd);
+
+	if (err)
+		pr_err_once("%s errr1\n", __func__);
 
 	return errno_to_blk_status(err);
 }
@@ -1404,12 +1425,15 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		sts = null_handle_throttled(cmd);
-		if (sts != BLK_STS_OK)
+		if (sts != BLK_STS_OK) {
+			pr_err_once("%s errr1\n", __func__);
 			return sts;
+		}
 	}
 
 	if (op == REQ_OP_FLUSH) {
 		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
+		pr_err_once("%s errr1\n", __func__);
 		goto out;
 	}
 
@@ -1570,8 +1594,10 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
 
-	if (null_dma_map_rq(cmd, q) != BLK_STS_OK)
+	if (null_dma_map_rq(cmd, q) != BLK_STS_OK) {
+		pr_err_once("%s errr1\n", __func__);
 		return BLK_STS_IOERR;
+	}
 
 	blk_mq_start_request(bd->rq);
 
@@ -2024,6 +2050,7 @@ static int null_add_dev(struct nullb_device *dev)
 		nullb->tag_set->timeout = 5 * HZ;
 		nullb->q = blk_mq_init_queue_data(nullb->tag_set, nullb);
 		if (IS_ERR(nullb->q)) {
+			pr_err_once("%s errr1\n", __func__);
 			rv = -ENOMEM;
 			goto out_cleanup_tags;
 		}
