@@ -892,7 +892,7 @@ static atomic64_t cmpxchg_tries;
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
 		if (ktime_after(ktime_get(), hjhj + ms_to_ktime(200)))\
-			pr_err_once("relaxed cpu%d VAL=0x%x sprod=0x%x\n", cpu, VAL, sprod);\
+			pr_err_once("smp_cond_load_relaxedx cpu%d VAL=0x%x sprod=0x%x\n", cpu, VAL, sprod);\
 	}								\
 	(typeof(*ptr))VAL;						\
 })
@@ -1029,10 +1029,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			.count= ~0,
 		//	.prod = ~prod_mask,
 		};
-		u32 eprod;
+		const u32 eprod = head_full32b_prod;
 		int sync_count;
 		static int max_owner;
-		u32 val;
 		/* a. Wait for previous owner to finish */
 		atomic64_cond_read_relaxedx(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, VAL== sprod);
 		
@@ -1043,7 +1042,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_fetch_andnot_relaxed(tmp1.val,
 						       &cmdq->q.llq.atomic);
 
-		eprod = head_full32b_prod;
 		if (_tries < 5)
 			pr_err("%s v1 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
 			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
@@ -1091,19 +1089,18 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		writel_relaxed(prod, cmdq->q.prod_reg);
 
 		if (eprod < sprod)
-			pr_err_once("%s v1.4 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
-			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
+			pr_err_once("%s v1.4 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
+			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 
-		val = eprod;
 		if (_tries < 5)
-			pr_err("%s v2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x val=0x%x\n",
-			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod), val);
+			pr_err("%s v2 cpu%d sprod=0x%x shead=0x%x eprod=0x%x owner_prod=0x%x\n",
+			__func__, cpu, sprod, shead, eprod, atomic_read(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod));
 		/*
 		 * e. Tell the next owner we're done
 		 * Make sure we've updated the hardware first, so that we don't
 		 * race to update prod and potentially move it backwards.
 		 */
-		atomic_set_release(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, val);
+		atomic_set_release(&cmdq->q.llq.atomic_cons_owner_prod.owner_prod, eprod);
 		smp_mb__after_atomic();
 	}
 
