@@ -967,8 +967,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	space.prod = sprod;
 	while (!queue_has_space(&space, n + sync, cmdq, cpu, owner, &print)) {
 		ktime_t timeout = initial + ms_to_ktime(800);
-		if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
-			dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+	//	if (arm_smmu_cmdq_poll_until_not_full(smmu, &space))
+	//		dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 		if (ktime_after(ktime_get(), timeout)) {
 			if (print == 0)
 				print = 1;
