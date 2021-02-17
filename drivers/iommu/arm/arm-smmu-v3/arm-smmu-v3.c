@@ -954,7 +954,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.prod &= prod_mask;
 	owner = 1;
 	head.prod = queue_inc_prod_n(&llq, n + sync);
-	head_full32b_prod = llq.prod + n + sync;
+	head_full32b_prod = sprod + n + sync;
 
 	if (sprod > 0xf0000000)
 		pr_err_once("%s cpu%d sprod=0x%x\n", __func__, cpu, sprod);
