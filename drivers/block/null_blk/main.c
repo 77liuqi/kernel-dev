@@ -1746,7 +1746,7 @@ static bool null_blk_get_budget(struct request_queue *q)
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	static atomic64_t count_failed;
-	static unsigned long long divisor = 1;
+	static unsigned long long divisor = 8;
 	unsigned long long count;
 
 	if (dev_queue_ready(q, dev))
@@ -1762,8 +1762,37 @@ static bool null_blk_get_budget(struct request_queue *q)
 #endif
 	return true;
 }				 
+static bool nullb_lld_busy(struct request_queue *q)
+{
+	pr_err_once("%s\n", __func__);
+
+	return false;
+}
+
+#ifdef dsdfsdd
+static const struct blk_mq_ops scsi_mq_ops_no_commit = {
+	.get_budget	= scsi_mq_get_budget,
+	.put_budget	= scsi_mq_put_budget,
+	.queue_rq	= scsi_queue_rq,
+	.complete	= scsi_softirq_done,
+	.timeout	= scsi_timeout,
+#ifdef CONFIG_BLK_DEBUG_FS
+	.show_rq	= scsi_show_rq,
+#endif
+	.init_request	= scsi_mq_init_request,
+	.exit_request	= scsi_mq_exit_request,
+	.initialize_rq_fn = scsi_initialize_rq,
+	.cleanup_rq	= scsi_cleanup_rq,
+	.busy		= scsi_mq_lld_busy,
+	.map_queues	= scsi_map_queues,
+};
+
+#endif
+
 
 static const struct blk_mq_ops null_mq_ops = {
+	.get_budget	= null_blk_get_budget,
+	.put_budget	= null_blk_put_budget,
 	.queue_rq       = null_queue_rq,
 	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
@@ -1771,8 +1800,7 @@ static const struct blk_mq_ops null_mq_ops = {
 	.exit_hctx	= null_exit_hctx,
 	.init_request = null_init_request,
 	.exit_request = null_exit_request,
-	.get_budget	= null_blk_get_budget,
-	.put_budget	= null_blk_put_budget,
+	.busy		= nullb_lld_busy,
 };
 
 static void null_del_dev(struct nullb *nullb)
