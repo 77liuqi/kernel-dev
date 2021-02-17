@@ -1697,23 +1697,38 @@ static void null_blk_put_budget(struct request_queue *q)
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
-	static int count;
-
-	busy = atomic_dec_return(&dev->device_busy);
-	WARN_ON_ONCE(busy < 0);
+	static atomic64_t count_put;
+	static unsigned long long divisor = 1;
+	unsigned long long count;
 		
-	if ((count % 100000) == 0)
-		pr_err_once("%s busy=%d queue_depth=%d\n", __func__, busy, dev->queue_depth);
-	count++;
+	busy = atomic_dec_return(&dev->device_busy);
+
+	WARN_ON_ONCE(busy < 0);
+
+	count = atomic64_inc_return(&count_put);
+	if ((count % divisor) == 0) {
+		pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
+		divisor <<= 1;
+	}
+
 }
 
 static bool null_blk_get_budget(struct request_queue *q)
 {
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
+	static atomic64_t count_failed;
+	static unsigned long long divisor = 1;
+	unsigned long long count;
 
 	if (dev_queue_ready(q, dev))
 		return true;
+
+	count = atomic64_inc_return(&count_failed);
+	if ((count % divisor) == 0) {
+		pr_err("%s failed=%lld divisor=%lld\n", __func__, count, divisor);
+		divisor <<= 1;
+	}
 
 	return false;
 }				 
