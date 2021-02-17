@@ -71,6 +71,7 @@ struct nullb_device {
 	unsigned long flags; /* device flags */
 	unsigned int curr_cache;
 	struct badblocks badblocks;
+	spinlock_t device_busy_lock;
 	atomic_t device_busy;
 
 	unsigned int nr_zones;

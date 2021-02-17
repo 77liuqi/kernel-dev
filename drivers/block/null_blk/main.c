@@ -1353,8 +1353,11 @@ void nullb_device_unbusy(struct nullb_cmd *cmd)
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
+	unsigned long flags;
 
+	spin_lock_irqsave(&dev->device_busy_lock, flags);
 	busy = atomic_dec_return(&dev->device_busy);
+	spin_unlock_irqrestore(&dev->device_busy_lock, flags);
 	WARN_ON_ONCE(busy < 0);
 }
 
@@ -1700,7 +1703,13 @@ static inline int dev_queue_ready(struct request_queue *q,
 	unsigned int busy;
 	static int count;
 
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->device_busy_lock, flags);
+
 	busy = atomic_inc_return(&dev->device_busy) - 1;
+	WARN_ON_ONCE(busy < 0);
+	spin_unlock_irqrestore(&dev->device_busy_lock, flags);
 
 	pr_err_once("%s busy=%d queue_depth=%d dev=%pS\n", __func__, busy, dev->queue_depth, dev);
 
@@ -1720,29 +1729,31 @@ out_dec:
 
 static void null_blk_put_budget(struct request_queue *q)
 {
-#ifdef fdfdffd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
 	static atomic64_t count_put;
 	static unsigned long long divisor = 1;
 	unsigned long long count;
-		
+	
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->device_busy_lock, flags);
 	busy = atomic_dec_return(&dev->device_busy);
 
 	WARN_ON_ONCE(busy < 0);
+
+	spin_unlock_irqrestore(&dev->device_busy_lock, flags);
 
 	count = atomic64_inc_return(&count_put);
 	if ((count % divisor) == 0) {
 		pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
 		divisor <<= 1;
 	}
-#endif
 }
 
 static bool null_blk_get_budget(struct request_queue *q)
 {
-#ifdef fdfdffd
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	static atomic64_t count_failed;
@@ -1759,8 +1770,6 @@ static bool null_blk_get_budget(struct request_queue *q)
 	}
 
 	return false;
-#endif
-	return true;
 }				 
 static bool nullb_lld_busy(struct request_queue *q)
 {
@@ -2059,6 +2068,8 @@ static int null_add_dev(struct nullb_device *dev)
 	dev->nullb = nullb;
 
 	spin_lock_init(&nullb->lock);
+
+	spin_lock_init(&dev->device_busy_lock);
 
 	rv = setup_queues(nullb);
 	if (rv)
