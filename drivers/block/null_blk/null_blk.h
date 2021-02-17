@@ -17,7 +17,7 @@
 
 #include <linux/dma-mapping.h>
 
-#define NULL_BLK_MAX_SEGMENTS 64
+#define NULL_BLK_MAX_SEGMENTS 124
 
 struct nullb_cmd {
 	struct request *rq;
