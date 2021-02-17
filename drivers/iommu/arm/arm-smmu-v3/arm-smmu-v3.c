@@ -972,8 +972,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (ktime_after(ktime_get(), timeout)) {
 			if (print == 0)
 				print = 1;
-			dev_err_once(smmu->dev, "CMDQ timeout1 sprod=0x%x owner=%d cpu%d space cons_owner=0x%llx space.prod=0x%x\n",
-			sprod, owner, cpu, space.cons_owner, space.prod);
+			dev_err_once(smmu->dev, "CMDQ timeout1 sprod=0x%x owner=%d cpu%d cmdq cons_owner=0x%llx (prod=0x%x cons=0x%x) n=%d sync=%d head_full32b_prod=0x%x\n",
+			sprod, owner, cpu, cmdq->q.llq.cons_owner, cmdq->q.llq.owner_prod, cmdq->q.llq.cons, n, sync, head_full32b_prod);
 			panic("CMDQ timeout1 cpu%d", cpu);
 		}
 
