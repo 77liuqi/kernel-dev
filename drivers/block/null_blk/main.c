@@ -1752,7 +1752,7 @@ static void null_blk_put_budget(struct request_queue *q)
 
 	count = atomic64_inc_return(&count_put);
 	if ((count % divisor) == 0) {
-		pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
+	//	pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
 		divisor <<= 1;
 	}
 	blk_mq_delay_run_hw_queues(q, 3);
@@ -1771,7 +1771,7 @@ static bool null_blk_get_budget(struct request_queue *q)
 
 	count = atomic64_inc_return(&count_failed);
 	if ((count % divisor) == 0) {
-		pr_err("%s failed=%lld divisor=%lld\n", __func__, count, divisor);
+	//	pr_err("%s failed=%lld divisor=%lld\n", __func__, count, divisor);
 		divisor <<= 1;
 	}
 
