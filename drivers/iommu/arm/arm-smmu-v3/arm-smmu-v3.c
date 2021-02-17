@@ -879,6 +879,8 @@ extern int smmu_test;
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t tries;
+static atomic64_t lower_ts;
+
 static atomic64_t cmpxchg_tries;
 
 #define smp_cond_load_relaxedx(ptr, cond_expr)				\
@@ -932,7 +934,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int count;
 	u32 shead;
 	u32 head_full32b_prod;
-
+	u32 turnstile;
 	#ifdef HACK
 	int i;
 	if (test)
@@ -986,10 +988,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	 */
 	arm_smmu_cmdq_write_entries(cmdq, cmds, llq.prod, n_orig);
 
-
+	turnstile = xchg(&cmdq->q.llq.turnstile, head_full32b_prod);
 	count = 0;
 	shead = sprod + n + sync;
 
+	if (turnstile < head_full32b_prod)
+		atomic64_inc(&lower_ts);
 	
 	if (_tries < 5)
 		pr_err("%s u0 cpu%d sprod=0x%x shead=0x%x _tries=0x%llx\n", __func__, cpu, sprod, shead, _tries);
@@ -1166,6 +1170,12 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
+u64 arm_smmu_cmdq_get_lowerts(void)
+{
+	return atomic64_read(&lower_ts);
+}
+
+
 u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
 {
 	return atomic64_read(&cmpxchg_tries);
@@ -1174,6 +1184,7 @@ u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
+	atomic64_set(&lower_ts, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 }
 

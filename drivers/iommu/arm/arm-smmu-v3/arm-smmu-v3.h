@@ -494,6 +494,7 @@ struct arm_smmu_ll_queue {
 		} atomic_cons_owner_prod;
 		u64 cons_owner;
 	};
+	u32				turnstile;
 	u32				max_n_shift;
 	u32				owner_count_shift;
 };
