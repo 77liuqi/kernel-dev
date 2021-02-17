@@ -1698,6 +1698,7 @@ int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
 static void null_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 			     unsigned int hctx_idx)
 {
+	blk_mq_delay_run_hw_queues(rq->q, 3);
 }
 
 static inline int dev_queue_ready(struct request_queue *q,
@@ -1726,6 +1727,7 @@ out_dec:
 		pr_err_once("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
 	count++;
 	atomic_dec(&dev->device_busy);
+	blk_mq_delay_run_hw_queues(q, 3);
 	return 0;
 }
 
