@@ -739,9 +739,10 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 //		pr_err("%s cmd=%pS\n", __func__, cmd);
 	
 
-	nullb_device_unbusy(cmd);
 
-	end_cmd(container_of(timer, struct nullb_cmd, timer));
+	end_cmd(cmd);
+
+	nullb_device_unbusy(cmd);
 
 	return HRTIMER_NORESTART;
 }
@@ -1524,6 +1525,7 @@ static bool should_requeue_request(struct request *rq)
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
 	pr_info("rq %p timed out\n", rq);
+	WARN_ON_ONCE(1);
 	blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
 }
