@@ -1698,7 +1698,7 @@ int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
 static void null_exit_request(struct blk_mq_tag_set *set, struct request *rq,
 			     unsigned int hctx_idx)
 {
-	blk_mq_delay_run_hw_queues(rq->q, 3);
+	//blk_mq_delay_run_hw_queues(rq->q, 3);
 }
 
 static inline int dev_queue_ready(struct request_queue *q,
