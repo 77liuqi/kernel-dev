@@ -739,10 +739,11 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 //		pr_err("%s cmd=%pS\n", __func__, cmd);
 	
 
+	nullb_device_unbusy(cmd);
+
 
 	end_cmd(cmd);
 
-	nullb_device_unbusy(cmd);
 
 	return HRTIMER_NORESTART;
 }
@@ -1731,6 +1732,7 @@ out_dec:
 
 static void null_blk_put_budget(struct request_queue *q)
 {
+	#ifdef dffdf 
 	struct nullb *nullb = q->queuedata;
 	struct nullb_device *dev = nullb->dev;
 	int busy;
@@ -1752,6 +1754,7 @@ static void null_blk_put_budget(struct request_queue *q)
 		pr_err("%s failed=%lld divisor=%lld busy=%d\n", __func__, count, divisor, busy);
 		divisor <<= 1;
 	}
+	#endif
 }
 
 static bool null_blk_get_budget(struct request_queue *q)
