@@ -2192,7 +2192,7 @@ blk_qc_t blk_mq_submit_bio(struct bio *bio)
 		bm_c = 0;
 		bm_d = 0;
 		atomic64_set(&submit_bio_count, 2);
-		divisorjj3g <<= 1;
+		divisorjj3g <<= 8;
 	}
 
 	if (!bio_integrity_prep(bio))

@@ -223,7 +223,7 @@ start:
 		if ((iovad->countjh3dd % iovad->divisor3) == 0) {
 			pr_err("%s2 limit_pfn=0x%lx iovad->dma_32bit_pfn=0x%lx size=0x%lx iovad->max32_alloc_size=0x%lx divisor=%lld iovad\n", 
 				__func__, limit_pfn, iovad->dma_32bit_pfn, size, iovad->max32_alloc_size, iovad->divisor3);
-			iovad->divisor3 <<= 1;
+			iovad->divisor3 <<= 2;
 			iovad->countjh3dd = 0;
 		}
 		iovad->countjh3dd++;
