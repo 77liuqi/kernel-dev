@@ -1738,7 +1738,7 @@ int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
-	pr_err_once("%s set=%pS rq=%pS cmd=%pS\n", __func__, set, rq, cmd);
+	//pr_err_once("%s set=%pS rq=%pS cmd=%pS\n", __func__, set, rq, cmd);
 	sg_init_table(&cmd->sgl[0], NULL_BLK_MAX_SEGMENTS);
 
 	return 0;
@@ -1764,7 +1764,7 @@ static inline int dev_queue_ready(struct request_queue *q,
 	WARN_ON_ONCE(busy < 0);
 	spin_unlock_irqrestore(&dev->device_busy_lock, flags);
 
-	pr_err_once("%s busy=%d queue_depth=%d dev=%pS\n", __func__, busy, dev->queue_depth, dev);
+//	pr_err_once("%s busy=%d queue_depth=%d dev=%pS\n", __func__, busy, dev->queue_depth, dev);
 
 	if (busy >= dev->queue_depth)
 		goto out_dec;
@@ -1772,9 +1772,9 @@ static inline int dev_queue_ready(struct request_queue *q,
 	return 1;
 out_dec:
 	
-	if ((count % 100000) == 0)
-		pr_err_once("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
-	count++;
+//	if ((count % 100000) == 0)
+//		pr_err_once("%s2 dev=%pS busy=%d queue_depth=%d\n", __func__, dev, busy, dev->queue_depth);
+//	count++;
 	atomic_dec(&dev->device_busy);
 	blk_mq_delay_run_hw_queues(q, 3);
 	return 0;
