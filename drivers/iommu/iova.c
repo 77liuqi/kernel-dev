@@ -178,11 +178,15 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+atomic64_t total_inserts_from_alloc_iova;
+atomic64_t total_inserts_from_alloc_iova_fail;
+atomic64_t total_inserts_from_alloc_iova_new_retry;
+
 unsigned long long __alloc_and_insert_iova_range_new_divisor = 1;
 EXPORT_SYMBOL_GPL(__alloc_and_insert_iova_range_new_divisor);
 
 static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
-		unsigned long size, unsigned long limit_pfn,
+		const unsigned long size, const unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
 {
 	struct rb_node *curr, *prev;
@@ -197,8 +201,21 @@ static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+start:
+	if (iovad->print_retry == 1) {
+		high_pfn = limit_pfn;
+		low_pfn = iovad->start_pfn;
+		pr_err("iova_range_newx0 high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx\n",
+			high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size);
+
+	}
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
 			size >= iovad->max32_alloc_size) {
+
+		if (iovad->print_retry == 1)
+			pr_err("iova_range_newx1 high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx\n",
+				 high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size);
+
 		pr_err_once("%s1 32b fail limit_pfn=0x%lx dma_32bit_pfn=0x%lx size=0x%lx max32_alloc_size=0x%lx high_pfn=0x%lx low_pfn=0x%lx size=0x%lx\n", 
 				__func__, limit_pfn, iovad->dma_32bit_pfn, size, iovad->max32_alloc_size, high_pfn, low_pfn, size);
 		if (iovad->divisor3 == 0)
@@ -218,14 +235,25 @@ static int __alloc_and_insert_iova_range_new(struct iova_domain *iovad,
 	curr_iova = rb_entry(curr, struct iova, node);
 	retry_pfn = curr_iova->pfn_hi + 1;
 
+
 retry:
+	if (iovad->print_retry == 1)
+		pr_err("iova_range_newx2 retry high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS retry_pfn=0x%lx\n",
+			high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, retry_pfn);
 	do {
 		high_pfn = min(high_pfn, curr_iova->pfn_lo);
 		new_pfn = (high_pfn - size) & align_mask;
 		prev = curr;
 		curr = rb_prev(curr);
 		curr_iova = rb_entry(curr, struct iova, node);
+		if (iovad->print_retry == 1)
+			pr_err("iova_range_newx3 high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS new_pfn=0x%lx\n",
+				 high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, new_pfn);
 	} while (curr && new_pfn <= curr_iova->pfn_hi && new_pfn >= low_pfn);
+	
+	if (iovad->print_retry == 1)
+		pr_err("iova_range_newx4 high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS new_pfn=0x%lx iovad->start_pfn=0x%lx\n",
+			 high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, new_pfn, iovad->start_pfn);
 
 	if (high_pfn < size || new_pfn < low_pfn) {
 		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
@@ -234,7 +262,7 @@ retry:
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
-			pr_err("%s3 going to retry high_pfn=0x%lx low_pfn=0x%lx size=0x%lx iovad->start_pfn=0x%lx\n",
+			pr_err_once("%s3 going to retry high_pfn=0x%lx low_pfn=0x%lx size=0x%lx iovad->start_pfn=0x%lx\n",
 				__func__, high_pfn, low_pfn, size, iovad->start_pfn);
 				__alloc_and_insert_iova_range_new_divisor *= 2;
 				
@@ -243,13 +271,32 @@ retry:
 				__alloc_and_insert_iova_range_new_divisor *= 2;
 			}
 			countjh++;
+			if (iovad->print_retry == 0) {
+				iovad->print_retry = 1;
+				goto start;
+			} else if (iovad->print_retry == 1 ) {
+				iovad->print_retry = 2;
+			}
+			
+			if (iovad->print_retry == 1)
+				pr_err("%sx5 going to retry high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS new_pfn=0x%lx iovad->start_pfn=0x%lx\n",
+					__func__, high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, new_pfn, iovad->start_pfn);
+			atomic64_inc(&total_inserts_from_alloc_iova_new_retry);
 			goto retry;
 		}
 		iovad->max32_alloc_size = size;
 		pr_err_once("%s full2\n", __func__);
 		atomic64_inc(&total_inserts_iova_range_full[3]);
+		
+		if (iovad->print_retry == 1)
+			pr_err("iova_range_newx5 full high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS new_pfn=0x%lx iovad->start_pfn=0x%lx\n",
+				high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, new_pfn, iovad->start_pfn);
 		goto iova32_full;
 	}
+	
+	if (iovad->print_retry == 1)
+		pr_err("iova_range_newx6 success high_pfn=0x%lx low_pfn=0x%lx size=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx curr=%pS curr_iova=%pS new_pfn=0x%lx iovad->start_pfn=0x%lx\n",
+			 high_pfn, low_pfn, size, iovad->dma_32bit_pfn, iovad->max32_alloc_size, curr, curr_iova, new_pfn, iovad->start_pfn);
 
 	/* pfn_lo will point to size aligned address if size_aligned is set */
 	new->pfn_lo = new_pfn;
@@ -388,8 +435,6 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
  */
 bool use_alloc_iova_old;
 EXPORT_SYMBOL_GPL(use_alloc_iova_old);
-atomic64_t total_inserts_from_alloc_iova;
-atomic64_t total_inserts_from_alloc_iova_fail;
 
 struct iova *
 alloc_iova(struct iova_domain *iovad, unsigned long size,
@@ -1050,7 +1095,7 @@ static atomic64_t total_inserts;
 static atomic64_t total_inserts_too_big;
 extern atomic64_t sac_trick_attempt;
 extern atomic64_t sac_trick_fail;
-atomic64_t total_inserts_iova_range_full[4];
+//atomic64_t total_inserts_iova_range_full[4];
 
 unsigned long long iova_rcache_insert_divisor = 1000000;
 EXPORT_SYMBOL_GPL(iova_rcache_insert_divisor);
@@ -1063,7 +1108,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 	int i;
 
 	if ((val % iova_rcache_insert_divisor) == 0) {
-		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld fail=%lld sac_trick_attempt=%lld fail=%lld\n",
+		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld fail=%lld new retry=%lld sac_trick_attempt=%lld fail=%lld\n",
 		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
 		atomic64_read(&sizes[0]),
 		atomic64_read(&sizes[1]),
@@ -1073,6 +1118,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_read(&sizes[5]),
 		atomic64_read(&total_inserts_from_alloc_iova),
 		atomic64_read(&total_inserts_from_alloc_iova_fail),
+		atomic64_read(&total_inserts_from_alloc_iova_new_retry),
 		atomic64_read(&sac_trick_attempt),
 		atomic64_read(&sac_trick_fail));
 
@@ -1095,6 +1141,7 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 		atomic64_set(&sac_trick_attempt, 0);
 		atomic64_set(&sac_trick_fail, 0);
 		atomic64_set(&total_inserts_from_alloc_iova_fail, 0);
+		atomic64_set(&total_inserts_from_alloc_iova_new_retry, 0);
 		iova_rcache_insert_divisor <<= 1;
 		
 	}
