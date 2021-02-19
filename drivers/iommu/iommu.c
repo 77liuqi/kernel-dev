@@ -1511,7 +1511,7 @@ static int iommu_group_alloc_default_domain(struct bus_type *bus,
 	group->default_domain = dom;
 	if (!group->domain)
 		group->domain = dom;
-
+	pr_err_once("%s iommu_dma_strict=%d\n", __func__, iommu_dma_strict);
 	if (!iommu_dma_strict) {
 		int attr = 1;
 		iommu_domain_set_attr(dom,
