@@ -97,7 +97,8 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 
 		shift = iova_shift(&host1x->iova);
 		alloc = alloc_iova(&host1x->iova, size >> shift,
-				   host1x->iova_end >> shift, true);
+				   host1x->iova_end >> shift, true,
+				   true);
 		if (!alloc) {
 			err = -ENOMEM;
 			goto iommu_free_mem;

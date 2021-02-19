@@ -140,14 +140,14 @@ void free_iova(struct iova_domain *iovad, unsigned long pfn);
 void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
-	bool size_aligned);
+	bool size_aligned, bool rb_retry);
 void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
 		    unsigned long size);
 void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
 		unsigned long data);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-			      unsigned long limit_pfn, bool flush_rcache);
+			      unsigned long limit_pfn, bool flush_rcache, bool rb_retry);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void copy_reserved_iova(struct iova_domain *from, struct iova_domain *to);
@@ -180,7 +180,8 @@ static inline void __free_iova(struct iova_domain *iovad, struct iova *iova)
 static inline struct iova *alloc_iova(struct iova_domain *iovad,
 				      unsigned long size,
 				      unsigned long limit_pfn,
-				      bool size_aligned)
+				      bool size_aligned,
+				      bool rb_retry)
 {
 	return NULL;
 }

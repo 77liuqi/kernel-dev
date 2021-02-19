@@ -232,7 +232,8 @@ static unsigned int pin_job(struct host1x *host, struct host1x_job *job)
 
 			shift = iova_shift(&host->iova);
 			alloc = alloc_iova(&host->iova, gather_size >> shift,
-					   host->iova_end >> shift, true);
+					   host->iova_end >> shift, true,
+					   true);
 			if (!alloc) {
 				err = -ENOMEM;
 				goto put;

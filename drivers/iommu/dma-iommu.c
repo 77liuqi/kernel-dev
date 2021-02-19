@@ -456,14 +456,15 @@ static dma_addr_t iommu_dma_alloc_iova(struct iommu_domain *domain,
 	if (dma_limit > DMA_BIT_MASK(32) && dev_is_pci(dev)) {
 		atomic64_inc(&sac_trick_attempt);
 		iova = alloc_iova_fast(iovad, iova_len,
-				       DMA_BIT_MASK(32) >> shift, false);
+				       DMA_BIT_MASK(32) >> shift, false,
+				       !pci_is_pcie(to_pci_dev(dev)));
 		if (!iova)
 			atomic64_inc(&sac_trick_fail);
 	}
 
 	if (!iova)
 		iova = alloc_iova_fast(iovad, iova_len, dma_limit >> shift,
-				       true);
+				       true, true);
 
 	return (dma_addr_t)iova << shift;
 }

@@ -185,7 +185,7 @@ static atomic64_t total_inserts;
 static atomic64_t total_inserts_too_big;
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
-			struct iova *new, bool size_aligned)
+			struct iova *new, bool size_aligned, bool rb_retry)
 {
 	struct rb_node *curr, *prev;
 	struct iova *curr_iova;
@@ -217,7 +217,7 @@ retry:
 	} while (curr && new_pfn <= curr_iova->pfn_hi && new_pfn >= low_pfn);
 
 	if (high_pfn < size || new_pfn < low_pfn) {
-		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
+		if (rb_retry && low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
 			high_pfn = limit_pfn;
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
@@ -301,6 +301,7 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
  * @size: - size of page frames to allocate
  * @limit_pfn: - max limit address
  * @size_aligned: - set if size_aligned address range is required
+ * @rb_retry: - retry search for alloc failure
  * This function allocates an iova in the range iovad->start_pfn to limit_pfn,
  * searching top-down from limit_pfn to iovad->start_pfn. If the size_aligned
  * flag is set then the allocated address iova->pfn_lo will be naturally
@@ -309,7 +310,7 @@ EXPORT_SYMBOL_GPL(iova_cache_put);
 struct iova *
 alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
-	bool size_aligned)
+	bool size_aligned, bool rb_retry)
 {
 	struct iova *new_iova;
 	int ret;
@@ -319,7 +320,7 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 		return NULL;
 
 	ret = __alloc_and_insert_iova_range(iovad, size, limit_pfn + 1,
-			new_iova, size_aligned);
+			new_iova, size_aligned, rb_retry);
 
 	if (ret) {
 		free_iova_mem(new_iova);
@@ -424,13 +425,14 @@ EXPORT_SYMBOL_GPL(free_iova);
  * @size: - size of page frames to allocate
  * @limit_pfn: - max limit address
  * @flush_rcache: - set to flush rcache on regular allocation failure
+ * @rb_retry: - retry rbtree search for rcache failure
  * This function tries to satisfy an iova allocation from the rcache,
  * and falls back to regular allocation on failure. If regular allocation
  * fails too and the flush_rcache flag is set then the rcache will be flushed.
 */
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-		unsigned long limit_pfn, bool flush_rcache)
+		unsigned long limit_pfn, bool flush_rcache, bool rb_retry)
 {
 	unsigned long iova_pfn;
 	struct iova *new_iova;
@@ -440,7 +442,7 @@ alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 		return iova_pfn;
 
 retry:
-	new_iova = alloc_iova(iovad, size, limit_pfn, true);
+	new_iova = alloc_iova(iovad, size, limit_pfn, true, rb_retry);
 	if (!new_iova) {
 		unsigned int cpu;
 

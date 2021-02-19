@@ -994,7 +994,7 @@ void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *dma)
 
 	alloc = alloc_iova(&tegra->carveout.domain,
 			   size >> tegra->carveout.shift,
-			   tegra->carveout.limit, true);
+			   tegra->carveout.limit, true, true);
 	if (!alloc) {
 		err = -EBUSY;
 		goto free_pages;
