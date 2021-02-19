@@ -29,7 +29,7 @@ static struct kset *iommu_group_kset;
 static DEFINE_IDA(iommu_group_ida);
 
 static unsigned int iommu_def_domain_type __read_mostly;
-static bool iommu_dma_strict __read_mostly = false;
+static bool iommu_dma_strict __read_mostly = true;
 static u32 iommu_cmd_line __read_mostly;
 
 struct iommu_group {
@@ -1511,7 +1511,7 @@ static int iommu_group_alloc_default_domain(struct bus_type *bus,
 	group->default_domain = dom;
 	if (!group->domain)
 		group->domain = dom;
-
+	pr_err_once("%s iommu_dma_strict=%d\n", __func__, iommu_dma_strict);
 	if (!iommu_dma_strict) {
 		int attr = 1;
 		iommu_domain_set_attr(dom,
