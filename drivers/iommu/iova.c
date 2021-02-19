@@ -178,6 +178,11 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+atomic64_t total_inserts_from_alloc_iova;
+atomic64_t total_inserts_from_alloc_iova_fail;
+atomic64_t total_inserts_from_alloc_iova_new_retry;
+static atomic64_t total_inserts;
+static atomic64_t total_inserts_too_big;
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
@@ -217,6 +222,7 @@ retry:
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
+			atomic64_inc(&total_inserts_from_alloc_iova_new_retry);
 			goto retry;
 		}
 		iovad->max32_alloc_size = size;
@@ -910,13 +916,48 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	return can_insert;
 }
 
+extern atomic64_t sac_trick_attempt;
+extern atomic64_t sac_trick_fail;
+const unsigned long long iova_rcache_insert_divisor = 10000000;
+
 static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
 			       unsigned long size)
 {
 	unsigned int log_size = order_base_2(size);
+	unsigned long long val = atomic64_inc_return(&total_inserts);
+	static atomic64_t sizes[6];
+	int i;
 
-	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE)
+	if ((val % iova_rcache_insert_divisor) == 0) {
+		pr_err("%s total inserts=%lld too big=%lld (%lld) [%lld %lld %lld %lld %lld %lld] total_inserts_from_alloc_iova=%lld fail=%lld new retry=%lld sac_trick_attempt=%lld fail=%lld\n",
+		__func__, val, atomic64_read(&total_inserts_too_big), (atomic64_read(&total_inserts_too_big) * 100) / val,
+		atomic64_read(&sizes[0]),
+		atomic64_read(&sizes[1]),
+		atomic64_read(&sizes[2]),
+		atomic64_read(&sizes[3]),
+		atomic64_read(&sizes[4]),
+		atomic64_read(&sizes[5]),
+		atomic64_read(&total_inserts_from_alloc_iova),
+		atomic64_read(&total_inserts_from_alloc_iova_fail),
+		atomic64_read(&total_inserts_from_alloc_iova_new_retry),
+		atomic64_read(&sac_trick_attempt),
+		atomic64_read(&sac_trick_fail));
+
+		for (i = 0; i < 6; i++)
+			atomic64_set(&sizes[i], 0);
+		atomic64_set(&total_inserts, 200);
+		atomic64_set(&total_inserts_too_big, 0);
+		atomic64_set(&total_inserts_from_alloc_iova, 0);
+		atomic64_set(&sac_trick_attempt, 0);
+		atomic64_set(&sac_trick_fail, 0);
+		atomic64_set(&total_inserts_from_alloc_iova_fail, 0);
+		atomic64_set(&total_inserts_from_alloc_iova_new_retry, 0);
+	}
+	
+	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
+		atomic64_inc(&total_inserts_too_big);
 		return false;
+	}
 
 	return __iova_rcache_insert(iovad, &iovad->rcaches[log_size], pfn);
 }
