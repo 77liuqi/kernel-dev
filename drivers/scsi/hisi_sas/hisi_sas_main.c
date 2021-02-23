@@ -424,7 +424,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		struct Scsi_Host *shost = hisi_hba->shost;
 		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 		int queue = qmap->mq_map[raw_smp_processor_id()];
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "%s task=%pS slow_task=%pS uldd_task=%pS\n", __func__, task, task->slow_task, task->uldd_task);
 
 		*dq_pointer = dq = &hisi_hba->dq[queue];
 	}
