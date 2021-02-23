@@ -1140,13 +1140,13 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		struct scsilun lun;
+		struct scsi_lun lun;
 
 		int_to_scsilun(0, &lun);
-		if (!dev_is_sata) {
-			struct sas_ssp_task ssp_task = parameter;
+		if (!dev_is_sata(device)) {
+			struct sas_ssp_task *ssp_task = parameter;
 
-			memcpy(lun.scsi_lun, ssp_task.LUN, 8);
+			memcpy(lun.scsi_lun, &ssp_task->LUN[0], 8);
 		}
 		task = sas_alloc_slow_task(sha, device, &lun, GFP_KERNEL);
 		if (!task)
@@ -1915,10 +1915,10 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
-	if (hisi_hha->hw->slot_index_alloc)
+	if (hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
-		rc = = task->tag;
+		rc = task->tag;
 	if (rc < 0)
 		goto err_out;
 
