@@ -155,6 +155,31 @@ void hisi_sas_stop_phys(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_stop_phys);
 
+static void hisi_sas_slot_index_clear(struct hisi_hba *hisi_hba, int slot_idx)
+{
+	void *bitmap = hisi_hba->slot_index_tags;
+
+	clear_bit(slot_idx, bitmap);
+}
+
+static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
+{
+	if (hisi_hba->hw->slot_index_alloc &&
+	    slot_idx < HISI_SAS_UNRESERVED_IPTT) {
+		spin_lock(&hisi_hba->lock);
+		hisi_sas_slot_index_clear(hisi_hba, slot_idx);
+		spin_unlock(&hisi_hba->lock);
+	}
+}
+
+static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
+{
+	int i;
+
+	for (i = 0; i < hisi_hba->slot_index_count; ++i)
+		hisi_sas_slot_index_clear(hisi_hba, i);
+}
+
 void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			     struct hisi_sas_slot *slot)
 {
@@ -190,6 +215,8 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	spin_unlock(&sas_dev->lock);
 
 	memset(slot, 0, offsetof(struct hisi_sas_slot, buf));
+
+	hisi_sas_slot_index_free(hisi_hba, slot->idx);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
@@ -397,6 +424,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		struct Scsi_Host *shost = hisi_hba->shost;
 		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 		int queue = qmap->mq_map[raw_smp_processor_id()];
+		WARN_ON_ONCE(1);
 
 		*dq_pointer = dq = &hisi_hba->dq[queue];
 	}
@@ -413,22 +441,32 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
 			      &n_elem_req);
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("%s1 failed dma map task=%pS\n", __func__, task);
 		goto prep_out;
+	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
 		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
-		if (rc < 0)
+		if (rc < 0) {
+			pr_err("%s2 failed dif dma map task=%pS\n", __func__, task);
 			goto err_out_dma_unmap;
+		}
 	}
 
-	if (hisi_hba->hw->slot_index_alloc)
-		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
-	else
+	if (hisi_hba->hw->slot_index_alloc) {
+		WARN_ON_ONCE(!scmd);
+		if (!task->slow_task)
+			rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
+		else
+			rc = 0;
+	} else
 		rc = scmd->request->tag;
 
-	if (rc < 0)
+	if (rc < 0) {
+		pr_err("%s3 failed slot_index_alloc task=%pS rc=%d\n", __func__, task, rc);
 		goto err_out_dif_dma_unmap;
+	}
 
 	slot_idx = rc;
 	slot = &hisi_hba->slot_info[slot_idx];
@@ -2274,6 +2312,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	int i, j, s, max_command_entries = HISI_SAS_MAX_COMMANDS;
+	int unreserved_iptt = HISI_SAS_UNRESERVED_IPTT;
 	int max_command_entries_ru, sz_slot_buf_ru;
 	int blk_cnt, slots_per_blk;
 
@@ -2381,6 +2420,12 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 	if (!hisi_hba->breakpoint)
 		goto err_out;
 
+	hisi_hba->slot_index_count = unreserved_iptt;
+	s = hisi_hba->slot_index_count / BITS_PER_BYTE;
+	hisi_hba->slot_index_tags = devm_kzalloc(dev, s, GFP_KERNEL);
+	if (!hisi_hba->slot_index_tags)
+		goto err_out;
+
 	s = sizeof(struct hisi_sas_initial_fis) * HISI_SAS_MAX_PHYS;
 	hisi_hba->initial_fis = dmam_alloc_coherent(dev, s,
 						    &hisi_hba->initial_fis_dma,
@@ -2394,6 +2439,9 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 					GFP_KERNEL);
 	if (!hisi_hba->sata_breakpoint)
 		goto err_out;
+
+	hisi_sas_slot_index_init(hisi_hba);
+	hisi_hba->last_slot_index = HISI_SAS_UNRESERVED_IPTT;
 
 	hisi_hba->wq = create_singlethread_workqueue(dev_name(dev));
 	if (!hisi_hba->wq) {
@@ -2611,14 +2659,9 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_lun = ~0;
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
-	if (hisi_hba->hw->slot_index_alloc) {
-		shost->can_queue = HISI_SAS_MAX_COMMANDS;
-		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
-	} else {
-		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
-		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
-		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
-	}
+	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+	shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
+	shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = hisi_hba->dev;

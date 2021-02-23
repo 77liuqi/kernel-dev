@@ -54,16 +54,24 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 		goto out_err_slow;
 
 	task->tag = -1;
+	pr_err_once("%s ha=%pS dev=%pS (target=%pS) lun=%pS flags=0x%x nr_reserved_cmds=%d\n",
+		__func__, ha, dev, dev ? dev->starget :  NULL, lun, flags, shost->nr_reserved_cmds);
 	if (shost->nr_reserved_cmds) {
 		struct scsi_device *sdev;
 
 		if (dev && dev->starget) {
 			sdev = scsi_device_lookup_by_target(dev->starget,
 						    scsilun_to_int(lun));
+			pr_err_once("%s2 ha=%pS dev=%pS (target=%pS) lun=%pS flags=0x%x nr_reserved_cmds=%d sdev=%pS\n",
+				__func__, ha, dev, dev ? dev->starget :  NULL, lun, flags, shost->nr_reserved_cmds, sdev);
 			if (!sdev)
 				goto out_err_scmd;
-		} else
+		} else {
+		//	WARN_ON_ONCE(1);
 			sdev = ha->core.shost_dev;
+			pr_err_once("%s3 ha=%pS dev=%pS (target=%pS) lun=%pS flags=0x%x nr_reserved_cmds=%d sdev=%pS\n",
+				__func__, ha, dev, dev ? dev->starget :  NULL, lun, flags, shost->nr_reserved_cmds, sdev);
+		}
 		slow->scmd = scsi_get_internal_cmd(sdev, DMA_BIDIRECTIONAL,
 						   REQ_NOWAIT);
 		if (!slow->scmd)
@@ -71,6 +79,9 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 		task->tag = slow->scmd->request->tag;
 		ASSIGN_SAS_TASK(slow->scmd, task);
 	}
+	
+	pr_err_once("%s4 ha=%pS dev=%pS (target=%pS) lun=%pS flags=0x%x nr_reserved_cmds=%d slow=%pS task->tag=%d\n",
+			__func__, ha, dev, dev ? dev->starget :  NULL, lun, flags, shost->nr_reserved_cmds, slow, task->tag);
 
 	task->slow_task = slow;
 	slow->task = task;
@@ -80,8 +91,12 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 	return task;
 
 out_err_scmd:
+	WARN_ON_ONCE(1);
+	pr_err("%s out_err_scmd ha=%pS dev=%pS\n", __func__, ha, dev);
 	kfree(slow);
 out_err_slow:
+	WARN_ON_ONCE(1);
+	pr_err("%s out_err_slow ha=%pS dev=%pS\n", __func__, ha, dev);
 	kmem_cache_free(sas_task_cache, task);
 	return NULL;
 }

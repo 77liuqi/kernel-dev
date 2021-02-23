@@ -802,6 +802,8 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 					hisi_hba->slot_index_count, start);
 		if (start >= end) {
 			spin_unlock(&hisi_hba->lock);
+			pr_err("%s slot_index_count=%d bitmap=%pS fail\n",
+			__func__, hisi_hba->slot_index_count, bitmap);
 			return -SAS_QUEUE_FULL;
 		}
 		/*
