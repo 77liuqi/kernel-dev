@@ -1705,7 +1705,9 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 static void scsi_sysfs_add_devices(struct Scsi_Host *shost)
 {
 	struct scsi_device *sdev;
+	
 	shost_for_each_device(sdev, shost) {
+		pr_err("%s1 sdev=%pS\n", __func__, sdev);
 		/* target removed before the device could be added */
 		if (sdev->sdev_state == SDEV_DEL)
 			continue;
@@ -1782,10 +1784,13 @@ static void scsi_finish_async_scan(struct async_scan_data *data)
 	struct Scsi_Host *shost;
 	unsigned long flags;
 
+
 	if (!data)
 		return;
 
 	shost = data->shost;
+
+	pr_err("%s shost=%pS\n", __func__, shost);
 
 	mutex_lock(&shost->scan_mutex);
 
