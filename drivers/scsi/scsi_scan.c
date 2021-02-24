@@ -791,6 +791,9 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	 * scanning run at their own risk, or supply a user level program
 	 * that can correctly scan.
 	 */
+	sdev_printk(KERN_WARNING, sdev,
+					"%s: sdev=%pS inq_result=%pS sdev->inquiry=%pS scsi_null_inquiry=%pS\n",
+					__func__, sdev, inq_result, sdev->inquiry, scsi_null_inquiry);
 
 	/*
 	 * Copy at least 36 bytes of INQUIRY data, so that we don't
