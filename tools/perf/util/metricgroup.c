@@ -844,8 +844,7 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 	bool no_group = true, has_duration = false;
 
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
-		if (!silent)
-			pr_debug("found event %s\n", (const char *)cur->key);
+		pr_debug("found event %s silent=%d\n", (const char *)cur->key, silent);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
