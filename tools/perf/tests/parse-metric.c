@@ -198,6 +198,11 @@ out:
 	return err;
 }
 
+static int compute_metric_pmu(const char *name, struct value *vals, double *ratio, struct perf_pmu *pmu)
+{
+	return __compute_metric(name, vals, name, ratio, NULL, NULL, pmu);
+}
+
 static int compute_metric(const char *name, struct value *vals, double *ratio)
 {
 	return __compute_metric(name, vals, name, ratio, NULL, NULL, &perf_pmu__fake);
@@ -347,6 +352,27 @@ static int test_memory_bandwidth(void)
 	return 0;
 }
 
+static int test_system_pmu(void)
+{
+	double ratio;
+	struct value vals[] = {
+		{ .event = "l1d.replacement", .val = 4000000 },
+		{ .event = "duration_time",  .val = 200000000 },
+		{ .event = NULL, },
+	};
+	struct perf_pmu perf_sys_pmu__fake;
+
+	pr_err("\n\n\n\n\n\n");
+
+	TEST_ASSERT_VAL("failed to compute metric",
+			compute_metric_pmu("L1D_Cache_Fill_BW", vals, &ratio, &perf_sys_pmu__fake) == 0);
+	TEST_ASSERT_VAL("L1D_Cache_Fill_BW, wrong ratio",
+			1.28 == ratio);
+
+	return 0;
+}
+
+
 static int test_metric_group(void)
 {
 	double ratio1, ratio2;
@@ -380,5 +406,6 @@ int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unu
 	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
 	TEST_ASSERT_VAL("test metric group", test_metric_group() == 0);
 	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
+	TEST_ASSERT_VAL("Sysem PMU", test_system_pmu() == 0);
 	return 0;
 }

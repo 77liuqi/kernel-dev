@@ -1232,6 +1232,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			goto out;
 	}
 
+	pr_err("%s metric=%p\n", __func__, metric);
+
 	metricgroup_init_sys_pmu_list();
 
 	map_for_each_metric(pe, i, sys_pmu_map, metric) {
