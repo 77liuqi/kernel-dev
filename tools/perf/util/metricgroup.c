@@ -509,8 +509,16 @@ static int add_metric(struct list_head *metric_list,
 		      struct metric **m,
 		      struct expr_id *parent,
 		      struct expr_ids *ids);
+static int __add_metric(struct list_head *metric_list,
+			struct pmu_event *pe,
+			bool metric_no_group,
+			int runtime,
+			struct metric **mp,
+			struct expr_id *parent,
+			struct expr_ids *ids);
+
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
-					       struct expr_parse_ctx *ctx);
+					       struct expr_parse_ctx *ctx, bool silent);
 
 static int parse_groupsx(struct evlist *perf_evlist,
 			bool metric_no_group,
@@ -523,10 +531,8 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	struct metric *m = NULL;
 	struct expr_ids ids = { .cnt = 0, };
 	int ret;
-	
-	pr_err("%s pe metric_name=%s\n", __func__, pe->metric_name );
 
-	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
+	ret = __add_metric(&metric_list, pe, metric_no_group, 1, &m, NULL, &ids);
 	if (ret)
 		goto out;
 	if (!list_is_singular(&metric_list)) {
@@ -543,7 +549,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	strbuf_init(&extra_events, 100);
 	strbuf_addf(&extra_events, "%s", "");
 
-	metricgroup__add_metric_weak_group(&extra_events, &m->pctx);
+	metricgroup__add_metric_weak_group(&extra_events, &m->pctx, true);
 
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
 	if (ret) {
@@ -831,14 +837,15 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 }
 
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
-					       struct expr_parse_ctx *ctx)
+					       struct expr_parse_ctx *ctx, bool silent)
 {
 	struct hashmap_entry *cur;
 	size_t bkt;
 	bool no_group = true, has_duration = false;
 
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
-		pr_debug("found event %s\n", (const char *)cur->key);
+		if (!silent)
+			pr_debug("found event %s\n", (const char *)cur->key);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
@@ -1223,7 +1230,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	map_for_each_metric(pe, i, sys_pmu_map, metric) {
 		has_match = true;
 		m = NULL;
-		pr_err("%s pe metric_name=%s metric=%s\n", __func__, pe->metric_name, metric);
+
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
 			goto out;
@@ -1255,7 +1262,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 							  &m->pctx);
 		} else {
 			metricgroup__add_metric_weak_group(events,
-							   &m->pctx);
+							   &m->pctx, false);
 		}
 	}
 
@@ -1376,10 +1383,11 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   const char *str,
 				   bool metric_no_group,
 				   bool metric_no_merge,
-				   struct rblist *metric_events)
+				   struct rblist *metric_events,
+				   struct perf_pmu *fake_pmu)
 {
 	return parse_groups(evlist, str, metric_no_group,
-			    metric_no_merge, &perf_pmu__fake, metric_events, map);
+			    metric_no_merge, fake_pmu, metric_events, map);
 }
 
 bool metricgroup__has_metric(const char *metric)
