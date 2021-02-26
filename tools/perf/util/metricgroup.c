@@ -692,6 +692,12 @@ static void metricgroup_init_sys_pmu_list(void)
 	done = 1;
 }
 
+static void metricgroup_cleanup_sys_pmu_list(void)
+{
+	free(sys_pmu_map);
+	sys_pmu_map = NULL;
+}
+
 static int metricgroup__print_pmu_event(struct pmu_event *pe,
 					bool metricgroups, char *filter,
 					bool raw, bool details,
@@ -768,8 +774,6 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	struct rb_node *node, *next;
 	struct strlist *metriclist = NULL;
 
-	metricgroup_init_sys_pmu_list();
-
 	if (!metricgroups) {
 		metriclist = strlist__new(NULL, NULL);
 		if (!metriclist)
@@ -793,6 +797,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 			return;
 	}
 
+	metricgroup_init_sys_pmu_list();
 
 	for (i = 0; sys_pmu_map && sys_pmu_map->table; i++) {
 		pe = &sys_pmu_map->table[i];
@@ -808,7 +813,7 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 		if (metricgroup__print_pmu_event(pe, metricgroups, filter,
 						 raw, details, &groups,
 						 metriclist) < 0)
-			return;
+			goto end;
 		
 	//	pr_err("%s5 pe=%p (metric_name=%s metric_expr=%s)\n", __func__, pe, pe->metric_name, pe->metric_expr);
 	}
@@ -834,6 +839,9 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 	if (!metricgroups)
 		metricgroup__print_strlist(metriclist, raw);
 	strlist__delete(metriclist);
+
+end:
+	metricgroup_cleanup_sys_pmu_list();
 }
 
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
@@ -1206,8 +1214,6 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 
-	metricgroup_init_sys_pmu_list();
-
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
@@ -1225,6 +1231,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		if (ret)
 			goto out;
 	}
+
+	metricgroup_init_sys_pmu_list();
 
 	map_for_each_metric(pe, i, sys_pmu_map, metric) {
 		has_match = true;
@@ -1272,6 +1280,7 @@ out:
 	 */
 	list_splice(&list, metric_list);
 	expr_ids__exit(&ids);
+	metricgroup_cleanup_sys_pmu_list();
 	return ret;
 }
 
