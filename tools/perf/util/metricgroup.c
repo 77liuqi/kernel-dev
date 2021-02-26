@@ -523,6 +523,8 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	struct metric *m = NULL;
 	struct expr_ids ids = { .cnt = 0, };
 	int ret;
+	
+	pr_err("%s pe metric_name=%s\n", __func__, pe->metric_name );
 
 	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
 	if (ret)
@@ -1221,7 +1223,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	map_for_each_metric(pe, i, sys_pmu_map, metric) {
 		has_match = true;
 		m = NULL;
-
+		pr_err("%s pe metric_name=%s metric=%s\n", __func__, pe->metric_name, metric);
 		ret = add_metric(&list, pe, metric_no_group, &m, NULL, &ids);
 		if (ret)
 			goto out;
