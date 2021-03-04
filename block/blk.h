@@ -201,10 +201,29 @@ void elv_unregister_queue(struct request_queue *q);
 static inline void elevator_exit(struct request_queue *q,
 		struct elevator_queue *e)
 {
+	struct blk_mq_tag_set *set = q->tag_set;
+	struct request_queue *tmp;
+
 	lockdep_assert_held(&q->sysfs_lock);
+
+	mutex_lock(&set->tag_list_lock);
+	list_for_each_entry(tmp, &set->tag_list, tag_set_list) {
+		if (tmp == q)
+			continue;
+		blk_mq_freeze_queue(tmp);
+		blk_mq_quiesce_queue(tmp);
+	}
 
 	blk_mq_sched_free_requests(q);
 	__elevator_exit(q, e);
+
+	list_for_each_entry(tmp, &set->tag_list, tag_set_list) {
+		if (tmp == q)
+			continue;
+		blk_mq_unquiesce_queue(tmp);
+		blk_mq_unfreeze_queue(tmp);
+	}
+	mutex_unlock(&set->tag_list_lock);
 }
 
 ssize_t part_size_show(struct device *dev, struct device_attribute *attr,
