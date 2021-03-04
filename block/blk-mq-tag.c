@@ -281,7 +281,7 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 		rq = tags->rqs[bitnr];
 	if (!rq)
 		return true;
-	msleep(50);
+	msleep(100);
 	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
 	    !blk_mq_request_started(rq))
 		return true;
