@@ -358,11 +358,16 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 {
 	int i;
 
+	if (!atomic_inc_not_zero(&tagset->iter_usage_counter))
+		return;
+
 	for (i = 0; i < tagset->nr_hw_queues; i++) {
 		if (tagset->tags && tagset->tags[i])
 			__blk_mq_all_tag_iter(tagset->tags[i], fn, priv,
 					      BT_TAG_ITER_STARTED);
 	}
+
+	atomic_dec(&tagset->iter_usage_counter);
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
 

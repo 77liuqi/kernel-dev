@@ -3493,6 +3493,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 			goto out_free_mq_rq_maps;
 		}
 	}
+	atomic_set(&set->iter_usage_counter, 1);
 
 	mutex_init(&set->tag_list_lock);
 	INIT_LIST_HEAD(&set->tag_list);

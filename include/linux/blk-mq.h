@@ -263,6 +263,7 @@ struct blk_mq_tag_set {
 
 	struct mutex		tag_list_lock;
 	struct list_head	tag_list;
+	atomic_t		iter_usage_counter;
 };
 
 /**

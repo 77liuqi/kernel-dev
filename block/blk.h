@@ -214,8 +214,12 @@ static inline void elevator_exit(struct request_queue *q,
 		blk_mq_quiesce_queue(tmp);
 	}
 
+	while (atomic_cmpxchg(&set->iter_usage_counter, 1, 0) != 1);
+
 	blk_mq_sched_free_requests(q);
 	__elevator_exit(q, e);
+
+	atomic_set(&set->iter_usage_counter, 1);
 
 	list_for_each_entry(tmp, &set->tag_list, tag_set_list) {
 		if (tmp == q)
