@@ -329,7 +329,7 @@ early_param("iommu.passthrough", iommu_set_def_domain_type);
 
 static int __init iommu_dma_setup(char *str)
 {
-	return kstrtobool(str, &iommu_dma_strict);
+	return 0;
 }
 early_param("iommu.strict", iommu_dma_setup);
 
@@ -2665,6 +2665,8 @@ EXPORT_SYMBOL_GPL(report_iommu_fault);
 
 static int __init iommu_init(void)
 {
+	pr_err_once("iommu_dma_strict=%d\n", iommu_dma_strict);
+
 	iommu_group_kset = kset_create_and_add("iommu_groups",
 					       NULL, kernel_kobj);
 	BUG_ON(!iommu_group_kset);
