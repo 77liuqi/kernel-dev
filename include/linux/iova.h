@@ -75,6 +75,8 @@ struct iova_domain {
 	unsigned long	dma_32bit_pfn;
 	unsigned long	max32_alloc_size; /* Size of last failed allocation */
 	struct iova_fq __percpu *fq;	/* Flush Queue */
+	
+	atomic64_t print_iova;
 
 	atomic64_t	fq_flush_start_cnt;	/* Number of TLB flushes that
 						   have been started */
