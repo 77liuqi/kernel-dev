@@ -218,6 +218,14 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_link_node(&iova->node, parent, new);
 	rb_insert_color(&iova->node, root);
 }
+#define DVISOR 10000
+
+#define SPECIAL_PFN (0x100000)
+
+atomic64_t tries;
+atomic64_t tries_retries;
+atomic64_t tries_retries_failed;
+atomic64_t tries_retries_success;
 
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, unsigned long limit_pfn,
@@ -229,12 +237,32 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long new_pfn, retry_pfn;
 	unsigned long align_mask = ~0UL;
 	unsigned long high_pfn = limit_pfn, low_pfn = iovad->start_pfn;
+	bool do_retry = false;
+	u64 _tries;
+	bool special = (limit_pfn == SPECIAL_PFN);
 
 	if (size_aligned)
 		align_mask <<= fls_long(size - 1);
 
 	/* Walk the tree backwards */
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+
+	if (special) {
+		_tries = atomic64_inc_return(&tries);
+		if ((_tries % (DVISOR * 10)) == 0) {
+			
+			pr_err("%s X  tries=%lld retries=%lld (sucess=%lld, fail=%lld)\n",
+				__func__, _tries, 
+				atomic64_read(&tries_retries),
+				atomic64_read(&tries_retries_success),
+				atomic64_read(&tries_retries_failed));
+			atomic64_set(&tries, 0);
+			atomic64_set(&tries_retries, 0);
+			atomic64_set(&tries_retries_success, 0);
+			atomic64_set(&tries_retries_failed, 0);
+		}
+	}
+
 	if (limit_pfn <= iovad->dma_32bit_pfn &&
 			size >= iovad->max32_alloc_size)
 		goto iova32_full;
@@ -258,6 +286,9 @@ retry:
 			low_pfn = retry_pfn;
 			curr = iova_find_limit(iovad, limit_pfn);
 			curr_iova = to_iova(curr);
+			do_retry = 1;
+			if (special)
+				atomic64_inc_return(&tries_retries);
 			goto retry;
 		}
 		iovad->max32_alloc_size = size;
@@ -272,10 +303,15 @@ retry:
 	iova_insert_rbtree(&iovad->rbroot, new, prev);
 	__cached_rbnode_insert_update(iovad, new);
 
+	if (do_retry && special)
+		atomic64_inc(&tries_retries_success);
+
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return 0;
 
 iova32_full:
+	if (do_retry && special)
+		atomic64_inc(&tries_retries_failed);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
 	return -ENOMEM;
 }
