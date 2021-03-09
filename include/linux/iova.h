@@ -101,6 +101,8 @@ struct iova_domain {
 
 static inline unsigned long iova_size(struct iova *iova)
 {
+	if (!iova)
+		return 0;
 	return iova->pfn_hi - iova->pfn_lo + 1;
 }
 
