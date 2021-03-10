@@ -113,6 +113,12 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 	return 0;
 }
 
+atomic64_t tries;
+atomic64_t tries_retries;
+atomic64_t tries_retries_failed;
+atomic64_t tries_retries_success;
+atomic64_t tries_retries_reset_max32_alloc_size;
+
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long limit_pfn)
 {
@@ -142,6 +148,7 @@ __cached_rbnode_delete_update(struct iova_domain *iovad, struct iova *free)
 	     free->pfn_lo >= cached_iova->pfn_lo)) {
 		iovad->cached32_node = rb_next(&free->node);
 		iovad->max32_alloc_size = iovad->dma_32bit_pfn;
+		atomic64_inc(&tries_retries_reset_max32_alloc_size);
 	}
 
 	cached_iova = rb_entry(iovad->cached_node, struct iova, node);
@@ -180,10 +187,6 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 
 #define SPECIAL_PFN (0x100000)
 
-atomic64_t tries;
-atomic64_t tries_retries;
-atomic64_t tries_retries_failed;
-atomic64_t tries_retries_success;
 
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, const unsigned long limit_pfn,
@@ -220,15 +223,17 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		_tries = atomic64_inc_return(&tries);
 		if ((_tries % (DVISOR * 10)) == 0) {
 			
-			pr_err("%s X  tries=%lld retries=%lld (sucess=%lld, fail=%lld)\n",
+			pr_err("%s X  tries=%lld retries=%lld (sucess=%lld, fail=%lld) reset max32=%lld\n",
 				__func__, _tries, 
 				atomic64_read(&tries_retries),
 				atomic64_read(&tries_retries_success),
-				atomic64_read(&tries_retries_failed));
+				atomic64_read(&tries_retries_failed),
+				atomic64_read(&tries_retries_reset_max32_alloc_size));
 			atomic64_set(&tries, 0);
 			atomic64_set(&tries_retries, 0);
 			atomic64_set(&tries_retries_success, 0);
 			atomic64_set(&tries_retries_failed, 0);
+			atomic64_set(&tries_retries_reset_max32_alloc_size, 0);
 		}
 	}
 
