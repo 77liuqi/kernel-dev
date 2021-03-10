@@ -226,6 +226,9 @@ retry:
 	new->pfn_lo = new_pfn;
 	new->pfn_hi = new->pfn_lo + size - 1;
 
+	WARN_ONCE(new->pfn_hi > limit_pfn, "%s new=[0x%lx 0x%lx] limit_pfn=0x%lx\n", 
+		__func__, new->pfn_lo, new->pfn_hi, limit_pfn);
+
 	/* If we have 'prev', it's a valid place to start the insertion. */
 	iova_insert_rbtree(&iovad->rbroot, new, prev);
 	__cached_rbnode_insert_update(iovad, new);
