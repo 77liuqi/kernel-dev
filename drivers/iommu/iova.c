@@ -270,11 +270,34 @@ retry:
 		__func__, print_iova, size, low_pfn, high_pfn, iovad->dma_32bit_pfn, iovad->max32_alloc_size, 
 		retry_pfn, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iova_size(curr_iova), countl, new_pfn, low_pfn, high_pfn);
 		countl++;
-		
+
+		if (curr && special && do_retry && curr_iova->pfn_hi < SPECIAL_PFN) {
+			unsigned long size_available = high_pfn - curr_iova->pfn_hi;
+			if (iovad->print_recal_32_max_alloc == 0)
+				iovad->print_recal_32_max_alloc = 1;
+
+			/* 32b retry */
+			if (iovad->max32_alloc_size == SPECIAL_PFN) {
+				/* scope to have it reset */
+				iovad->max32_alloc_size = size_available;
+				if (iovad->print_recal_32_max_alloc == 1)
+					pr_err("%sY88 curr_iova=[0x%lx 0x%lx] high_pfn=0x%lx size_available=0x%lx max32_alloc_size=0x%lx\n",
+					__func__, curr_iova->pfn_lo, curr_iova->pfn_hi, high_pfn, size_available, iovad->max32_alloc_size);
+			} else {
+				if (iovad->print_recal_32_max_alloc == 1)
+					if (size_available > iovad->max32_alloc_size)
+						pr_err("%sY89 curr_iova=[0x%lx 0x%lx] high_pfn=0x%lx size_available=0x%lx max32_alloc_size=0x%lx\n",
+						__func__, curr_iova->pfn_lo, curr_iova->pfn_hi, high_pfn, size_available, iovad->max32_alloc_size);
+				iovad->max32_alloc_size = max(iovad->max32_alloc_size, size_available);	
+			}
+		}
+	
 		if (countl > 50)
 			print = 0;
 	} while (curr && new_pfn <= curr_iova->pfn_hi && new_pfn >= low_pfn);
 	print = print_orig;
+	if (iovad->print_recal_32_max_alloc == 1)
+		iovad->print_recal_32_max_alloc = 2;
 	if (print) pr_err("%s3 %lld size=0x%lx low_pfn=0x%lx high_pfn=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx retry_pfn=0x%lx curr_iova=[0x%lx 0x%lx (0x%lx)] new_pfn=0x%lx low_pfn=0x%lx high_pfn=0x%lx\n",
 	__func__, print_iova, size, low_pfn, high_pfn, iovad->dma_32bit_pfn, iovad->max32_alloc_size, retry_pfn, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iova_size(curr_iova),
 	 new_pfn, low_pfn, high_pfn);
@@ -297,7 +320,8 @@ retry:
 				atomic64_inc_return(&tries_retries);
 			goto retry;
 		}
-		iovad->max32_alloc_size = size;
+		if (do_retry == 0)
+			iovad->max32_alloc_size = size;
 		if (print) pr_err("%s6 %lld size=0x%lx low_pfn=0x%lx high_pfn=0x%lx dma_32bit_pfn=0x%lx max32_alloc_size=0x%lx retry_pfn=0x%lx curr_iova=[0x%lx 0x%lx (0x%lx)] new_pfn=0x%lx low_pfn=0x%lx high_pfn=0x%lx\n",
 		__func__, print_iova, size, low_pfn, high_pfn, iovad->dma_32bit_pfn, iovad->max32_alloc_size, retry_pfn, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iova_size(curr_iova),
 		new_pfn, low_pfn, high_pfn);
