@@ -113,6 +113,7 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 	return 0;
 }
 
+/* most likely where we last free'd - or close to - an iova */
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long limit_pfn)
 {
@@ -187,6 +188,8 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	unsigned long new_pfn, retry_pfn;
 	unsigned long align_mask = ~0UL;
 	unsigned long high_pfn = limit_pfn, low_pfn = iovad->start_pfn;
+	bool do_retry = false;
+	unsigned long max_found_size = iovad->dma_32bit_pfn;
 
 	if (size_aligned)
 		align_mask <<= fls_long(size - 1);
@@ -208,6 +211,16 @@ retry:
 		prev = curr;
 		curr = rb_prev(curr);
 		curr_iova = rb_entry(curr, struct iova, node);
+		if (curr_iova && curr_iova->pfn_hi <= limit_pfn && do_retry && curr) {
+			unsigned long gap = high_pfn - curr_iova->pfn_hi;
+
+			if (gap > limit_pfn)
+				pr_err_once("%s do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx high_pfn=0x%lx\n",
+					__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn, high_pfn);
+				
+
+			max_found_size = max(max_found_size, gap);
+		}
 	} while (curr && new_pfn <= curr_iova->pfn_hi && new_pfn >= low_pfn);
 
 	if (high_pfn < size || new_pfn < low_pfn) {
@@ -216,9 +229,26 @@ retry:
 			low_pfn = retry_pfn;
 			curr = &iovad->anchor.node;
 			curr_iova = rb_entry(curr, struct iova, node);
+			do_retry = true;
+			max_found_size = 0;
 			goto retry;
 		}
-		iovad->max32_alloc_size = size;
+
+		if (do_retry)
+			pr_err_once("%s2 do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx low_pfn=0x%lx high_pfn=0x%lx new_pfn=0x%lx\n",
+				__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn,low_pfn, high_pfn, new_pfn);
+
+		if (do_retry) {
+
+			pr_err_once("%s3 do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx low_pfn=0x%lx high_pfn=0x%lx new_pfn=0x%lx\n",
+				__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn,low_pfn, high_pfn, new_pfn);
+			iovad->max32_alloc_size = max_found_size + 1;
+		} else { 
+			iovad->max32_alloc_size = size;
+		}
+
+		WARN_ON_ONCE(do_retry && new_pfn > limit_pfn);
+
 		goto iova32_full;
 	}
 
