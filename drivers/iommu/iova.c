@@ -26,11 +26,17 @@ static void free_iova_rcaches(struct iova_domain *iovad);
 static void fq_destroy_all_entries(struct iova_domain *iovad);
 static void fq_flush_timeout(struct timer_list *t);
 static void free_global_cached_iovas(struct iova_domain *iovad);
+static void
+iova_insert_rbtree(struct rb_root *root, struct iova *iova,
+		   struct rb_node *start);
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn)
 {
+	struct iova *curr_iova;
+	struct rb_node *curr;
+
 	/*
 	 * IOVA granularity will normally be equal to the smallest
 	 * supported IOMMU page size; both *must* be capable of
@@ -49,8 +55,39 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
+	
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
+
+	iovad->cached32_anchor.pfn_lo = iovad->dma_32bit_pfn;
+	iovad->cached32_anchor.pfn_hi = iovad->dma_32bit_pfn + 1;
+
+	iova_insert_rbtree(&iovad->rbroot, &iovad->cached32_anchor, NULL);
+
+	curr_iova = &iovad->cached32_anchor;
+	curr = &curr_iova->node;
+
+	while (curr_iova && curr) {
+		struct iova *anchor_iova = &iovad->cached32_anchor;
+		
+		pr_err("%s1 curr_iova=%pS [0x%lx 0x%lx] cached32_anchor=%pS [0x%lx 0x%lx]\n",
+			__func__, curr_iova, curr_iova->pfn_lo, curr_iova->pfn_hi, &iovad->cached32_anchor, anchor_iova->pfn_lo, anchor_iova->pfn_hi);
+		curr = rb_next(curr);
+		curr_iova = rb_entry(curr, struct iova, node);
+	}
+
+	curr_iova = &iovad->cached32_anchor;
+	curr = &curr_iova->node;
+
+	while (curr_iova && curr) {
+		struct iova *anchor_iova = &iovad->cached32_anchor;
+		
+		pr_err("%s2 curr_iova=%pS [0x%lx 0x%lx] cached32_anchor=%pS [0x%lx 0x%lx]\n",
+			__func__, curr_iova, curr_iova->pfn_lo, curr_iova->pfn_hi, &iovad->cached32_anchor, anchor_iova->pfn_lo, anchor_iova->pfn_hi);
+		curr = rb_prev(curr);
+		curr_iova = rb_entry(curr, struct iova, node);
+	}
+
 	init_iova_rcaches(iovad);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
@@ -258,6 +295,16 @@ static unsigned long find_max_aligned_block(const unsigned long min, const unsig
 	return size;
 }
 
+
+static struct rb_node *
+__get_anchor_rbnode(struct iova_domain *iovad, unsigned long limit_pfn)
+{
+	if (limit_pfn <= iovad->dma_32bit_pfn)
+		return &iovad->cached32_anchor.node;
+
+	return &iovad->anchor.node;
+}
+
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 		unsigned long size, const unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
@@ -309,7 +356,7 @@ retry:
 		if (low_pfn == iovad->start_pfn && retry_pfn < limit_pfn) {
 			high_pfn = limit_pfn;
 			low_pfn = retry_pfn;
-			curr = &iovad->anchor.node;
+			curr = __get_anchor_rbnode(iovad, limit_pfn);
 			curr_iova = rb_entry(curr, struct iova, node);
 			do_retry = true;
 			max_found_size = 0;

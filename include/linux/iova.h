@@ -70,6 +70,7 @@ struct iova_domain {
 	struct rb_root	rbroot;		/* iova domain rbtree root */
 	struct rb_node	*cached_node;	/* Save last alloced node */
 	struct rb_node	*cached32_node; /* Save last 32-bit alloced node */
+	struct iova cached32_anchor;
 	unsigned long	granule;	/* pfn granularity for this domain */
 	unsigned long	start_pfn;	/* Lower limit for this domain */
 	unsigned long	dma_32bit_pfn;
