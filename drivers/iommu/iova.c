@@ -60,7 +60,7 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 
 	iovad->cached32_anchor.pfn_lo = iovad->dma_32bit_pfn;
-	iovad->cached32_anchor.pfn_hi = iovad->dma_32bit_pfn + 1;
+	iovad->cached32_anchor.pfn_hi = iovad->dma_32bit_pfn;
 
 	iova_insert_rbtree(&iovad->rbroot, &iovad->cached32_anchor, NULL);
 
