@@ -178,8 +178,88 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
+static unsigned long get_pow_2(unsigned long val)
+{
+	unsigned long bit = 25;
+
+loop:
+	if (1 << bit & val)
+		return 1 << bit;
+	bit--;
+	if (bit == 0)
+		return 0;
+	goto loop;
+}
+
+static unsigned long find_max_aligned_block(const unsigned long min, const unsigned long max, const unsigned long current_max, const unsigned long limit_pfn)
+{
+	unsigned long size = max - min;
+
+	if (size > 0xff000000000)
+		pr_err_once("%s min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size , limit_pfn);
+	if (current_max > 0xff000000000)
+		pr_err_once("%s1 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+
+
+	if (size > limit_pfn)
+		pr_err_once("%s3 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+	if (current_max > limit_pfn)
+		pr_err_once("%s4 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+
+
+	/* If the gap is not larger than the current max, then the aligned block will never be */
+	if (size <= current_max) {
+		if (size > limit_pfn || current_max > limit_pfn)
+			pr_err_once("%s5 min=0x%lx max=0x%lx current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+		return current_max;
+	}
+	if (size == 1) {
+		if (size > limit_pfn || current_max > limit_pfn)
+			pr_err_once("%s6 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+		return current_max;
+	}
+	
+	size = get_pow_2(max - min);
+	if (size <= current_max) {
+		if (size > limit_pfn || current_max > limit_pfn)
+			pr_err_once("%s7 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+		return current_max;
+	}
+
+	while (1) {
+		unsigned long aligned_min = min, aligned_max;
+		unsigned long align_mask = ~0UL;
+
+		align_mask <<= fls_long(size);
+
+		if (aligned_min & ~align_mask) {
+			aligned_min &= align_mask;
+			aligned_min += 1;
+			aligned_min += ~align_mask;
+		}
+
+		aligned_max = size + aligned_min - 1;
+
+		if (aligned_max <= max)
+			break;
+
+		size /= 2;
+
+		if (size < current_max)
+			return current_max;
+	}
+	
+	if (size > limit_pfn || current_max > limit_pfn)
+		pr_err_once("%s8 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+
+	if (size > 0xff000000000)
+		pr_err_once("%s10 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+
+	return size;
+}
+
 static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
-		unsigned long size, unsigned long limit_pfn,
+		unsigned long size, const unsigned long limit_pfn,
 			struct iova *new, bool size_aligned)
 {
 	struct rb_node *curr, *prev;
@@ -212,14 +292,16 @@ retry:
 		curr = rb_prev(curr);
 		curr_iova = rb_entry(curr, struct iova, node);
 		if (curr_iova && curr_iova->pfn_hi <= limit_pfn && do_retry && curr) {
-			unsigned long gap = high_pfn - curr_iova->pfn_hi;
+			unsigned long orig_max_found_size = max_found_size;
+			unsigned long orig_min = curr_iova->pfn_hi;
+			unsigned long orig_max = high_pfn;
+			
 
-			if (gap > limit_pfn)
-				pr_err_once("%s do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx high_pfn=0x%lx\n",
-					__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn, high_pfn);
-				
+			max_found_size = find_max_aligned_block(curr_iova->pfn_hi, high_pfn, max_found_size, limit_pfn);			
 
-			max_found_size = max(max_found_size, gap);
+			if (max_found_size > limit_pfn)
+				pr_err_once("%s do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx high_pfn=0x%lx orig=0x%lx min=0x%lx max=0x%lx\n",
+					__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn, high_pfn, orig_max_found_size, orig_min, orig_max);
 		}
 	} while (curr && new_pfn <= curr_iova->pfn_hi && new_pfn >= low_pfn);
 
@@ -242,7 +324,7 @@ retry:
 
 			pr_err_once("%s3 do_retry=%d curr=%pS curr_iova=%pS [0x%lx 0x%lx] max32_alloc_size=0x%lx max_found_size=0x%lx size=0x%lx limit_pfn=0x%lx low_pfn=0x%lx high_pfn=0x%lx new_pfn=0x%lx\n",
 				__func__, do_retry, curr, curr_iova, curr_iova ? curr_iova->pfn_lo : -1, curr_iova ? curr_iova->pfn_hi : -1, iovad->max32_alloc_size, max_found_size, size, limit_pfn,low_pfn, high_pfn, new_pfn);
-			iovad->max32_alloc_size = max_found_size + 1;
+			iovad->max32_alloc_size = max_found_size + 1; /* add for to make this fail for max failed, not success */
 		} else { 
 			iovad->max32_alloc_size = size;
 		}
