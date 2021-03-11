@@ -228,9 +228,18 @@ loop:
 	goto loop;
 }
 
+atomic64_t tries;
+
 static unsigned long find_max_aligned_block(const unsigned long min, const unsigned long max, const unsigned long current_max, const unsigned long limit_pfn)
 {
 	unsigned long size = max - min;
+	unsigned long fls;
+	u64 _tries;
+	bool print = false;
+
+
+	if (print)
+		pr_err("%s1x min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx\n", __func__, min, max, current_max, limit_pfn, size);
 
 	if (size > 0xff000000000)
 		pr_err_once("%s min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size , limit_pfn);
@@ -250,24 +259,43 @@ static unsigned long find_max_aligned_block(const unsigned long min, const unsig
 			pr_err_once("%s5 min=0x%lx max=0x%lx current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
 		return current_max;
 	}
+
+	
 	if (size == 1) {
 		if (size > limit_pfn || current_max > limit_pfn)
 			pr_err_once("%s6 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
 		return current_max;
 	}
+
+
+	_tries = atomic64_inc_return(&tries);
+	if ((_tries % 100) == 0)
+		print = true;
+
+	if (print)
+		pr_err("%s2x min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx\n", __func__, min, max, current_max, limit_pfn, size);
+
 	
 	size = get_pow_2(max - min);
+	if (size != rounddown_pow_of_two(max - min))
+		pr_err("%s2xxx min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx rounddown_pow_of_two=0x%lx\n",
+		__func__, min, max, current_max, limit_pfn, size, rounddown_pow_of_two(max - min));		
 	if (size <= current_max) {
 		if (size > limit_pfn || current_max > limit_pfn)
 			pr_err_once("%s7 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
 		return current_max;
 	}
 
+	if (print)
+		pr_err("%s3x min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx\n", __func__, min, max, current_max, limit_pfn, size);
+
+	fls = fls_long(size);
 	while (1) {
 		unsigned long aligned_min = min, aligned_max;
 		unsigned long align_mask = ~0UL;
 
-		align_mask <<= fls_long(size);
+		align_mask <<= fls;
+		fls--;
 
 		if (aligned_min & ~align_mask) {
 			aligned_min &= align_mask;
@@ -276,6 +304,10 @@ static unsigned long find_max_aligned_block(const unsigned long min, const unsig
 		}
 
 		aligned_max = size + aligned_min - 1;
+		
+		if (print)
+			pr_err("%s4x min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx aligned_min=0x%lx aligned_max=0x%lx\n",
+			__func__, min, max, current_max, limit_pfn, size, aligned_min, aligned_max);
 
 		if (aligned_max <= max)
 			break;
@@ -291,6 +323,10 @@ static unsigned long find_max_aligned_block(const unsigned long min, const unsig
 
 	if (size > 0xff000000000)
 		pr_err_once("%s10 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
+	
+	if (print)
+		pr_err("%s10x out min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx\n",
+		__func__, min, max, current_max, limit_pfn, size);
 
 	return size;
 }
