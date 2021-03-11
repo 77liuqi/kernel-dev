@@ -215,19 +215,6 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova,
 	rb_insert_color(&iova->node, root);
 }
 
-static unsigned long get_pow_2(unsigned long val)
-{
-	unsigned long bit = 25;
-
-loop:
-	if (1 << bit & val)
-		return 1 << bit;
-	bit--;
-	if (bit == 0)
-		return 0;
-	goto loop;
-}
-
 atomic64_t tries;
 
 static unsigned long find_max_aligned_block(const unsigned long min, const unsigned long max, const unsigned long current_max, const unsigned long limit_pfn)
@@ -276,10 +263,7 @@ static unsigned long find_max_aligned_block(const unsigned long min, const unsig
 		pr_err("%s2x min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx\n", __func__, min, max, current_max, limit_pfn, size);
 
 	
-	size = get_pow_2(max - min);
-	if (size != rounddown_pow_of_two(max - min))
-		pr_err("%s2xxx min=0x%lx max=0x%lx current_max=0x%lx limit_pfn=0x%lx size=0x%lx rounddown_pow_of_two=0x%lx\n",
-		__func__, min, max, current_max, limit_pfn, size, rounddown_pow_of_two(max - min));		
+	size = rounddown_pow_of_two(max - min);
 	if (size <= current_max) {
 		if (size > limit_pfn || current_max > limit_pfn)
 			pr_err_once("%s7 min=0x%lx max=0x%lx  current_max=0x%lx size=%lx limit_pfn=0x%lx\n", __func__, min, max, current_max, size, limit_pfn);
