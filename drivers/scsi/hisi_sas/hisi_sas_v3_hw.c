@@ -4664,6 +4664,8 @@ static void debugfs_exit_v3_hw(struct hisi_hba *hisi_hba)
 	debugfs_remove_recursive(hisi_hba->debugfs_dir);
 }
 
+#include "linux/iommu.h"
+
 static int
 hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -4674,6 +4676,13 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct asd_sas_port **arr_port;
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
+
+	rc = dma_set_max_opt_size(dev, PAGE_SIZE * HISI_SAS_SGE_PAGE_CNT);
+	dev_err(dev, "%s2 iommu_group=%pS iommu=%pS rc=%d dev->dma_ops=%pS iommu_get_domain_for_dev=%pS rc=%d\n",
+		__func__, dev->iommu_group, dev->iommu, rc, dev->dma_ops, iommu_get_domain_for_dev(dev), rc);
+	/* We can live with other errors */
+	if (rc == -EPROBE_DEFER)
+		return rc;
 
 	rc = pci_enable_device(pdev);
 	if (rc)
