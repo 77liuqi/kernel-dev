@@ -635,6 +635,8 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		qc->sg = scsi_sglist(cmd);
 		qc->n_elem = scsi_sg_count(cmd);
 
+		pr_err("%s dev=%pS qc=%pS qc->sg=%pS qc->n_elem=%d\n", __func__, dev, qc, qc->sg, qc->n_elem);
+
 		if (cmd->request->rq_flags & RQF_QUIET)
 			qc->flags |= ATA_QCFLAG_QUIET;
 	} else {
@@ -1705,7 +1707,11 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 
 	VPRINTK("ENTER\n");
 
+	pr_err("%s dev=%pS cmd=%pS xlat_func=%pS\n", __func__, dev, cmd, xlat_func);
+
 	qc = ata_scsi_qc_new(dev, cmd);
+	pr_err("%s1 dev=%pS cmd=%pS xlat_func=%pS qc=%pS cmd->sc_data_direction=%d\n",
+		__func__, dev, cmd, xlat_func, qc, cmd->sc_data_direction);
 	if (!qc)
 		goto err_mem;
 
@@ -3584,6 +3590,8 @@ static int ata_mselect_caching(struct ata_queued_cmd *qc,
 	u8 mpage[CACHE_MPAGE_LEN];
 	u8 wce;
 	int i;
+
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	/*
 	 * The first two bytes of def_cache_mpage are a header, so offsets

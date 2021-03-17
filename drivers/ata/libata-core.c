@@ -4448,7 +4448,10 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 	VPRINTK("ENTER, ata%u\n", ap->print_id);
 
+	pr_err("%s qc=%pS qc->n_elem=%d\n", __func__, qc, qc->n_elem);
+
 	n_elem = dma_map_sg(ap->dev, qc->sg, qc->n_elem, qc->dma_dir);
+	pr_err("%s1 qc=%pS n_elem=%d qc->n_elem=%d\n", __func__, qc, n_elem, qc->n_elem);
 	if (n_elem < 1)
 		return -1;
 
@@ -4770,6 +4773,9 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+
+	pr_err("%s qc=%pS qc->sg=%pS qc->n_elem=%d ata_is_dma(prot)=%d\n", 
+		__func__, qc, qc->sg, qc->n_elem, ata_is_dma(prot));
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));

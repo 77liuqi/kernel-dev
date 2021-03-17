@@ -209,9 +209,12 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->num_scatter = si;
 	}
 
-	if (qc->tf.protocol == ATA_PROT_NODATA)
+	if (qc->tf.protocol == ATA_PROT_NODATA) {
+		pr_err("%s4 qc=%pS ATA_PROT_NODATA qc->sg=%pS task->num_scatter=%d task->total_xfer_len=%d qc->n_elem=%d\n",
+		__func__, qc, qc->sg, task->num_scatter, task->total_xfer_len, qc->n_elem);
 		task->data_dir = DMA_NONE;
-	else
+		WARN_ON(task->num_scatter > 0);
+	} else
 		task->data_dir = qc->dma_dir;
 	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
