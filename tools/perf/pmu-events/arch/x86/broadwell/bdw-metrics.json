@@ -21,6 +21,37 @@
         "PublicDescription": "This category represents fraction of slots wasted due to incorrect speculations. This include slots used to issue uops that do not eventually get retired and slots for which the issue-pipeline was blocked due to recovery from earlier incorrect speculation. For example; wasted work due to miss-predicted branches are categorized under Bad Speculation category. Incorrect data speculation followed by Memory Ordering Nukes is another example."
     },
     {
+        "BriefDescription": "john test1",
+        "MetricExpr": "Bad_Speculation + Frontend_Bound",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "johntest1",
+        "PublicDescription": "john test1"
+    },
+    {
+        "BriefDescription": "john test2",
+        "MetricExpr": "johntest1 + 1",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "johntest2",
+        "PublicDescription": "john test2"
+    },
+
+    {
+        "BriefDescription": "john test3",
+        "MetricExpr": "johntest4",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "johntest3",
+        "PublicDescription": "john test3"
+    },
+
+    {
+        "BriefDescription": "john test4",
+        "MetricExpr": "johntest3",
+        "MetricGroup": "TopdownL1",
+        "MetricName": "johntest4",
+        "PublicDescription": "john test4"
+    },
+
+   {
         "BriefDescription": "This category represents fraction of slots wasted due to incorrect speculations. SMT version; use when SMT is enabled and measuring per logical CPU.",
         "MetricExpr": "( UOPS_ISSUED.ANY - UOPS_RETIRED.RETIRE_SLOTS + 4 * (( INT_MISC.RECOVERY_CYCLES_ANY / 2 )) ) / (4 * (( ( CPU_CLK_UNHALTED.THREAD / 2 ) * ( 1 + CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE / CPU_CLK_UNHALTED.REF_XCLK ) )))",
         "MetricGroup": "TopdownL1_SMT",
