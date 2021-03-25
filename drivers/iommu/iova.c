@@ -1016,14 +1016,36 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
  * size is too big or the DMA limit we are given isn't satisfied by the
  * top element in the magazine.
  */
+ static atomic64_t range[IOVA_RANGE_CACHE_MAX_SIZE];
+ static atomic64_t too_big;
+ static atomic64_t total;
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn)
 {
 	unsigned int log_size = order_base_2(size);
+	u64 _total = atomic64_inc_return(&total);
 
-	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE)
+	if ((_total % 10000000) == 0) {
+		char string[1024];
+		int i;
+
+		sprintf(string, "%s total=%lld too_big=%lld ", __func__, _total, atomic64_read(&too_big));
+		for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
+			sprintf(string + strlen(string), "[%d]=%lld ", i, atomic64_read(&range[i]));
+			atomic64_set(&range[i], 0);
+		}
+		atomic64_set(&total, 1);
+		atomic64_set(&too_big, 0);
+		pr_err("%s\n", string);
+	}
+
+	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
+		atomic64_inc(&too_big);
 		return 0;
+	}
+	
+	atomic64_inc(&range[log_size]);
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
