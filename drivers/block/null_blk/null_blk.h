@@ -28,6 +28,7 @@ struct nullb_cmd {
 	struct hrtimer timer;
 	bool fake_timeout;
 	u32 n_sg;
+	u32 n_sg_orig;
 	enum dma_data_direction dma_dir;
 	dma_addr_t dma_address;
 	struct scatterlist sgl[NULL_BLK_MAX_SEGMENTS];

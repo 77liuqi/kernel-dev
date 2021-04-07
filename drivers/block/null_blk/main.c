@@ -700,9 +700,9 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
-		if (cmd->n_sg) {
-			pr_err_once("%s hisi_sas_dev=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, cmd, cmd->n_sg);
-			dma_unmap_sg(hisi_sas_dev, &cmd->sgl[0], cmd->n_sg, cmd->dma_dir);
+		if (cmd->n_sg_orig) {
+			pr_err_once("%s hisi_sas_dev=%pS cmd=%pS n_sg=%d n_sg_orig=%d\n", __func__, hisi_sas_dev, cmd, cmd->n_sg, cmd->n_sg_orig);
+			dma_unmap_sg(hisi_sas_dev, &cmd->sgl[0], cmd->n_sg_orig, cmd->dma_dir);
 		}
 		blk_mq_end_request(cmd->rq, cmd->error);
 		return;
@@ -1507,33 +1507,33 @@ static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue 
 
 	struct request *rq = cmd->rq;
 	struct scatterlist *sgl = &cmd->sgl[0];
-	int n_sg, n_sg1;
-	static int n_sg_max, n_sg1_max;
+	int n_sg, n_sg_orig;
+	static int n_sg_max, n_sg_orig_max;
 
-	n_sg = blk_rq_map_sg(q, rq, sgl);
+	n_sg_orig = blk_rq_map_sg(q, rq, sgl);
 
-	if (n_sg <= 0)
+	if (n_sg_orig <= 0)
 		return BLK_STS_IOERR;
-	n_sg1 = n_sg;
 	/*
 	 * Map scatterlist to PCI bus addresses.
 	 * Note PCI might change the number of entries.
 	 */
 	cmd->dma_dir = DMA_TO_DEVICE;
-	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, cmd->dma_dir);
+	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg_orig, cmd->dma_dir);
 	if (n_sg <= 0)
 		return BLK_STS_IOERR;
 
 	if (n_sg > n_sg_max) {
-		pr_err("%s1 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		pr_err("%s1 n_sg_max=%d n_sg_orig_max=%d\n", __func__, n_sg_max, n_sg_orig_max);
 		n_sg_max = n_sg;
-	} else if (n_sg1 > n_sg1_max) {
-		pr_err("%s2 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
-		n_sg1_max = n_sg1;
+	} else if (n_sg_orig > n_sg_orig_max) {
+		pr_err("%s2 n_sg_max=%d n_sg_orig_max=%d\n", __func__, n_sg_max, n_sg_orig_max);
+		n_sg_orig_max = n_sg_orig;
 	}
 	cmd->n_sg = n_sg;
+	cmd->n_sg_orig = n_sg_orig;
 
-	pr_err_once("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+	pr_err_once("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d n_sg_orig=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg, n_sg_orig);
 
 	return BLK_STS_OK;
 }
