@@ -336,10 +336,13 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	size_t max_opt_dma_size;
 	unsigned long iova_len;
 
+
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;
 
 	iovad = &cookie->iovad;
+
+	pr_err("%s iovad->start_pfn=%ld\n", __func__, iovad->start_pfn);
 
 	/* Use the smallest supported page size for IOVA granularity */
 	order = __ffs(domain->pgsize_bitmap);
@@ -357,6 +360,8 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 				domain->geometry.aperture_start >> order);
 	}
 
+	pr_err("%s2 iovad->start_pfn=%ld\n", __func__, iovad->start_pfn);
+	
 	/* start_pfn is always nonzero for an already-initialised domain */
 	if (iovad->start_pfn) {
 		if (1UL << order != iovad->granule ||
@@ -369,6 +374,9 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	}
 
 	max_opt_dma_size = iommu_group_get_max_opt_dma_size(dev->iommu_group);
+
+	pr_err("%s3 iovad->start_pfn=%ld max_opt_dma_size=%zu\n", 
+		__func__, iovad->start_pfn, max_opt_dma_size);
 
 	if (max_opt_dma_size) {
 		unsigned long shift = __ffs(1UL << order);
