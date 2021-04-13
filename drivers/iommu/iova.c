@@ -884,6 +884,8 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 	else
 		iovad->rcache_max_size = IOVA_RANGE_CACHE_MAX_SIZE;
 
+	pr_err("%s iova_len=%ld iovad->rcache_max_size=%ld\n", __func__, iova_len, iovad->rcache_max_size);
+
 	iovad->rcaches = kcalloc(iovad->rcache_max_size, sizeof(struct iova_rcache), GFP_KERNEL);
 
 	if (!iovad->rcaches)
