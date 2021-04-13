@@ -3307,11 +3307,14 @@ int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 	struct iommu_domain *prev_dom;
 	int ret;
 
+	dev_err(dev, "%s group=%pS\n", __func__, group);
+
 	if (!group)
 		return -EINVAL;
 
 	mutex_lock(&group->mutex);
 
+	dev_err(dev, "%s2 group=%pS max_opt_dma_size=%zu\n", __func__, group, group->max_opt_dma_size);
 	if (!group->max_opt_dma_size) {
 		ret = 0;
 		goto out;
