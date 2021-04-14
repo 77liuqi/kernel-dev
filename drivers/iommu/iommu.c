@@ -3352,68 +3352,20 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 					iommu_group_store_type_cb);
 }
 
-int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
+int iommu_reconfig_dev_group2(struct device *dev, struct iommu_group *group)
 {
-	struct iommu_domain *prev_dom;
-	int ret;
+	size_t max_opt_dma_size;
 
-	dev_err(dev, "%s group=%pS\n", __func__, group);
+	dev_err(dev, "%s group=%pS default_domain=%pS domain=%pS\n", __func__, group, group->default_domain, group->domain);
 
 	if (!group)
 		return -EINVAL;
 
-	mutex_lock(&group->mutex);
+	max_opt_dma_size = iommu_group_get_max_opt_dma_size(dev->iommu_group);
+	if (!max_opt_dma_size)
+		return 0;
 
-	dev_err(dev, "%s2 group=%pS max_opt_dma_size=%zu\n", __func__, group, group->max_opt_dma_size);
-	if (!group->max_opt_dma_size) {
-		ret = 0;
-		goto out;
-	}
-
-	prev_dom = group->default_domain;
-	if (!prev_dom) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (iommu_group_device_count(group) != 1) {
-		dev_err_ratelimited(dev, "Cannot change default domain: Group has more than one device\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Sets group->default_domain to the newly allocated domain */
-	ret = iommu_group_alloc_default_domain(dev->bus, group, group->domain->type);
-	if (ret)
-		goto out;
-
-	ret = iommu_create_device_direct_mappings(group, dev);
-	if (ret)
-		goto free_new_domain;
-
-	ret = __iommu_attach_device(group->default_domain, dev);
-	if (ret)
-		goto free_new_domain;
-
-	group->domain = group->default_domain;
-
-	mutex_unlock(&group->mutex);
-
-	iommu_group_do_probe_finalize(dev, group->default_domain);
-	iommu_domain_free(prev_dom);
-
-	dev_err(dev, "%s10 returning with all realloc'ed group=%pS max_opt_dma_size=%zu\n", __func__, group, group->max_opt_dma_size);
-
-	return 0;
-
-free_new_domain:
-	iommu_domain_free(group->default_domain);
-	group->default_domain = prev_dom;
-	group->domain = prev_dom;
-
-out:
-	mutex_unlock(&group->mutex);
-	return ret;
+	return iommu_reconfig_dev_group(dev, group);
 }
 
 static int iommu_group_store_max_opt_dma_size_cb(const char *buf, struct iommu_group *group, struct device *dev)
