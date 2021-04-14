@@ -92,6 +92,7 @@
 
 #define HISI_SAS_WAIT_PHYUP_TIMEOUT 20
 #define CLEAR_ITCT_TIMEOUT	20
+#define HISI_SAS_WAIT_PHYUP_RETRIES	10
 
 struct hisi_hba;
 
@@ -185,6 +186,7 @@ struct hisi_sas_phy {
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
 	int enable;
+	int wait_phyup_cnt;
 	atomic_t down_cnt;
 
 	/* Trace FIFO */
