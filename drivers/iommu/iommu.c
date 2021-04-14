@@ -3402,6 +3402,8 @@ int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 	iommu_group_do_probe_finalize(dev, group->default_domain);
 	iommu_domain_free(prev_dom);
 
+	dev_err(dev, "%s10 returning with all realloc'ed group=%pS max_opt_dma_size=%zu\n", __func__, group, group->max_opt_dma_size);
+
 	return 0;
 
 free_new_domain:
