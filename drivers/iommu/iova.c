@@ -419,7 +419,6 @@ static void private_free_iova(struct iova_domain *iovad, struct iova *iova)
 	assert_spin_locked(&iovad->iova_rbtree_lock);
 	__cached_rbnode_delete_update(iovad, iova);
 	rb_erase(&iova->node, &iovad->rbroot);
-	free_iova_mem(iova);
 }
 
 /**
@@ -456,6 +455,7 @@ __free_iova(struct iova_domain *iovad, struct iova *iova)
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	private_free_iova(iovad, iova);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	free_iova_mem(iova);
 }
 EXPORT_SYMBOL_GPL(__free_iova);
 
@@ -477,7 +477,7 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 	if (iova)
 		private_free_iova(iovad, iova);
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-
+	free_iova_mem(iova);
 }
 EXPORT_SYMBOL_GPL(free_iova);
 
@@ -828,6 +828,7 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 			continue;
 
 		private_free_iova(iovad, iova);
+		free_iova_mem(iova);
 	}
 
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
