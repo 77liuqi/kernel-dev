@@ -3368,14 +3368,19 @@ static int iommu_group_store_max_opt_dma_size_cb(const char *buf, struct iommu_g
 {
 	unsigned long val;
 	char *endp;
+	int ret;
 
 	val = simple_strtoul(buf, &endp, 0);
 	if (endp == buf)
 		return -EINVAL;
 
+	ret = iommu_reconfig_dev_group(dev, group);
+	if (ret)
+		return ret;
+
 	group->max_opt_dma_size = val;
 
-	return iommu_reconfig_dev_group(dev, group);
+	return 0;
 }
 
 static ssize_t iommu_group_store_max_opt_dma_size(struct iommu_group *group,
