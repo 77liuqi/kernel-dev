@@ -4677,6 +4677,9 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
 
+	dev_err(dev, "%s iommu_group=%pS iommu=%pS dev->dma_ops=%pS iommu_get_domain_for_dev=%pS \n",
+		__func__, dev->iommu_group, dev->iommu, dev->dma_ops, iommu_get_domain_for_dev(dev));
+
 	rc = dma_set_max_opt_size(dev, PAGE_SIZE * HISI_SAS_SGE_PAGE_CNT);
 	dev_err(dev, "%s2 iommu_group=%pS iommu=%pS rc=%d dev->dma_ops=%pS iommu_get_domain_for_dev=%pS rc=%d\n",
 		__func__, dev->iommu_group, dev->iommu, rc, dev->dma_ops, iommu_get_domain_for_dev(dev), rc);
