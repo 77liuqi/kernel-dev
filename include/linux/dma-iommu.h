@@ -17,11 +17,10 @@
 int iommu_get_dma_cookie(struct iommu_domain *domain);
 int iommu_get_msi_cookie(struct iommu_domain *domain, dma_addr_t base);
 void iommu_put_dma_cookie(struct iommu_domain *domain);
-
 /* Setup call for arch DMA mapping code */
 void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size);
 
-int iommu_reconfig_dev_group2(struct device *dev, struct iommu_group *group);
+int iommu_reconfig_dev_group3(struct device *dev, struct iommu_group *group);
 
 
 /* The DMA API isn't _quite_ the whole story, though... */
@@ -85,6 +84,8 @@ static inline void iommu_dma_compose_msi_msg(struct msi_desc *desc,
 static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
 }
+
+
 
 #endif	/* CONFIG_IOMMU_DMA */
 #endif	/* __DMA_IOMMU_H */

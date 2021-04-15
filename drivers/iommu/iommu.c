@@ -3060,7 +3060,7 @@ EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
 
 int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 {
-//	 = iommu_group_get(dev);
+	struct iommu_domain *prev_dom;
 	int ret, type;
 
 	dev_err(dev, "%s group=%pS\n", __func__, group);

@@ -315,6 +315,39 @@ static bool dev_is_untrusted(struct device *dev)
 	return dev_is_pci(dev) && to_pci_dev(dev)->untrusted;
 }
 
+int iommu_reconfig_dev_group3(struct device *dev, struct iommu_group *group)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	size_t max_opt_dma_size;
+	struct iova_domain *iovad;
+	unsigned long shift, iova_len;
+	bool cached;
+
+	max_opt_dma_size = iommu_group_get_max_opt_dma_size(group);
+	dev_err(dev, "%s group=%pS max_opt_dma_size=%zu cookie=%pS\n", 
+		__func__, group, max_opt_dma_size, cookie);
+	if (!max_opt_dma_size)
+		return 0;
+
+	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
+		return -EINVAL;
+
+	iovad = &cookie->iovad;
+	shift = iova_shift(iovad);
+	iova_len = max_opt_dma_size >> shift;
+
+	cached = iova_domain_len_is_cached(iovad, iova_len);
+	dev_err(dev, "%s group=%pS max_opt_dma_size=%zu iova_len=%ld iova_domain_len_is_cached(iovad, iova_len)=%d\n", 
+		__func__, group, max_opt_dma_size, iova_len, cached);
+	
+	if (cached)
+		return 0;
+		
+
+	return iommu_reconfig_dev_group(dev, group);
+}
+
 /**
  * iommu_dma_init_domain - Initialise a DMA mapping domain
  * @domain: IOMMU domain previously prepared by iommu_get_dma_cookie()
@@ -335,7 +368,6 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	struct iova_domain *iovad;
 	size_t max_opt_dma_size;
 	unsigned long iova_len;
-
 
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;

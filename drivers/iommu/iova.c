@@ -912,6 +912,13 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 	}
 }
 
+bool iova_domain_len_is_cached(struct iova_domain *iovad, unsigned long iova_len)
+{
+	pr_err("%s iova=%pS iova_len=%ld rcache_max_size=%ld iova_len_to_rcache_max=%ld\n", 
+		__func__, iovad, iova_len, iovad->rcache_max_size, iova_len_to_rcache_max(iova_len));
+	return iova_len_to_rcache_max(iova_len) == iovad->rcache_max_size;
+}
+
 /*
  * Try inserting IOVA range starting with 'iova_pfn' into 'rcache', and
  * return true on success.  Can fail if rcache is full and we can't free
