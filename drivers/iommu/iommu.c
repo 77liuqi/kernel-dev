@@ -3058,6 +3058,71 @@ u32 iommu_sva_get_pasid(struct iommu_sva *handle)
 }
 EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
 
+int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
+{
+//	 = iommu_group_get(dev);
+	int ret, type;
+
+	dev_err(dev, "%s group=%pS\n", __func__, group);
+
+	if (!group)
+		return 0;
+
+	mutex_lock(&group->mutex);
+
+	dev_err(dev, "%s2 group=%pS default domain=%pS group->max_opt_dma_size=%zu\n",
+		__func__, group, group->default_domain, group->max_opt_dma_size);
+
+	if (!group->max_opt_dma_size) {
+		ret = 0;
+		goto out;
+	}
+
+	if (iommu_group_device_count(group) != 1) {
+		dev_err_ratelimited(dev, "Cannot change default domain: Group has more than one device\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	type = iommu_get_def_domain_type(dev);
+	
+	dev_err(dev, "%s3 group=%pS default domain=%pS group->max_opt_dma_size=%zu type=%d group->domain type=%d ->default_domain type=%d\n",
+		__func__, group, group->default_domain, group->max_opt_dma_size, type, group->domain->type, group->default_domain->type);
+	/* Sets group->default_domain to the newly allocated domain */
+		// iommu_alloc_default_domain(group, dev);
+	ret = iommu_group_alloc_default_domain(dev->bus, group, group->domain->type);
+	if (ret)
+		goto out;
+	
+	dev_err(dev, "%s6 group=%pS type=%d group->default_domain=%pS, group->domain=%pS\n",
+		__func__, group, type, group->default_domain, group->domain);
+	
+	ret = iommu_create_device_direct_mappings(group, dev);
+	if (ret)
+		goto free_new_domain;
+	
+	dev_err(dev, "%s6 group=%pS type=%d group->default_domain=%pS, group->domain=%pS group->default_domain type=%d\n",
+		__func__, group, type, group->default_domain, group->domain, group->default_domain->type);
+	
+	ret = __iommu_attach_device(group->default_domain, dev);
+	if (ret)
+		goto free_new_domain;
+	dev_err(dev, "%s7 group=%pS type=%d group->default_domain=%pS, group->domain=%pS\n",
+		__func__, group, type, group->default_domain, group->domain);
+	
+	group->domain = group->default_domain;
+	
+	dev_err(dev, "%s8 group=%pS type=%d group->default_domain=%pS, group->domain=%pS\n",
+		__func__, group, type, group->default_domain, group->domain);
+
+	ret = 0;
+out:
+free_new_domain:
+		
+	mutex_unlock(&group->mutex);
+	return ret;
+}
+
 int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 {
 	struct iommu_group *group = iommu_group_get(dev);

@@ -657,7 +657,7 @@ static inline struct iommu_domain *iommu_get_domain_for_dev(struct device *dev)
 	return NULL;
 }
 
-static incline size_t iommu_group_get_max_opt_dma_size(struct iommu_group *group)
+static inline size_t iommu_group_get_max_opt_dma_size(struct iommu_group *group)
 {
 	return 0;
 }
