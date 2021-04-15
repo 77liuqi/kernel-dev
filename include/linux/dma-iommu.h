@@ -20,7 +20,7 @@ void iommu_put_dma_cookie(struct iommu_domain *domain);
 /* Setup call for arch DMA mapping code */
 void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size);
 
-int iommu_reconfig_dev_group3(struct device *dev, struct iommu_group *group);
+int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group);
 
 
 /* The DMA API isn't _quite_ the whole story, though... */

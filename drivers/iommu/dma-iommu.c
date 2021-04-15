@@ -315,7 +315,7 @@ static bool dev_is_untrusted(struct device *dev)
 	return dev_is_pci(dev) && to_pci_dev(dev)->untrusted;
 }
 
-int iommu_reconfig_dev_group3(struct device *dev, struct iommu_group *group)
+int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;

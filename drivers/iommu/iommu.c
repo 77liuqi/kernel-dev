@@ -3060,7 +3060,7 @@ EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
 
 int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 {
-	struct iommu_domain *prev_dom;
+//	struct iommu_domain *prev_dom;
 	int ret, type;
 
 	dev_err(dev, "%s group=%pS\n", __func__, group);
@@ -3112,7 +3112,7 @@ int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 	
 	group->domain = group->default_domain;
 	
-	dev_err(dev, "%s8 group=%pS type=%d group->default_domain=%pS, group->domain=%pS\n",
+	dev_err(dev, "%s10 good finishing group=%pS type=%d group->default_domain=%pS, group->domain=%pS\n",
 		__func__, group, type, group->default_domain, group->domain);
 
 	ret = 0;
@@ -3417,6 +3417,7 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 					iommu_group_store_type_cb);
 }
 
+#ifdef fdfdf
 int iommu_reconfig_dev_group2(struct device *dev, struct iommu_group *group)
 {
 	size_t max_opt_dma_size;
@@ -3432,6 +3433,7 @@ int iommu_reconfig_dev_group2(struct device *dev, struct iommu_group *group)
 
 	return iommu_reconfig_dev_group(dev, group);
 }
+#endif
 
 static int iommu_group_store_max_opt_dma_size_cb(const char *buf, struct iommu_group *group, struct device *dev)
 {
