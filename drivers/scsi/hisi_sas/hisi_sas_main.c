@@ -445,7 +445,12 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		}
 	}
 
-	if (scmd) {
+	if (hisi_hba->reply_map) {
+		int cpu = raw_smp_processor_id();
+		unsigned int dq_index = hisi_hba->reply_map[cpu];
+
+		*dq_pointer = dq = &hisi_hba->dq[dq_index];
+	} else if (scmd) {
 		unsigned int dq_index;
 		u32 blk_tag;
 

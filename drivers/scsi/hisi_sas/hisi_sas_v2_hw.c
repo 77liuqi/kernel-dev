@@ -384,6 +384,11 @@
 
 #define HISI_SAS_FATAL_INT_NR	2
 
+static bool auto_affine_irq_experimental;
+module_param(auto_affine_irq_experimental, bool, 0444);
+MODULE_PARM_DESC(auto_affine_irq_experimental, "Enable auto-affinity of MSI IRQs as experimental:\n"
+		 "default is off");
+
 struct hisi_sas_complete_v2_hdr {
 	__le32 dw0;
 	__le32 dw1;
@@ -3308,6 +3313,7 @@ static irq_handler_t fatal_interrupts[HISI_SAS_FATAL_INT_NR] = {
 static int hisi_sas_v2_interrupt_preinit(struct hisi_hba *hisi_hba)
 {
 	struct platform_device *pdev = hisi_hba->platform_dev;
+
 	struct Scsi_Host *shost = hisi_hba->shost;
 	struct irq_affinity desc = {
 		.pre_vectors = CQ0_IRQ_INDEX,
@@ -3320,7 +3326,33 @@ static int hisi_sas_v2_interrupt_preinit(struct hisi_hba *hisi_hba)
 	if (nvec < 0)
 		return nvec;
 
-	shost->nr_hw_queues = hisi_hba->cq_nvecs = nvec - resv;
+	if (auto_affine_irq_experimental) {
+		shost->nr_hw_queues = 0;
+		hisi_hba->cq_nvecs = nvec - resv;
+	} else {
+		shost->nr_hw_queues = hisi_hba->cq_nvecs = nvec - resv;
+	}
+
+	return 0;
+}
+
+static int setup_reply_map_v2_hw(struct hisi_hba *hisi_hba)
+{
+	int queue, cpu;
+
+	hisi_hba->reply_map = devm_kcalloc(hisi_hba->dev, nr_cpu_ids,
+					   sizeof(unsigned int),
+					   GFP_KERNEL);
+	if (!hisi_hba->reply_map)
+		return -ENOMEM;
+
+	for (queue = 0; queue < hisi_hba->queue_count; queue++) {
+		struct hisi_sas_cq *cq = &hisi_hba->cq[queue];
+
+		for_each_cpu(cpu, cq->irq_mask)
+			hisi_hba->reply_map[cpu] = queue;
+		dev_err(hisi_hba->dev, "%s queue=%d mask=%*pbl\n", __func__, queue, cpumask_pr_args(cq->irq_mask));
+	}
 
 	return 0;
 }
@@ -3335,6 +3367,12 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 	struct device *dev = &pdev->dev;
 	int irq, rc = 0;
 	int i, phy_no, fatal_no, queue_no;
+
+	if (auto_affine_irq_experimental) {
+		rc = setup_reply_map_v2_hw(hisi_hba);
+		if (rc)
+			return rc;
+	}
 
 	for (i = 0; i < HISI_SAS_PHY_INT_NR; i++) {
 		irq = hisi_hba->irq_map[i + 1]; /* Phy up/down is irq1 */
