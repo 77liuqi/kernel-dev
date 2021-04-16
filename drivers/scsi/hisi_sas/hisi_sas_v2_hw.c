@@ -3346,12 +3346,16 @@ static int setup_reply_map_v2_hw(struct hisi_hba *hisi_hba)
 	if (!hisi_hba->reply_map)
 		return -ENOMEM;
 
+	dev_err(hisi_hba->dev, "%s queue_count=%d\n", __func__, hisi_hba->queue_count);
+
 	for (queue = 0; queue < hisi_hba->queue_count; queue++) {
 		struct hisi_sas_cq *cq = &hisi_hba->cq[queue];
+		
+		dev_err(hisi_hba->dev, "%s1 queue=%d cq=%pS mask=%*pbl\n", __func__, queue, cq, cpumask_pr_args(cq->irq_mask));
 
 		for_each_cpu(cpu, cq->irq_mask)
 			hisi_hba->reply_map[cpu] = queue;
-		dev_err(hisi_hba->dev, "%s queue=%d mask=%*pbl\n", __func__, queue, cpumask_pr_args(cq->irq_mask));
+		dev_err(hisi_hba->dev, "%s2 queue=%d mask=%*pbl\n", __func__, queue, cpumask_pr_args(cq->irq_mask));
 	}
 
 	return 0;
@@ -3368,11 +3372,6 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 	int irq, rc = 0;
 	int i, phy_no, fatal_no, queue_no;
 
-	if (auto_affine_irq_experimental) {
-		rc = setup_reply_map_v2_hw(hisi_hba);
-		if (rc)
-			return rc;
-	}
 
 	for (i = 0; i < HISI_SAS_PHY_INT_NR; i++) {
 		irq = hisi_hba->irq_map[i + 1]; /* Phy up/down is irq1 */
@@ -3427,6 +3426,11 @@ static int interrupt_init_v2_hw(struct hisi_hba *hisi_hba)
 			goto err_out;
 		}
 		cq->irq_mask = irq_get_affinity_mask(cq->irq_no);
+	}
+	if (auto_affine_irq_experimental) {
+		rc = setup_reply_map_v2_hw(hisi_hba);
+		if (rc)
+			return rc;
 	}
 err_out:
 	return rc;
