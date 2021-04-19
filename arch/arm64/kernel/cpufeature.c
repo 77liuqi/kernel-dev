@@ -1725,7 +1725,10 @@ static bool enable_pseudo_nmi;
 
 static int __init early_enable_pseudo_nmi(char *p)
 {
-	return strtobool(p, &enable_pseudo_nmi);
+	int x = strtobool(p, &enable_pseudo_nmi);
+	enable_pseudo_nmi = 1;
+	return x;
+	
 }
 early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
 
