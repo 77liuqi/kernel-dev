@@ -679,25 +679,35 @@ void blk_mq_complete_request(struct request *rq)
 		rq->q->mq_ops->complete(rq);
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
-
-static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx)
+static void hctx_unlock(struct blk_mq_hw_ctx *hctx, int srcu_idx, bool blocking)
 	__releases(hctx->srcu)
 {
+	bool blocking2 = hctx->flags & BLK_MQ_F_BLOCKING;
+	WARN(blocking != blocking2, "eh\n");
+
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING))
 		rcu_read_unlock();
 	else
 		srcu_read_unlock(hctx->srcu, srcu_idx);
 }
 
-static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
+static bool hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
 	__acquires(hctx->srcu)
 {
+	bool blocking;
+
+
 	if (!(hctx->flags & BLK_MQ_F_BLOCKING)) {
 		/* shut up gcc false positive */
 		*srcu_idx = 0;
 		rcu_read_lock();
-	} else
+		blocking = false;
+	} else {
+		blocking = true;
 		*srcu_idx = srcu_read_lock(hctx->srcu);
+	}
+
+	return blocking;
 }
 
 /**
@@ -1475,6 +1485,7 @@ out:
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 {
 	int srcu_idx;
+	bool blocking;
 
 	/*
 	 * We can't run the queue inline with ints disabled. Ensure that
@@ -1484,9 +1495,9 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
-	hctx_lock(hctx, &srcu_idx);
+	blocking = hctx_lock(hctx, &srcu_idx);
 	blk_mq_sched_dispatch_requests(hctx);
-	hctx_unlock(hctx, srcu_idx);
+	hctx_unlock(hctx, srcu_idx, blocking);
 }
 
 static inline int blk_mq_first_mapped_cpu(struct blk_mq_hw_ctx *hctx)
@@ -1600,6 +1611,7 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 {
 	int srcu_idx;
 	bool need_run;
+	bool blocking;
 
 	/*
 	 * When queue is quiesced, we may be switching io scheduler, or
@@ -1609,10 +1621,10 @@ void blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx, bool async)
 	 * And queue will be rerun in blk_mq_unquiesce_queue() if it is
 	 * quiesced.
 	 */
-	hctx_lock(hctx, &srcu_idx);
+	blocking = hctx_lock(hctx, &srcu_idx);
 	need_run = !blk_queue_quiesced(hctx->queue) &&
 		blk_mq_hctx_has_pending(hctx);
-	hctx_unlock(hctx, srcu_idx);
+	hctx_unlock(hctx, srcu_idx, blocking);
 
 	if (need_run)
 		__blk_mq_delay_run_hw_queue(hctx, async, 0);
@@ -2060,10 +2072,11 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 {
 	blk_status_t ret;
 	int srcu_idx;
+	bool blocking;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
-	hctx_lock(hctx, &srcu_idx);
+	blocking = hctx_lock(hctx, &srcu_idx);
 
 	ret = __blk_mq_try_issue_directly(hctx, rq, cookie, false, true);
 	if (ret == BLK_STS_RESOURCE || ret == BLK_STS_DEV_RESOURCE)
@@ -2071,7 +2084,7 @@ static void blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 	else if (ret != BLK_STS_OK)
 		blk_mq_end_request(rq, ret);
 
-	hctx_unlock(hctx, srcu_idx);
+	hctx_unlock(hctx, srcu_idx, blocking);
 }
 
 blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
@@ -2080,10 +2093,11 @@ blk_status_t blk_mq_request_issue_directly(struct request *rq, bool last)
 	int srcu_idx;
 	blk_qc_t unused_cookie;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
+	bool blocking;
 
-	hctx_lock(hctx, &srcu_idx);
+	blocking = hctx_lock(hctx, &srcu_idx);
 	ret = __blk_mq_try_issue_directly(hctx, rq, &unused_cookie, true, last);
-	hctx_unlock(hctx, srcu_idx);
+	hctx_unlock(hctx, srcu_idx, blocking);
 
 	return ret;
 }
