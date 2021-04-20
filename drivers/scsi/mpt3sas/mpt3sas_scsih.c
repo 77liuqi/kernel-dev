@@ -12068,7 +12068,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		host_tagset_enable,
 		ioc->smp_affinity_enable);
 
-	if (ioc->is_gen35_ioc && ioc->reply_queue_count > 1 &&
+	if ( ioc->reply_queue_count > 1 &&
 	    host_tagset_enable && ioc->smp_affinity_enable) {
 
 		shost->host_tagset = 1;
