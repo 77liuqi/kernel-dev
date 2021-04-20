@@ -1722,10 +1722,7 @@ _base_process_reply_queue(struct adapter_reply_queue *reply_q)
 						 MPI2_RPHI_MSIX_INDEX_SHIFT),
 						&ioc->chip->ReplyPostHostIndex);
 			}
-			if (!reply_q->irq_poll_scheduled) {
-				reply_q->irq_poll_scheduled = true;
-				irq_poll_sched(&reply_q->irqpoll);
-			}
+
 			atomic_dec(&reply_q->busy);
 			return completed_cmds;
 		}
@@ -1793,8 +1790,7 @@ _base_interrupt(int irq, void *bus_id)
 
 	if (ioc->mask_interrupts)
 		return IRQ_NONE;
-	if (reply_q->irq_poll_scheduled)
-		return IRQ_HANDLED;
+
 	return ((_base_process_reply_queue(reply_q) > 0) ?
 			IRQ_HANDLED : IRQ_NONE);
 }
@@ -1806,59 +1802,7 @@ _base_interrupt(int irq, void *bus_id)
  *
  * returns number of reply descriptors processed
  */
-static int
-_base_irqpoll(struct irq_poll *irqpoll, int budget)
-{
-	struct adapter_reply_queue *reply_q;
-	int num_entries = 0;
 
-	reply_q = container_of(irqpoll, struct adapter_reply_queue,
-			irqpoll);
-	if (reply_q->irq_line_enable) {
-		disable_irq_nosync(reply_q->os_irq);
-		reply_q->irq_line_enable = false;
-	}
-	num_entries = _base_process_reply_queue(reply_q);
-	if (num_entries < budget) {
-		irq_poll_complete(irqpoll);
-		reply_q->irq_poll_scheduled = false;
-		reply_q->irq_line_enable = true;
-		enable_irq(reply_q->os_irq);
-		/*
-		 * Go for one more round of processing the
-		 * reply descriptor post queue incase if HBA
-		 * Firmware has posted some reply descriptors
-		 * while reenabling the IRQ.
-		 */
-		_base_process_reply_queue(reply_q);
-	}
-
-	return num_entries;
-}
-
-/**
- * _base_init_irqpolls - initliaze IRQ polls
- * @ioc: per adapter object
- *
- * returns nothing
- */
-static void
-_base_init_irqpolls(struct MPT3SAS_ADAPTER *ioc)
-{
-	struct adapter_reply_queue *reply_q, *next;
-
-	if (list_empty(&ioc->reply_queue_list))
-		return;
-
-	list_for_each_entry_safe(reply_q, next, &ioc->reply_queue_list, list) {
-		irq_poll_init(&reply_q->irqpoll,
-			ioc->hba_queue_depth/4, _base_irqpoll);
-		reply_q->irq_poll_scheduled = false;
-		reply_q->irq_line_enable = true;
-		reply_q->os_irq = pci_irq_vector(ioc->pdev,
-		    reply_q->msix_index);
-	}
-}
 
 /**
  * _base_is_controller_msix_enabled - is controller support muli-reply queues
@@ -1901,21 +1845,6 @@ mpt3sas_base_sync_reply_irqs(struct MPT3SAS_ADAPTER *ioc, u8 poll)
 		if (reply_q->msix_index == 0)
 			continue;
 		synchronize_irq(pci_irq_vector(ioc->pdev, reply_q->msix_index));
-		if (reply_q->irq_poll_scheduled) {
-			/* Calling irq_poll_disable will wait for any pending
-			 * callbacks to have completed.
-			 */
-			irq_poll_disable(&reply_q->irqpoll);
-			irq_poll_enable(&reply_q->irqpoll);
-			/* check how the scheduled poll has ended,
-			 * clean up only if necessary
-			 */
-			if (reply_q->irq_poll_scheduled) {
-				reply_q->irq_poll_scheduled = false;
-				reply_q->irq_line_enable = true;
-				enable_irq(reply_q->os_irq);
-			}
-		}
 	}
 	if (poll)
 		_base_process_reply_queue(reply_q);
@@ -3487,8 +3416,6 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	if (r)
 		goto out_fail;
 
-	if (!ioc->is_driver_loading)
-		_base_init_irqpolls(ioc);
 	/* Use the Combined reply queue feature only for SAS3 C0 & higher
 	 * revision HBAs and also only when reply queue count is greater than 8
 	 */
@@ -7780,7 +7707,6 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	else
 		ioc->thresh_hold = ioc->hba_queue_depth/4;
 
-	_base_init_irqpolls(ioc);
 	init_waitqueue_head(&ioc->reset_wq);
 
 	/* allocate memory pd handle bitmask list */

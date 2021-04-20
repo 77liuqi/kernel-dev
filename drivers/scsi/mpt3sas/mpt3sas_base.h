@@ -945,8 +945,6 @@ struct adapter_reply_queue {
 	char			name[MPT_NAME_LENGTH];
 	atomic_t		busy;
 	u32			os_irq;
-	struct irq_poll         irqpoll;
-	bool			irq_poll_scheduled;
 	bool			irq_line_enable;
 	struct list_head	list;
 };
