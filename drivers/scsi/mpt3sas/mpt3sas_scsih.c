@@ -11806,8 +11806,11 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		|| hba_mpi_version ==  MPI26_VERSION)))
 		return -ENODEV;
 
+	pr_err("%s hba_mpi_version=0x%x pdev->device=0x%x\n", __func__, hba_mpi_version, pdev->device);
+
 	switch (hba_mpi_version) {
 	case MPI2_VERSION:
+		pr_err("%s MPI2_VERSION\n", __func__);
 		pci_disable_link_state(pdev, PCIE_LINK_STATE_L0S |
 			PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
 		/* Use mpt2sas driver host template for SAS 2.0 HBA's */
@@ -11842,6 +11845,7 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		break;
 	case MPI25_VERSION:
 	case MPI26_VERSION:
+		pr_err("%s MPI25_VERSION MPI26_VERSION\n", __func__);
 		/* Use mpt3sas driver host template for SAS 3.0 HBA's */
 		shost = scsi_host_alloc(&mpt3sas_driver_template,
 		  sizeof(struct MPT3SAS_ADAPTER));
@@ -12057,6 +12061,12 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	shost->host_tagset = 0;
 	shost->nr_hw_queues = 1;
+
+	pr_err("%s is_gen35_ioc=%d reply_queue_count=%d host_tagset_enable=%d smp_affinity_enable=%d\n", __func__, 
+		ioc->is_gen35_ioc,
+		ioc->reply_queue_count,
+		host_tagset_enable,
+		ioc->smp_affinity_enable);
 
 	if (ioc->is_gen35_ioc && ioc->reply_queue_count > 1 &&
 	    host_tagset_enable && ioc->smp_affinity_enable) {
