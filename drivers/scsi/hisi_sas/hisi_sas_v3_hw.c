@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// x SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2017 Hisilicon Limited.
  */
