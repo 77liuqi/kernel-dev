@@ -663,9 +663,13 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 	if (devname == NULL)
 		return -EINVAL;
 
+	pr_err("%s devname=%s args=%s\n", __func__, devname, args);
+
 	mutex_lock(&virtio_9p_lock);
 	list_for_each_entry(chan, &virtio_chan_list, chan_list) {
+		pr_err("%s1 devname=%s chan->tag=%s\n", __func__, devname, chan->tag);
 		if (!strcmp(devname, chan->tag)) {
+			pr_err("%s2 devname=%s chan->tag=%s chan->inuse=%d\n", __func__, devname, chan->tag, chan->inuse);
 			if (!chan->inuse) {
 				chan->inuse = true;
 				found = 1;
