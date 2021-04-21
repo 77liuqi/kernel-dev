@@ -7550,6 +7550,10 @@ static struct scsi_host_template sdebug_driver_template = {
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
 };
+#include <generated/utsrelease.h>
+
+const char kernel_version[] =
+	UTS_RELEASE ;
 
 static int sdebug_driver_probe(struct device *dev)
 {
@@ -7559,6 +7563,8 @@ static int sdebug_driver_probe(struct device *dev)
 	int hprot;
 
 	sdbg_host = to_sdebug_host(dev);
+
+	pr_err("%s kernel_version=%s\n", __func__, kernel_version);
 
 	sdebug_driver_template.can_queue = sdebug_max_queue;
 	sdebug_driver_template.cmd_per_lun = sdebug_max_queue;
