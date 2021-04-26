@@ -3073,11 +3073,6 @@ int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 	dev_err(dev, "%s2 group=%pS default domain=%pS group->max_opt_dma_size=%zu\n",
 		__func__, group, group->default_domain, group->max_opt_dma_size);
 
-	if (!group->max_opt_dma_size) {
-		ret = 0;
-		goto out;
-	}
-
 	if (iommu_group_device_count(group) != 1) {
 		dev_err_ratelimited(dev, "Cannot change default domain: Group has more than one device\n");
 		ret = -EINVAL;
@@ -3145,6 +3140,7 @@ int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 		ret = 0;
 		goto out;
 	}
+
 	group_count = iommu_group_device_count(group);
 
 	if (group_count != 1) {
@@ -3417,7 +3413,7 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 					iommu_group_store_type_cb);
 }
 
-#ifdef fdfdf
+#if 0
 int iommu_reconfig_dev_group2(struct device *dev, struct iommu_group *group)
 {
 	size_t max_opt_dma_size;

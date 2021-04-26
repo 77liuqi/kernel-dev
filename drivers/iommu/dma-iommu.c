@@ -340,10 +340,9 @@ int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group)
 	cached = iova_domain_len_is_cached(iovad, iova_len);
 	dev_err(dev, "%s2 group=%pS max_opt_dma_size=%zu iova_len=%ld iova_domain_len_is_cached(iovad, iova_len)=%d\n", 
 		__func__, group, max_opt_dma_size, iova_len, cached);
-	
+
 	if (cached)
 		return 0;
-		
 
 	return iommu_reconfig_dev_group(dev, group);
 }
