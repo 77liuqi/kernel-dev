@@ -3058,19 +3058,12 @@ u32 iommu_sva_get_pasid(struct iommu_sva *handle)
 }
 EXPORT_SYMBOL_GPL(iommu_sva_get_pasid);
 
-int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
+static int iommu_reconfig_dev_group_locked(struct device *dev, struct iommu_group *group)
 {
 //	struct iommu_domain *prev_dom;
 	int ret, type;
 
-	dev_err(dev, "%s group=%pS\n", __func__, group);
-
-	if (!group)
-		return 0;
-
-	mutex_lock(&group->mutex);
-
-	dev_err(dev, "%s2 group=%pS default domain=%pS group->max_opt_dma_size=%zu\n",
+	dev_err(dev, "%s group=%pS default domain=%pS group->max_opt_dma_size=%zu\n",
 		__func__, group, group->default_domain, group->max_opt_dma_size);
 
 	if (iommu_group_device_count(group) != 1) {
@@ -3113,10 +3106,22 @@ int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
 	ret = 0;
 out:
 free_new_domain:
-		
-	mutex_unlock(&group->mutex);
 	return ret;
 }
+
+
+int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
+{
+	int ret;
+
+	mutex_lock(&group->mutex);
+	ret = iommu_reconfig_dev_group_locked(dev, group);
+	mutex_unlock(&group->mutex);
+
+	return ret;
+}
+
+
 
 int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 {
@@ -3138,13 +3143,15 @@ int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 	/* If already set, then ignore. We may have been set via sysfs, so honour that. */
 	if (group->max_opt_dma_size) {
 		ret = 0;
+		dev_err(dev, "%s2.2 going out group=%pS group->default_domain=%pS max_opt_dma_size=%zu\n", 
+			__func__, group, group->default_domain, group->max_opt_dma_size);
 		goto out;
 	}
 
 	group_count = iommu_group_device_count(group);
 
 	if (group_count != 1) {
-		dev_err_ratelimited(dev, "%s Cannot change DMA opt size: Group has more than one device group_count=%d\n", __func__, group_count);
+		dev_err_ratelimited(dev, "%s3 Cannot change DMA opt size: Group has more than one device group_count=%d\n", __func__, group_count);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -3153,7 +3160,7 @@ int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 	grp_dev = list_first_entry(&group->devices, struct group_device, list);
 	_dev = grp_dev->dev;
 
-	dev_err(dev, "%s2 group=%pS group->default_domain=%pS group->domain=%pS grp_dev=%pS dev=%pS _dev=%pS\n",
+	dev_err(dev, "%s4 group=%pS group->default_domain=%pS group->domain=%pS grp_dev=%pS dev=%pS _dev=%pS\n",
 		__func__, group, group->default_domain, group->domain, grp_dev, dev, _dev);
 
 	if (_dev != dev) {
@@ -3441,13 +3448,23 @@ static int iommu_group_store_max_opt_dma_size_cb(const char *buf, struct iommu_g
 	if (endp == buf)
 		return -EINVAL;
 
-	ret = iommu_reconfig_dev_group(dev, group);
+	mutex_lock(&group->mutex);
+	if (group->max_opt_dma_size == val) {
+		dev_notice(dev, "group max_opt_dma_size already %zu\n", val);
+		ret = 0;
+		goto out;
+	}
+
+	ret = iommu_reconfig_dev_group_locked(dev, group);
 	if (ret)
-		return ret;
+		goto out;
 
 	group->max_opt_dma_size = val;
+	ret = 0;
 
-	return 0;
+out:
+	mutex_unlock(&group->mutex);
+	return ret;
 }
 
 static ssize_t iommu_group_store_max_opt_dma_size(struct iommu_group *group,
