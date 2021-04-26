@@ -105,7 +105,10 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	} else {
 		bt = tags->bitmap_tags;
 		tag_offset = tags->nr_reserved_tags;
+	//	pr_err("%s tags=%pS bitmap_tags=%pS bt=%pS data->hctx=%pS\n",
+	//		__func__, tags, tags->bitmap_tags, bt, data->hctx);
 	}
+
 
 	tag = __blk_mq_get_tag(data, bt);
 	if (tag != BLK_MQ_NO_TAG)
@@ -505,6 +508,8 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(flags);
 	struct blk_mq_tags *tags;
 
+	pr_err("%s total_tags=%d\n", __func__, total_tags);
+
 	if (total_tags > BLK_MQ_TAG_MAX) {
 		pr_err("blk-mq: tag depth too large\n");
 		return NULL;
@@ -517,8 +522,10 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 
-	if (flags & BLK_MQ_F_TAG_HCTX_SHARED)
+	if (blk_mq_is_sbitmap_shared(flags))
 		return tags;
+
+	pr_err("%s2 total_tags=%d\n", __func__, total_tags);
 
 	if (blk_mq_init_bitmap_tags(tags, node, alloc_policy) < 0) {
 		kfree(tags);
@@ -529,7 +536,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 
 void blk_mq_free_tags(struct blk_mq_tags *tags, unsigned int flags)
 {
-	if (!(flags & BLK_MQ_F_TAG_HCTX_SHARED)) {
+	if (!blk_mq_is_sbitmap_shared(flags)) {
 		sbitmap_queue_free(tags->bitmap_tags);
 		sbitmap_queue_free(tags->breserved_tags);
 	}

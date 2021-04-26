@@ -166,8 +166,11 @@ static inline bool blk_mq_is_sbitmap_shared(unsigned int flags)
 
 static inline struct blk_mq_tags *blk_mq_tags_from_data(struct blk_mq_alloc_data *data)
 {
-	if (data->q->elevator)
+	if (data->q->elevator) {
+	//	pr_err("%s elevator=%pS hctx=%pS hctx->sched_tags=%pS\n", __func__, 
+	//		data->q->elevator, data->hctx, data->hctx->sched_tags);
 		return data->hctx->sched_tags;
+	}
 
 	return data->hctx->tags;
 }

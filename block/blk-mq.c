@@ -1080,20 +1080,43 @@ static bool __blk_mq_get_driver_tag(struct request *rq)
 	struct sbitmap_queue *bt = rq->mq_hctx->tags->bitmap_tags;
 	unsigned int tag_offset = rq->mq_hctx->tags->nr_reserved_tags;
 	int tag;
+	static atomic64_t total;
+	static atomic64_t fail1;
+	static atomic64_t fail2;
+	static atomic64_t pass;
+	u64 _total;
 
 	blk_mq_tag_busy(rq->mq_hctx);
+
+	_total = atomic64_inc_return(&total);
+	if ((_total % 1000000) == 0) {
+		pr_err("%s _total=%lld pass=%lld fail1=%lld fail2=%lld\n", __func__, _total,
+			atomic64_read(&pass), 
+			atomic64_read(&fail1),
+			atomic64_read(&fail2));
+		atomic64_set(&total, 1);
+		atomic64_set(&pass, 0);
+		atomic64_set(&fail1, 0);
+		atomic64_set(&fail2, 0);
+	}
 
 	if (blk_mq_tag_is_reserved(rq->mq_hctx->sched_tags, rq->internal_tag)) {
 		bt = rq->mq_hctx->tags->breserved_tags;
 		tag_offset = 0;
 	} else {
-		if (!hctx_may_queue(rq->mq_hctx, bt))
+		if (!hctx_may_queue(rq->mq_hctx, bt)) {
+			atomic64_inc(&fail1);
 			return false;
+		}
 	}
 
 	tag = __sbitmap_queue_get(bt);
-	if (tag == BLK_MQ_NO_TAG)
+	if (tag == BLK_MQ_NO_TAG) {
+		atomic64_inc(&fail2);
 		return false;
+	}
+
+	atomic64_inc(&pass);
 
 	rq->tag = tag + tag_offset;
 	return true;
@@ -2352,6 +2375,8 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
+
+	pr_err("%s set=%pS hctx_idx=%d nr_tags=%d\n", __func__, set, hctx_idx, nr_tags);
 
 	tags = blk_mq_init_tags(nr_tags, reserved_tags, node, flags);
 	if (!tags)

@@ -528,8 +528,11 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
+	pr_err("%s q=%pS hctx=%pS hctx_idx=%d\n", __func__, q, hctx, hctx_idx);
+
 	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
 					       set->reserved_tags, flags);
+	pr_err("%s2 q=%pS hctx=%pS hctx_idx=%d sched_tags=%pS\n", __func__, q, hctx, hctx_idx, hctx->sched_tags);
 	if (!hctx->sched_tags)
 		return -ENOMEM;
 
@@ -564,6 +567,8 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	unsigned int i;
 	int ret;
 
+	pr_err("%s q=%pS e=%pS\n", __func__, q, e);
+
 	if (!e) {
 		q->elevator = NULL;
 		q->nr_requests = q->tag_set->queue_depth;
@@ -577,6 +582,8 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	 */
 	q->nr_requests = 2 * min_t(unsigned int, q->tag_set->queue_depth,
 				   BLKDEV_MAX_RQ);
+	pr_err("%s2 nr_requests=%ld q->tag_set->queue_depth=%d q=%pS\n",
+	__func__, q->nr_requests, q->tag_set->queue_depth, q);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);
