@@ -52,6 +52,7 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	if (iommu) {
 		iommu_reconfig_dev_group_dma(dev, dev->iommu_group);
 		iommu_setup_dma_ops(dev, dma_base, size);
+	}
 
 #ifdef CONFIG_XEN
 	if (xen_swiotlb_detect())
