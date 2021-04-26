@@ -3125,14 +3125,14 @@ int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 	struct device *_dev;
 	int ret, group_count;
 
-	pr_err("%s group=%pS size=%zu\n", __func__, group, size);
+	dev_err(dev, "%s group=%pS size=%zu\n", __func__, group, size);
 
 	if (!group)
 		return 0;
 
 	mutex_lock(&group->mutex);
 
-	pr_err("%s2 group=%pS group->default_domain=%pS max_opt_dma_size=%zu\n", 
+	dev_err(dev, "%s2 group=%pS group->default_domain=%pS max_opt_dma_size=%zu\n", 
 		__func__, group, group->default_domain, group->max_opt_dma_size);
 
 	/* If already set, then ignore. We may have been set via sysfs, so honour that. */
@@ -3153,7 +3153,7 @@ int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 	grp_dev = list_first_entry(&group->devices, struct group_device, list);
 	_dev = grp_dev->dev;
 
-	pr_err("%s2 group=%pS group->default_domain=%pS group->domain=%pS grp_dev=%pS dev=%pS _dev=%pS\n",
+	dev_err(dev, "%s2 group=%pS group->default_domain=%pS group->domain=%pS grp_dev=%pS dev=%pS _dev=%pS\n",
 		__func__, group, group->default_domain, group->domain, grp_dev, dev, _dev);
 
 	if (_dev != dev) {
