@@ -525,7 +525,7 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	/* Clear HCTX_SHARED so tags are init'ed */
-	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
+	unsigned int flags = set->flags;// & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
 //	pr_err("%s q=%pS hctx=%pS hctx_idx=%d\n", __func__, q, hctx, hctx_idx);
