@@ -26,6 +26,7 @@
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
 #include <linux/pm.h>
+#include <linux/sbitmap.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -397,6 +398,7 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 struct request_queue {
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
+	struct sbitmap_queue sched_bitmap_tags;
 
 	struct percpu_ref	q_usage_counter;
 

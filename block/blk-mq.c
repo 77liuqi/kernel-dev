@@ -2376,7 +2376,7 @@ struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 	if (node == NUMA_NO_NODE)
 		node = set->numa_node;
 
-	pr_err("%s set=%pS hctx_idx=%d nr_tags=%d\n", __func__, set, hctx_idx, nr_tags);
+//	pr_err("%s set=%pS hctx_idx=%d nr_tags=%d\n", __func__, set, hctx_idx, nr_tags);
 
 	tags = blk_mq_init_tags(nr_tags, reserved_tags, node, flags);
 	if (!tags)

@@ -508,7 +508,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(flags);
 	struct blk_mq_tags *tags;
 
-	pr_err("%s total_tags=%d\n", __func__, total_tags);
+	//pr_err("%s total_tags=%d\n", __func__, total_tags);
 
 	if (total_tags > BLK_MQ_TAG_MAX) {
 		pr_err("blk-mq: tag depth too large\n");
@@ -525,7 +525,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	if (blk_mq_is_sbitmap_shared(flags))
 		return tags;
 
-	pr_err("%s2 total_tags=%d\n", __func__, total_tags);
+	//pr_err("%s2 total_tags=%d\n", __func__, total_tags);
 
 	if (blk_mq_init_bitmap_tags(tags, node, alloc_policy) < 0) {
 		kfree(tags);

@@ -528,11 +528,11 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
-	pr_err("%s q=%pS hctx=%pS hctx_idx=%d\n", __func__, q, hctx, hctx_idx);
+//	pr_err("%s q=%pS hctx=%pS hctx_idx=%d\n", __func__, q, hctx, hctx_idx);
 
 	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
 					       set->reserved_tags, flags);
-	pr_err("%s2 q=%pS hctx=%pS hctx_idx=%d sched_tags=%pS\n", __func__, q, hctx, hctx_idx, hctx->sched_tags);
+//	pr_err("%s2 q=%pS hctx=%pS hctx_idx=%d sched_tags=%pS\n", __func__, q, hctx, hctx_idx, hctx->sched_tags);
 	if (!hctx->sched_tags)
 		return -ENOMEM;
 
@@ -560,12 +560,21 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	}
 }
 
+static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
+		    bool round_robin, int node)
+{
+	return sbitmap_queue_init_node(bt, depth, -1, round_robin, GFP_KERNEL,
+				       node);
+}
+
 int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 {
 	struct blk_mq_hw_ctx *hctx;
 	struct elevator_queue *eq;
 	unsigned int i;
 	int ret;
+	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(q->tag_set->flags);
+	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
 
 	pr_err("%s q=%pS e=%pS\n", __func__, q, e);
 
@@ -585,10 +594,22 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	pr_err("%s2 nr_requests=%ld q->tag_set->queue_depth=%d q=%pS\n",
 	__func__, q->nr_requests, q->tag_set->queue_depth, q);
 
+
+	if (bt_alloc(&q->sched_bitmap_tags, q->nr_requests, round_robin, q->tag_set->numa_node))
+		return -ENOMEM;
+
+	pr_err("%s3 q=%pS e=%pS &q->sched_bitmap_tags=%pS\n", __func__, q, e, &q->sched_bitmap_tags);
+
+
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);
 		if (ret)
 			goto err;
+	//	pr_err("%s4 q=%pS e=%pS bitmap_tags=%pS &q->sched_bitmap_tags=%pS hctx=%pS\n", __func__, 
+	//	q, e, hctx->sched_tags->bitmap_tags, &q->sched_bitmap_tags, hctx);
+		pr_err("%s4 q=%pS e=%pS bitmap_tags=%pS q->sched_bitmap_tags=%pS hcttx=%pS\n", __func__, 
+		q, e, hctx->sched_tags->bitmap_tags, &q->sched_bitmap_tags, hctx);
+		hctx->sched_tags->bitmap_tags = &q->sched_bitmap_tags;
 	}
 
 	ret = e->ops.init_sched(q, e);
