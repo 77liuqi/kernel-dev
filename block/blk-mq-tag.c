@@ -277,9 +277,15 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 	if (iter_static_rqs)
 		rq = tags->static_rqs[bitnr];
 	else {
+		unsigned long flags;
+
+		spin_lock_irqsave(&tags->lock, flags);
 		rq = tags->rqs[bitnr];
-		if (!rq || !refcount_inc_not_zero(&rq->ref))
+		if (!rq || !refcount_inc_not_zero(&rq->ref)) {
+			spin_unlock_irqrestore(&tags->lock, flags);
 			return true;
+		}
+		spin_unlock_irqrestore(&tags->lock, flags);
 	}
 	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
 	    !blk_mq_request_started(rq))
@@ -526,6 +532,7 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
+	spin_lock_init(&tags->lock);
 
 	if (blk_mq_is_sbitmap_shared(flags))
 		return tags;
