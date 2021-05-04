@@ -315,7 +315,7 @@ static bool dev_is_untrusted(struct device *dev)
 	return dev_is_pci(dev) && to_pci_dev(dev)->untrusted;
 }
 
-int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group)
+int iommu_reconfig_dev_group_dma(struct device *dev)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
@@ -324,9 +324,9 @@ int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group)
 	unsigned long shift, iova_len;
 	bool cached;
 
-	max_opt_dma_size = iommu_group_get_max_opt_dma_size(group);
+	max_opt_dma_size = iommu_group_get_max_opt_dma_size(dev->iommu_group);
 	dev_err(dev, "%s group=%pS max_opt_dma_size=%zu cookie=%pS\n", 
-		__func__, group, max_opt_dma_size, cookie);
+		__func__, dev->iommu_group, max_opt_dma_size, cookie);
 	if (!max_opt_dma_size)
 		return 0;
 
@@ -339,12 +339,12 @@ int iommu_reconfig_dev_group_dma(struct device *dev, struct iommu_group *group)
 
 	cached = iova_domain_len_is_cached(iovad, iova_len);
 	dev_err(dev, "%s2 group=%pS max_opt_dma_size=%zu iova_len=%ld iova_domain_len_is_cached(iovad, iova_len)=%d shift=%ld granuale=%ld\n", 
-		__func__, group, max_opt_dma_size, iova_len, cached, shift, iovad->granule);
+		__func__, dev->iommu_group, max_opt_dma_size, iova_len, cached, shift, iovad->granule);
 
 	if (cached)
 		return 0;
 
-	return iommu_reconfig_dev_group(dev, group);
+	return iommu_reconfig_dev_group(dev);
 }
 
 /**

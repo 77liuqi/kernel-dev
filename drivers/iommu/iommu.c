@@ -3110,8 +3110,9 @@ free_new_domain:
 }
 
 
-int iommu_reconfig_dev_group(struct device *dev, struct iommu_group *group)
+int iommu_reconfig_dev_group(struct device *dev)
 {
+	struct iommu_group *group = dev->iommu_group;
 	int ret;
 
 	mutex_lock(&group->mutex);
