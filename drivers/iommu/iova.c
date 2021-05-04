@@ -873,18 +873,10 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	mag->pfns[mag->size++] = pfn;
 }
 
-unsigned long iova_len_to_rcache_max(unsigned long iova_len)
+static unsigned long iova_len_to_rcache_max(unsigned long iova_len)
 {
 	pr_err("%s iova_len=%ld order_base_2=%d\n", __func__, iova_len, order_base_2(iova_len));
 	return order_base_2(iova_len) + 1;
-}
-
-unsigned long iova_len_to_rcache_max2(unsigned long iova_len)
-{
-	pr_err("%s iova_len=%ld order_base_2=%d\n", __func__, iova_len, order_base_2(iova_len));
-	if (iova_len)
-		return order_base_2(iova_len) + 1;
-	return IOVA_RANGE_CACHE_MAX_SIZE;
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
@@ -894,7 +886,10 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 	unsigned int cpu;
 	int i;
 
-	iovad->rcache_max_size = iova_len_to_rcache_max2(iova_len);
+	if (iova_len)
+		iovad->rcache_max_size = iova_len_to_rcache_max(iova_len);
+	else
+		iovad->rcache_max_size = IOVA_RANGE_CACHE_MAX_SIZE;
 
 	pr_err("%s iova_len=%ld iovad->rcache_max_size=%ld\n", __func__, iova_len, iovad->rcache_max_size);
 
