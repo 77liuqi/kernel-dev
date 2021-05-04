@@ -3122,8 +3122,6 @@ int iommu_reconfig_dev_group(struct device *dev)
 	return ret;
 }
 
-
-
 int iommu_set_dev_dma_opt_size(struct device *dev, size_t size)
 {
 	struct iommu_group *group = iommu_group_get(dev);

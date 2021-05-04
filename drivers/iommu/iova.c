@@ -46,8 +46,7 @@ static struct iova *to_iova(struct rb_node *node)
 	return rb_entry(node, struct iova, node);
 }
 
-void
-init_iova_domain(struct iova_domain *iovad, unsigned long granule,
+void init_iova_domain_ext(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn, unsigned long iova_len)
 {
 	/*
@@ -72,6 +71,13 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
 	init_iova_rcaches(iovad, iova_len);
+}
+
+void
+init_iova_domain(struct iova_domain *iovad, unsigned long granule,
+	unsigned long start_pfn)
+{
+	init_iova_domain_ext(iovad, granule, start_pfn, 0);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
@@ -894,7 +900,6 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 	pr_err("%s iova_len=%ld iovad->rcache_max_size=%ld\n", __func__, iova_len, iovad->rcache_max_size);
 
 	iovad->rcaches = kcalloc(iovad->rcache_max_size, sizeof(struct iova_rcache), GFP_KERNEL);
-
 	if (!iovad->rcaches)
 		return;
 
@@ -914,6 +919,7 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 	}
 }
 
+/* Test if iova_len range cached upper limit matches that of IOVA domain */
 bool iova_domain_len_is_cached(struct iova_domain *iovad, unsigned long iova_len)
 {
 	pr_err("%s iova=%pS iova_len=%ld rcache_max_size=%ld iova_len_to_rcache_max=%ld\n", 
