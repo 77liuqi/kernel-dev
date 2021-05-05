@@ -298,6 +298,7 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 		}
 		spin_unlock_irqrestore(&tags->lock, flags);
 	}
+	msleep(100);
 	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
 	    !blk_mq_request_started(rq))
 		ret = true;
