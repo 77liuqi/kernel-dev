@@ -566,7 +566,7 @@ static void iommu_group_release(struct kobject *kobj)
 {
 	struct iommu_group *group = to_iommu_group(kobj);
 
-	pr_debug("Releasing group %d\n", group->id);
+	pr_err("Releasing group %d\n", group->id);
 
 	if (group->iommu_data_release)
 		group->iommu_data_release(group->iommu_data);
@@ -648,7 +648,8 @@ struct iommu_group *iommu_group_alloc(void)
 	if (ret)
 		return ERR_PTR(ret);
 
-	pr_debug("Allocated group %d\n", group->id);
+	pr_err("Allocated group %d domain=%pS default_domain=%pS\n", 
+	group->id, group->domain, group->default_domain);
 
 	return group;
 }
