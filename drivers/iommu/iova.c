@@ -16,6 +16,8 @@
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
 
+struct dentry *iova_debugfs_dir;
+
 static bool iova_rcache_insert(struct iova_domain *iovad,
 			       unsigned long pfn,
 			       unsigned long size);
@@ -49,6 +51,11 @@ void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn)
 {
+	static int index;
+
+	pr_err("%s iovad=%pS\n", __func__, iovad);
+	
+	sprintf(iovad->name, "%d", index);
 	/*
 	 * IOVA granularity will normally be equal to the smallest
 	 * supported IOMMU page size; both *must* be capable of
@@ -67,10 +74,12 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
+	iovad->dentry = debugfs_create_dir(iovad->name, iova_debugfs_dir);
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
 	init_iova_rcaches(iovad);
+	index++;
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
@@ -309,7 +318,6 @@ static void free_iova_mem(struct iova *iova)
 		kmem_cache_free(iova_cache, iova);
 }
 
-struct dentry *iova_debugfs_dir;
 
 
 int iova_cache_get(void)

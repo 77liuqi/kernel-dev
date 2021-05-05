@@ -1526,6 +1526,8 @@ static int iommu_group_alloc_default_domain(struct bus_type *bus,
 {
 	struct iommu_domain *dom;
 
+	pr_err("%s group=%pS name =%s\n", __func__, group, group->name);
+
 	dom = __iommu_domain_alloc(bus, type);
 	if (!dom && type != IOMMU_DOMAIN_DMA) {
 		dom = __iommu_domain_alloc(bus, IOMMU_DOMAIN_DMA);
