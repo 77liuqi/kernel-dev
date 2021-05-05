@@ -224,7 +224,7 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 		return true;
 	}
 	spin_unlock_irqrestore(&tags->lock, flags);
-
+	mdelay(50);
 	if (rq->q == hctx->queue && rq->mq_hctx == hctx)
 		ret = iter_data->fn(hctx, rq, iter_data->data, reserved);
 	blk_mq_put_rq_ref(rq);
