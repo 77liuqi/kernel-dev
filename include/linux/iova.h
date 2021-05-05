@@ -33,6 +33,8 @@ struct iova_rcache {
 	unsigned long depot_size;
 	struct iova_magazine *depot[MAX_GLOBAL_MAGS];
 	struct iova_cpu_rcache __percpu *cpu_rcaches;
+	unsigned long allocations;
+	char name[256];
 };
 
 struct iova_domain;
@@ -97,6 +99,7 @@ struct iova_domain {
 						   when not */
 	struct hlist_node	cpuhp_dead;
 	struct dentry *dentry;
+	atomic_t too_big;
 	char name[256];
 };
 
