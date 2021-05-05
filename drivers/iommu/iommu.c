@@ -728,6 +728,8 @@ int iommu_group_set_name(struct iommu_group *group, const char *name)
 {
 	int ret;
 
+	pr_err("%s group=%pS (id=%d) name=%s group->name=%s\n", __func__, group, group->id, name, group->name);
+
 	if (group->name) {
 		iommu_group_remove_file(group, &iommu_group_attr_name);
 		kfree(group->name);
@@ -1517,7 +1519,7 @@ static int iommu_get_def_domain_type(struct device *dev)
 
 	return 0;
 }
-
+//snake
 static int iommu_group_alloc_default_domain(struct bus_type *bus,
 					    struct iommu_group *group,
 					    unsigned int type)

@@ -11,6 +11,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/debugfs.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -308,11 +309,17 @@ static void free_iova_mem(struct iova *iova)
 		kmem_cache_free(iova_cache, iova);
 }
 
+struct dentry *iova_debugfs_dir;
+
+
 int iova_cache_get(void)
 {
 	mutex_lock(&iova_cache_mutex);
 	if (!iova_cache_users) {
 		int ret;
+
+		if (!iova_debugfs_dir)
+			iova_debugfs_dir = debugfs_create_dir("iova", NULL);
 
 		ret = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead", NULL,
 					iova_cpuhp_dead);

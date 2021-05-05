@@ -86,6 +86,7 @@ struct iommu_domain {
 	iommu_fault_handler_t handler;
 	void *handler_token;
 	struct iommu_domain_geometry geometry;
+	struct kobject kobj;
 	void *iova_cookie;
 };
 
