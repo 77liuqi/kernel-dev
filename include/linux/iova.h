@@ -32,6 +32,8 @@ struct iova_rcache {
 	unsigned long depot_size;
 	struct iova_magazine *depot[MAX_GLOBAL_MAGS];
 	struct iova_cpu_rcache __percpu *cpu_rcaches;
+	unsigned long allocations;
+	char name[256];
 };
 
 struct iova_domain;
@@ -95,6 +97,9 @@ struct iova_domain {
 	atomic_t fq_timer_on;			/* 1 when timer is active, 0
 						   when not */
 	struct hlist_node	cpuhp_dead;
+	struct dentry *dentry;
+	atomic_t too_big;
+	char name[256];
 	struct iova_rcache *rcaches;	/* IOVA range caches */
 };
 
@@ -155,7 +160,7 @@ struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
 void init_iova_domain_ext(struct iova_domain *iovad, unsigned long granule,
-	unsigned long start_pfn, unsigned long iova_len);
+	unsigned long start_pfn, unsigned long iova_len, int iommu_group_id);
 int init_iova_flush_queue(struct iova_domain *iovad,
 			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
@@ -227,7 +232,8 @@ static inline void init_iova_domain(struct iova_domain *iovad,
 static inline void init_iova_domain_ext(struct iova_domain *iovad,
 				    unsigned long granule,
 				    unsigned long start_pfn,
-				    unsigned long iova_len)
+				    unsigned long iova_len,
+				    int iommu_group_id)
 {
 }
 

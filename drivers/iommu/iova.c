@@ -11,9 +11,12 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/debugfs.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
+
+struct dentry *iova_debugfs_dir;
 
 #define IOVA_RANGE_CACHE_MAX_SIZE 6    /* log of max cached IOVA range size (in pages) */
 
@@ -48,8 +51,16 @@ static struct iova *to_iova(struct rb_node *node)
 
 void
 __init_iova_domain(struct iova_domain *iovad, unsigned long granule,
-	unsigned long start_pfn, unsigned long iova_len)
+	unsigned long start_pfn, unsigned long iova_len, int iommu_group_id)
 {
+	static int index;
+
+	pr_err("%s iovad=%pS index=%d iova_len=%ld\n", __func__, iovad, index, iova_len);
+
+	if (iommu_group_id >= 0)
+		sprintf(iovad->name, "iommu_group%d", iommu_group_id);
+	else
+		sprintf(iovad->name, "%d", index);
 	/*
 	 * IOVA granularity will normally be equal to the smallest
 	 * supported IOMMU page size; both *must* be capable of
@@ -68,24 +79,27 @@ __init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->flush_cb = NULL;
 	iovad->fq = NULL;
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
+	iovad->dentry = debugfs_create_dir(iovad->name, iova_debugfs_dir);
+	debugfs_create_atomic_t("too_big", 0444, iovad->dentry, &iovad->too_big);
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
 	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
 	init_iova_rcaches(iovad, iova_len);
+	index++;
 }
 
 void
 init_iova_domain_ext(struct iova_domain *iovad, unsigned long granule,
-	unsigned long start_pfn, unsigned long iova_len)
+	unsigned long start_pfn, unsigned long iova_len, int iommu_group_id)
 {
-	__init_iova_domain(iovad, granule, start_pfn, iova_len);
+	__init_iova_domain(iovad, granule, start_pfn, iova_len, iommu_group_id);
 }
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn)
 {
-	__init_iova_domain(iovad, granule, start_pfn, 0);
+	__init_iova_domain(iovad, granule, start_pfn, 0, -1);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
 
@@ -329,6 +343,9 @@ int iova_cache_get(void)
 	mutex_lock(&iova_cache_mutex);
 	if (!iova_cache_users) {
 		int ret;
+
+		if (!iova_debugfs_dir)
+			iova_debugfs_dir = debugfs_create_dir("iova", NULL);
 
 		ret = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead", NULL,
 					iova_cpuhp_dead);
@@ -689,6 +706,8 @@ void put_iova_domain(struct iova_domain *iovad)
 {
 	struct iova *iova, *tmp;
 
+	pr_err("%s iovad=%pS\n", __func__, iovad);
+
 	cpuhp_state_remove_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD,
 					    &iovad->cpuhp_dead);
 
@@ -696,6 +715,9 @@ void put_iova_domain(struct iova_domain *iovad)
 	free_iova_rcaches(iovad);
 	rbtree_postorder_for_each_entry_safe(iova, tmp, &iovad->rbroot, node)
 		free_iova_mem(iova);
+	if (iovad->dentry)
+		debugfs_remove_recursive(iovad->dentry);
+	iovad->dentry = NULL;
 }
 EXPORT_SYMBOL_GPL(put_iova_domain);
 
@@ -916,6 +938,8 @@ static void init_iova_rcaches(struct iova_domain *iovad, unsigned long iova_len)
 
 	for (i = 0; i < iovad->rcache_max_size; ++i) {
 		rcache = &iovad->rcaches[i];
+		sprintf(rcache->name, "%d", i);
+		debugfs_create_ulong(rcache->name, 0444, iovad->dentry, &rcache->allocations);
 		spin_lock_init(&rcache->lock);
 		rcache->depot_size = 0;
 		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache), cache_line_size());
@@ -1010,7 +1034,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
-
+	rcache->allocations++;
 	if (!iova_magazine_empty(cpu_rcache->loaded)) {
 		has_pfn = true;
 	} else if (!iova_magazine_empty(cpu_rcache->prev)) {
@@ -1045,8 +1069,10 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 {
 	unsigned int log_size = order_base_2(size);
 
-	if (log_size >= iovad->rcache_max_size)
+	if (log_size >= iovad->rcache_max_size) {
+		atomic_inc(&iovad->too_big);
 		return 0;
+	}
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
