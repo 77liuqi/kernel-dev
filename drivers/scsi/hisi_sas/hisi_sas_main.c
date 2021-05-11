@@ -570,6 +570,8 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	struct domain_device *device = task->dev;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_dq *dq = NULL;
+	static atomic_t smp_task;
+	static unsigned _smp_task;
 
 	if (!sas_port) {
 		struct task_status_struct *ts = &task->task_status;
@@ -583,6 +585,34 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		if (device->dev_type != SAS_SATA_DEV)
 			task->task_done(task);
 		return -ECOMM;
+	}
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_STP_ALL:
+	{
+		struct scsi_cmnd *scmd = NULL;
+
+		if (task->uldd_task) {
+			struct ata_queued_cmd *qc;
+
+			if (dev_is_sata(device)) {
+				qc = task->uldd_task;
+				scmd = qc->scsicmd;
+			} else {
+				scmd = task->uldd_task;
+			}
+		}
+		_smp_task = atomic_inc_return(&smp_task);
+
+		if (_smp_task == 10000) {
+			pr_err("%s Dropping task=%pS scmd=%pS sata_dev=%pS\n", __func__, task, scmd, &device->sata_dev);
+			return 0;
+		}
+	}
+	break;
+	default:
+		break;
 	}
 
 	hisi_hba = dev_to_hisi_hba(device);
@@ -1786,6 +1816,8 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	DECLARE_COMPLETION_ONSTACK(phyreset);
 	int rc, reset_type;
 
+	pr_err("%s device=%pS sata=%d\n", __func__, device, dev_is_sata(device));
+
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
 		return -ENODEV;
@@ -1840,6 +1872,8 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
 	int rc;
+
+	pr_err("%s device=%pS sata=%d\n", __func__, device, dev_is_sata(device));
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					  HISI_SAS_INT_ABT_DEV, 0, false);

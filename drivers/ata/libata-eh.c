@@ -650,6 +650,8 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s error_handler=%pS ap=%pS\n", __func__, ap->ops->error_handler, ap);
+
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -688,11 +690,16 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 		ap->excl_link = NULL;	/* don't maintain exclusion over EH */
 
 		spin_unlock_irqrestore(ap->lock, flags);
+		
+		pr_err("%s2 ap->pflags=%u\n", __func__, ap->pflags);
 
 		/* invoke EH, skip if unloading or suspended */
-		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED)))
+		if (!(ap->pflags & (ATA_PFLAG_UNLOADING | ATA_PFLAG_SUSPENDED))){ 	
+			pr_err("%s3 ap->pflags=%u\n", __func__, ap->pflags);
 			ap->ops->error_handler(ap);
-		else {
+		} else {
+			
+			pr_err("%s4 ap->pflags=%u\n", __func__, ap->pflags);
 			/* if unloading, commence suicide */
 			if ((ap->pflags & ATA_PFLAG_UNLOADING) &&
 			    !(ap->pflags & ATA_PFLAG_UNLOADED))
@@ -1206,6 +1213,7 @@ void ata_eh_qc_retry(struct ata_queued_cmd *qc)
  */
 void ata_dev_disable(struct ata_device *dev)
 {
+	pr_err("%s dev=%pS ata_dev_enabled=%d\n", __func__, dev, ata_dev_enabled(dev));
 	if (!ata_dev_enabled(dev))
 		return;
 
@@ -1237,6 +1245,8 @@ void ata_eh_detach_dev(struct ata_device *dev)
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned long flags;
+
+	pr_err("%s dev=%pS ap=%pS\n", __func__, dev, ap);
 
 	ata_dev_disable(dev);
 
@@ -2046,6 +2056,8 @@ void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_link *link;
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+
 	ata_for_each_link(link, ap, EDGE)
 		ata_eh_link_autopsy(link);
 
@@ -2217,6 +2229,8 @@ static void ata_eh_link_report(struct ata_link *link)
 	const char *frozen, *desc;
 	char tries_buf[6] = "";
 	int tag, nr_failed = 0;
+
+	pr_err("%s ap=%pS link=%pS\n", __func__, ap, link);
 
 	if (ehc->i.flags & ATA_EHI_QUIET)
 		return;
@@ -2410,7 +2424,7 @@ static void ata_eh_link_report(struct ata_link *link)
 void ata_eh_report(struct ata_port *ap)
 {
 	struct ata_link *link;
-
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_for_each_link(link, ap, HOST_FIRST)
 		ata_eh_link_report(link);
 }
@@ -2458,6 +2472,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
+
+	pr_err("%s link=%pS\n", __func__, link);
 
 	/*
 	 * Prepare to reset
@@ -3546,9 +3562,15 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 	DPRINTK("ENTER\n");
 
+	pr_err("%s ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+		__func__, ap, prereset, softreset, hardreset, postreset);
+
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
+		
+		pr_err("%s2 ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS ehc=%pS link=%pS\n",
+			__func__, ap, prereset, softreset, hardreset, postreset, ehc, link);
 
 		/* re-enable link? */
 		if (ehc->i.action & ATA_EH_ENABLE_LINK) {
@@ -3560,6 +3582,9 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		}
 
 		ata_for_each_dev(dev, link, ALL) {
+			
+			pr_err("%s3 ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS ehc=%pS dev=%pS enabled=%d link=%pS\n",
+				__func__, ap, prereset, softreset, hardreset, postreset, ehc, dev, ata_dev_enabled(dev), link);
 			if (link->flags & ATA_LFLAG_NO_RETRY)
 				ehc->tries[dev->devno] = 1;
 			else
@@ -3581,6 +3606,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	}
 
  retry:
+	pr_err("%s4 retry ap=%pS\n", __func__, ap);
 	rc = 0;
 
 	/* if UNLOADING, finish immediately */
@@ -3667,6 +3693,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		}
 	}
 
+	pr_err("%s5 ap=%pS\n", __func__, ap);
+
 	/* the rest */
 	nr_fails = 0;
 	ata_for_each_link(link, ap, PMP_FIRST) {
@@ -3732,6 +3760,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		continue;
 
 	rest_fail:
+		pr_err("%s6 ap=%pS rest_fail\n", __func__, ap);
 		nr_fails++;
 		if (dev)
 			ata_eh_handle_dev_fail(dev, rc);
@@ -3750,6 +3779,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		goto retry;
 
  out:
+	pr_err("%s 10 out ap=%pS rest_fail\n", __func__, ap);
 	if (rc && r_failed_link)
 		*r_failed_link = link;
 
@@ -3823,11 +3853,15 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	struct ata_device *dev;
 	int rc;
 
+	pr_err("%s ap=%pS prereset=%pS softreset=%pS hardreset=%pS postreset=%pS\n",
+		__func__, ap, hardreset, softreset, hardreset, postreset);
+
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
 
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
+	pr_err("%s2 ap=%pS rc=%d\n", __func__, ap, rc);
 	if (rc) {
 		ata_for_each_dev(dev, &ap->link, ALL)
 			ata_dev_disable(dev);
@@ -3849,6 +3883,8 @@ void ata_std_error_handler(struct ata_port *ap)
 {
 	struct ata_port_operations *ops = ap->ops;
 	ata_reset_fn_t hardreset = ops->hardreset;
+
+	pr_err("%s ap=%pS hardreset=%pS\n", __func__, ap, hardreset);
 
 	/* ignore built-in hardreset if SCR access is not available */
 	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))

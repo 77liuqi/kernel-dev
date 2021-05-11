@@ -1241,11 +1241,14 @@ int scsi_eh_get_sense(struct list_head *work_q,
 	struct Scsi_Host *shost;
 	enum scsi_disposition rtn;
 
+	pr_err("%s work_q=%pS done_q=%pS\n", __func__, work_q, done_q);
+
 	/*
 	 * If SCSI_EH_ABORT_SCHEDULED has been set, it is timeout IO,
 	 * should not get sense.
 	 */
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
+		pr_err("%s2 work_q=%pS done_q=%pS scmd=%pS\n", __func__, work_q, done_q, scmd);
 		if ((scmd->eh_eflags & SCSI_EH_ABORT_SCHEDULED) ||
 		    SCSI_SENSE_VALID(scmd))
 			continue;
@@ -1736,6 +1739,8 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 	struct scsi_cmnd *scmd, *next;
 	struct scsi_device *sdev;
 
+	pr_err("%s work_q=%pS done_q=%pS\n", __func__, work_q, done_q);
+
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
 		sdev_printk(KERN_INFO, scmd->device, "Device offlined - "
 			    "not ready after error recovery\n");
@@ -2105,6 +2110,7 @@ void scsi_eh_ready_devs(struct Scsi_Host *shost,
 			struct list_head *work_q,
 			struct list_head *done_q)
 {
+	pr_err("%s shost=%pS work_q=%pS done_q=%pS\n", __func__, shost, work_q, done_q);
 	if (!scsi_eh_stu(shost, work_q, done_q))
 		if (!scsi_eh_bus_device_reset(shost, work_q, done_q))
 			if (!scsi_eh_target_reset(shost, work_q, done_q))

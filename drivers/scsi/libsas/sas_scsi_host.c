@@ -114,12 +114,12 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_debug("task done but aborted\n");
+		pr_err("task done but aborted\n");
 		return;
 	}
 
 	if (unlikely(!sc)) {
-		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		pr_err("task_done called with non existing SCSI cmnd!\n");
 		sas_free_task(task);
 		return;
 	}
@@ -190,7 +190,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	return 0;
 
 out_free_task:
-	pr_debug("lldd_execute_task returned: %d\n", res);
+	pr_err("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
 	if (res == -SAS_QUEUE_FULL)
@@ -289,7 +289,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			pr_debug("%s: task 0x%p is done\n", __func__, task);
+			pr_err("%s: task 0x%p is done\n", __func__, task);
 			return TASK_IS_DONE;
 		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -563,6 +563,8 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	LIST_HEAD(done);
 
+	pr_err("%s\n", __func__);
+
 	/* clean out any commands that won the completion vs eh race */
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
 		struct domain_device *dev = cmd_to_domain_dev(cmd);
@@ -583,6 +585,8 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
  Again:
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry) {
 		struct sas_task *task = TO_SAS_TASK(cmd);
+		
+		pr_err("%s1 Again task=%pS\n", __func__, task);
 
 		list_del_init(&cmd->eh_entry);
 
@@ -596,7 +600,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			goto reset;
 		}
 
-		pr_debug("trying to find task 0x%p\n", task);
+		pr_err("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
@@ -641,7 +645,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
-				pr_debug("clearing nexus for port:%d\n",
+				pr_err("clearing nexus for port:%d\n",
 					  port->id);
 				res = i->dft->lldd_clear_nexus_port(port);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
@@ -654,7 +658,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				}
 			}
 			if (i->dft->lldd_clear_nexus_ha) {
-				pr_debug("clear nexus ha\n");
+				pr_err("clear nexus ha\n");
 				res = i->dft->lldd_clear_nexus_ha(ha);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					pr_notice("clear nexus ha succeeded\n");
@@ -675,12 +679,13 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 		}
 	}
  out:
+	pr_err("%s5 out\n", __func__);
 	list_splice_tail(&done, work_q);
 	list_splice_tail_init(&ha->eh_ata_q, work_q);
 	return;
 
  clear_q:
-	pr_debug("--- Exit %s -- clear_q\n", __func__);
+	pr_err("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;
@@ -728,6 +733,7 @@ void sas_scsi_recover_host(struct Scsi_Host *shost)
 	bool retry;
 
 retry:
+	pr_err("%s retry shost=%pS\n", __func__, shost);
 	tries++;
 	retry = true;
 	spin_lock_irq(shost->host_lock);
@@ -744,6 +750,8 @@ retry:
 	set_bit(SAS_HA_FROZEN, &ha->state);
 	sas_eh_handle_sas_errors(shost, &eh_work_q);
 	clear_bit(SAS_HA_FROZEN, &ha->state);
+	pr_err("%s1 retry shost=%pS list_empty(&eh_work_q)=%d\n",
+		__func__, shost, list_empty(&eh_work_q));
 	if (list_empty(&eh_work_q))
 		goto out;
 
@@ -758,6 +766,7 @@ retry:
 		scsi_eh_ready_devs(shost, &eh_work_q, &ha->eh_done_q);
 
 out:
+	pr_err("%s2 out shost=%pS\n", __func__, shost);
 	sas_eh_handle_resets(shost);
 
 	/* now link into libata eh --- if we have any ata devices */

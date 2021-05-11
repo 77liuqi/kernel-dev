@@ -380,7 +380,7 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 		return res;
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
-		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
+		sas_ata_printk(KERN_ERR, dev, "Unable to reset ata device?\n");
 
 	phy = sas_get_local_phy(dev);
 	if (scsi_is_sas_phy_local(phy))
@@ -752,7 +752,9 @@ static void async_sas_ata_eh(void *data, async_cookie_t cookie)
 	struct ata_port *ap = dev->sata_dev.ap;
 	struct sas_ha_struct *ha = dev->port->ha;
 
-	sas_ata_printk(KERN_DEBUG, dev, "dev error handler\n");
+	pr_err("%s dev=%pS ap=%pS\n", __func__, dev, ap);
+
+	sas_ata_printk(KERN_ERR, dev, "dev error handler\n");
 	ata_scsi_port_error_handler(ha->core.shost, ap);
 	sas_put_device(dev);
 }
@@ -762,6 +764,8 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
+
+	pr_err("%s shost=%pS\n", __func__, shost);
 
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
@@ -806,6 +810,8 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 	struct scsi_cmnd *cmd, *n;
 	struct domain_device *eh_dev;
 
+	pr_err("%s shost=%pS work_q=%pS done_q=%pS\n", __func__, shost, work_q, done_q);
+
 	do {
 		LIST_HEAD(sata_q);
 		eh_dev = NULL;
@@ -818,13 +824,14 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			if (eh_dev && eh_dev != ddev)
 				continue;
 			eh_dev = ddev;
+			pr_err("%s2 shost=%pS work_q=%pS done_q=%pS cmd=%pS\n", __func__, shost, work_q, done_q, cmd);
 			list_move(&cmd->eh_entry, &sata_q);
 		}
 
 		if (!list_empty(&sata_q)) {
 			struct ata_port *ap = eh_dev->sata_dev.ap;
 
-			sas_ata_printk(KERN_DEBUG, eh_dev, "cmd error handler\n");
+			sas_ata_printk(KERN_ERR, eh_dev, "cmd error handler\n");
 			ata_scsi_cmd_error_handler(shost, ap, &sata_q);
 			/*
 			 * ata's error handler may leave the cmd on the list
@@ -837,6 +844,7 @@ void sas_ata_eh(struct Scsi_Host *shost, struct list_head *work_q,
 			 * which takes no list and sweeps them up
 			 * anyway from the ata tag array.
 			 */
+			pr_err("%s3 shost=%pS work_q=%pS done_q=%pS\n", __func__, shost, work_q, done_q);
 			while (!list_empty(&sata_q))
 				list_del_init(sata_q.next);
 		}
