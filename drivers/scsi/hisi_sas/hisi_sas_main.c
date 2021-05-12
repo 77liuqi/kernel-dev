@@ -1888,8 +1888,11 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 	if (dev_is_sata(device)) {
 		rc = hisi_sas_softreset_ata_disk(device);
+		pr_err("%s2 device=%pS sata=%d rc=%d device->sdev=%pS\n", __func__, device, dev_is_sata(device), rc, device->sdev);
 		if (rc == TMF_RESP_FUNC_FAILED)
 			return TMF_RESP_FUNC_FAILED;
+		if (device->sdev)
+			scsi_device_set_state(device->sdev, SDEV_OFFLINE);
 	}
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
