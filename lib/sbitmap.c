@@ -150,12 +150,15 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 			      unsigned int hint, bool wrap)
 {
 	int nr;
-
+	bool normal = depth == sizeof(unsigned long);
 	/* don't wrap if starting from 0 */
 	wrap = wrap && hint;
 
 	while (1) {
-		nr = find_next_zero_bit(word, depth, hint);
+		if (likely(normal))
+			nr = find_next_zero_bit(word, sizeof(unsigned long), hint);
+		else
+			nr = find_next_zero_bit(word, depth, hint);
 		if (unlikely(nr >= depth)) {
 			/*
 			 * We started with an offset, and we didn't reset the
