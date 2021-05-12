@@ -64,6 +64,9 @@ static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 {
 	unsigned long mask;
 
+	if (!READ_ONCE(map->cleared))
+		return false;
+
 	/*
 	 * First get a stable cleared mask, setting the old mask to 0.
 	 */
@@ -76,7 +79,6 @@ static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 		atomic_long_andnot(mask, (atomic_long_t *)&map->word);
 		return true;
 	}
-	
 	BUILD_BUG_ON(sizeof(atomic_long_t) != sizeof(map->word));
 	return false;
 }
