@@ -847,6 +847,7 @@ int hisi_sas_slave_configure(struct scsi_device *sdev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(sdev);
 	int ret = sas_slave_configure(sdev);
+	dev->sdev = sdev;
 
 	if (ret)
 		return ret;
@@ -1675,7 +1676,9 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 
-	if (!sas_dev)
+	pr_err("%s task=%pS\n", __func__, task);
+
+//	if (!sas_dev)
 		return TMF_RESP_FUNC_FAILED;
 
 	hisi_hba = dev_to_hisi_hba(task->dev);
@@ -1984,6 +1987,8 @@ static int hisi_sas_query_task(struct sas_task *task)
 	struct scsi_lun lun;
 	struct hisi_sas_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED;
+
+	pr_err("%s task=%pS\n", __func__, task);
 
 	if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd *cmnd = task->uldd_task;

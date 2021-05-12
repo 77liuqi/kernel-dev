@@ -172,6 +172,8 @@ struct domain_device {
 	enum sas_linkrate min_linkrate;
 	enum sas_linkrate max_linkrate;
 
+	struct scsi_device *sdev;
+
 	int  pathways;
 
 	struct domain_device *parent;
