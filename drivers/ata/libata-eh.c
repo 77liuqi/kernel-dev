@@ -2932,6 +2932,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 
 	DPRINTK("ENTER\n");
 
+	pr_err("%s link=%pS\n", __func__, link);
+
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
 	 * device before the master device is identified.
@@ -2939,6 +2941,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	ata_for_each_dev(dev, link, ALL_REVERSE) {
 		unsigned int action = ata_eh_dev_action(dev);
 		unsigned int readid_flags = 0;
+		
+		pr_err("%s2 link=%pS dev=%pS\n", __func__, link, dev);
 
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
@@ -3699,6 +3703,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	nr_fails = 0;
 	ata_for_each_link(link, ap, PMP_FIRST) {
 		struct ata_eh_context *ehc = &link->eh_context;
+		
+		pr_err("%s5.1 ap=%pS link=%pS\n", __func__, ap, link);
 
 		if (sata_pmp_attached(ap) && ata_is_host_link(link))
 			goto config_lpm;
