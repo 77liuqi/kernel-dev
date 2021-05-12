@@ -620,6 +620,8 @@ u64 ata_tf_read_block(const struct ata_taskfile *tf, struct ata_device *dev)
 {
 	u64 block = 0;
 
+	pr_err("%s tf=%pS dev=%pS\n", __func__, tf, dev);
+
 	if (tf->flags & ATA_TFLAG_LBA) {
 		if (tf->flags & ATA_TFLAG_LBA48) {
 			block |= (u64)tf->hob_lbah << 40;

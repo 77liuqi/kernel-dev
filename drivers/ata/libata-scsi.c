@@ -207,6 +207,8 @@ void ata_scsi_set_sense_information(struct ata_device *dev,
 {
 	u64 information;
 
+	pr_err("%s tf=%pS dev=%pS\n", __func__, tf, dev);
+
 	if (!cmd)
 		return;
 
@@ -954,6 +956,8 @@ static void ata_gen_ata_sense(struct ata_queued_cmd *qc)
 	int verbose = qc->ap->ops->error_handler == NULL;
 	u64 block;
 	u8 sense_key, asc, ascq;
+
+	pr_err("%s tf=%pS dev=%pS\n", __func__, tf, dev);
 
 	memset(sb, 0, SCSI_SENSE_BUFFERSIZE);
 
