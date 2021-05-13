@@ -1,8 +1,24 @@
 [
    {
-	    "BriefDescription": "imc metric contains programmed PMU events, no references to alised",
-	    "MetricName": "imc_ddr_1.all",
+	    "BriefDescription": "imc metric contains programmed PMU events 1, no references to alised",
+	    "MetricName": "jimc_ddr_1.all",
 	    "MetricExpr": "uncore_imc@event\\=0x2@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imc",
+	    "Compat": "broadwell"
+   },
+   {
+	    "BriefDescription": "imc metric contains programmed PMU events 2, no references to alised",
+	    "MetricName": "jimc_ddr_2.all",
+	    "MetricExpr": "uncore_imc@event\\=0x1@",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imc",
+	    "Compat": "broadwell"
+   },
+   {
+	    "BriefDescription": "imc metric containing references to metrics and events",
+	    "MetricName": "jimc_ddr_x_all",
+	    "MetricExpr": "jimc_ddr_1.all * 4",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
 	    "Compat": "broadwell"
