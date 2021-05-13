@@ -2,7 +2,7 @@
    {
 	    "BriefDescription": "bytes all masters read from ddr based on read-cycles event",
 	    "MetricName": "imx8mm_ddr_read.all",
-	    "MetricExpr": "imx8mm_ddr.read_cycles * 4 * 4",
+	    "MetricExpr": "imx8_ddr0@axid\\-read\\,axi_mask\\=0xffff\\,axi_id\\=0x0000@",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imx8_ddr",
 	    "Compat": "i.MX8MM"
