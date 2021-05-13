@@ -3,14 +3,14 @@
            "BriefDescription": "imc cycles event",
            "EventCode": "0x00",
            "EventName": "uncore_imc.cycles",
-           "Unit": "uncore_imc",
+           "Unit": "imc",
            "Compat": "broadwell"
    },
    {
            "BriefDescription": "imc read-cycles event",
            "EventCode": "0x2a",
            "EventName": "uncore_imc.read_cycles",
-           "Unit": "uncore_imc",
+           "Unit": "imc",
            "Compat": "broadwell"
    },
    {
@@ -24,14 +24,14 @@
            "BriefDescription": "imc read event",
            "EventCode": "0x35",
            "EventName": "uncore_imc.read",
-           "Unit": "uncore_imc",
+           "Unit": "imc",
            "Compat": "broadwell"
    },
    {
            "BriefDescription": "imc write event",
            "EventCode": "0x38",
            "EventName": "uncore_imc.write",
-           "Unit": "uncore_imc",
+           "Unit": "imc",
            "Compat": "broadwell"
    }
 ]
