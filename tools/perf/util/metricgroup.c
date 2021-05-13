@@ -589,7 +589,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	pr_err("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
+	pr_debug("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
 
 	evlist = evlist__new();
 	if (!evlist)
@@ -599,7 +599,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		goto out;
 
 	evlist__for_each_entry(evlist, evsel) {
-		pr_err("%s1 pe metric name=%s expr=%s evsel name=%s\n", __func__, pe->metric_name, pe->metric_expr, evsel->name);
+		pr_debug("%s1 pe metric name=%s expr=%s evsel name=%s\n", __func__, pe->metric_name, pe->metric_expr, evsel->name);
 		events_count++;
 	}
 	found_events = 0;
@@ -620,6 +620,8 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		while (event->name || event->metric_name) {
 			if (event->name && !event->metric_name) {
 				if (!strcmp(event->name, evsel->name)) {
+				pr_debug("%s2 pe metric name=%s expr=%s evsel name=%s found_event event->name=%s\n",
+					__func__, pe->metric_name, pe->metric_expr, evsel->name, event->name);
 					found_event = event;
 					break;
 				}
@@ -636,10 +638,16 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 			if (found_event) {
 				if (match_event_to_pmu(found_event, pmu)) {
 					found_events++;
+					
+				pr_debug("%s3 pe metric name=%s expr=%s evsel name=%s found_event event->name=%s pmu=%s\n",
+					__func__, pe->metric_name, pe->metric_expr, evsel->name, event->name, pmu->name);
 					break;
 				}
 			} else if (!strcmp(pmu->name, evsel->pmu_name) &&
 				   !strcmp(pmu->id, pe->compat)) {
+				   
+				pr_debug("%s4 pe metric name=%s expr=%s evsel name=%s found_event event->name=%s pmu=%s id=%s\n",
+					__func__, pe->metric_name, pe->metric_expr, evsel->name, event->name, pmu->name, pmu->id);
 				found_events++;
 				break;
 			}
