@@ -332,7 +332,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 					 m->has_constraint, metric_events,
 					 evlist_used);
 		if (!evsel) {
-			pr_debug("Cannot resolve %s: %s\n",
+			pr_err("Cannot resolve %s: %s\n",
 					m->metric_name, m->metric_expr);
 			free(metric_events);
 			continue;
@@ -575,6 +575,7 @@ static bool match_event_to_pmu(struct pmu_event *event, struct perf_pmu *pmu)
 	}
 	return false;
 }
+struct pmu_event *jim;
 
 static int metricgroup__metric_event_iter(struct pmu_event *pe,
 					  struct pmu_sys_events *const events,
@@ -652,12 +653,25 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 				break;
 			}
 		}
+
+		{
+		   struct pmu_event *jim1 = jim;
+	
+		   pr_err("%s5 pe metric name=%s expr=%s jim=%p\n",
+			   __func__, pe->metric_name, pe->metric_expr, jim);
+	
+		   while (jim1->name || jim1->metric_name) {
+			   pr_err("%s6 pe metric name=%s expr=%s jim=%p jim1 name=%s metric name=%s\n",
+				   __func__, pe->metric_name, pe->metric_expr, jim, jim1->name, jim1->metric_name);
+			   jim1++;
+		}
 	}
 
 	if (found_events == events_count) {
 		pr_debug2("Adding metric %s to sys event table\n", pe->metric_name);
 		memcpy(*event_table, pe, sizeof(*pe));
 		(*event_table)++;
+	}
 	}
 
 out:
@@ -684,6 +698,8 @@ static void metricgroup_init_sys_pmu_list(void)
 	if (done)
 		return;
 
+	pr_err("%s\n", __func__);
+
 	pmu_for_each_sys_event(metricgroup__metric_sys_event_count, &event_count);
 
 	if (event_count == 0) {
@@ -691,7 +707,7 @@ static void metricgroup_init_sys_pmu_list(void)
 		return;
 	}
 	event_count++; // Add a sentinel
-	table_tmp = table = zalloc(event_count * sizeof(*table));
+	jim = table_tmp = table = zalloc(event_count * sizeof(*table));
 	if (!table)
 		return;
 	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
