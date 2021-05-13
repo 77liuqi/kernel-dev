@@ -851,7 +851,7 @@ void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 			if (!pe->name && !pe->metric_group && !pe->metric_name)
 				break;
 
-			ret = fn(pe, data);
+			ret = fn(pe, event_table, data);
 			if (ret)
 				break;
 		}
@@ -863,7 +863,7 @@ struct pmu_sys_event_iter_data {
 	struct perf_pmu *pmu;
 };
 
-static int pmu_add_sys_aliases_iter_fn(struct pmu_event *pe, void *data)
+static int pmu_add_sys_aliases_iter_fn(struct pmu_event *pe, struct pmu_sys_events *table __maybe_unused, void *data)
 {
 	struct pmu_sys_event_iter_data *idata = data;
 	struct perf_pmu *pmu = idata->pmu;
