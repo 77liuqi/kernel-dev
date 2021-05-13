@@ -1,14 +1,14 @@
 [
    {
            "BriefDescription": "imc cycles event",
-           "EventCode": "0x00",
+           "EventCode": "0x2",
            "EventName": "uncore_imc.cycles",
            "Unit": "imc",
            "Compat": "broadwell"
    },
    {
            "BriefDescription": "imc read-cycles event",
-           "EventCode": "0x2a",
+           "EventCode": "0x1",
            "EventName": "uncore_imc.read_cycles",
            "Unit": "imc",
            "Compat": "broadwell"

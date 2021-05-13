@@ -24,6 +24,14 @@
 	    "Compat": "broadwell"
    },
    {
+	    "BriefDescription": "imc metric containing references to metrics and events",
+	    "MetricName": "jimc_ddr_z_all",
+	    "MetricExpr": "uncore_imc.cycles + uncore_imc.read_cycles",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "imc",
+	    "Compat": "broadwell"
+   },
+   {
 	    "BriefDescription": "imc metric containing references to events",
 	    "MetricName": "jimc_ddr_y_all",
 	    "MetricExpr": "uncore_imc.cycles * 4",
