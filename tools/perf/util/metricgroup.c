@@ -541,7 +541,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	struct pmu_events_map map = {
 		.table = table,
 	};
-	int ret;
+	int ret, cnt2;
 
 	pr_err("%s pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
@@ -561,9 +561,36 @@ static int parse_groupsx(struct evlist *perf_evlist,
 		goto out;
 
 
-	list_for_each_entry(m2, &metric_list, nd)
+	list_for_each_entry(m2, &metric_list, nd) {
+		struct hashmap_entry *cur;
+		size_t bkt;
 		pr_err("%s2.3 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
 		__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
+		if (!strcmp(pe->metric_name, m2->metric_name)) {
+			pr_err("%s2.4 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
+			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
+		//	ret = -1;
+		//	goto out;
+		}
+		hashmap__for_each_entry((&m2->pctx.ids), cur, bkt) {
+			pr_err("%s2.5 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
+			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name, (char *)cur->key);
+			if (!strcmp(pe->metric_name, cur->key)) {
+			pr_err("%s2.6 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
+			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name, (char *)cur->key);
+				ret = -EINVAL;
+				goto out;
+			}
+
+		}
+	}
+
+	for (cnt2 = 0; cnt2 < ids.cnt; cnt2++) {
+		struct expr_id *id = &ids.id[cnt2];
+		pr_err("%s2.7 pe=%p name=%s metric_name=%s cnt2=%d id=%p %s\n",
+		__func__, pe, pe->name, pe->metric_name, cnt2, id, id->id);
+	}
+
 
 //	if (!list_is_singular(&metric_list)) {
 //		ret = -EINVAL;
@@ -632,7 +659,7 @@ struct event_iter_data {
 };
 
 static int metricgroup__metric_event_iter(struct pmu_event *pe,
-					  struct pmu_sys_events *const events,
+					  struct pmu_sys_events *const soc_events,
 					  void *data)
 {
 	struct event_iter_data *iter_data = data;
@@ -645,14 +672,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	pr_err("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
-	
-	if (!strcmp(pe->metric_name, "1x_metrwic")) {
-	//	pr_err("%s0 pe metric hack for 1x_metric\n", __func__);
-	//	memcpy(*event_table, pe, sizeof(*pe));
-	//	(*event_table)++;
-	//	return 0;
-	}
+	pr_err("\n\n%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
 
 	evlist = evlist__new();
 	if (!evlist)
@@ -670,7 +690,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	found_events = 0;
 
 	evlist__for_each_entry(evlist, evsel) {
-		struct pmu_event *found_event = NULL, *event = events->table;
+		struct pmu_event *found_event = NULL, *event = soc_events->table;
 		struct perf_pmu *pmu = NULL;
 
 		if (!strcmp(evsel->name, "duration_time")) {
