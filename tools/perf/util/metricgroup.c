@@ -519,47 +519,97 @@ static int __add_metric(struct list_head *metric_list,
 
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
 					       struct expr_parse_ctx *ctx);
+static int resolve_metric(bool metric_no_group,
+			  struct list_head *metric_list,
+			  struct pmu_events_map *map,
+			  struct expr_ids *ids);
+
+static void metricgroup__add_metric_non_group(struct strbuf *events,
+					      struct expr_parse_ctx *ctx);
 
 static int parse_groupsx(struct evlist *perf_evlist,
 			bool metric_no_group,
 			struct perf_pmu *fake_pmu,
-			struct pmu_event *pe)
+			struct pmu_event *pe,
+			struct pmu_event *table)
 {
 	struct parse_events_error parse_error;
-	struct strbuf extra_events;
+	struct strbuf events;
 	LIST_HEAD(metric_list);
-	struct metric *m = NULL;
+	struct metric *m = NULL, *m2;
 	struct expr_ids ids = { .cnt = 0, };
+	struct pmu_events_map map = {
+		.table = table,
+	};
 	int ret;
+
+	pr_err("%s pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
 	ret = __add_metric(&metric_list, pe, metric_no_group, 1, &m, NULL, &ids);
 	if (ret)
 		goto out;
-	if (!list_is_singular(&metric_list)) {
-		ret = -EINVAL;
+	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+
+
+	list_for_each_entry(m2, &metric_list, nd)
+		pr_err("%s2.1 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
+		__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
+
+	ret = resolve_metric(metric_no_group, &metric_list, &map, &ids);
+	pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
+	if (ret)
 		goto out;
+
+
+	list_for_each_entry(m2, &metric_list, nd)
+		pr_err("%s2.3 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
+		__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
+
+//	if (!list_is_singular(&metric_list)) {
+//		ret = -EINVAL;
+//		goto out;
+//	}
+
+//	m = list_first_entry(&metric_list, struct metric, nd);
+//	if (m->has_constraint) {
+//		ret = -EINVAL;
+//		goto out;
+//	}
+
+	pr_err("%s3 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+
+	strbuf_init(&events, 100);
+	strbuf_addf(&events, "%s", "");
+	
+	list_for_each_entry(m, &metric_list, nd) {
+		pr_err("%s3.1 pe=%p name=%s m=%p metric_name=%s\n", 
+			__func__, pe, pe->name, m, m->metric_name);
+		if (events.len > 0)
+			strbuf_addf(&events, ",");
+
+		if (m->has_constraint) {
+			metricgroup__add_metric_non_group(&events,
+							  &m->pctx);
+		} else {
+			metricgroup__add_metric_weak_group(&events,
+							   &m->pctx);
+		}
 	}
 
-	m = list_first_entry(&metric_list, struct metric, nd);
-	if (m->has_constraint) {
-		ret = -EINVAL;
-		goto out;
-	}
+	pr_err("%s4 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
-	strbuf_init(&extra_events, 100);
-	strbuf_addf(&extra_events, "%s", "");
-
-	metricgroup__add_metric_weak_group(&extra_events, &m->pctx);
-
-	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
+	ret = __parse_events(perf_evlist, events.buf, &parse_error, fake_pmu);
+	pr_err("%s5 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
 	if (ret) {
-		parse_events_print_error(&parse_error, extra_events.buf);
+		parse_events_print_error(&parse_error, events.buf);
 		goto out;
 	}
 out:
 	expr_ids__exit(&ids);
 	metricgroup__free_metrics(&metric_list);
-	strbuf_release(&extra_events);
+	strbuf_release(&events);
+	pr_err("%s10 out pe=%p name=%s metric_name=%s ret=%d\n",
+		__func__, pe, pe->name, pe->metric_name, ret);
 	return ret;
 }
 
@@ -592,7 +642,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 	pr_err("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
 	
-	if (!strcmp(pe->metric_name, "1x_metric")) {
+	if (!strcmp(pe->metric_name, "1x_metrwic")) {
 		pr_err("%s0 pe metric hack for 1x_metric\n", __func__);
 		memcpy(*event_table, pe, sizeof(*pe));
 		(*event_table)++;
@@ -602,7 +652,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
-	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe);
+	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe, jim);
 	if (ret)
 		goto out;
 
@@ -689,6 +739,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	}
 
 out:
+	pr_err("%s10 out ret=%d pe metric name=%s expr=%s\n", __func__, ret, pe->metric_name, pe->metric_expr);
 	evlist__delete(evlist);
 	return ret;
 }
@@ -892,7 +943,7 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 	size_t bkt;
 	bool no_group = true, has_duration = false;
 
-	pr_err("%s events=%s\n", __func__, events->buf);
+	pr_err("%s events=%s ctx=%p\n", __func__, events->buf, ctx);
 
 
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
@@ -1099,7 +1150,7 @@ struct pmu_event *metricgroup__find_metric(const char *metric,
 	struct pmu_event *pe;
 	int i;
 
-	pr_err("%s metric=%s\n", __func__, metric);
+	pr_err("%s metric=%s map=%p table=%p\n", __func__, metric, map, map ? map->table : NULL);
 
 	map_for_each_event(pe, i, map) {
 		pr_err("%s1 metric=%s pe=%p metric_name=%s\n", __func__, metric, pe, pe->metric_name);
@@ -1222,7 +1273,7 @@ static int resolve_metric(bool metric_no_group,
 	struct metric *m;
 	int err;
 
-	pr_err("%s\n", __func__);
+	pr_err("%s map=%p\n", __func__, map);
 
 	list_for_each_entry(m, metric_list, nd) {
 		pr_err("%s1 m=%p name=%s\n", __func__, m, m->metric_name);
