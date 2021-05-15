@@ -711,25 +711,6 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 			}
 		}
 
-		{
-		   struct pmu_event *jim1 = jim;
-	
-		   pr_err("%s5 pe metric name=%s expr=%s jim=%p\n",
-			   __func__, pe->metric_name, pe->metric_expr, jim);
-	
-		   while (jim1->metric_name) {
-			   pr_err("%s6 pe metric name=%s expr=%s jim=%p jim1 name=%s metric name=%s evsel->name=%s\n",
-				   __func__, pe->metric_name, pe->metric_expr, jim, jim1->name, jim1->metric_name, evsel->name);
-			   if (!strcmp(jim1->metric_name, evsel->name)) {
-				   pr_err("%s7 pe metric name=%s expr=%s jim=%p jim1 name=%s metric name=%s evsel->name=%s\n",
-					   __func__, pe->metric_name, pe->metric_expr, jim, jim1->name, jim1->metric_name, evsel->name);
-					found_events++;
-					break;
-			   }
-			   jim1++;
-			}
-		}
-
 		if (found_events == events_count) {
 			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
 			memcpy(*event_table, pe, sizeof(*pe));
