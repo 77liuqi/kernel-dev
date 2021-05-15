@@ -892,8 +892,11 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 	size_t bkt;
 	bool no_group = true, has_duration = false;
 
+	pr_err("%s events=%s\n", __func__, events->buf);
+
+
 	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
-		pr_err("found event %s\n", (const char *)cur->key);
+		pr_err("%s1 found event %s\n", __func__, (const char *)cur->key);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
@@ -1326,6 +1329,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	}
 
 	list_for_each_entry(m, &list, nd) {
+		pr_err("%s3 metric=%s m=%p metric_name=%s\n", 
+			__func__, metric, m, m->metric_name);
 		if (events->len > 0)
 			strbuf_addf(events, ",");
 
