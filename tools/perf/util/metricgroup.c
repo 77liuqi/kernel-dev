@@ -591,6 +591,13 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		return 0;
 
 	pr_err("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
+	
+	if (!strcmp(pe->metric_name, "1x_metric")) {
+		pr_err("%s0 pe metric hack for 1x_metric\n", __func__);
+		memcpy(*event_table, pe, sizeof(*pe));
+		(*event_table)++;
+		return 0;
+	}
 
 	evlist = evlist__new();
 	if (!evlist)
@@ -677,6 +684,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
 			memcpy(*event_table, pe, sizeof(*pe));
 			(*event_table)++;
+			break;
 		}
 	}
 
@@ -1088,7 +1096,10 @@ struct pmu_event *metricgroup__find_metric(const char *metric,
 	struct pmu_event *pe;
 	int i;
 
+	pr_err("%s metric=%s\n", __func__, metric);
+
 	map_for_each_event(pe, i, map) {
+		pr_err("%s1 metric=%s pe=%p metric_name=%s\n", __func__, metric, pe, pe->metric_name);
 		if (match_metric(pe->metric_name, metric))
 			return pe;
 	}
@@ -1151,6 +1162,8 @@ static int __resolve_metric(struct metric *m,
 	bool all;
 	int ret;
 
+	pr_err("%s m=%p metric_name=%s\n", __func__, m, m->metric_name);
+
 	/*
 	 * Iterate all the parsed IDs and if there's metric,
 	 * add it to the context.
@@ -1160,18 +1173,27 @@ static int __resolve_metric(struct metric *m,
 		hashmap__for_each_entry((&m->pctx.ids), cur, bkt) {
 			struct expr_id *parent;
 			struct pmu_event *pe;
+			
+			pr_err("%s1 cur->key=%s\n", __func__, (char *)cur->key);
 
 			pe = metricgroup__find_metric(cur->key, map);
 			if (!pe)
 				continue;
 
+			pr_err("%s2 cur->key=%s pe name=%s metric name=%s metric expr=%s\n",
+			__func__, (char *)cur->key, pe->name, pe->metric_name, pe->metric_expr);
+
 			ret = recursion_check(m, cur->key, &parent, ids);
 			if (ret)
 				return ret;
 
+			pr_err("%s3 cur->key=%s\n", __func__, (char *)cur->key);
+
 			all = false;
 			/* The metric key itself needs to go out.. */
 			expr__del_id(&m->pctx, cur->key);
+
+			pr_err("%s4 cur->key=%s\n", __func__, (char *)cur->key);
 
 			/* ... and it gets resolved to the parent context. */
 			ret = add_metric(metric_list, pe, metric_no_group, &m, parent, ids);
@@ -1197,7 +1219,10 @@ static int resolve_metric(bool metric_no_group,
 	struct metric *m;
 	int err;
 
+	pr_err("%s\n", __func__);
+
 	list_for_each_entry(m, metric_list, nd) {
+		pr_err("%s1 m=%p name=%s\n", __func__, m, m->metric_name);
 		err = __resolve_metric(m, metric_no_group, metric_list, map, ids);
 		if (err)
 			return err;
@@ -1248,6 +1273,8 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 	int i, ret;
 	bool has_match = false;
 
+	pr_err("%s metric=%s\n", __func__, metric);
+
 	map_for_each_metric(pe, i, map, metric) {
 		has_match = true;
 		m = NULL;
@@ -1266,9 +1293,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 			goto out;
 	}
 
-	pr_err("%s metric=%s\n", __func__, metric);
-
-	metricgroup_init_sys_pmu_list();
+	pr_err("%s0 metric=%s\n", __func__, metric);
 
 	map_for_each_metric(pe, i, sys_pmu_map, metric) {
 		has_match = true;
@@ -1287,7 +1312,7 @@ static int metricgroup__add_metric(const char *metric, bool metric_no_group,
 		 // add metrics referenced in pe to list
 		 // ignores aliases for events
 		ret = resolve_metric(metric_no_group,
-				     &list, map, &ids);
+				     &list, sys_pmu_map, &ids);
 		if (ret)
 			goto out;
 	}
@@ -1338,6 +1363,11 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 	if (!nlist)
 		return -ENOMEM;
 	llist = nlist;
+
+	pr_err("%s\n", __func__);
+
+	//if (!strcmp("dsd", "oof"))
+		metricgroup_init_sys_pmu_list();
 
 	strbuf_init(events, 100);
 	strbuf_addf(events, "%s", "");
@@ -1393,13 +1423,15 @@ static int parse_groups(struct evlist *perf_evlist, const char *str,
 	LIST_HEAD(metric_list);
 	int ret;
 
+	pr_err("%s str=%s\n", __func__, str);
+
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);
 	ret = metricgroup__add_metric_list(str, metric_no_group,
 					   &extra_events, &metric_list, map);
 	if (ret)
 		goto out;
-	pr_err("adding %s\n", extra_events.buf);
+	pr_err("%s5 str=%s adding %s\n", __func__, str, extra_events.buf);
 	bzero(&parse_error, sizeof(parse_error));
 	ret = __parse_events(perf_evlist, extra_events.buf, &parse_error, fake_pmu);
 	if (ret) {
@@ -1422,6 +1454,7 @@ int metricgroup__parse_groups(const struct option *opt,
 {
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
 	struct pmu_events_map *map = pmu_events_map__find();
+
 
 	return parse_groups(perf_evlist, str, metric_no_group,
 			    metric_no_merge, NULL, metric_events, map);
