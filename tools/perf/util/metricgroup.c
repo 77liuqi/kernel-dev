@@ -625,13 +625,18 @@ static bool match_event_to_pmu(struct pmu_event *event, struct perf_pmu *pmu)
 	}
 	return false;
 }
-struct pmu_event *jim;
+
+struct event_iter_data {
+	struct pmu_event *table;
+	unsigned int event_count;
+};
 
 static int metricgroup__metric_event_iter(struct pmu_event *pe,
 					  struct pmu_sys_events *const events,
 					  void *data)
 {
-	struct pmu_event **event_table = data;
+	struct event_iter_data *iter_data = data;
+	struct pmu_event *event_table = iter_data->table;
 	int events_count = 0, found_events;
 	struct evlist *evlist;
 	struct evsel *evsel;
@@ -643,18 +648,20 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	pr_err("%s pe metric name=%s expr=%s\n", __func__, pe->metric_name, pe->metric_expr);
 	
 	if (!strcmp(pe->metric_name, "1x_metrwic")) {
-		pr_err("%s0 pe metric hack for 1x_metric\n", __func__);
-		memcpy(*event_table, pe, sizeof(*pe));
-		(*event_table)++;
-		return 0;
+	//	pr_err("%s0 pe metric hack for 1x_metric\n", __func__);
+	//	memcpy(*event_table, pe, sizeof(*pe));
+	//	(*event_table)++;
+	//	return 0;
 	}
 
 	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
-	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe, jim);
+	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe, event_table);
 	if (ret)
 		goto out;
+
+	event_table += iter_data->event_count;
 
 	evlist__for_each_entry(evlist, evsel) {
 		pr_err("%s1 pe metric name=%s expr=%s evsel name=%s\n", __func__, pe->metric_name, pe->metric_expr, evsel->name);
@@ -713,8 +720,9 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 		if (found_events == events_count) {
 			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
-			memcpy(*event_table, pe, sizeof(*pe));
-			(*event_table)++;
+			memcpy(event_table, pe, sizeof(*pe));
+			event_table++;
+			iter_data->event_count++;
 			break;
 		}
 	}
@@ -737,11 +745,12 @@ metricgroup__metric_sys_event_count(__maybe_unused struct pmu_event *pe,
 
 static void metricgroup_init_sys_pmu_list(void)
 {
-	struct pmu_event *table, *table_tmp;
+	struct event_iter_data event_iter_data;
 	unsigned int event_count = 0;
-	static int done = 0;
+	struct pmu_event *table;
+	static int done;
 
-	if (done)
+	if (sys_pmu_map || done)
 		return;
 
 	pr_err("%s\n", __func__);
@@ -753,21 +762,22 @@ static void metricgroup_init_sys_pmu_list(void)
 		return;
 	}
 	event_count++; // Add a sentinel
-	jim = table_tmp = table = zalloc(event_count * sizeof(*table));
+	event_iter_data.event_count = 0;
+	event_iter_data.table = table = zalloc(event_count * sizeof(*table));
 	if (!table)
 		return;
-	pmu_for_each_sys_event(metricgroup__metric_event_iter, &table_tmp);
+	pmu_for_each_sys_event(metricgroup__metric_event_iter, &event_iter_data);
 	sys_pmu_map = malloc(sizeof(*sys_pmu_map));
 	if (!sys_pmu_map) {
 		free(table);
 		return;
 	}
 	sys_pmu_map->table = table;
-	done = 1;
 }
 
 static void metricgroup_cleanup_sys_pmu_list(void)
 {
+	free(sys_pmu_map->table);
 	free(sys_pmu_map);
 	sys_pmu_map = NULL;
 }
@@ -1383,7 +1393,6 @@ out:
 	 */
 	list_splice(&list, metric_list);
 	expr_ids__exit(&ids);
-	metricgroup_cleanup_sys_pmu_list();
 	pr_err("%s10 out metric=%s ret=%d\n", __func__, metric, ret);
 	return ret;
 }
@@ -1404,7 +1413,7 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 	pr_err("%s\n", __func__);
 
 	//if (!strcmp("dsd", "oof"))
-		metricgroup_init_sys_pmu_list();
+	metricgroup_init_sys_pmu_list();
 
 	strbuf_init(events, 100);
 	strbuf_addf(events, "%s", "");
@@ -1422,6 +1431,8 @@ static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
 
 	if (!ret)
 		metricgroup___watchdog_constraint_hint(NULL, true);
+
+	metricgroup_cleanup_sys_pmu_list();
 
 	return ret;
 }
