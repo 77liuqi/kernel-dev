@@ -551,9 +551,19 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
 
-	list_for_each_entry(m2, &metric_list, nd)
+	list_for_each_entry(m2, &metric_list, nd) {
+		struct hashmap_entry *cur;
+		size_t bkt;
+		struct expr_parse_ctx *ctx = &m2->pctx;
+	
 		pr_err("%s2.1 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
 		__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
+		hashmap__for_each_entry((&ctx->ids), cur, bkt) {
+			pr_err("%s2.1.1 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
+			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name, (char *)cur->key);
+
+		}
+	}
 
 	ret = resolve_metric(metric_no_group, &metric_list, &map, &ids);
 	pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
@@ -564,19 +574,20 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	list_for_each_entry(m2, &metric_list, nd) {
 		struct hashmap_entry *cur;
 		size_t bkt;
+		struct expr_parse_ctx *ctx = &m2->pctx;
 		pr_err("%s2.3 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
 		__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
 		if (!strcmp(pe->metric_name, m2->metric_name)) {
-			pr_err("%s2.4 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
+			pr_err("%s2.3.1 pe=%p name=%s metric_name=%s m2=%p name=%s\n",
 			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name);
 		//	ret = -1;
 		//	goto out;
 		}
-		hashmap__for_each_entry((&m2->pctx.ids), cur, bkt) {
-			pr_err("%s2.5 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
+		hashmap__for_each_entry((&ctx->ids), cur, bkt) {
+			pr_err("%s2.3.2 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
 			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name, (char *)cur->key);
 			if (!strcmp(pe->metric_name, cur->key)) {
-			pr_err("%s2.6 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
+			pr_err("%ss2.3.4 pe=%p name=%s metric_name=%s m2=%p name=%s cur->key=%s\n",
 			__func__, pe, pe->name, pe->metric_name, m2, m2->metric_name, (char *)cur->key);
 				ret = -EINVAL;
 				goto out;
