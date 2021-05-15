@@ -1229,8 +1229,11 @@ static int __resolve_metric(struct metric *m,
 			__func__, (char *)cur->key, pe->name, pe->metric_name, pe->metric_expr);
 
 			ret = recursion_check(m, cur->key, &parent, ids);
-			if (ret)
+			if (ret) {
+				pr_err("%s2.1 cur->key=%s pe name=%s metric name=%s metric expr=%s recursion check failed ret=%d\n",
+				__func__, (char *)cur->key, pe->name, pe->metric_name, pe->metric_expr, ret);
 				return ret;
+			}
 
 			pr_err("%s3 cur->key=%s\n", __func__, (char *)cur->key);
 
