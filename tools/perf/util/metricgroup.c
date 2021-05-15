@@ -545,7 +545,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 
 	pr_err("%s pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
-	ret = __add_metric(&metric_list, pe, metric_no_group, 1, &m, NULL, &ids);
+	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
 	if (ret)
 		goto out;
 	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
