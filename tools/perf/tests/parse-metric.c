@@ -387,12 +387,16 @@ static __maybe_unused int test_system_event(void)
 		{ .event = "duration_time",  .val = 200000000 },
 		{ .event = NULL, },
 	};
+	LIST_HEAD(aliases);
 	struct perf_pmu pmu = {
 		.name = (char *)"imx8_ddr0",
 		.id = (char *)"i.MX8MQ",
 	};
 
+	pmu_add_sys_aliases(&aliases, &pmu);
 	INIT_LIST_HEAD(&pmu.aliases);
+	list_splice(&aliases, &pmu.aliases);
+
 
 //	pmu_lookup_add_fake("imx8_ddr0", "i.MX8MQ");
 
