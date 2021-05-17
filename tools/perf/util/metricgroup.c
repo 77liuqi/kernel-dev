@@ -1609,11 +1609,10 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 				   struct perf_pmu *pmu)
 {
 	pr_err("%s pmu=%p\n", __func__, pmu);
-	if (pmu) 
-		return parse_groups(evlist, str, metric_no_group,
-			    metric_no_merge, pmu, metric_events, map);
+	if (!pmu)
+		pmu = &perf_pmu__fake;
 	return parse_groups(evlist, str, metric_no_group,
-			    metric_no_merge, &perf_pmu__fake, metric_events, map);
+			    metric_no_merge, pmu, metric_events, map);
 }
 
 bool metricgroup__has_metric(const char *metric)
