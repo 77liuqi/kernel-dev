@@ -398,6 +398,7 @@ struct evsel *evsel__clone(struct evsel *orig)
 			goto out_err;
 	}
 	if (orig->pmu_name) {
+		pr_err("%s evsel=%p orig->pmu_name=%s\n", __func__, evsel, orig->pmu_name);
 		evsel->pmu_name = strdup(orig->pmu_name);
 		if (evsel->pmu_name == NULL)
 			goto out_err;

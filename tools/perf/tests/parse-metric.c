@@ -362,6 +362,8 @@ static __maybe_unused int test_metric_group(void)
 		{ .event = "inst_retired.any",        .val = 400 },
 		{ .event = NULL, },
 	};
+		
+	pr_err("%s\n", __func__);
 
 	TEST_ASSERT_VAL("failed to find recursion",
 			compute_metric_group("group1", vals,
@@ -388,27 +390,28 @@ static __maybe_unused int test_system_event(void)
 	struct perf_pmu pmu = {
 		.name = (char *)"imx8_ddr0",
 		.id = (char *)"i.MX8MQ",
-
 	};
 
-	pmu_lookup_add_fake("imx8_ddr0", "i.MX8MQ");
+	INIT_LIST_HEAD(&pmu.aliases);
+
+//	pmu_lookup_add_fake("imx8_ddr0", "i.MX8MQ");
 
 	pr_err("%s pmu=%p\n", __func__, &pmu);
 
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_sys_metric("imx8mq_ddr_read.all", vals, &value, NULL) == 0);
+			compute_sys_metric("imx8mq_ddr_read.all", vals, &value, &pmu) == 0);
 	pr_err("%s ratio=%f\n", __func__, value);
 	TEST_ASSERT_VAL("imx8mq_ddr_read.all, wrong value",
 			48000000 == value);
 
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_sys_metric("imx8mq_ddr_write.all", vals, &value, NULL) == 0);
+			compute_sys_metric("imx8mq_ddr_write.all", vals, &value, &pmu) == 0);
 	pr_err("%s ratio=%f\n", __func__, value);
 	TEST_ASSERT_VAL("imx8mq_ddr_write.all, wrong value",
 			64000000 == value);
 
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_sys_metric("imx8mq_ddr_rw_ratio.all", vals, &value, NULL) == 0);
+			compute_sys_metric("imx8mq_ddr_rw_ratio.all", vals, &value, &pmu) == 0);
 	pr_err("%s ratio=%f\n", __func__, value);
 	TEST_ASSERT_VAL("imx8mq_ddr_rw_ratio.all, wrong ratio",
 			0.75 == value);
@@ -429,7 +432,7 @@ int test__parse_metric(struct test *test __maybe_unused, int subtest __maybe_unu
 //	TEST_ASSERT_VAL("frontend failed", test_frontend() == 0);
 //	TEST_ASSERT_VAL("DCache_L2 failed", test_dcache_l2() == 0);
 //	TEST_ASSERT_VAL("recursion fail failed", test_recursion_fail() == 0);
-	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
+//	TEST_ASSERT_VAL("Memory bandwidth", test_memory_bandwidth() == 0);
 	TEST_ASSERT_VAL("System", test_system_event() == 0);
 
 	if (!perf_pmu__has_hybrid()) {

@@ -35,21 +35,6 @@
         "PublicDescription": "john test2"
     },
 
-    {
-        "BriefDescription": "john test3",
-        "MetricExpr": "johntest4",
-        "MetricGroup": "TopdownL1",
-        "MetricName": "johntest3",
-        "PublicDescription": "john test3"
-    },
-
-    {
-        "BriefDescription": "john test4",
-        "MetricExpr": "johntest3",
-        "MetricGroup": "TopdownL1",
-        "MetricName": "johntest4",
-        "PublicDescription": "john test4"
-    },
 
    {
         "BriefDescription": "This category represents fraction of slots wasted due to incorrect speculations. SMT version; use when SMT is enabled and measuring per logical CPU.",

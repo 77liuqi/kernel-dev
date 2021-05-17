@@ -1532,7 +1532,13 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		fprintf(stderr, "' that may result in non-fatal errors\n");
 	}
 
+
 	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
+	pr_err("%s name=%s fake_pmu=%p pmu=%p name=%s\n", __func__, name, parse_state->fake_pmu, pmu, pmu ? pmu->name : "");
+//	pr_err("%s2 name=%s fake_pmu=%p pmu=%p %p\n",
+//		__func__, name, parse_state->fake_pmu, pmu, pmu ? pmu->name : "");
+//	pr_err("%s3 name=%s fake_pmu=%p pmu=%p %s\n",
+//		__func__, name, parse_state->fake_pmu, pmu, pmu ? pmu->name : "");
 	if (!pmu) {
 		char *err_str;
 
@@ -1557,6 +1563,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		evsel = __add_event(list, &parse_state->idx, &attr, true, NULL,
 				    pmu, NULL, auto_merge_stats, NULL);
 		if (evsel) {
+			pr_err("%s2 name=%s fake_pmu=%p\n", __func__, name, parse_state->fake_pmu);
 			evsel->pmu_name = name ? strdup(name) : NULL;
 			evsel->use_uncore_alias = use_uncore_alias;
 			return 0;
@@ -1623,6 +1630,8 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 	if (evsel->name)
 		evsel->use_config_name = true;
+
+	pr_err("%s3 name=%s fake_pmu=%p\n", __func__, name, parse_state->fake_pmu);
 
 	evsel->pmu_name = name ? strdup(name) : NULL;
 	evsel->use_uncore_alias = use_uncore_alias;
@@ -2265,7 +2274,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	};
 	int ret;
 
-	//pr_err("%s str=%s\n", __func__, str);
+	pr_err("%s str=%s fake_pmu=%p\n", __func__, str, fake_pmu);
 
 	ret = parse_events__scanner(str, &parse_state);
 	//pr_err("%s1 str=%s ret=%d\n", __func__, str, ret);

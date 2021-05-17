@@ -38,21 +38,5 @@
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
 	    "Compat": "broadwell"
-   },
-   {
-	    "BriefDescription": "imc metric containing references to metrics and events",
-	    "MetricName": "1x_metric_recursion",
-	    "MetricExpr": "2x_metric_recursion * 4",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "imc",
-	    "Compat": "broadwell"
-   },
-   {
-	    "BriefDescription": "imc metric containing references to metrics and events",
-	    "MetricName": "2x_metric_recursion",
-	    "MetricExpr": "1x_metric_recursion * 4",
-	    "ScaleUnit": "9.765625e-4KB",
-	    "Unit": "imc",
-	    "Compat": "broadwell"
    }
 ]
