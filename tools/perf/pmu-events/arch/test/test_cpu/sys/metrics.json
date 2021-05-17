@@ -18,5 +18,11 @@
 	    "MetricName": "imx8mq_ddr_rw_ratio.all",
 	    "MetricExpr": "imx8mq_ddr_read.all / imx8mq_ddr_write.all",
 	    "ScaleUnit": "9.765625e-4KB",
+    },
+    {
+	    "BriefDescription": "bytes all masters write to ddr based on write-cycles event",
+	    "MetricName": "imx8mq_ddr_read.bandwidth",
+	    "MetricExpr": "imx8mq_ddr_read.all / duration_time",
+	    "ScaleUnit": "9.765625e-4KB",
     }
 ]

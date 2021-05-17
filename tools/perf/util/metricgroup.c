@@ -726,7 +726,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 		if (!strcmp(evsel->name, "duration_time")) {
 			found_events++;
-			continue;
+			goto test;
 		}
 
 		/*
@@ -771,6 +771,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 			}
 		}
 
+test:
 		if (found_events == events_count) {
 			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
 			memcpy(event_table, pe, sizeof(*pe));
