@@ -634,7 +634,8 @@ static int parse_groupsx(struct evlist *perf_evlist,
 		}
 	}
 
-	pr_err("%s4 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+	pr_err("%s4 pe=%p name=%s metric_name=%s events.buf=%s\n", __func__, pe, pe->name, pe->metric_name, events.buf);
+	bzero(&parse_error, sizeof(parse_error));
 
 	ret = __parse_events(perf_evlist, events.buf, &parse_error, fake_pmu);
 	pr_err("%s5 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
