@@ -379,7 +379,7 @@ static __maybe_unused int test_metric_group(void)
 
 static __maybe_unused int test_system_event(void)
 {
-	double  value;
+	double value;
 	struct value vals[] = {
 		{ .event = "imx8mq_ddr.write_cycles", .val = 4000000 },
 		{ .event = "imx8mq_ddr.read_cycles", .val = 3000000 },
@@ -405,7 +405,7 @@ static __maybe_unused int test_system_event(void)
 			compute_sys_metric("imx8mq_ddr_rw_ratio.all", vals, &value, &pmu) == 0);
 	pr_err("%s ratio=%f\n", __func__, value);
 	TEST_ASSERT_VAL("imx8mq_ddr_rw_ratio.all, wrong ratio",
-			64000000 == value);
+			0.75 == value);
 
 	return 0;
 }
