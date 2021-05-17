@@ -690,8 +690,11 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	if (!evlist)
 		return -ENOMEM;
 	ret = parse_groupsx(evlist, false, &perf_pmu__fake, pe, event_table);
-	if (ret)
+	if (ret) {
+		/* Just allow the iter to continue */
+		ret = 0;
 		goto out;
+	}
 
 	event_table += iter_data->event_count;
 
