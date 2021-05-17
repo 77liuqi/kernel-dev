@@ -381,6 +381,7 @@ static __maybe_unused int test_metric_group(void)
 static __maybe_unused int test_system_event(void)
 {
 	double value;
+	struct perf_pmu_alias *alias, *tmp;
 	struct value vals[] = {
 		{ .event = "imx8mq_ddr.write_cycles", .val = 4000000 },
 		{ .event = "imx8mq_ddr.read_cycles", .val = 3000000 },
@@ -426,6 +427,9 @@ static __maybe_unused int test_system_event(void)
 	TEST_ASSERT_VAL("imx8mq_ddr_read.bandwidth, wrong value",
 			240000000 == value);
 
+	list_for_each_entry_safe(alias, tmp, &pmu.aliases, list) {
+		free(alias);
+	}
 
 	return 0;
 }
