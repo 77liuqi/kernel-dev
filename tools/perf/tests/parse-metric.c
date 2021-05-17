@@ -339,15 +339,14 @@ static __maybe_unused int test_memory_bandwidth(void)
 {
 	double ratio;
 	struct value vals[] = {
-		{ .event = "imx8mq_ddr.read_cycles", .val = 4000000 },
+		{ .event = "l1d.replacement", .val = 4000000 },
+		{ .event = "duration_time",  .val = 200000000 },
 		{ .event = NULL, },
 	};
 
-	pr_err("%s\n", __func__);
-
 	TEST_ASSERT_VAL("failed to compute metric",
-			compute_metric("imx8mq_ddr_read.all", vals, &ratio) == 0);
-	TEST_ASSERT_VAL("imx8mq_ddr_read.all, wrong ratio",
+			compute_metric("L1D_Cache_Fill_BW", vals, &ratio) == 0);
+	TEST_ASSERT_VAL("L1D_Cache_Fill_BW, wrong ratio",
 			1.28 == ratio);
 
 	return 0;
