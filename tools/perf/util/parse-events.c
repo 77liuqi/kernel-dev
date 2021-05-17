@@ -1682,7 +1682,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				if (!parse_events_add_pmu(parse_state, list,
 							  pmu->name, head,
 							  true, true)) {
-					pr_debug("%s -> %s/%s/\n", str,
+					pr_debug2("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
 				}
@@ -2265,10 +2265,10 @@ int __parse_events(struct evlist *evlist, const char *str,
 	};
 	int ret;
 
-	pr_err("%s str=%s\n", __func__, str);
+	//pr_err("%s str=%s\n", __func__, str);
 
 	ret = parse_events__scanner(str, &parse_state);
-	pr_err("%s1 str=%s ret=%d\n", __func__, str, ret);
+	//pr_err("%s1 str=%s ret=%d\n", __func__, str, ret);
 	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
@@ -2281,7 +2281,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 	 */
 	evlist__splice_list_tail(evlist, &parse_state.list);
 
-	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s2 str=%s ret=%d\n", __func__, str, ret);
 
 	if (!ret) {
 		struct evsel *last;
@@ -2293,7 +2293,7 @@ int __parse_events(struct evlist *evlist, const char *str,
 		return 0;
 	}
 
-	pr_err("%s10 out str=%s ret=%d\n", __func__, str, ret);
+//	pr_err("%s10 out str=%s ret=%d\n", __func__, str, ret);
 
 	/*
 	 * There are 2 users - builtin-record and builtin-test objects.

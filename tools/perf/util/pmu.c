@@ -834,6 +834,8 @@ static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 {
 	int i = 0;
+	
+	pr_err("%s\n", __func__);
 
 	while (1) {
 		struct pmu_sys_events *event_table;
@@ -843,7 +845,7 @@ void pmu_for_each_sys_event(pmu_sys_event_iter_fn fn, void *data)
 
 		if (!event_table->table)
 			break;
-
+		pr_err("%s1 event_table name=%s\n", __func__, event_table->name);
 		while (1) {
 			struct pmu_event *pe = &event_table->table[j++];
 			int ret;
@@ -919,6 +921,68 @@ static int pmu_max_precise(const char *name)
 
 	sysfs__read_int(path, &max_precise);
 	return max_precise;
+}
+
+struct perf_pmu *pmu_lookup_add_fake(const char *name, const char *id)
+{
+	struct perf_pmu *pmu;
+	LIST_HEAD(format);
+	LIST_HEAD(aliases);
+	__u32 type;
+
+	pr_err("%s name=%s\n", __func__, name);
+
+	/*
+	 * The pmu data we store & need consists of the pmu
+	 * type value and format definitions. Load both right
+	 * now.
+	 */
+	if (pmu_format(name, &format)) {
+		pr_err("%s1 name=%s failed pmu_format\n", __func__, name);
+	//	return NULL;
+	}
+
+	/*
+	 * Check the type first to avoid unnecessary work.
+	 */
+	if (pmu_type(name, &type) < 0) {
+		pr_err("%s2 name=%s failed pmu-type\n", __func__, name);
+	//	return NULL;
+	}
+
+	if (pmu_aliases(name, &aliases)) {
+		pr_err("%s3 name=%s failed aliases\n", __func__, name);
+	//	return NULL;
+	}
+
+	pmu = zalloc(sizeof(*pmu));
+	if (!pmu)
+		return NULL;
+
+	pmu->cpus = pmu_cpumask(name);
+	pmu->name = strdup(name);
+	pmu->type = type;
+	pmu->is_uncore = pmu_is_uncore(name);
+	pmu->id = (char *)id;
+	pmu->is_hybrid = perf_pmu__hybrid_mounted(name);
+	pmu->max_precise = pmu_max_precise(name);
+	pmu_add_cpu_aliases(&aliases, pmu);
+	pmu_add_sys_aliases(&aliases, pmu);
+
+	INIT_LIST_HEAD(&pmu->format);
+	INIT_LIST_HEAD(&pmu->aliases);
+	INIT_LIST_HEAD(&pmu->caps);
+	list_splice(&format, &pmu->format);
+	list_splice(&aliases, &pmu->aliases);
+	list_add_tail(&pmu->list, &pmus);
+
+	if (pmu->is_hybrid)
+		list_add_tail(&pmu->hybrid_list, &perf_pmu__hybrid_pmus);
+
+	pmu->default_config = perf_pmu__get_default_config(pmu);
+
+	return pmu;
+
 }
 
 static struct perf_pmu *pmu_lookup(const char *name)

@@ -79,6 +79,8 @@ struct perf_pmu_alias {
 	char *pmu_name;
 };
 
+struct perf_pmu *pmu_lookup_add_fake(const char *name, const char *id);
+
 struct perf_pmu *perf_pmu__find(const char *name);
 struct perf_pmu *perf_pmu__find_by_type(unsigned int type);
 int perf_pmu__config(struct perf_pmu *pmu, struct perf_event_attr *attr,
