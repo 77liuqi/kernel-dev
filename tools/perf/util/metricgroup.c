@@ -536,12 +536,16 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	struct parse_events_error parse_error;
 	struct strbuf events;
 	LIST_HEAD(metric_list);
-	struct metric *m = NULL, *m2;
+	struct metric *m = NULL;
 	struct expr_ids ids = { .cnt = 0, };
 	struct pmu_events_map map = {
 		.table = table,
 	};
-	int ret, cnt2;
+	int ret;
+	#ifdef dsddsd
+	struct metric *m2;
+	int cnt2;
+	#endif
 
 	pr_err("%s pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
@@ -550,7 +554,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 		goto out;
 	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
-
+#ifdef dsddsd
 	list_for_each_entry(m2, &metric_list, nd) {
 		struct hashmap_entry *cur;
 		size_t bkt;
@@ -564,12 +568,15 @@ static int parse_groupsx(struct evlist *perf_evlist,
 
 		}
 	}
+#endif
 
 	ret = resolve_metric(metric_no_group, &metric_list, &map, &ids);
 	pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
 	if (ret)
 		goto out;
 
+	
+#ifdef dsddsd
 
 	list_for_each_entry(m2, &metric_list, nd) {
 		struct hashmap_entry *cur;
@@ -601,6 +608,8 @@ static int parse_groupsx(struct evlist *perf_evlist,
 		pr_err("%s2.7 pe=%p name=%s metric_name=%s cnt2=%d id=%p %s\n",
 		__func__, pe, pe->name, pe->metric_name, cnt2, id, id->id);
 	}
+
+#endif
 
 
 //	if (!list_is_singular(&metric_list)) {
