@@ -384,7 +384,7 @@
 
 #define HISI_SAS_FATAL_INT_NR	2
 
-static bool auto_affine_irq_experimental;
+static bool auto_affine_irq_experimental = 1;
 module_param(auto_affine_irq_experimental, bool, 0444);
 MODULE_PARM_DESC(auto_affine_irq_experimental, "Enable auto-affinity of MSI IRQs as experimental:\n"
 		 "default is off");
