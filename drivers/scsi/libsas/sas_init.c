@@ -388,6 +388,8 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	const unsigned long tmo = msecs_to_jiffies(25000);
 	int i;
 
+	dev_err(ha->dev, "%s\n", __func__);
+
 	/* deform ports on phys that did not resume
 	 * at this point we may be racing the phy coming back (as posted
 	 * by the lldd).  So we post the event and once we are in the
@@ -414,12 +416,15 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	 */
 	scsi_unblock_requests(ha->core.shost);
 	sas_drain_work(ha);
+	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
 EXPORT_SYMBOL(sas_resume_ha);
 
 void sas_suspend_ha(struct sas_ha_struct *ha)
 {
 	int i;
+
+	dev_err(ha->dev, "%s\n", __func__);
 
 	sas_disable_events(ha);
 	scsi_block_requests(ha->core.shost);
@@ -433,6 +438,7 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 	mutex_lock(&ha->drain_mutex);
 	__sas_drain_work(ha);
 	mutex_unlock(&ha->drain_mutex);
+	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
 EXPORT_SYMBOL(sas_suspend_ha);
 

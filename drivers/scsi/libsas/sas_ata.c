@@ -671,6 +671,8 @@ static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 {
 	struct domain_device *dev, *n;
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	list_for_each_entry_safe(dev, n, &port->dev_list, dev_list_node) {
 		if (!dev_is_sata(dev))
 			continue;
@@ -709,6 +711,8 @@ void sas_resume_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev;
 
+	pr_err("%s port=%pS\n", __func__, port);
+	
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 		struct sata_device *sata;

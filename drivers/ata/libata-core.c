@@ -4986,6 +4986,8 @@ static int ata_port_pm_suspend(struct device *dev)
 {
 	struct ata_port *ap = to_ata_port(dev);
 
+	dev_err(dev, "%s ap=%pS\n", __func__, ap);
+
 	if (pm_runtime_suspended(dev))
 		return 0;
 
@@ -4996,6 +4998,8 @@ static int ata_port_pm_suspend(struct device *dev)
 static int ata_port_pm_freeze(struct device *dev)
 {
 	struct ata_port *ap = to_ata_port(dev);
+
+	dev_err(dev, "%s ap=%pS\n", __func__, ap);
 
 	if (pm_runtime_suspended(dev))
 		return 0;
@@ -5088,12 +5092,14 @@ static const struct dev_pm_ops ata_port_pm_ops = {
  */
 void ata_sas_port_suspend(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_port_suspend_async(ap, PMSG_SUSPEND);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_suspend);
 
 void ata_sas_port_resume(struct ata_port *ap)
 {
+	pr_err("%s ap=%pS\n", __func__, ap);
 	ata_port_resume_async(ap, PMSG_RESUME);
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_resume);
@@ -5107,6 +5113,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_resume);
  */
 int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 {
+	pr_err("%s host=%pS\n", __func__, host);
 	host->dev->power.power_state = mesg;
 	return 0;
 }
@@ -5120,6 +5127,7 @@ EXPORT_SYMBOL_GPL(ata_host_suspend);
  */
 void ata_host_resume(struct ata_host *host)
 {
+	pr_err("%s host=%pS\n", __func__, host);
 	host->dev->power.power_state = PMSG_ON;
 }
 EXPORT_SYMBOL_GPL(ata_host_resume);

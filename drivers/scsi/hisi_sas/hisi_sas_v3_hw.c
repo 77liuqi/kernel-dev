@@ -4895,6 +4895,8 @@ static int _suspend_v3_hw(struct device *device)
 	struct Scsi_Host *shost = hisi_hba->shost;
 	int rc;
 
+	dev_warn(device, "%s\n", __func__);
+
 	if (!pdev->pm_cap) {
 		dev_err(dev, "PCI PM not supported\n");
 		return -ENODEV;
@@ -4936,7 +4938,7 @@ static int _resume_v3_hw(struct device *device)
 	unsigned int rc;
 	pci_power_t device_state = pdev->current_state;
 
-	dev_warn(dev, "resuming from operating state [D%d]\n",
+	dev_warn(dev, "%s resuming from operating state [D%d]\n", __func__,
 		 device_state);
 
 	scsi_unblock_requests(shost);
@@ -4961,7 +4963,7 @@ static int __maybe_unused suspend_v3_hw(struct device *device)
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	int rc;
-
+	dev_err(device, "%s\n", __func__);
 	set_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
 	rc = _suspend_v3_hw(device);
@@ -4977,6 +4979,8 @@ static int __maybe_unused resume_v3_hw(struct device *device)
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	int rc = _resume_v3_hw(device);
+
+	dev_err(device, "%s\n", __func__);
 
 	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
