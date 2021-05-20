@@ -661,7 +661,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	ret = __parse_events(perf_evlist, events.buf, &parse_error, fake_pmu);
 //	pr_err("%s5 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
 	if (ret) {
-		parse_events_print_error(&parse_error, events.buf);
+	//	parse_events_print_error(&parse_error, events.buf);
 		goto out;
 	}
 out:
@@ -759,8 +759,6 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	if (!evlist)
 		return -ENOMEM;
 	ret = parse_groupsx(evlist, false, iter_data->fake_pmu, pe, event_table);
-	if (!strcmp(pe->metric_name, "smmuv3_pmcg.bandwidth"))
-		pr_err("%s smmuv3_pmcg.bandwidth ret=%d\n", __func__, ret);
 	if (ret) {
 		/* Just allow the iter to continue */
 		ret = 0;
@@ -769,11 +767,11 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 	event_table += iter_data->event_count;
 
-	evlist__for_each_entry(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {	
 #ifdef dsddsd
 		pr_err("%s1 pe metric name=%s expr=%s evsel name=%s pmu_name=%s\n", __func__, pe->metric_name, pe->metric_expr, evsel->name, evsel->pmu_name);
-		events_count++;
 #endif
+		events_count++;
 	}
 	found_events = 0;
 
@@ -807,6 +805,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		pr_err("%s2.1 pe metric name=%s evsel name=%s found_event=%p (%s)\n", 
 		__func__, pe->metric_name, evsel->name, found_event, found_event ? found_event->name : "");
 #endif
+
 		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 			if (match_to_pmu(found_event, pmu, pe, evsel)) {
 				found_events++;
@@ -824,9 +823,9 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 test:
 		if (found_events == events_count) {
-#ifdef dsddsd
-			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
-#endif
+
+			pr_debug2("Adding metric %s to sys event table\n", pe->metric_name);
+
 			memcpy(event_table, pe, sizeof(*pe));
 			event_table++;
 			iter_data->event_count++;
