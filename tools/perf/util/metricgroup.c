@@ -758,7 +758,9 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
-	ret = parse_groupsx(evlist, false, iter_data->fake_pmu, pe, event_table); 
+	ret = parse_groupsx(evlist, false, iter_data->fake_pmu, pe, event_table);
+	if (!strcmp(pe->metric_name, "smmuv3_pmcg.bandwidth"))
+		pr_err("%s smmuv3_pmcg.bandwidth ret=%d\n", __func__, ret);
 	if (ret) {
 		/* Just allow the iter to continue */
 		ret = 0;
