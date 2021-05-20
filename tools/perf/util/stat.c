@@ -455,8 +455,8 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 		update_stats(&ps->res_stats[i], count[i]);
 
 	if (verbose > 0) {
-		fprintf(config->output, "%s: %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
-			evsel__name(counter), count[0], count[1], count[2]);
+		fprintf(config->output, "%s (%s): %" PRIu64 " %" PRIu64 " %" PRIu64 "\n",
+			evsel__name(counter), counter->pmu_name, count[0], count[1], count[2]);
 	}
 
 	/*
