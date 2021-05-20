@@ -740,7 +740,7 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
 
-	pr_err("\n\n%s pe metric name=%s expr=%s fake_pmu=%p\n", __func__, pe->metric_name, pe->metric_expr, fake_pmu);
+	pr_err("\n\n%s pe metric name=%s expr=%s fake_pmu=%p name=%s\n", __func__, pe->metric_name, pe->metric_expr, fake_pmu, soc_events->name);
 
 	evlist = evlist__new();
 	if (!evlist)
