@@ -32,6 +32,13 @@
 	    "Compat": "0x00030736"
    },
    {
+	    "BriefDescription": "bytes of all masters read from ddr",
+	    "MetricExpr": "smmuv3_pmcg.transaction / smmuv3_pmcg.cycles",
+	    "MetricName": "smmuv3_pmcg.bandwidth",
+	    "ScaleUnit": "9.765625e-4KB",
+	    "Unit": "smmuv3_pmcg",
+   },
+   {
 	    "EventCode": "0x80",
 	    "EventName": "smmuv3_pmcg.WR_RCVD_SP",
 	    "BriefDescription": "Write command received by the SP",
