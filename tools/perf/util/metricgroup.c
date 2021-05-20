@@ -546,16 +546,18 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	struct metric *m2;
 	int cnt2;
 	#endif
+	
+#ifdef dsddsd
 
 	pr_err("%s pe=%p name=%s metric_name=%s fake_pmu=%p\n",
 	__func__, pe, pe->name, pe->metric_name, fake_pmu);
-
+#endif
 	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
 	if (ret)
 		goto out;
+#ifdef dsddsd
 	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
-#ifdef dsddsd
 	list_for_each_entry(m2, &metric_list, nd) {
 		struct hashmap_entry *cur;
 		size_t bkt;
@@ -572,7 +574,9 @@ static int parse_groupsx(struct evlist *perf_evlist,
 #endif
 
 	ret = resolve_metric(metric_no_group, &metric_list, &map, &ids);
+#ifdef dsddsd
 	pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
+#endif
 	if (ret)
 		goto out;
 
@@ -610,7 +614,6 @@ static int parse_groupsx(struct evlist *perf_evlist,
 		__func__, pe, pe->name, pe->metric_name, cnt2, id, id->id);
 	}
 
-#endif
 
 
 //	if (!list_is_singular(&metric_list)) {
@@ -625,13 +628,18 @@ static int parse_groupsx(struct evlist *perf_evlist,
 //	}
 
 	pr_err("%s3 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+	
+#endif
 
 	strbuf_init(&events, 100);
 	strbuf_addf(&events, "%s", "");
 	
 	list_for_each_entry(m, &metric_list, nd) {
+
+#ifdef dsddsd
 		pr_err("%s3.1 pe=%p name=%s m=%p metric_name=%s\n", 
 			__func__, pe, pe->name, m, m->metric_name);
+#endif
 		if (events.len > 0)
 			strbuf_addf(&events, ",");
 
@@ -643,8 +651,11 @@ static int parse_groupsx(struct evlist *perf_evlist,
 							   &m->pctx);
 		}
 	}
+	
+#ifdef dsddsd
 
 	pr_err("%s4 pe=%p name=%s metric_name=%s events.buf=%s\n", __func__, pe, pe->name, pe->metric_name, events.buf);
+#endif
 	bzero(&parse_error, sizeof(parse_error));
 
 	ret = __parse_events(perf_evlist, events.buf, &parse_error, fake_pmu);
@@ -739,9 +750,11 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 
 	if (!pe->metric_expr || !pe->metric_name)
 		return 0;
+	
+#ifdef dsddsd
 
 	pr_err("\n\n%s pe metric name=%s expr=%s fake_pmu=%p name=%s\n", __func__, pe->metric_name, pe->metric_expr, fake_pmu, soc_events->name);
-
+#endif
 	evlist = evlist__new();
 	if (!evlist)
 		return -ENOMEM;
@@ -755,8 +768,10 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 	event_table += iter_data->event_count;
 
 	evlist__for_each_entry(evlist, evsel) {
+#ifdef dsddsd
 		pr_err("%s1 pe metric name=%s expr=%s evsel name=%s pmu_name=%s\n", __func__, pe->metric_name, pe->metric_expr, evsel->name, evsel->pmu_name);
 		events_count++;
+#endif
 	}
 	found_events = 0;
 
@@ -784,10 +799,12 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 			}
 			event++;
 		}
+		
+#ifdef dsddsd
 
 		pr_err("%s2.1 pe metric name=%s evsel name=%s found_event=%p (%s)\n", 
 		__func__, pe->metric_name, evsel->name, found_event, found_event ? found_event->name : "");
-
+#endif
 		while ((pmu = perf_pmu__scan(pmu)) != NULL) {
 			if (match_to_pmu(found_event, pmu, pe, evsel)) {
 				found_events++;
@@ -796,14 +813,18 @@ static int metricgroup__metric_event_iter(struct pmu_event *pe,
 		}
 
 		if (fake_pmu && match_to_pmu(found_event, fake_pmu, pe, evsel)) {
+#ifdef dsddsd
 			pr_err("%s2.2 pe metric name=%s evsel name=%s found_event=%p (%s)\n", 
 			__func__, pe->metric_name, evsel->name, found_event, found_event ? found_event->name : "");
+#endif
 			found_events++;
 		}
 
 test:
 		if (found_events == events_count) {
+#ifdef dsddsd
 			pr_err("Adding metric %s to sys event table\n", pe->metric_name);
+#endif
 			memcpy(event_table, pe, sizeof(*pe));
 			event_table++;
 			iter_data->event_count++;
@@ -836,13 +857,17 @@ static void metricgroup_init_sys_pmu_list(struct perf_pmu *fake_pmu)
 
 	if (sys_pmu_map || done)
 		return;
+	
+#ifdef dsddsd
 
 	pr_err("%s fake_pmu=%p\n", __func__, fake_pmu);
-
+#endif
 	pmu_for_each_sys_event(metricgroup__metric_sys_event_count, &event_count);
+	
+#ifdef dsddsd
 
 	pr_err("%s1 fake_pmu=%p event_count=%d\n", __func__, fake_pmu, event_count);
-
+#endif
 	if (event_count == 0) {
 		done = 1;
 		return;
@@ -854,7 +879,9 @@ static void metricgroup_init_sys_pmu_list(struct perf_pmu *fake_pmu)
 	if (!table)
 		return;
 	pmu_for_each_sys_event(metricgroup__metric_event_iter, &event_iter_data);
+#ifdef dsddsd
 	pr_err("%s2 fake_pmu=%p event_count=%d\n", __func__, fake_pmu, event_count);
+#endif
 	sys_pmu_map = malloc(sizeof(*sys_pmu_map));
 	if (!sys_pmu_map) {
 		free(table);
