@@ -553,7 +553,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 	ret = add_metric(&metric_list, pe, metric_no_group, &m, NULL, &ids);
 	if (ret)
 		goto out;
-	//pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+	pr_err("%s2 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
 #ifdef dsddsd
 	list_for_each_entry(m2, &metric_list, nd) {
@@ -572,7 +572,7 @@ static int parse_groupsx(struct evlist *perf_evlist,
 #endif
 
 	ret = resolve_metric(metric_no_group, &metric_list, &map, &ids);
-	//pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
+	pr_err("%s2.2 pe=%p name=%s metric_name=%s ret=%d\n", __func__, pe, pe->name, pe->metric_name, ret);
 	if (ret)
 		goto out;
 
@@ -624,14 +624,14 @@ static int parse_groupsx(struct evlist *perf_evlist,
 //		goto out;
 //	}
 
-	//pr_err("%s3 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
+	pr_err("%s3 pe=%p name=%s metric_name=%s\n", __func__, pe, pe->name, pe->metric_name);
 
 	strbuf_init(&events, 100);
 	strbuf_addf(&events, "%s", "");
 	
 	list_for_each_entry(m, &metric_list, nd) {
-		//pr_err("%s3.1 pe=%p name=%s m=%p metric_name=%s\n", 
-		//	__func__, pe, pe->name, m, m->metric_name);
+		pr_err("%s3.1 pe=%p name=%s m=%p metric_name=%s\n", 
+			__func__, pe, pe->name, m, m->metric_name);
 		if (events.len > 0)
 			strbuf_addf(&events, ",");
 
