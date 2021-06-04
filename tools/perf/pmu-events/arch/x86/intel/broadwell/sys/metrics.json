@@ -1,7 +1,7 @@
 [
    {
 	    "BriefDescription": "imc metric contains programmed PMU events 1, no references to alised",
-	    "MetricName": "jimc_ddr_1.all",
+	    "MetricName": "sys_jimc_ddr_1.all",
 	    "MetricExpr": "uncore_imc@event\\=0x2@",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
@@ -9,7 +9,7 @@
    },
    {
 	    "BriefDescription": "imc metric contains programmed PMU events 2, no references to alised",
-	    "MetricName": "jimc_ddr_2.all",
+	    "MetricName": "sys_jimc_ddr_2.all",
 	    "MetricExpr": "uncore_imc@event\\=0x1@",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
@@ -17,7 +17,7 @@
    },
    {
 	    "BriefDescription": "imc metric containing references to multiple events",
-	    "MetricName": "2x_event",
+	    "MetricName": "sys_2x_event",
 	    "MetricExpr": "uncore_imc.cycles + uncore_imc.read_cycles",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
@@ -25,7 +25,7 @@
    },
    {
 	    "BriefDescription": "imc metric containing references to events",
-	    "MetricName": "1x_event",
+	    "MetricName": "sys_1x_event",
 	    "MetricExpr": "uncore_imc.cycles * 4",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
@@ -33,8 +33,8 @@
    },
    {
 	    "BriefDescription": "imc metric containing references to metrics and events",
-	    "MetricName": "1x_metric",
-	    "MetricExpr": "1x_event * 4",
+	    "MetricName": "sys_1x_metric",
+	    "MetricExpr": "sys_1x_event * 4",
 	    "ScaleUnit": "9.765625e-4KB",
 	    "Unit": "imc",
 	    "Compat": "broadwell"
