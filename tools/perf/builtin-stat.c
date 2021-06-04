@@ -1623,6 +1623,49 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 	return 0;
 }
 
+static int add_topdown_metricgroups(void)
+{
+	struct option opt = { .value = &evsel_list };
+	int count = 0, rc;
+	char string[256] = "";
+
+	if (metricgroup__has_metric("frontend_bound")) {
+		strcat(string, "frontend_bound");
+		count++;
+	}
+
+	if (metricgroup__has_metric("retiring")) {
+		if (count)
+			strcat(string, ",");
+		strcat(string, "retiring");
+		count++;
+	}
+
+	if (metricgroup__has_metric("backend_bound")) {
+		if (count)
+			strcat(string, ",");
+		strcat(string, "backend_bound");
+		count++;
+	}
+
+	if (metricgroup__has_metric("bad_speculation")) {
+		if (count)
+			strcat(string, ",");
+		strcat(string, "bad_speculation");
+		count++;
+	}
+
+	if (count == 0)
+		return -ENXIO;
+
+	rc = metricgroup__parse_groups(&opt, string,
+						 stat_config.metric_no_group,
+						stat_config.metric_no_merge,
+						 &stat_config.metric_events);
+
+	return rc;
+}
+
 /*
  * Add default attributes, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
@@ -1885,7 +1928,7 @@ setup_metrics:
 				free(str);
 				return -1;
 			}
-		} else {
+		} else if (add_topdown_metricgroups()){
 			fprintf(stderr, "System does not support topdown\n");
 			return -1;
 		}
