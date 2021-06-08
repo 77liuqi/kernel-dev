@@ -112,7 +112,7 @@ extern u64 arm_smmu_cmdq_get_cmpxcgh_tries(void);
 extern u64 arm_smmu_cmdq_get_fails_cons(void);
 extern u64 arm_smmu_cmdq_get_fails_prod(void);
 extern u64 arm_smmu_cmdq_get_fails_both(void);
-
+extern int arm_smmu_cmdq_get_average_time_cpus(void);
 
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
@@ -177,9 +177,10 @@ void smmu_test_core(int cpus)
 	}
 	smmu_test = 0;
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average=%lld tries=%lld cmpxcgh tries=%lld fails both=%lld prod=%lld cons=%lld\n", 
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average time=%lld (cpus=%d) tries=%lld cmpxcgh tries=%lld fails both=%lld prod=%lld cons=%lld\n", 
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
+	arm_smmu_cmdq_get_average_time_cpus(),
 	arm_smmu_cmdq_get_tries(),
 	arm_smmu_cmdq_get_cmpxcgh_tries(),
 	arm_smmu_cmdq_get_fails_both(),

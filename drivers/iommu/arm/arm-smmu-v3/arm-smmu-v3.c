@@ -865,9 +865,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	return ret;
 }
 
+u64 arm_smmu_cmdq_get_tries(void)
+{
+	return atomic64_read(&tries);
+}
+
 ktime_t arm_smmu_cmdq_get_average_time(void)
 {
-	int cpu, cpus;
+	int cpu, cpus = 0;
 	ktime_t total = 0;
 
 	for_each_online_cpu(cpu) {
@@ -879,14 +884,25 @@ ktime_t arm_smmu_cmdq_get_average_time(void)
 		}
 	}
 
-	return total / cpus;
+	return total / arm_smmu_cmdq_get_tries();
 }
 
-
-u64 arm_smmu_cmdq_get_tries(void)
+int arm_smmu_cmdq_get_average_time_cpus(void)
 {
-	return atomic64_read(&tries);
+	int cpu, cpus = 0;
+
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cmdlist, cpu);
+
+		if (*t > 100) {
+
+			cpus++;
+		}
+	}
+
+	return cpus;
 }
+
 
 u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
