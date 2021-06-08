@@ -729,6 +729,26 @@ static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
 static atomic64_t cmpxchg_fail_both;
 
+#define smp_cond_load_relaxed_local(ptr, cond_expr)				\
+({									\
+	typeof(ptr) __PTR = (ptr);					\
+	__unqual_scalar_typeof(*ptr) VAL;				\
+	ktime_t next_report = ktime_get() + ms_to_ktime(1000);\
+	for (;;) {							\
+		VAL = READ_ONCE(*__PTR);				\
+		if (cond_expr)						\
+			break;						\
+		__cmpwait_relaxed(__PTR, VAL);				\
+		if (ktime_after(ktime_get(), next_report)) {\
+			pr_err_once("%s VAL=0x%x prod_ticket=0x%x llq_prod=0x%x\n", __func__, VAL, prod_ticket, llq_prod);\
+		}\
+	}								\
+	(typeof(*ptr))VAL;						\
+})
+
+
+#define atomic_cond_read_relaxed_local(v, c) smp_cond_load_relaxed_local(&(v)->counter, (c))
+
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
@@ -743,6 +763,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	ktime_t initial, final, *t;
 	int cpu;
+	u32 prod_ticket = atomic_fetch_add_relaxed(n + sync, &cmdq->q.llq.prod_ticket);
+
+	prod_ticket = Q_WRP(&llq, prod_ticket) | Q_IDX(&llq, prod_ticket);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -752,7 +775,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	atomic64_inc(&tries);
 	do {
 		struct arm_smmu_ll_queue	llq_old;
-	
+		u32 llq_prod = llq.prod;
+
+		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
+
+		if (llq_prod != prod_ticket) {
+			/* don't do cmpxchg */
+			atomic_cond_read_relaxed_local(&cmdq->q.llq.atomic.prod, (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL)) == prod_ticket);
+			llq.val = READ_ONCE(cmdq->q.llq.val);
+		}
+
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))

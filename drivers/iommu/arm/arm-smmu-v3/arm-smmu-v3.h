@@ -482,6 +482,7 @@ struct arm_smmu_ll_queue {
 		} atomic;
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
+	atomic_t				prod_ticket;
 	u32				max_n_shift;
 };
 
