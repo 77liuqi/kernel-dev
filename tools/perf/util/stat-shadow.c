@@ -909,7 +909,16 @@ static void generic_metric(struct perf_stat_config *config,
 				print_metric(config, ctxp, NULL, "%8.1f",
 					     metric_bf, ratio);
 			} else {
-				print_metric(config, ctxp, NULL, "%8.2f",
+			//	printf("generic_metric3 metric_name=%s metric_unit=%p unit=%s ratio=%f\n", 
+			//	metric_name, metric_unit, unit, ratio);
+				const char *color = NULL;
+		//	if (be_bound > 0.2)
+		//	color = PERF_COLOR_RED;
+				if (!strcmp(metric_name, "Backend_Bound")) {
+					if (ratio > 0.2)
+						color = PERF_COLOR_RED;
+				}
+				print_metric(config, ctxp, color, "%8.2f",
 					metric_name ?
 					metric_name :
 					out->force_header ?  name : "",
