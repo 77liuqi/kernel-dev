@@ -1629,15 +1629,22 @@ static int add_topdown_metricgroups(void)
 	int count = 0, rc;
 	char string[256] = "";
 
-	if (metricgroup__has_metric("frontend_bound")) {
-		strcat(string, "frontend_bound");
+	if (metricgroup__has_metric("retiring")) {
+		strcat(string, "retiring");
 		count++;
 	}
 
-	if (metricgroup__has_metric("retiring")) {
+	if (metricgroup__has_metric("bad_speculation")) {
 		if (count)
 			strcat(string, ",");
-		strcat(string, "retiring");
+		strcat(string, "bad_speculation");
+		count++;
+	}
+
+	if (metricgroup__has_metric("frontend_bound")) {
+		if (count)
+			strcat(string, ",");
+		strcat(string, "frontend_bound");
 		count++;
 	}
 
@@ -1648,12 +1655,6 @@ static int add_topdown_metricgroups(void)
 		count++;
 	}
 
-	if (metricgroup__has_metric("bad_speculation")) {
-		if (count)
-			strcat(string, ",");
-		strcat(string, "bad_speculation");
-		count++;
-	}
 
 	if (count == 0)
 		return -ENXIO;
