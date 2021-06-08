@@ -884,7 +884,7 @@ static void generic_metric(struct perf_stat_config *config,
 	double ratio, scale;
 	int i;
 	void *ctxp = out->ctx;
-
+//	printf("generic_metric metric_name=%s metric_unit=%p\n", metric_name, metric_unit);
 	i = prepare_metric(metric_events, metric_refs, &pctx, cpu, st);
 	if (i < 0)
 		return;
@@ -899,6 +899,8 @@ static void generic_metric(struct perf_stat_config *config,
 					&unit, &scale) >= 0) {
 					ratio *= scale;
 				}
+			//	printf("generic_metric2 metric_name=%s metric_unit=%p unit=%s\n", 
+			//	metric_name, metric_unit, unit);
 				if (strstr(metric_expr, "?"))
 					scnprintf(metric_bf, sizeof(metric_bf),
 					  "%s  %s_%d", unit, metric_name, runtime);
@@ -972,7 +974,11 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 	struct metric_event *me;
 	int num = 1;
 
+	//printf("%s evsel name=%s type=%d config=0x%llx\n",
+	//__func__, evsel->name, evsel->core.attr.type, evsel->core.attr.config);
+
 	if (config->iostat_run) {
+		printf("%s11 evsel name=%s no match\n", __func__, evsel->name);
 		iostat_print_metric(config, evsel, out);
 	} else if (evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
 		total = runtime_stat_avg(st, STAT_CYCLES, cpu, &rsd);
@@ -1009,6 +1015,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
+		printf("%s22 evsel name=%s no match\n", __func__, evsel->name);
+
 		if (runtime_stat_n(st, STAT_L1_DCACHE, cpu, &rsd) != 0)
 			print_l1_dcache_misses(config, cpu, avg, out, st, &rsd);
 		else
@@ -1018,6 +1026,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
+
+		printf("%s33 evsel name=%s no match\n", __func__, evsel->name);
 
 		if (runtime_stat_n(st, STAT_L1_ICACHE, cpu, &rsd) != 0)
 			print_l1_icache_misses(config, cpu, avg, out, st, &rsd);
@@ -1029,6 +1039,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
+		printf("%s41 evsel name=%s no match\n", __func__, evsel->name);
+
 		if (runtime_stat_n(st, STAT_DTLB_CACHE, cpu, &rsd) != 0)
 			print_dtlb_cache_misses(config, cpu, avg, out, st, &rsd);
 		else
@@ -1038,6 +1050,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		evsel->core.attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
+
+		printf("%s42 evsel name=%s no match\n", __func__, evsel->name);
 
 		if (runtime_stat_n(st, STAT_ITLB_CACHE, cpu, &rsd) != 0)
 			print_itlb_cache_misses(config, cpu, avg, out, st, &rsd);
@@ -1049,6 +1063,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 					((PERF_COUNT_HW_CACHE_OP_READ) << 8) |
 					 ((PERF_COUNT_HW_CACHE_RESULT_MISS) << 16))) {
 
+		printf("%s43 evsel name=%s no match\n", __func__, evsel->name);
+
 		if (runtime_stat_n(st, STAT_LL_CACHE, cpu, &rsd) != 0)
 			print_ll_cache_misses(config, cpu, avg, out, st, &rsd);
 		else
@@ -1058,6 +1074,8 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 
 		if (total)
 			ratio = avg * 100 / total;
+
+		printf("%s44 evsel name=%s no match\n", __func__, evsel->name);
 
 		if (runtime_stat_n(st, STAT_CACHEREFS, cpu, &rsd) != 0)
 			print_metric(config, ctxp, NULL, "%8.3f %%",
@@ -1070,12 +1088,14 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		print_stalled_cycles_backend(config, cpu, avg, out, st, &rsd);
 	} else if (evsel__match(evsel, HARDWARE, HW_CPU_CYCLES)) {
 		total = runtime_stat_avg(st, STAT_NSECS, cpu, &rsd);
+	//	printf("%s2 evsel name=%s HARDWARE, HW_CPU_CYCLES total=%f ratio=%f\n", 
+	//		__func__, evsel->name, total, ratio);
 
 		if (total) {
 			ratio = avg / total;
-			print_metric(config, ctxp, NULL, "%8.3f", "GHz", ratio);
+		//	print_metric(config, ctxp, NULL, "%8.3f", "GHz", ratio);
 		} else {
-			print_metric(config, ctxp, NULL, NULL, "Ghz", 0);
+		//	print_metric(config, ctxp, NULL, NULL, "Ghz", 0);
 		}
 	} else if (perf_stat_evsel__is(evsel, CYCLES_IN_TX)) {
 		total = runtime_stat_avg(st, STAT_CYCLES, cpu, &rsd);
@@ -1280,11 +1300,14 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		print_metric(config, ctxp, color, "%8.1f%%", "Core bound",
 				core_bound * 100.);
 	} else if (evsel->metric_expr) {
+		printf("%s81 evsel name=%s no match\n", __func__, evsel->name);
 		generic_metric(config, evsel->metric_expr, evsel->metric_events, NULL,
 				evsel->name, evsel->metric_name, NULL, 1, cpu, out, st);
 	} else if (runtime_stat_n(st, STAT_NSECS, cpu, &rsd) != 0) {
 		char unit = ' ';
 		char unit_buf[10] = "/sec";
+
+		printf("%s82 evsel name=%s no match\n", __func__, evsel->name);
 
 		total = runtime_stat_avg(st, STAT_NSECS, cpu, &rsd);
 		if (total)
@@ -1295,7 +1318,9 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 		print_metric(config, ctxp, NULL, "%8.3f", unit_buf, ratio);
 	} else if (perf_stat_evsel__is(evsel, SMI_NUM)) {
 		print_smi_cost(config, cpu, out, st, &rsd);
+		printf("%s83 evsel name=%s no match\n", __func__, evsel->name);
 	} else {
+	//	printf("%s89 evsel name=%s no match\n", __func__, evsel->name);
 		num = 0;
 	}
 

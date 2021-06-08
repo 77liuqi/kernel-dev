@@ -385,6 +385,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 		expr->metric_expr = m->metric_expr;
 		expr->metric_name = m->metric_name;
 		expr->metric_unit = m->metric_unit;
+		pr_err("%s name=%s unit=%s\n", __func__, m->metric_name, m->metric_unit);
 		expr->metric_events = metric_events;
 		expr->runtime = m->runtime;
 		list_add(&expr->nd, &me->head);
@@ -1329,6 +1330,7 @@ int metricgroup__copy_metric_events(struct evlist *evlist, struct cgroup *cgrp,
 			new_expr->metric_name = old_expr->metric_name;
 			new_expr->metric_unit = old_expr->metric_unit;
 			new_expr->runtime = old_expr->runtime;
+			pr_err("%s name=%s unit=%s\n", __func__, new_expr->metric_name, new_expr->metric_unit);
 
 			if (old_expr->metric_refs) {
 				/* calculate number of metric_events */

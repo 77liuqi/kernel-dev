@@ -124,11 +124,13 @@ static const char * transaction_limited_attrs = {
 };
 
 static const char * topdown_attrs[] = {
+	#if 0
 	"topdown-total-slots",
 	"topdown-slots-retired",
 	"topdown-recovery-bubbles",
 	"topdown-fetch-bubbles",
 	"topdown-slots-issued",
+	#endif
 	NULL,
 };
 
@@ -1628,6 +1630,7 @@ static int add_topdown_metricgroups(void)
 	struct option opt = { .value = &evsel_list };
 	int count = 0, rc;
 	char string[256] = "";
+	struct evsel *evsel;
 
 	if (metricgroup__has_metric("retiring")) {
 		strcat(string, "retiring");
@@ -1663,6 +1666,10 @@ static int add_topdown_metricgroups(void)
 						 stat_config.metric_no_group,
 						stat_config.metric_no_merge,
 						 &stat_config.metric_events);
+	
+
+	evlist__for_each_entry(evsel_list, evsel)
+		pr_err("%s evsel name=%s\n", __func__, evsel->name);
 
 	return rc;
 }
