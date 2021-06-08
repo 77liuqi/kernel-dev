@@ -724,7 +724,9 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
-
+static atomic64_t cmpxchg_fail_prod;
+static atomic64_t cmpxchg_fail_cons;
+static atomic64_t cmpxchg_fail_both;
 
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
@@ -749,9 +751,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 	do {
-		u64 old;
-
-
+		struct arm_smmu_ll_queue	llq_old;
+	
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
@@ -763,13 +764,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
 
-		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+		llq_old.val = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
-		if (old == llq.val)
+		if (llq_old.val == llq.val)
 			break;
-		
 
-		llq.val = old;
+		if ((llq_old.prod != llq.prod) && (llq_old.cons != llq.cons))
+			atomic64_inc(&cmpxchg_fail_both);
+		else if (llq_old.prod != llq.prod)
+			atomic64_inc(&cmpxchg_fail_prod);
+		else
+			atomic64_inc(&cmpxchg_fail_cons);
+
+		llq.val = llq_old.val;
 	} while (1);
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -881,15 +888,34 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
-u64 arm_smmu_cmdq_get_cmpxcgh_fails(void)
+u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
 	return atomic64_read(&cmpxchg_tries);
 }
+
+u64 arm_smmu_cmdq_get_fails_prod(void)
+{
+	return atomic64_read(&cmpxchg_fail_prod);
+}
+
+u64 arm_smmu_cmdq_get_fails_cons(void)
+{
+	return atomic64_read(&cmpxchg_fail_cons);
+}
+
+u64 arm_smmu_cmdq_get_fails_both(void)
+{
+	return atomic64_read(&cmpxchg_fail_both);
+}
+
 
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
 	atomic64_set(&cmpxchg_tries, 0);
+	atomic64_set(&cmpxchg_fail_prod, 0);
+	atomic64_set(&cmpxchg_fail_cons, 0);
+	atomic64_set(&cmpxchg_fail_both, 0);	
 }
 
 void arm_smmu_cmdq_zero_times(void)
