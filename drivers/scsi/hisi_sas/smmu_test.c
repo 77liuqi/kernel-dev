@@ -123,6 +123,10 @@ void smmu_test_core(int cpus)
 	struct test_data gtdata[NR_CPUS];
 	struct device *dev = NULL;
 	struct pci_dev *pdev = NULL;
+	unsigned long cmpxhg_ratio;
+	unsigned long both_ratio;
+	unsigned long prod_ratio;
+	unsigned long cons_ratio;
 	smmu_test = 1;
 	for_each_pci_dev(pdev) {
 		struct device *_dev;
@@ -177,16 +181,23 @@ void smmu_test_core(int cpus)
 	}
 	smmu_test = 0;
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average time=%lld (cpus=%d) tries=%lld cmpxcgh tries=%lld fails both=%lld prod=%lld cons=%lld\n", 
+	cmpxhg_ratio = arm_smmu_cmdq_get_cmpxcgh_tries() * 100 / arm_smmu_cmdq_get_tries();
+	both_ratio = arm_smmu_cmdq_get_fails_both() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
+	prod_ratio = arm_smmu_cmdq_get_fails_prod() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
+	cons_ratio = arm_smmu_cmdq_get_fails_cons() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
+
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average time=%lld (cpus=%d)\n",
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
-	arm_smmu_cmdq_get_average_time_cpus(),
-	arm_smmu_cmdq_get_tries(),
-	arm_smmu_cmdq_get_cmpxcgh_tries(),
-	arm_smmu_cmdq_get_fails_both(),
-	arm_smmu_cmdq_get_fails_prod(),
-	arm_smmu_cmdq_get_fails_cons()
-	);
+	arm_smmu_cmdq_get_average_time_cpus());
+
+	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) \n", 
+		arm_smmu_cmdq_get_tries(),
+		arm_smmu_cmdq_get_cmpxcgh_tries(),
+		cmpxhg_ratio,
+		arm_smmu_cmdq_get_fails_both(), both_ratio, 
+		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
+		arm_smmu_cmdq_get_fails_cons(), cons_ratio);
 
 }
 EXPORT_SYMBOL(smmu_test_core);
