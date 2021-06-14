@@ -899,7 +899,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
 		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+		//	WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
 	}
