@@ -726,6 +726,7 @@ static DEFINE_PER_CPU(ktime_t, cond_read);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
+static atomic64_t cmpxchg_cond_read_loops;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
 static atomic64_t cmpxchg_fail_both;
@@ -737,6 +738,7 @@ static atomic64_t cmpxchg_fail_both;
 	ktime_t next_report = ktime_get() + ms_to_ktime(1000);\
 	for (;;) {							\
 		VAL = READ_ONCE(*__PTR);				\
+		cond_read_loops++;\
 		if (cond_expr)						\
 			break;						\
 		__cmpwait_relaxed(__PTR, VAL);				\
@@ -765,6 +767,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	ktime_t initial, final, *t;
 	int cpu;
 	u32 prod_ticket;
+	u64 cond_read_loops = 0;
 
 
 	/* 1. Allocate some space in the queue */
@@ -819,6 +822,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	t = &per_cpu(get_place, cpu);
 	*t += ktime_get() - initial;
+	atomic64_add(cond_read_loops, &cmpxchg_cond_read_loops);
 
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -986,6 +990,11 @@ u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 	return atomic64_read(&cmpxchg_tries);
 }
 
+u64 arm_smmu_cmdq_get_cond_read_avg_loops(void)
+{
+	return atomic64_read(&cmpxchg_cond_read_loops) / arm_smmu_cmdq_get_cmpxcgh_tries();
+}
+
 u64 arm_smmu_cmdq_get_fails_prod(void)
 {
 	return atomic64_read(&cmpxchg_fail_prod);
@@ -1006,6 +1015,7 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
 	atomic64_set(&cmpxchg_tries, 0);
+	atomic64_set(&cmpxchg_cond_read_loops, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
 	atomic64_set(&cmpxchg_fail_cons, 0);
 	atomic64_set(&cmpxchg_fail_both, 0);	
