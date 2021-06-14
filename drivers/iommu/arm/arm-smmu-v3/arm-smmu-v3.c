@@ -3474,8 +3474,8 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	if (IS_ENABLED(CONFIG_PCI_ATS) && reg & IDR0_ATS)
 		smmu->features |= ARM_SMMU_FEAT_ATS;
 
-	if (reg & IDR0_SEV)
-		smmu->features |= ARM_SMMU_FEAT_SEV;
+	//if (reg & IDR0_SEV)
+	//	smmu->features |= ARM_SMMU_FEAT_SEV;
 
 	if (reg & IDR0_MSI) {
 		smmu->features |= ARM_SMMU_FEAT_MSI;
