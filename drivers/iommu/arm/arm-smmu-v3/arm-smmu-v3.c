@@ -764,12 +764,14 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int ret = 0;
 	ktime_t initial, final, *t;
 	int cpu;
-	u32 prod_ticket = atomic_fetch_add_relaxed(n + sync, &cmdq->q.llq.prod_ticket);
+	u32 prod_ticket;
 
-	prod_ticket = Q_WRP(&llq, prod_ticket) | Q_IDX(&llq, prod_ticket);
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
+	prod_ticket = atomic_fetch_add_relaxed(n + sync, &cmdq->q.llq.prod_ticket);
+
+	prod_ticket = Q_WRP(&llq, prod_ticket) | Q_IDX(&llq, prod_ticket);
 	cpu = smp_processor_id();
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
