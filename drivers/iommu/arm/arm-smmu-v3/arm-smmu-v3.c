@@ -721,6 +721,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  */
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
+static DEFINE_PER_CPU(ktime_t, get_place);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -746,7 +747,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
 	cpu = smp_processor_id();
-	t = &per_cpu(cmdlist, cpu);
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
@@ -778,6 +778,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		llq.val = llq_old.val;
 	} while (1);
+
+	t = &per_cpu(get_place, cpu);
+	*t += ktime_get() - initial;
+
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -858,6 +862,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
+	t = &per_cpu(cmdlist, cpu);
+
 	final = ktime_get();
 	*t += final - initial;
 	
@@ -877,6 +883,23 @@ ktime_t arm_smmu_cmdq_get_average_time(void)
 
 	for_each_online_cpu(cpu) {
 		ktime_t *t = &per_cpu(cmdlist, cpu);
+
+		if (*t > 100) {
+			total += *t;
+			cpus++;
+		}
+	}
+
+	return total / arm_smmu_cmdq_get_tries();
+}
+
+ktime_t arm_smmu_cmdq_get_average_place_time(void)
+{
+	int cpu, cpus = 0;
+	ktime_t total = 0;
+
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(get_place, cpu);
 
 		if (*t > 100) {
 			total += *t;
@@ -940,6 +963,10 @@ void arm_smmu_cmdq_zero_times(void)
 	
 	for_each_online_cpu(cpu) {
 		ktime_t *t = &per_cpu(cmdlist, cpu);
+	
+		*t = 0;
+
+		t = &per_cpu(get_place, cpu);
 	
 		*t = 0;
 	}
