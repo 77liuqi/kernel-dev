@@ -114,6 +114,7 @@ extern u64 arm_smmu_cmdq_get_fails_prod(void);
 extern u64 arm_smmu_cmdq_get_fails_both(void);
 extern int arm_smmu_cmdq_get_average_time_cpus(void);
 extern ktime_t arm_smmu_cmdq_get_average_place_time(void);
+extern ktime_t arm_smmu_cmdq_get_average_time_cond_read(void);
 
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
@@ -187,11 +188,12 @@ void smmu_test_core(int cpus)
 	prod_ratio = arm_smmu_cmdq_get_fails_prod() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 	cons_ratio = arm_smmu_cmdq_get_fails_cons() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average total time=%lld (cpus=%d) get_place=%lld\n",
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average total time=%lld (cpus=%d) get_place=%lld cond_read=%lld\n",
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
 	arm_smmu_cmdq_get_average_time_cpus(),
-	arm_smmu_cmdq_get_average_place_time());
+	arm_smmu_cmdq_get_average_place_time(),
+	arm_smmu_cmdq_get_average_time_cond_read());
 
 	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) \n", 
 		arm_smmu_cmdq_get_tries(),

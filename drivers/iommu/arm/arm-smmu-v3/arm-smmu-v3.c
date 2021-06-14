@@ -722,6 +722,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 static DEFINE_PER_CPU(ktime_t, get_place);
+static DEFINE_PER_CPU(ktime_t, cond_read);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -780,9 +781,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
 
 		if (llq_prod != prod_ticket) {
+			ktime_t x1 = ktime_get();
 			/* don't do cmpxchg */
 			atomic_cond_read_relaxed_local(&cmdq->q.llq.atomic.prod, (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL)) == prod_ticket);
 			llq.val = READ_ONCE(cmdq->q.llq.val);
+			t = &per_cpu(cond_read, cpu);
+			*t += ktime_get() - x1;
 		}
 
 		while (!queue_has_space(&llq, n + sync)) {
@@ -942,6 +946,23 @@ ktime_t arm_smmu_cmdq_get_average_place_time(void)
 	return total / arm_smmu_cmdq_get_tries();
 }
 
+ktime_t arm_smmu_cmdq_get_average_time_cond_read(void)
+{
+	int cpu, cpus = 0;
+	ktime_t total = 0;
+
+	for_each_online_cpu(cpu) {
+		ktime_t *t = &per_cpu(cond_read, cpu);
+
+		if (*t > 100) {
+			total += *t;
+			cpus++;
+		}
+	}
+
+	return total / arm_smmu_cmdq_get_tries();
+}
+
 int arm_smmu_cmdq_get_average_time_cpus(void)
 {
 	int cpu, cpus = 0;
@@ -957,7 +978,6 @@ int arm_smmu_cmdq_get_average_time_cpus(void)
 
 	return cpus;
 }
-
 
 u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
@@ -995,12 +1015,14 @@ void arm_smmu_cmdq_zero_times(void)
 	
 	for_each_online_cpu(cpu) {
 		ktime_t *t = &per_cpu(cmdlist, cpu);
-	
 		*t = 0;
 
 		t = &per_cpu(get_place, cpu);
-	
 		*t = 0;
+
+		t = &per_cpu(cond_read, cpu);
+		*t = 0;
+
 	}
 }
 
