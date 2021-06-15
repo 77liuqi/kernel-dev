@@ -801,6 +801,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u64 max_diff = 0;
 	u64 *t1;
 	bool first_diff_calced = false;
+	bool got_right_prod = false;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -816,8 +817,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 llq_prod = llq.prod;
 
 		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
-
-		if (llq_prod != prod_ticket) {
+	
+		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			ktime_t x1 = ktime_get();
 			/* don't do cmpxchg */
 			atomic_cond_read_relaxed_local(&cmdq->q.llq.atomic.prod, (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL)) == prod_ticket);
@@ -841,7 +842,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (llq_old.val == llq.val)
 			break;
-
+		got_right_prod = true;
 		{
 			bool fail_owner = Q_OVF(llq_old.prod) != Q_OVF(llq.prod);
 			bool fail_prod = (Q_IDX(&llq, llq_old.prod) |Q_WRP(&llq, llq_old.prod))  != 

@@ -213,7 +213,7 @@ void smmu_test_core(int cpus)
 		arm_smmu_cmdq_get_fail_owner(), owner_ratio
 		);
 
-	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld owners=%lld (avg*10=%lld)\n",
+	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld, owners=%lld (avg*10=%lld)\n",
 		arm_smmu_cmdq_get_cond_read_avg_loops(),
 		arm_smmu_cmdq_get_cond_read_avg_diff10(),
 		arm_smmu_cmdq_get_max_diff(),
