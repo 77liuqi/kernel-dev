@@ -112,6 +112,7 @@ extern u64 arm_smmu_cmdq_get_cmpxcgh_tries(void);
 extern u64 arm_smmu_cmdq_get_fails_cons(void);
 extern u64 arm_smmu_cmdq_get_fails_prod(void);
 extern u64 arm_smmu_cmdq_get_fails_both(void);
+extern u64 arm_smmu_cmdq_get_fail_owner(void);
 extern int arm_smmu_cmdq_get_average_time_cpus(void);
 extern ktime_t arm_smmu_cmdq_get_average_place_time(void);
 extern ktime_t arm_smmu_cmdq_get_average_time_cond_read(void);
@@ -134,6 +135,7 @@ void smmu_test_core(int cpus)
 	unsigned long both_ratio;
 	unsigned long prod_ratio;
 	unsigned long cons_ratio;
+	unsigned long owner_ratio;
 	smmu_test = 1;
 	for_each_pci_dev(pdev) {
 		struct device *_dev;
@@ -192,6 +194,7 @@ void smmu_test_core(int cpus)
 	both_ratio = arm_smmu_cmdq_get_fails_both() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 	prod_ratio = arm_smmu_cmdq_get_fails_prod() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 	cons_ratio = arm_smmu_cmdq_get_fails_cons() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
+	owner_ratio = arm_smmu_cmdq_get_fail_owner() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 
 	printk(KERN_ERR "total_mappings=%llu (per way=%llu) (rate=%llu / sec/cpu) ways=%d avg total time=%lld (cpus=%d), get_place=%lld, cond_read=%lld\n",
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
@@ -200,15 +203,17 @@ void smmu_test_core(int cpus)
 	arm_smmu_cmdq_get_average_place_time(),
 	arm_smmu_cmdq_get_average_time_cond_read());
 
-	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%)\n", 
+	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) owner only=%lld (%ld%%)\n", 
 		arm_smmu_cmdq_get_tries(),
 		arm_smmu_cmdq_get_cmpxcgh_tries(),
 		cmpxhg_ratio,
 		arm_smmu_cmdq_get_fails_both(), both_ratio, 
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
-		arm_smmu_cmdq_get_fails_cons(), cons_ratio);
+		arm_smmu_cmdq_get_fails_cons(), cons_ratio,
+		arm_smmu_cmdq_get_fail_owner(), owner_ratio
+		);
 
-	printk(KERN_ERR "cond read avg=%lld, loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld owners=%lld (avg*10=%lld)\n",
+	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld owners=%lld (avg*10=%lld)\n",
 		arm_smmu_cmdq_get_cond_read_avg_loops(),
 		arm_smmu_cmdq_get_cond_read_avg_diff10(),
 		arm_smmu_cmdq_get_max_diff(),

@@ -748,6 +748,7 @@ static atomic64_t owners;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
 static atomic64_t cmpxchg_fail_both;
+static atomic64_t cmpxchg_fail_owner;
 
 #define smp_cond_load_relaxed_local(ptr, cond_expr)				\
 ({									\
@@ -841,12 +842,22 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (llq_old.val == llq.val)
 			break;
 
-		if ((llq_old.prod != llq.prod) && (llq_old.cons != llq.cons))
-			atomic64_inc(&cmpxchg_fail_both);
-		else if (llq_old.prod != llq.prod)
-			atomic64_inc(&cmpxchg_fail_prod);
-		else
-			atomic64_inc(&cmpxchg_fail_cons);
+		{
+			bool fail_owner = Q_OVF(llq_old.prod) != Q_OVF(llq.prod);
+			bool fail_prod = (Q_IDX(&llq, llq_old.prod) |Q_WRP(&llq, llq_old.prod))  != 
+					(Q_IDX(&llq, llq.prod) |Q_WRP(&llq, llq.prod));
+			bool fail_cons = llq_old.cons != llq.cons;
+	
+			if (fail_owner && !fail_prod)
+				atomic64_inc(&cmpxchg_fail_owner);
+
+			if (fail_prod && fail_cons)
+				atomic64_inc(&cmpxchg_fail_both);
+			else if (fail_prod)
+				atomic64_inc(&cmpxchg_fail_prod);
+			else if (fail_cons)
+				atomic64_inc(&cmpxchg_fail_cons);
+		}
 
 		llq.val = llq_old.val;
 	} while (1);
@@ -1077,6 +1088,11 @@ u64 arm_smmu_cmdq_get_fails_prod(void)
 	return atomic64_read(&cmpxchg_fail_prod);
 }
 
+u64 arm_smmu_cmdq_get_fail_owner(void)
+{
+	return atomic64_read(&cmpxchg_fail_owner);
+}
+
 u64 arm_smmu_cmdq_get_fails_cons(void)
 {
 	return atomic64_read(&cmpxchg_fail_cons);
@@ -1097,7 +1113,8 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 	atomic64_set(&cmpxchg_cond_read_diff, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
 	atomic64_set(&cmpxchg_fail_cons, 0);
-	atomic64_set(&cmpxchg_fail_both, 0);	
+	atomic64_set(&cmpxchg_fail_both, 0);
+	atomic64_set(&cmpxchg_fail_owner, 0);	
 }
 
 void arm_smmu_cmdq_zero_times(void)
