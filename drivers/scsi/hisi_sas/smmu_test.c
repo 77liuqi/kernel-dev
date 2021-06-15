@@ -206,7 +206,7 @@ void smmu_test_core(int cpus)
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
 		arm_smmu_cmdq_get_fails_cons(), cons_ratio)
 		;
-	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld max diff=0x%llx\n",
+	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld max diff=lld\n",
 		arm_smmu_cmdq_get_cond_read_avg_loops(),
 		arm_smmu_cmdq_get_cond_read_avg_diff10(),
 		arm_smmu_cmdq_get_max_diff());

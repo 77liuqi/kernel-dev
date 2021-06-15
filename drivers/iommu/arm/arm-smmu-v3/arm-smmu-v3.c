@@ -118,6 +118,20 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 	return space >= n;
 }
 
+// prod1 is expect to be ahead of prod2
+static u32 find_prod_diff(struct arm_smmu_ll_queue *q, u32 prod1, u32 prod2)
+{
+	u32 diff;
+	u32 p1 = Q_IDX(q, prod1);
+	u32 p2 = Q_IDX(q, prod2);
+
+	if (Q_WRP(q, prod1) == Q_WRP(q, prod2))
+		diff = p1 - p2;
+	else
+		diff = (1 << q->max_n_shift) - (p2 - p1);
+	return diff;
+}
+
 static bool queue_full(struct arm_smmu_ll_queue *q)
 {
 	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
@@ -739,16 +753,12 @@ static atomic64_t cmpxchg_fail_both;
 	__unqual_scalar_typeof(*ptr) VAL;				\
 	ktime_t next_report = ktime_get() + ms_to_ktime(1000);\
 	for (;;) {							\
-		u32 valk, diff;\
+		u32 diff;\
 		VAL = READ_ONCE(*__PTR);				\
-		valk = (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL));\
 		if (cond_expr)						\
 			break;						\
 		cond_read_loops++;\
-		if (valk > prod_ticket)\
-			diff = valk - prod_ticket;\
-		else\
-			diff = prod_ticket - valk;\
+		diff = find_prod_diff(&llq, prod_ticket,VAL);\
 		if (diff > max_diff)\
 			max_diff = diff;\
 		read_diff += diff;\
