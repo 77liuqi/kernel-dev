@@ -801,7 +801,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u64 read_diff = 0;
 	u64 max_diff = 0;
 	u64 *t1;
+	#ifdef deerer
 	bool first_diff_calced = false;
+	#endif
 	bool got_right_prod = false;
 
 	/* 1. Allocate some space in the queue */
@@ -818,7 +820,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		u32 llq_prod = llq.prod;
 
 		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
-	
+
+		#ifdef deerer
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			ktime_t x1 = ktime_get();
 			/* don't do cmpxchg */
@@ -828,6 +831,19 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			*t += ktime_get() - x1;
 			atomic64_inc(&cond_read_tries);
 		}
+		#else
+		if (llq_prod != prod_ticket && (got_right_prod == false)) {
+			u32 diff;
+
+			do {
+				diff = find_prod_diff(&llq, prod_ticket, llq.prod);
+				udelay(diff * 60 / 1000);
+				llq.val = READ_ONCE(cmdq->q.llq.val);
+			} while ((Q_WRP(&llq, llq.prod) | Q_IDX(&llq, llq.prod)) != prod_ticket);
+			
+		}
+		#endif
+		
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
