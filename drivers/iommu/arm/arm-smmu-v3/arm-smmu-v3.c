@@ -771,7 +771,7 @@ static atomic64_t cmpxchg_fail_owner;
 		if (diff > max_diff)\
 			max_diff = diff;\
 		read_diff += diff;\
-		__cmpwait_relaxed(__PTR, VAL);				\
+		udelay(diff * 60 / 1000);\
 		if (ktime_after(ktime_get(), next_report)) {\
 			pr_err_once("%s VAL=0x%x prod_ticket=0x%x llq_prod=0x%x\n", __func__, VAL, prod_ticket, llq_prod);\
 		}\
