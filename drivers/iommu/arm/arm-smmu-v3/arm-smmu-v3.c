@@ -742,6 +742,7 @@ static DEFINE_PER_CPU(u32, first_diff);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
+static atomic64_t cond_read_tries;
 static atomic64_t cmpxchg_cond_read_loops;
 static atomic64_t cmpxchg_cond_read_diff;
 static atomic64_t owners;
@@ -825,6 +826,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			llq.val = READ_ONCE(cmdq->q.llq.val);
 			t = &per_cpu(cond_read, cpu);
 			*t += ktime_get() - x1;
+			atomic64_inc(&cond_read_tries);
 		}
 
 		while (!queue_has_space(&llq, n + sync)) {
@@ -1057,7 +1059,7 @@ u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 
 u64 arm_smmu_cmdq_get_cond_read_avg_loops(void)
 {
-	return atomic64_read(&cmpxchg_cond_read_loops) / arm_smmu_cmdq_get_cmpxcgh_tries();
+	return atomic64_read(&cmpxchg_cond_read_loops) / atomic64_read(&cond_read_tries);
 }
 
 u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void)
@@ -1116,6 +1118,7 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 	atomic64_set(&cmpxchg_fail_cons, 0);
 	atomic64_set(&cmpxchg_fail_both, 0);
 	atomic64_set(&cmpxchg_fail_owner, 0);	
+	atomic64_set(&cond_read_tries, 0);
 }
 
 void arm_smmu_cmdq_zero_times(void)
