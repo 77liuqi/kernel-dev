@@ -738,6 +738,7 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 static DEFINE_PER_CPU(ktime_t, get_place);
 static DEFINE_PER_CPU(ktime_t, cond_read);
 static DEFINE_PER_CPU(u64, maxdiff);
+static DEFINE_PER_CPU(u32, first_diff);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -755,10 +756,15 @@ static atomic64_t cmpxchg_fail_both;
 	for (;;) {							\
 		u32 diff;\
 		VAL = READ_ONCE(*__PTR);				\
+		diff = find_prod_diff(&llq, prod_ticket,VAL);\
+		if (first_diff_calced == false) {\
+			u32 *rm1 = &per_cpu(first_diff, cpu);\
+			first_diff_calced = true;\
+			*rm1 += diff;\
+		}\
 		if (cond_expr)						\
 			break;						\
 		cond_read_loops++;\
-		diff = find_prod_diff(&llq, prod_ticket,VAL);\
 		if (diff > max_diff)\
 			max_diff = diff;\
 		read_diff += diff;\
@@ -792,7 +798,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u64 read_diff = 0;
 	u64 max_diff = 0;
 	u64 *t1;
-
+	bool first_diff_calced = false;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -1045,6 +1051,20 @@ u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void)
 	return atomic64_read(&cmpxchg_cond_read_diff) * 10 / atomic64_read(&cmpxchg_cond_read_loops);
 }
 
+u64 arm_smmu_cmdq_get_first_diff_avg_diff10(void)
+{
+	u64 val = 0;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		u32 *rm1 = &per_cpu(first_diff, cpu);
+
+		val += *rm1;
+	}
+
+	return val * 10 / atomic64_read(&tries);
+}
+
 u64 arm_smmu_cmdq_get_fails_prod(void)
 {
 	return atomic64_read(&cmpxchg_fail_prod);
@@ -1079,6 +1099,7 @@ void arm_smmu_cmdq_zero_times(void)
 	for_each_online_cpu(cpu) {
 		ktime_t *t = &per_cpu(cmdlist, cpu);
 		u64 *t1 = &per_cpu(maxdiff, cpu);
+		u32 *rm1 = &per_cpu(first_diff, cpu);
 		*t = 0;
 
 		t = &per_cpu(get_place, cpu);
@@ -1088,6 +1109,7 @@ void arm_smmu_cmdq_zero_times(void)
 		*t = 0;
 
 		*t1 = 0;
+		*rm1 = 0;
 	}
 }
 
