@@ -723,6 +723,7 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
 static DEFINE_PER_CPU(ktime_t, cmdlist);
 static DEFINE_PER_CPU(ktime_t, get_place);
 static DEFINE_PER_CPU(ktime_t, cond_read);
+static DEFINE_PER_CPU(u64, maxdiff);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -738,16 +739,19 @@ static atomic64_t cmpxchg_fail_both;
 	__unqual_scalar_typeof(*ptr) VAL;				\
 	ktime_t next_report = ktime_get() + ms_to_ktime(1000);\
 	for (;;) {							\
-		u32 valk;\
+		u32 valk, diff;\
 		VAL = READ_ONCE(*__PTR);				\
 		valk = (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL));\
 		if (cond_expr)						\
 			break;						\
 		cond_read_loops++;\
 		if (valk > prod_ticket)\
-			read_diff += valk - prod_ticket;\
+			diff = valk - prod_ticket;\
 		else\
-			read_diff += prod_ticket - valk;\
+			diff = prod_ticket - valk;\
+		if (diff > max_diff)\
+			max_diff = diff;\
+		read_diff += diff;\
 		__cmpwait_relaxed(__PTR, VAL);				\
 		if (ktime_after(ktime_get(), next_report)) {\
 			pr_err_once("%s VAL=0x%x prod_ticket=0x%x llq_prod=0x%x\n", __func__, VAL, prod_ticket, llq_prod);\
@@ -776,6 +780,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	u32 prod_ticket;
 	u64 cond_read_loops = 0;
 	u64 read_diff = 0;
+	u64 max_diff = 0;
+	u64 *t1;
 
 
 	/* 1. Allocate some space in the queue */
@@ -832,6 +838,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	*t += ktime_get() - initial;
 	atomic64_add(cond_read_loops, &cmpxchg_cond_read_loops);
 	atomic64_add(read_diff, &cmpxchg_cond_read_diff);
+
+	t1 = &per_cpu(maxdiff, cpu);
+
+	if (max_diff > *t1)
+		*t1 = max_diff;
 
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -994,6 +1005,21 @@ int arm_smmu_cmdq_get_average_time_cpus(void)
 	return cpus;
 }
 
+u64 arm_smmu_cmdq_get_max_diff(void)
+{
+	u64 max_diff = 0;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		u64 *t = &per_cpu(maxdiff, cpu);
+
+		if (*t > max_diff)
+			max_diff = *t;
+	}
+
+	return max_diff;
+}
+
 u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
 	return atomic64_read(&cmpxchg_tries);
@@ -1042,6 +1068,7 @@ void arm_smmu_cmdq_zero_times(void)
 	
 	for_each_online_cpu(cpu) {
 		ktime_t *t = &per_cpu(cmdlist, cpu);
+		u64 *t1 = &per_cpu(maxdiff, cpu);
 		*t = 0;
 
 		t = &per_cpu(get_place, cpu);
@@ -1050,6 +1077,7 @@ void arm_smmu_cmdq_zero_times(void)
 		t = &per_cpu(cond_read, cpu);
 		*t = 0;
 
+		*t1 = 0;
 	}
 }
 

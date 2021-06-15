@@ -117,6 +117,7 @@ extern ktime_t arm_smmu_cmdq_get_average_place_time(void);
 extern ktime_t arm_smmu_cmdq_get_average_time_cond_read(void);
 extern u64 arm_smmu_cmdq_get_cond_read_avg_loops(void);
 extern u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void);
+extern u64 arm_smmu_cmdq_get_max_diff(void);
 
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
@@ -190,23 +191,25 @@ void smmu_test_core(int cpus)
 	prod_ratio = arm_smmu_cmdq_get_fails_prod() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 	cons_ratio = arm_smmu_cmdq_get_fails_cons() * 100 / arm_smmu_cmdq_get_cmpxcgh_tries();
 
-	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average total time=%lld (cpus=%d) get_place=%lld cond_read=%lld\n",
+	printk(KERN_ERR "finished total_mappings=%llu (per way=%llu) (rate=%llu per second per cpu) ways=%d average total time=%lld (cpus=%d), get_place=%lld, cond_read=%lld\n",
 	total_mappings, total_mappings / ways, total_mappings / (seconds* ways), ways,
 	arm_smmu_cmdq_get_average_time(),
 	arm_smmu_cmdq_get_average_time_cpus(),
 	arm_smmu_cmdq_get_average_place_time(),
 	arm_smmu_cmdq_get_average_time_cond_read());
 
-	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) cond read avg=%lld loops per cmpxchg loop avg diff *10=%lld\n", 
+	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%)\n", 
 		arm_smmu_cmdq_get_tries(),
 		arm_smmu_cmdq_get_cmpxcgh_tries(),
 		cmpxhg_ratio,
 		arm_smmu_cmdq_get_fails_both(), both_ratio, 
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
-		arm_smmu_cmdq_get_fails_cons(), cons_ratio,
-		arm_smmu_cmdq_get_cond_read_avg_loops(),
-		arm_smmu_cmdq_get_cond_read_avg_diff10())
+		arm_smmu_cmdq_get_fails_cons(), cons_ratio)
 		;
+	printk(KERN_ERR "cond read avg=%lld loops per cmpxchg, loop avg diff *10=%lld max diff=0x%llx\n",
+		arm_smmu_cmdq_get_cond_read_avg_loops(),
+		arm_smmu_cmdq_get_cond_read_avg_diff10(),
+		arm_smmu_cmdq_get_max_diff());
 
 }
 EXPORT_SYMBOL(smmu_test_core);
