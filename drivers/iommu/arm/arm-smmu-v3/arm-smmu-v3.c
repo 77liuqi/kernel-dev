@@ -727,6 +727,7 @@ static DEFINE_PER_CPU(ktime_t, cond_read);
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_cond_read_loops;
+static atomic64_t cmpxchg_cond_read_diff;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
 static atomic64_t cmpxchg_fail_both;
@@ -737,10 +738,16 @@ static atomic64_t cmpxchg_fail_both;
 	__unqual_scalar_typeof(*ptr) VAL;				\
 	ktime_t next_report = ktime_get() + ms_to_ktime(1000);\
 	for (;;) {							\
+		u32 valk;\
 		VAL = READ_ONCE(*__PTR);				\
-		cond_read_loops++;\
+		valk = (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL));\
 		if (cond_expr)						\
 			break;						\
+		cond_read_loops++;\
+		if (valk > prod_ticket)\
+			read_diff += valk - prod_ticket;\
+		else\
+			read_diff += prod_ticket - valk;\
 		__cmpwait_relaxed(__PTR, VAL);				\
 		if (ktime_after(ktime_get(), next_report)) {\
 			pr_err_once("%s VAL=0x%x prod_ticket=0x%x llq_prod=0x%x\n", __func__, VAL, prod_ticket, llq_prod);\
@@ -768,6 +775,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	int cpu;
 	u32 prod_ticket;
 	u64 cond_read_loops = 0;
+	u64 read_diff = 0;
 
 
 	/* 1. Allocate some space in the queue */
@@ -823,6 +831,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	t = &per_cpu(get_place, cpu);
 	*t += ktime_get() - initial;
 	atomic64_add(cond_read_loops, &cmpxchg_cond_read_loops);
+	atomic64_add(read_diff, &cmpxchg_cond_read_diff);
 
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -899,7 +908,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
 		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
-		//	WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
+			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
 	}
@@ -995,6 +1004,11 @@ u64 arm_smmu_cmdq_get_cond_read_avg_loops(void)
 	return atomic64_read(&cmpxchg_cond_read_loops) / arm_smmu_cmdq_get_cmpxcgh_tries();
 }
 
+u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void)
+{
+	return atomic64_read(&cmpxchg_cond_read_diff) * 10 / atomic64_read(&cmpxchg_cond_read_loops);
+}
+
 u64 arm_smmu_cmdq_get_fails_prod(void)
 {
 	return atomic64_read(&cmpxchg_fail_prod);
@@ -1016,6 +1030,7 @@ void arm_smmu_cmdq_zero_cmpxchg(void)
 	atomic64_set(&tries, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 	atomic64_set(&cmpxchg_cond_read_loops, 0);
+	atomic64_set(&cmpxchg_cond_read_diff, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
 	atomic64_set(&cmpxchg_fail_cons, 0);
 	atomic64_set(&cmpxchg_fail_both, 0);	

@@ -116,6 +116,7 @@ extern int arm_smmu_cmdq_get_average_time_cpus(void);
 extern ktime_t arm_smmu_cmdq_get_average_place_time(void);
 extern ktime_t arm_smmu_cmdq_get_average_time_cond_read(void);
 extern u64 arm_smmu_cmdq_get_cond_read_avg_loops(void);
+extern u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void);
 
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
@@ -196,14 +197,15 @@ void smmu_test_core(int cpus)
 	arm_smmu_cmdq_get_average_place_time(),
 	arm_smmu_cmdq_get_average_time_cond_read());
 
-	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) cond read avg=%lld\n", 
+	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) cond read avg=%lld loops per cmpxchg loop avg diff *10=%lld\n", 
 		arm_smmu_cmdq_get_tries(),
 		arm_smmu_cmdq_get_cmpxcgh_tries(),
 		cmpxhg_ratio,
 		arm_smmu_cmdq_get_fails_both(), both_ratio, 
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
 		arm_smmu_cmdq_get_fails_cons(), cons_ratio,
-		arm_smmu_cmdq_get_cond_read_avg_loops())
+		arm_smmu_cmdq_get_cond_read_avg_loops(),
+		arm_smmu_cmdq_get_cond_read_avg_diff10())
 		;
 
 }
