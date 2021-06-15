@@ -119,6 +119,7 @@ extern u64 arm_smmu_cmdq_get_cond_read_avg_loops(void);
 extern u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void);
 extern u64 arm_smmu_cmdq_get_max_diff(void);
 extern u64 arm_smmu_cmdq_get_first_diff_avg_diff10(void);
+extern u64 arm_smmu_cmdq_get_owners(void);
 
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
@@ -207,11 +208,13 @@ void smmu_test_core(int cpus)
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
 		arm_smmu_cmdq_get_fails_cons(), cons_ratio);
 
-	printk(KERN_ERR "cond read avg=%lld, loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld\n",
+	printk(KERN_ERR "cond read avg=%lld, loops per cmpxchg, loop avg diff *10=%lld, max diff=%lld, average first diff*10=%lld owners=%lld (avg*10=%lld)\n",
 		arm_smmu_cmdq_get_cond_read_avg_loops(),
 		arm_smmu_cmdq_get_cond_read_avg_diff10(),
 		arm_smmu_cmdq_get_max_diff(),
-		arm_smmu_cmdq_get_first_diff_avg_diff10());
+		arm_smmu_cmdq_get_first_diff_avg_diff10(),
+		arm_smmu_cmdq_get_owners(),
+		arm_smmu_cmdq_get_tries() * 10 / arm_smmu_cmdq_get_owners());
 
 }
 EXPORT_SYMBOL(smmu_test_core);

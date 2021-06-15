@@ -744,6 +744,7 @@ static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_cond_read_loops;
 static atomic64_t cmpxchg_cond_read_diff;
+static atomic64_t owners;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
 static atomic64_t cmpxchg_fail_both;
@@ -889,6 +890,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
+		atomic64_inc(&owners);
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
@@ -1051,6 +1053,11 @@ u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void)
 	return atomic64_read(&cmpxchg_cond_read_diff) * 10 / atomic64_read(&cmpxchg_cond_read_loops);
 }
 
+u64 arm_smmu_cmdq_get_owners(void)
+{
+	return atomic64_read(&owners);
+}
+
 u64 arm_smmu_cmdq_get_first_diff_avg_diff10(void)
 {
 	u64 val = 0;
@@ -1084,6 +1091,7 @@ u64 arm_smmu_cmdq_get_fails_both(void)
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
+	atomic64_set(&owners, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 	atomic64_set(&cmpxchg_cond_read_loops, 0);
 	atomic64_set(&cmpxchg_cond_read_diff, 0);
