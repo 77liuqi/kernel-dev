@@ -836,8 +836,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			u32 diff;
 
 			do {
+				unsigned int delay;
 				diff = find_prod_diff(&llq, prod_ticket, llq.prod);
-				udelay(diff * 200 / 1000);
+				delay = diff * 60 / 1000;
+				if (delay == 0)
+					delay = 1;
+				udelay(delay);
 				llq.val = READ_ONCE(cmdq->q.llq.val);
 			} while ((Q_WRP(&llq, llq.prod) | Q_IDX(&llq, llq.prod)) != prod_ticket);
 			
