@@ -850,9 +850,12 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					pr_err_once("%s delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
 				}
 				delay = diff * 600 / 1000;
-				if (delay == 0)
-					delay = 1;
-				udelay(delay);
+				if (delay == 0) {
+					__cmpwait_relaxed(&cmdq->q.llq.prod, prod_ticket);
+				} else {
+					udelay(delay);
+				}
+				
 				llq.val = READ_ONCE(cmdq->q.llq.val);
 				loop++;
 			} while ((Q_WRP(&llq, llq.prod) | Q_IDX(&llq, llq.prod)) != prod_ticket);
