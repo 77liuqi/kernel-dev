@@ -846,6 +846,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				if (loop == 0) {
 					initial_diff = diff;
 				}
+				if (diff < 4)
+					break;
 				if ((loop == 1) && (initial_diff > 100)) {
 					pr_err_once("%s delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
 				}
