@@ -805,6 +805,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	bool first_diff_calced = false;
 	#endif
 	bool got_right_prod = false;
+	u32 gfail_owner = 0;
+	u32 gfail_both = 0;
+	u32 gfail_prod = 0;
+	u32 gfail_cons = 0;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
@@ -872,18 +876,23 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			bool fail_cons = llq_old.cons != llq.cons;
 	
 			if (fail_owner && !fail_prod)
-				atomic64_inc(&cmpxchg_fail_owner);
+				gfail_owner++;
 
 			if (fail_prod && fail_cons)
-				atomic64_inc(&cmpxchg_fail_both);
+				gfail_both++;
 			else if (fail_prod)
-				atomic64_inc(&cmpxchg_fail_prod);
+				gfail_prod++;
 			else if (fail_cons)
-				atomic64_inc(&cmpxchg_fail_cons);
+				gfail_cons++;
 		}
 
 		llq.val = llq_old.val;
 	} while (1);
+
+	atomic64_add(gfail_owner, &cmpxchg_fail_owner);
+	atomic64_add(gfail_both, &cmpxchg_fail_both);
+	atomic64_add(gfail_prod, &cmpxchg_fail_prod);
+	atomic64_add(gfail_cons, &cmpxchg_fail_cons);
 
 	t = &per_cpu(get_place, cpu);
 	*t += ktime_get() - initial;
