@@ -846,11 +846,20 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				if (loop == 0) {
 					initial_diff = diff;
 				}
-				if ((loop == 1) && (initial_diff > 100)) {
-					pr_err_once("%s delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
+				if ((loop == 1) && (initial_diff > 10)) {
+					pr_err_once("%s a10 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
 				}
-				delay = diff * 300 / 1000;
-				if (delay == 0) {
+				if ((loop == 1) && (initial_diff > 20)) {
+					pr_err_once("%s b20 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
+				}
+				if ((loop == 1) && (initial_diff > 50)) {
+					pr_err_once("%s c50 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
+				}
+				if ((loop == 1) && (initial_diff > 100)) {
+					pr_err_once("%s d100 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
+				}
+				delay = diff * 100 / 1000;
+				if (delay < 10) {
 					__cmpwait_relaxed(&cmdq->q.llq.prod, prod_ticket);
 				} else {
 					udelay(delay);
