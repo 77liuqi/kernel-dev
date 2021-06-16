@@ -119,7 +119,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 }
 
 // prod1 is expect to be ahead of prod2
-static u32 find_prod_diff(struct arm_smmu_ll_queue *q, u32 prod1, u32 prod2)
+static __maybe_unused u32 find_prod_diff(struct arm_smmu_ll_queue *q, u32 prod1, u32 prod2)
 {
 	u32 diff;
 	u32 p1 = Q_IDX(q, prod1);
@@ -782,6 +782,11 @@ static atomic64_t cmpxchg_fail_owner;
 
 #define atomic_cond_read_relaxed_local(v, c) smp_cond_load_relaxed_local(&(v)->counter, (c))
 
+
+
+extern u32 cmpwait_special(volatile u32 *ptr,
+				       u32 ticket_prod);
+
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
@@ -835,7 +840,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			*t += ktime_get() - x1;
 			atomic64_inc(&cond_read_tries);
 		}
-		#else
+		#elif defined dsdsd
+		#error
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			u32 diff, initial_diff;
 			int loop = 0;
@@ -870,6 +876,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			} while ((Q_WRP(&llq, llq.prod) | Q_IDX(&llq, llq.prod)) != prod_ticket);
 			
 		}
+		#else
+		if (llq_prod != prod_ticket && (got_right_prod == false))
+			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
 		#endif
 		
 
