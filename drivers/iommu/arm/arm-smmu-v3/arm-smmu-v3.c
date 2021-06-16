@@ -820,7 +820,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
 	do {
-		struct arm_smmu_ll_queue	llq_old;
+		u64 old;
 		u32 llq_prod = llq.prod;
 
 		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
@@ -874,12 +874,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		head.prod = queue_inc_prod_n(&llq, n + sync) |
 					     CMDQ_PROD_OWNED_FLAG;
 
-		llq_old.val = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
+		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
-		if (llq_old.val == llq.val)
+		if (old == llq.val)
 			break;
-		got_right_prod = true;
+		//got_right_prod = true;
 		{
+			struct arm_smmu_ll_queue llq_old = {
+				.val = old,
+			};
 			bool fail_owner = Q_OVF(llq_old.prod) != Q_OVF(llq.prod);
 			bool fail_prod = (Q_IDX(&llq, llq_old.prod) |Q_WRP(&llq, llq_old.prod))  != 
 					(Q_IDX(&llq, llq.prod) |Q_WRP(&llq, llq.prod));
@@ -896,7 +899,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				gfail_cons++;
 		}
 
-		llq.val = llq_old.val;
+		llq.val = old;
 	} while (1);
 
 	atomic64_add(gfail_owner, &cmpxchg_fail_owner);
