@@ -846,8 +846,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				if (loop == 0) {
 					initial_diff = diff;
 				}
-				if (diff < 4)
-					break;
 				if ((loop == 1) && (initial_diff > 100)) {
 					pr_err_once("%s delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
 				}
@@ -878,7 +876,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		//got_right_prod = true;
+		got_right_prod = true;
 		{
 			struct arm_smmu_ll_queue llq_old = {
 				.val = old,
