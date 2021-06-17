@@ -890,7 +890,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
-				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
+				dev_err_ratelimited(smmu->dev, "CMDQ timeout n=%d sync=%d cmdq->q.llq.prod=0x%x cons=0x%x llq.prod=0x%x cons=0x%x\n",
+				n, sync, READ_ONCE(cmdq->q.llq.prod), READ_ONCE(cmdq->q.llq.cons), llq.prod, llq.cons);
 			local_irq_save(flags);
 		}
 
