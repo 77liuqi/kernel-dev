@@ -47,7 +47,7 @@ u32 cmpwait_special(volatile u32 *ptr,
 	"	ldxr"  "\t%"  "[tmp], %[v]\n"
 	"	and x4,x4,%" "[tmp]\n"
 	"	eor	x4, x4, %" "[ticket_prod]\n"
-	"	cbnz	x4, 2f\n"
+	"	cbz	x4, 2f\n"
 	"	wfe\n"
 	"	b	1b\n"
 	"2:"
