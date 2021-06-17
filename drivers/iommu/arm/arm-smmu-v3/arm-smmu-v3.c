@@ -882,6 +882,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				__func__, llq.prod, prod_ticket, got_right_prod);
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
+			llq.cons = READ_ONCE(cmdq->q.llq.cons);
 		}
 		#endif
 		
