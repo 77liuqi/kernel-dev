@@ -843,7 +843,9 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
+			smp_mb();
 			llq.cons = READ_ONCE(cmdq->q.llq.cons);
+			smp_mb();
 			got_right_prod = true;
 		}
 
@@ -861,8 +863,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		atomic64_inc(&cmpxchg_tries);
-		if (old == llq.val)
+		if (old == llq.val) {
+			smp_mb();
 			break;
+		}
 		
 		{
 			struct arm_smmu_ll_queue llq_old = {
