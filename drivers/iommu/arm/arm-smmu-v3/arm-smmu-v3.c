@@ -877,8 +877,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			
 		}
 		#else
-		if (llq_prod != prod_ticket && (got_right_prod == false))
+		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
+		}
+		pr_err_ratelimited("%s llq.prod=0x%x prod_ticket=0x%x got_right_prod=%d\n",
+			__func__, llq.prod, prod_ticket, got_right_prod);
 		#endif
 		
 
