@@ -882,8 +882,8 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val) {
 			smp_mb();
-			asm volatile(
-			"	sev\n");
+		//	asm volatile(
+		//	"	sev\n");
 			break;
 		}
 		
