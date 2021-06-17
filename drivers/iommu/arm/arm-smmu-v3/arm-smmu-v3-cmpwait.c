@@ -50,8 +50,6 @@ u32 cmpwait_special(volatile u32 *ptr,
 	"	and x4,x4,%" "[tmp]\n"
 	"	eor	x4, x4, %" "[ticket_prod]\n"
 	"	cbz	x4, 2f\n"
-	"	add x5,x5, #0x1\n"
-	"	wfe\n"
 	"	b	1b\n"
 	"2:"
 	"	lsl x5,x5, #20\n"
