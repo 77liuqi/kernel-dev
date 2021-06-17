@@ -817,13 +817,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
-	prod_ticket = atomic_fetch_add_relaxed(n + sync, &cmdq->q.llq.prod_ticket);
-
-	prod_ticket = Q_WRP(&llq, prod_ticket) | Q_IDX(&llq, prod_ticket);
 	cpu = smp_processor_id();
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
+	prod_ticket = atomic_fetch_add_relaxed(n + sync, &cmdq->q.llq.prod_ticket);
+
+	prod_ticket = Q_WRP(&llq, prod_ticket) | Q_IDX(&llq, prod_ticket);
 	do {
 		u64 old;
 		u32 llq_prod = llq.prod;
@@ -833,12 +833,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (got_right_prod && (llq_prod != prod_ticket))
 			pr_err("%s llq.prod=0x%x prod_ticket=0x%x got_right_prod=%d\n",
 				__func__, llq.prod, prod_ticket, got_right_prod);
-		if (llq_prod != prod_ticket && (got_right_prod == false)) {
+		if ((got_right_prod == false) && (find_prod_diff(&llq, prod_ticket, llq_prod) < 8)) {
+			llq_prod &= CMDQ_PROD_OWNED_FLAG;
+			llq_prod |= prod_ticket;
+			llq.prod = llq_prod;
+		} else if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
 			llq.cons = READ_ONCE(cmdq->q.llq.cons);
+			got_right_prod = true;
 		}
-		#endif
-		
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
@@ -856,7 +859,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		got_right_prod = true;
+		
 		{
 			struct arm_smmu_ll_queue llq_old = {
 				.val = old,
