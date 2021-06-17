@@ -53,7 +53,7 @@ u32 cmpwait_special(volatile u32 *ptr,
 	"2:"
 	: [tmp] "=&r" (tmp), [v] "+Q" (*(unsigned long *)ptr)
 	: [ticket_prod] "r" (ticket_prod));
-	pr_err_once("%s ticket_prod=0x%x tmp=0x%x\n", __func__, ticket_prod, tmp);
+//	pr_err_once("%s ticket_prod=0x%x tmp=0x%x\n", __func__, ticket_prod, tmp);
 	return tmp;
 }
 
