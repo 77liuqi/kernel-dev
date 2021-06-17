@@ -830,53 +830,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		llq_prod = Q_WRP(&llq, llq_prod) | Q_IDX(&llq, llq_prod);
 
-		#ifdef deerer
-		if (llq_prod != prod_ticket && (got_right_prod == false)) {
-			ktime_t x1 = ktime_get();
-			/* don't do cmpxchg */
-			atomic_cond_read_relaxed_local(&cmdq->q.llq.atomic.prod, (Q_WRP(&llq, VAL) | Q_IDX(&llq, VAL)) == prod_ticket);
-			llq.val = READ_ONCE(cmdq->q.llq.val);
-			t = &per_cpu(cond_read, cpu);
-			*t += ktime_get() - x1;
-			atomic64_inc(&cond_read_tries);
-		}
-		#elif defined dsdsd
-		#error
-		if (llq_prod != prod_ticket && (got_right_prod == false)) {
-			u32 diff, initial_diff;
-			int loop = 0;
-
-			do {
-				unsigned int delay;
-				diff = find_prod_diff(&llq, prod_ticket, llq.prod);
-				if (loop == 0) {
-					initial_diff = diff;
-				}
-				if ((loop == 1) && (initial_diff > 10)) {
-					pr_err_once("%s a10 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
-				}
-				if ((loop == 1) && (initial_diff > 20)) {
-					pr_err_once("%s b20 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
-				}
-				if ((loop == 1) && (initial_diff > 50)) {
-					pr_err_once("%s c50 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
-				}
-				if ((loop == 1) && (initial_diff > 100)) {
-					pr_err_once("%s d100 delay=%d diff=%d initial diff=%d\n", __func__, delay, diff, initial_diff);
-				}
-				delay = diff * 100 / 1000;
-				if (delay < 10) {
-					__cmpwait_relaxed(&cmdq->q.llq.prod, prod_ticket);
-				} else {
-					udelay(delay);
-				}
-				
-				llq.val = READ_ONCE(cmdq->q.llq.val);
-				loop++;
-			} while ((Q_WRP(&llq, llq.prod) | Q_IDX(&llq, llq.prod)) != prod_ticket);
-			
-		}
-		#else
 		if (got_right_prod && (llq_prod != prod_ticket))
 			pr_err("%s llq.prod=0x%x prod_ticket=0x%x got_right_prod=%d\n",
 				__func__, llq.prod, prod_ticket, got_right_prod);
