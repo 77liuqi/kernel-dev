@@ -833,11 +833,15 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (got_right_prod && (llq_prod != prod_ticket))
 			pr_err("%s llq.prod=0x%x prod_ticket=0x%x got_right_prod=%d\n",
 				__func__, llq.prod, prod_ticket, got_right_prod);
+		#ifdef fdfdf
 		if ((got_right_prod == false) && (find_prod_diff(&llq, prod_ticket, llq_prod) < 8)) {
 			llq_prod &= CMDQ_PROD_OWNED_FLAG;
 			llq_prod |= prod_ticket;
 			llq.prod = llq_prod;
-		} else if (llq_prod != prod_ticket && (got_right_prod == false)) {
+		} else 
+		#endif
+
+		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
 			llq.cons = READ_ONCE(cmdq->q.llq.cons);
 			got_right_prod = true;
