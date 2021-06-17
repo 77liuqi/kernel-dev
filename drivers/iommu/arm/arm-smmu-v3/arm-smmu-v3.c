@@ -847,9 +847,16 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			u32 diff =find_prod_diff(&llq, prod_ticket, llq_prod);
 			ktime_t x1 = ktime_get();
+			u32 encoded_tmp;
 			if (diff > max_diff)
 				max_diff = diff;
-			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
+			encoded_tmp = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
+			llq.prod = Q_WRP(&llq, encoded_tmp) | Q_IDX(&llq, encoded_tmp) | Q_OVF(encoded_tmp);
+			pr_err_once("%s prod_ticket=0x%x encoded_tmp=0x%x llq.prod=0x%x\n", __func__, prod_ticket, encoded_tmp, llq.prod);
+			encoded_tmp &= ~Q_OVERFLOW_FLAG;
+			encoded_tmp >>= 20;
+			cond_read_loops = encoded_tmp;
+
 			smp_mb();
 			llq.cons = READ_ONCE(cmdq->q.llq.cons);
 			smp_mb();

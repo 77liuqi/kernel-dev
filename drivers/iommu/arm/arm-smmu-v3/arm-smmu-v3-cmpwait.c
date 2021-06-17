@@ -42,6 +42,7 @@ u32 cmpwait_special(volatile u32 *ptr,
 	asm volatile(
 	"	sevl\n"
 	"	wfe\n"
+	"	mov x5,#0x0\n"
 	"1:"
 	"	mov x4,#0x7FFFFFFF\n"
 	"	dmb ish\n"
@@ -49,9 +50,12 @@ u32 cmpwait_special(volatile u32 *ptr,
 	"	and x4,x4,%" "[tmp]\n"
 	"	eor	x4, x4, %" "[ticket_prod]\n"
 	"	cbz	x4, 2f\n"
+	"	add x5,x5, #0x1\n"
 	"	wfe\n"
 	"	b	1b\n"
 	"2:"
+	"	lsl x5,x5, #20\n"
+	"	add %" "[tmp], x5, %" "[tmp]\n"
 	: [tmp] "=&r" (tmp), [v] "+Q" (*(unsigned long *)ptr)
 	: [ticket_prod] "r" (ticket_prod));
 //	pr_err_once("%s ticket_prod=0x%x tmp=0x%x\n", __func__, ticket_prod, tmp);
