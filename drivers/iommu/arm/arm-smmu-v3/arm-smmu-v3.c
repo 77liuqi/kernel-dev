@@ -845,11 +845,18 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		#endif
 
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
+			u32 diff =find_prod_diff(&llq, prod_ticket, llq_prod);
+			ktime_t x1 = ktime_get();
+			if (diff > max_diff)
+				max_diff = diff;
 			llq.prod = cmpwait_special(&cmdq->q.llq.prod, prod_ticket);
 			smp_mb();
 			llq.cons = READ_ONCE(cmdq->q.llq.cons);
 			smp_mb();
 			got_right_prod = true;
+			t = &per_cpu(cond_read, cpu);
+			*t += ktime_get() - x1;
+			atomic64_inc(&cond_read_tries);
 		}
 
 		while (!queue_has_space(&llq, n + sync)) {
