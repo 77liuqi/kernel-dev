@@ -595,14 +595,17 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 	 * that fails, spin until somebody else updates it for us.
 	 */
 	if (arm_smmu_cmdq_exclusive_trylock_irqsave(cmdq, flags)) {
+		smp_mb();
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
+		smp_mb();
 		llq->val = READ_ONCE(cmdq->q.llq.val);
 		return 0;
 	}
 
 	queue_poll_init(smmu, &qp);
 	do {
+		smp_mb();
 		llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
 		if (!queue_full(llq))
 			break;
@@ -982,6 +985,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		 * reader, in which case we can safely update cmdq->q.llq.cons
 		 */
 		if (!arm_smmu_cmdq_shared_tryunlock(cmdq)) {
+			smp_mb();
 			WRITE_ONCE(cmdq->q.llq.cons, llq.cons);
 			arm_smmu_cmdq_shared_unlock(cmdq);
 		}
