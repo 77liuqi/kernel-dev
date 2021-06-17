@@ -121,7 +121,7 @@ extern u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void);
 extern u64 arm_smmu_cmdq_get_max_diff(void);
 extern u64 arm_smmu_cmdq_get_first_diff_avg_diff10(void);
 extern u64 arm_smmu_cmdq_get_owners(void);
-
+extern ktime_t arm_smmu_cmdq_get_max_cond_read_time(void);
 extern struct device *hisi_sas_dev;
 void smmu_test_core(int cpus)
 {
@@ -220,6 +220,10 @@ void smmu_test_core(int cpus)
 		arm_smmu_cmdq_get_first_diff_avg_diff10(),
 		arm_smmu_cmdq_get_owners(),
 		arm_smmu_cmdq_get_tries() * 10 / arm_smmu_cmdq_get_owners());
+
+	printk(KERN_ERR "max cond read time=%lld\n",
+		arm_smmu_cmdq_get_max_cond_read_time());
+
 
 }
 EXPORT_SYMBOL(smmu_test_core);

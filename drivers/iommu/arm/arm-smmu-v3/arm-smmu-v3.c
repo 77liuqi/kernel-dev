@@ -742,6 +742,7 @@ static DEFINE_PER_CPU(ktime_t, get_place);
 static DEFINE_PER_CPU(ktime_t, cond_read);
 static DEFINE_PER_CPU(u64, maxdiff);
 static DEFINE_PER_CPU(u32, first_diff);
+static DEFINE_PER_CPU(ktime_t, max_cond_read);
 
 static atomic64_t tries;
 static atomic64_t cmpxchg_tries;
@@ -802,7 +803,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq;
 	int ret = 0;
-	ktime_t initial, final, *t;
+	ktime_t initial, final, *t, local_max_cond_read = 0;
 	int cpu;
 	u32 prod_ticket;
 	u64 cond_read_loops = 0;
@@ -846,7 +847,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		if (llq_prod != prod_ticket && (got_right_prod == false)) {
 			u32 diff =find_prod_diff(&llq, prod_ticket, llq_prod);
-			ktime_t x1 = ktime_get();
+			ktime_t x1 = ktime_get(), cond_read_time;
 			u32 encoded_tmp;
 			if (diff > max_diff)
 				max_diff = diff;
@@ -862,7 +863,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			smp_mb();
 			got_right_prod = true;
 			t = &per_cpu(cond_read, cpu);
-			*t += ktime_get() - x1;
+			cond_read_time = ktime_get() - x1;
+			*t += cond_read_time;
+			if (cond_read_time > local_max_cond_read)
+				local_max_cond_read = cond_read_time;
 			atomic64_inc(&cond_read_tries);
 		}
 
@@ -919,6 +923,10 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	*t += ktime_get() - initial;
 	atomic64_add(cond_read_loops, &cmpxchg_cond_read_loops);
 	atomic64_add(read_diff, &cmpxchg_cond_read_diff);
+
+	t = &per_cpu(max_cond_read, cpu);
+	if (local_max_cond_read > *t)
+		*t = local_max_cond_read;
 
 	t1 = &per_cpu(maxdiff, cpu);
 
@@ -1103,6 +1111,21 @@ u64 arm_smmu_cmdq_get_max_diff(void)
 	return max_diff;
 }
 
+ktime_t arm_smmu_cmdq_get_max_cond_read_time(void)
+{
+	ktime_t max = 0;
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		u64 *t = &per_cpu(max_cond_read, cpu);
+
+		if (*t > max)
+			max = *t;
+	}
+
+	return max;
+}
+
 u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
 	return atomic64_read(&cmpxchg_tries);
@@ -1190,6 +1213,9 @@ void arm_smmu_cmdq_zero_times(void)
 
 		*t1 = 0;
 		*rm1 = 0;
+
+		t = &per_cpu(max_cond_read, cpu);
+		*t = 0;
 	}
 }
 
