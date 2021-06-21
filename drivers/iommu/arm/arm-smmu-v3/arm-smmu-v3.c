@@ -719,25 +719,6 @@ static void arm_smmu_cmdq_write_entries(struct arm_smmu_cmdq *cmdq, u64 *cmds,
  *   insert their own list of commands then all of the commands from one
  *   CPU will appear before any of the commands from the other CPU.
  */
-
-static DEFINE_PER_CPU(ktime_t, cmdlist);
-static DEFINE_PER_CPU(ktime_t, get_place);
-static DEFINE_PER_CPU(ktime_t, cond_read);
-static DEFINE_PER_CPU(u64, maxdiff);
-static DEFINE_PER_CPU(u32, first_diff);
-
-static atomic64_t tries;
-static atomic64_t cmpxchg_tries;
-static atomic64_t cond_read_tries;
-static atomic64_t cmpxchg_cond_read_loops;
-static atomic64_t cmpxchg_cond_read_diff;
-static atomic64_t owners;
-static atomic64_t cmpxchg_fail_prod;
-static atomic64_t cmpxchg_fail_cons;
-static atomic64_t cmpxchg_fail_both;
-static atomic64_t cmpxchg_fail_owner;
-
-
 static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 				       u64 *cmds, int n, bool sync)
 {
@@ -750,29 +731,13 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		.max_n_shift = cmdq->q.llq.max_n_shift,
 	}, head = llq;
 	int ret = 0;
-	ktime_t initial, final, *t;
-	int cpu;
-	u64 cond_read_loops = 0;
-	u64 read_diff = 0;
-	u64 max_diff = 0;
-	u64 *t1;
-	#ifdef deerer
-	bool first_diff_calced = false;
-	#endif
-	u32 gfail_owner = 0;
-	u32 gfail_both = 0;
-	u32 gfail_prod = 0;
-	u32 gfail_cons = 0;
 
 	/* 1. Allocate some space in the queue */
 	local_irq_save(flags);
-	cpu = smp_processor_id();
-	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
-	atomic64_inc(&tries);
 	do {
 		u64 old;
-	
+
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
@@ -785,48 +750,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 					     CMDQ_PROD_OWNED_FLAG;
 
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
-		atomic64_inc(&cmpxchg_tries);
 		if (old == llq.val)
 			break;
-		
-		{
-			struct arm_smmu_ll_queue llq_old = {
-				.val = old,
-			};
-			bool fail_owner = Q_OVF(llq_old.prod) != Q_OVF(llq.prod);
-			bool fail_prod = (Q_IDX(&llq, llq_old.prod) |Q_WRP(&llq, llq_old.prod))  != 
-					(Q_IDX(&llq, llq.prod) |Q_WRP(&llq, llq.prod));
-			bool fail_cons = llq_old.cons != llq.cons;
-	
-			if (fail_owner && !fail_prod)
-				gfail_owner++;
-
-			if (fail_prod && fail_cons)
-				gfail_both++;
-			else if (fail_prod)
-				gfail_prod++;
-			else if (fail_cons)
-				gfail_cons++;
-		}
 
 		llq.val = old;
 	} while (1);
-
-	atomic64_add(gfail_owner, &cmpxchg_fail_owner);
-	atomic64_add(gfail_both, &cmpxchg_fail_both);
-	atomic64_add(gfail_prod, &cmpxchg_fail_prod);
-	atomic64_add(gfail_cons, &cmpxchg_fail_cons);
-
-	t = &per_cpu(get_place, cpu);
-	*t += ktime_get() - initial;
-	atomic64_add(cond_read_loops, &cmpxchg_cond_read_loops);
-	atomic64_add(read_diff, &cmpxchg_cond_read_diff);
-
-	t1 = &per_cpu(maxdiff, cpu);
-
-	if (max_diff > *t1)
-		*t1 = max_diff;
-
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
 	llq.prod &= ~CMDQ_PROD_OWNED_FLAG;
@@ -856,7 +784,6 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 	/* 4. If we are the owner, take control of the SMMU hardware */
 	if (owner) {
-		atomic64_inc(&owners);
 		/* a. Wait for previous owner to finish */
 		atomic_cond_read_relaxed(&cmdq->owner_prod, VAL == llq.prod);
 
@@ -908,190 +835,92 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 		}
 	}
 
-	t = &per_cpu(cmdlist, cpu);
-
-	final = ktime_get();
-	*t += final - initial;
-	
 	local_irq_restore(flags);
 	return ret;
 }
 
 u64 arm_smmu_cmdq_get_tries(void)
 {
-	return atomic64_read(&tries);
+	return 1;
 }
 
 ktime_t arm_smmu_cmdq_get_average_time(void)
 {
-	int cpu, cpus = 0;
-	ktime_t total = 0;
-
-	for_each_online_cpu(cpu) {
-		ktime_t *t = &per_cpu(cmdlist, cpu);
-
-		if (*t > 100) {
-			total += *t;
-			cpus++;
-		}
-	}
-
-	return total / arm_smmu_cmdq_get_tries();
+	return 1;
 }
 
 ktime_t arm_smmu_cmdq_get_average_place_time(void)
 {
-	int cpu, cpus = 0;
-	ktime_t total = 0;
-
-	for_each_online_cpu(cpu) {
-		ktime_t *t = &per_cpu(get_place, cpu);
-
-		if (*t > 100) {
-			total += *t;
-			cpus++;
-		}
-	}
-
-	return total / arm_smmu_cmdq_get_tries();
+	return 1;
 }
 
 ktime_t arm_smmu_cmdq_get_average_time_cond_read(void)
 {
-	int cpu, cpus = 0;
-	ktime_t total = 0;
-
-	for_each_online_cpu(cpu) {
-		ktime_t *t = &per_cpu(cond_read, cpu);
-
-		if (*t > 100) {
-			total += *t;
-			cpus++;
-		}
-	}
-
-	return total / arm_smmu_cmdq_get_tries();
+	return 1;
 }
 
 int arm_smmu_cmdq_get_average_time_cpus(void)
 {
-	int cpu, cpus = 0;
-
-	for_each_online_cpu(cpu) {
-		ktime_t *t = &per_cpu(cmdlist, cpu);
-
-		if (*t > 100) {
-
-			cpus++;
-		}
-	}
-
-	return cpus;
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_max_diff(void)
 {
-	u64 max_diff = 0;
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		u64 *t = &per_cpu(maxdiff, cpu);
-
-		if (*t > max_diff)
-			max_diff = *t;
-	}
-
-	return max_diff;
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_cmpxcgh_tries(void)
 {
-	return atomic64_read(&cmpxchg_tries);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_cond_read_avg_loops(void)
 {
-	return atomic64_read(&cmpxchg_cond_read_loops) / atomic64_read(&cond_read_tries);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_cond_read_avg_diff10(void)
 {
-	return atomic64_read(&cmpxchg_cond_read_diff) * 10 / atomic64_read(&cmpxchg_cond_read_loops);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_owners(void)
 {
-	return atomic64_read(&owners);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_first_diff_avg_diff10(void)
 {
-	u64 val = 0;
-	int cpu;
-
-	for_each_online_cpu(cpu) {
-		u32 *rm1 = &per_cpu(first_diff, cpu);
-
-		val += *rm1;
-	}
-
-	return val * 10 / atomic64_read(&tries);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_fails_prod(void)
 {
-	return atomic64_read(&cmpxchg_fail_prod);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_fail_owner(void)
 {
-	return atomic64_read(&cmpxchg_fail_owner);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_fails_cons(void)
 {
-	return atomic64_read(&cmpxchg_fail_cons);
+	return 1;
 }
 
 u64 arm_smmu_cmdq_get_fails_both(void)
 {
-	return atomic64_read(&cmpxchg_fail_both);
+	return 1;
 }
 
 
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
-	atomic64_set(&tries, 0);
-	atomic64_set(&owners, 0);
-	atomic64_set(&cmpxchg_tries, 0);
-	atomic64_set(&cmpxchg_cond_read_loops, 0);
-	atomic64_set(&cmpxchg_cond_read_diff, 0);
-	atomic64_set(&cmpxchg_fail_prod, 0);
-	atomic64_set(&cmpxchg_fail_cons, 0);
-	atomic64_set(&cmpxchg_fail_both, 0);
-	atomic64_set(&cmpxchg_fail_owner, 0);	
-	atomic64_set(&cond_read_tries, 0);
 }
 
 void arm_smmu_cmdq_zero_times(void)
 {
-	int cpu;
-	
-	for_each_online_cpu(cpu) {
-		ktime_t *t = &per_cpu(cmdlist, cpu);
-		u64 *t1 = &per_cpu(maxdiff, cpu);
-		u32 *rm1 = &per_cpu(first_diff, cpu);
-		*t = 0;
-
-		t = &per_cpu(get_place, cpu);
-		*t = 0;
-
-		t = &per_cpu(cond_read, cpu);
-		*t = 0;
-
-		*t1 = 0;
-		*rm1 = 0;
-	}
 }
 
 static int arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
