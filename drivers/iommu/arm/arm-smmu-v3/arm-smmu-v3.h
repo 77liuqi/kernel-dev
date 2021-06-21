@@ -166,8 +166,8 @@
 #define ARM_SMMU_MEMATTR_DEVICE_nGnRE	0x1
 #define ARM_SMMU_MEMATTR_OIWB		0xf
 
-#define Q_IDX(llq, p)			((p) & ((1 << (llq)->max_n_shift) - 1))
-#define Q_WRP(llq, p)			((p) & (1 << (llq)->max_n_shift))
+#define Q_IDX(llq, p)			((p) & ((1 << max_n_shift) - 1))
+#define Q_WRP(llq, p)			((p) & (1 << max_n_shift))
 #define Q_OVERFLOW_FLAG			(1U << 31)
 #define Q_OVF(p)			((p) & Q_OVERFLOW_FLAG)
 #define Q_ENT(q, p)			((q)->base +			\
@@ -469,17 +469,23 @@ struct arm_smmu_cmdq_ent {
 	};
 };
 
-struct arm_smmu_ll_queue {
-	union {
-		u64			val;
+struct head_struct {
+	union  {
+		u64 		val;
 		struct {
-			u32		prod;
-			u32		cons;
+			u32 	prod;
+			u32 	cons;
 		};
 		struct {
 			atomic_t	prod;
 			atomic_t	cons;
 		} atomic;
+	};
+};
+
+struct arm_smmu_ll_queue {
+	union {
+		struct head_struct h;	
 		u8			__pad[SMP_CACHE_BYTES];
 	} ____cacheline_aligned_in_smp;
 	u32				max_n_shift;
