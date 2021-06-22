@@ -728,8 +728,11 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	bool owner;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	struct arm_smmu_ll_queue llq, head;
+	u32 old_prod;
 	int ret = 0;
 
+
+	const u32 prod_max = (1 << (cmdq->q.llq.max_n_shift + 1))  - 1;
 	llq.max_n_shift = cmdq->q.llq.max_n_shift;
 
 	/* 1. Allocate some space in the queue */
@@ -737,7 +740,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	do {
 		u64 old;
-
+	
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
 			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
@@ -745,15 +748,35 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 			local_irq_save(flags);
 		}
 
+		head.prod = ((llq.prod + n + sync) & prod_max) | CMDQ_PROD_OWNED_FLAG;
+calc_head_cons:
 		head.cons = llq.cons;
-		head.prod = queue_inc_prod_n(&llq, n + sync) |
-					     CMDQ_PROD_OWNED_FLAG;
-
+//cmpxchg:
 		old = cmpxchg_relaxed(&cmdq->q.llq.val, llq.val, head.val);
 		if (old == llq.val)
 			break;
 
+	//	if ((old ^ llq.val) == CMDQ_PROD_OWNED_FLAG) {
+		//	pr_err_once("%s retry immediately due to owned flags head.val=0x%llx old=0x%llx\n", __func__, head.val, old);
+		//	if (queue_has_space(&llq, n + sync) == false)
+		//		pr_err_once("%s retry immediately, and no space head.val=0x%llx old=0x%llx\n", __func__, head.val, old);
+	//		goto cmpxchg;
+	//	}
+		if (llq.prod == head.prod) {
+		//	if (head.cons == llq.cons)
+		//		pr_err_once("%s llq and head the same, but how? llq prod=0x%x cons=0x%x head prod=0x%x cons=0x%x\n", 
+		//			__func__, llq.prod, llq.cons, head.prod, head.cons);
+		}
+		old_prod = llq.prod;
 		llq.val = old;
+		/* And if cons is different, then it is only further away, so we must still have space */
+		if (((llq.prod ^ old_prod) & ~CMDQ_PROD_OWNED_FLAG) == 0) {
+		//	if (queue_has_space(&llq, n + sync) == false)
+		//		pr_err_once("%s queue does not actually have space llq prod=0x%x cons=0x%x head prod=0x%x cons=0x%x\n", 
+		//		__func__, llq.prod, llq.cons, head.prod, head.cons);
+			goto calc_head_cons;
+		}
+		
 	} while (1);
 	owner = !(llq.prod & CMDQ_PROD_OWNED_FLAG);
 	head.prod &= ~CMDQ_PROD_OWNED_FLAG;
