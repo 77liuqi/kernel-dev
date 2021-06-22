@@ -416,6 +416,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	} else {
 		scmd = task->slow_task->scmd;
 	}
+	if (scmd)
+		pr_err("%s task=%pS scmd=%pS rq=%pS\n", __func__, task, scmd, scmd->request);
+	else
+		pr_err("%s task=%pS scmd=%pS rq=%pS\n", __func__, task, scmd, NULL);
 
 	if (scmd) {
 		unsigned int dq_index;
@@ -553,6 +557,8 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	struct domain_device *device = task->dev;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_dq *dq = NULL;
+
+	pr_err("%s task=%pS\n", __func__, task);
 
 	if (!sas_port) {
 		struct task_status_struct *ts = &task->task_status;

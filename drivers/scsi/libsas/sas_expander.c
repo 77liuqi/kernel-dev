@@ -51,6 +51,37 @@ static void smp_task_done(struct sas_task *task)
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
+static void nvme_keep_alive_end_io(struct request *rq, blk_status_t status)
+{
+#ifdef fdfdfdf
+
+	struct nvme_ctrl *ctrl = rq->end_io_data;
+	unsigned long flags;
+	bool startka = false;
+
+	blk_mq_free_request(rq);
+
+	if (status) {
+		dev_err(ctrl->device,
+			"failed nvme_keep_alive_end_io error=%d\n",
+				status);
+		return;
+	}
+
+	ctrl->comp_seen = false;
+	spin_lock_irqsave(&ctrl->lock, flags);
+	if (ctrl->state == NVME_CTRL_LIVE ||
+	    ctrl->state == NVME_CTRL_CONNECTING)
+		startka = true;
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+	if (startka)
+		queue_delayed_work(nvme_wq, &ctrl->ka_work, ctrl->kato * HZ);
+#else
+	pr_err("%s rq=%pS status=%d\n", __func__, rq, status);
+	WARN_ON_ONCE(1);
+#endif
+}
+
 static int smp_execute_task_sg(struct domain_device *dev,
 		struct scatterlist *req, struct scatterlist *resp)
 {
@@ -64,6 +95,10 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	int_to_scsilun(0, &lun);
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		struct scsi_cmnd *scsi_cmnd;
+		struct sas_task_slow *slow;
+		struct request *rq;
+
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
@@ -74,6 +109,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			res = -ENOMEM;
 			break;
 		}
+		slow = task->slow_task;
+		scsi_cmnd = slow->scmd;
+		rq = scsi_cmnd->request;
+		
+		pr_err("%s task=%pS slow=%pS rq=%pS scsi_cmnd=%pS\n", __func__, task, slow, rq, scsi_cmnd);
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
@@ -85,7 +125,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	//	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		blk_execute_rq_nowait(rq->q, NULL, rq, 0, nvme_keep_alive_end_io);
 
 		if (res) {
 			del_timer(&task->slow_task->timer);
