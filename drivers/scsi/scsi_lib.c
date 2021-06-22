@@ -1953,7 +1953,7 @@ struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
 	struct request *rq;
 	struct scsi_cmnd *scmd;
 	blk_mq_req_flags_t flags = 0;
-	unsigned int op = REQ_INTERNAL | op_flags;
+	unsigned int op =  op_flags;
 
 	if (sdev->host->nr_reserved_cmds)
 		flags = BLK_MQ_REQ_RESERVED;
