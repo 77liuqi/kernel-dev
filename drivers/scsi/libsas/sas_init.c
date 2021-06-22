@@ -48,7 +48,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 
 	if (!task)
 		return NULL;
-	WARN_ON_ONCE(1);
+//	WARN_ON_ONCE(1);
 
 	slow = kzalloc(sizeof(*slow), flags);
 	if (!slow)

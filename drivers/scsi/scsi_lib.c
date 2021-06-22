@@ -1646,13 +1646,20 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
 	struct request *req = bd->rq;
+	pr_err("%s req=%pS\n", __func__, req);
 	struct request_queue *q = req->q;
+	pr_err("%s2 req=%pS q=%pS\n", __func__, req, q);
 	struct scsi_device *sdev = q->queuedata;
+	pr_err("%s3 req=%pS q=%pS sdev=%pS\n", __func__, req, q, sdev);
 	struct Scsi_Host *shost = sdev->host;
+	pr_err("%s4 req=%pS q=%pS sdev=%pS shost=%pS\n",
+		__func__, req, q, sdev, shost);
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	pr_err("%s5 req=%pS q=%pS sdev=%pS shost=%pS cmd=%pS\n",
+		__func__, req, q, sdev, shost, cmd);
 	blk_status_t ret;
 	int reason;
-
+	pr_err("%s6 req=%pS\n", __func__, req);
 	/*
 	 * If the device is not in running state we will reject some or all
 	 * commands.
@@ -1663,11 +1670,16 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			goto out_put_budget;
 	}
 
+	pr_err("%s6.1 req=%pS\n", __func__, req);
+
 	ret = BLK_STS_RESOURCE;
 	if (!scsi_target_queue_ready(shost, sdev))
 		goto out_put_budget;
+	pr_err("%s6.2 req=%pS\n", __func__, req);
 	if (!scsi_host_queue_ready(q, shost, sdev, cmd))
 		goto out_dec_target_busy;
+
+	pr_err("%s6.3 req=%pS\n", __func__, req);
 
 	if (!(req->rq_flags & RQF_DONTPREP)) {
 		ret = scsi_prepare_cmd(req);
@@ -1677,6 +1689,9 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	} else {
 		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
 	}
+
+	pr_err("%s6 req=%pS q=%pS sdev=%pS shost=%pS cmd=%pS\n",
+		__func__, req, q, sdev, shost, cmd);
 
 	cmd->flags &= SCMD_PRESERVED_FLAGS;
 	if (sdev->simple_tags)
@@ -1696,14 +1711,20 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		goto out_dec_host_busy;
 	}
 
+	pr_err("%s7 req=%pS q=%pS sdev=%pS shost=%pS cmd=%pS\n",
+		__func__, req, q, sdev, shost, cmd);
+
 	return BLK_STS_OK;
 
 out_dec_host_busy:
+	pr_err("%s8 out_dec_host_busy  req=%pS\n", __func__, req);
 	scsi_dec_host_busy(shost, cmd);
 out_dec_target_busy:
+	pr_err("%s8 out_dec_target_busy  req=%pS\n", __func__, req);
 	if (scsi_target(sdev)->can_queue > 0)
 		atomic_dec(&scsi_target(sdev)->target_busy);
 out_put_budget:
+	pr_err("%s8 out_put_budget  req=%pS\n", __func__, req);
 	scsi_mq_put_budget(q);
 	switch (ret) {
 	case BLK_STS_OK:
@@ -1733,6 +1754,8 @@ out_put_budget:
 		scsi_run_queue_async(sdev);
 		break;
 	}
+	pr_err("%s10 out req=%pS q=%pS sdev=%pS shost=%pS cmd=%pS\n",
+		__func__, req, q, sdev, shost, cmd);
 	return ret;
 }
 
