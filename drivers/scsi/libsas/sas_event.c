@@ -47,12 +47,15 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 	struct sas_work *sw, *_sw;
 	int ret;
 
+	pr_err("%s\n", __func__);
+
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
 	spin_lock_irq(&ha->lock);
 	spin_unlock_irq(&ha->lock);
-
+	pr_err("%s1 going to drain_workqueue(ha->event_q)\n", __func__);
 	drain_workqueue(ha->event_q);
+	pr_err("%s2 going to drain_workqueue(ha->disco_q)\n", __func__);
 	drain_workqueue(ha->disco_q);
 
 	spin_lock_irq(&ha->lock);
@@ -65,6 +68,7 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 
 	}
 	spin_unlock_irq(&ha->lock);
+	pr_err("%s10 out\n", __func__);
 }
 
 int sas_drain_work(struct sas_ha_struct *ha)

@@ -1399,6 +1399,9 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	struct device *dev = &sdev->sdev_gendev;
 	int res;
 
+	dev_err(dev, "%s sdev->sdev_state==SDEV_DEL=%d\n", __func__,
+		sdev->sdev_state == SDEV_DEL);
+
 	/*
 	 * This cleanup path is not reentrant and while it is impossible
 	 * to get a new reference with scsi_device_get() someone can still
@@ -1407,12 +1410,15 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	if (sdev->sdev_state == SDEV_DEL)
 		return;
 
+	dev_err(dev, "%s2 is_visible=%d pid=%d\n", __func__, sdev->is_visible, current->pid);
+
 	if (sdev->is_visible) {
 		/*
 		 * If scsi_internal_target_block() is running concurrently,
 		 * wait until it has finished before changing the device state.
 		 */
 		mutex_lock(&sdev->state_mutex);
+		dev_err(dev, "%s2.1\n", __func__);
 		/*
 		 * If blocked, we go straight to DEL and restart the queue so
 		 * any commands issued during driver shutdown (like sync
@@ -1425,6 +1431,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 				scsi_start_queue(sdev);
 		}
 		mutex_unlock(&sdev->state_mutex);
+		dev_err(dev, "%s2.2\n", __func__);
 
 		if (res != 0)
 			return;
@@ -1433,12 +1440,20 @@ void __scsi_remove_device(struct scsi_device *sdev)
 			sysfs_remove_groups(&sdev->sdev_gendev.kobj,
 					sdev->host->hostt->sdev_groups);
 
+		dev_err(dev, "%s2.3\n", __func__);
+
 		bsg_unregister_queue(sdev->request_queue);
+		dev_err(dev, "%s2.4\n", __func__);
 		device_unregister(&sdev->sdev_dev);
+		dev_err(dev, "%s2.5\n", __func__);
 		transport_remove_device(dev);
+		dev_err(dev, "%s2.6\n", __func__);
 		device_del(dev);
+		dev_err(dev, "%s2.7\n", __func__);
 	} else
 		put_device(&sdev->sdev_dev);
+
+	dev_err(dev, "%s3\n", __func__);
 
 	/*
 	 * Stop accepting new requests and wait until all queuecommand() and
@@ -1464,6 +1479,7 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	scsi_target_reap(scsi_target(sdev));
 
 	put_device(dev);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 
 /**
@@ -1474,9 +1490,12 @@ void scsi_remove_device(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 
+	dev_err(&sdev->sdev_gendev, "%s\n", __func__);
+
 	mutex_lock(&shost->scan_mutex);
 	__scsi_remove_device(sdev);
 	mutex_unlock(&shost->scan_mutex);
+	dev_err(&sdev->sdev_gendev, "%s10 out\n", __func__);
 }
 EXPORT_SYMBOL(scsi_remove_device);
 
@@ -1485,6 +1504,8 @@ static void __scsi_remove_target(struct scsi_target *starget)
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
 	unsigned long flags;
 	struct scsi_device *sdev;
+
+	dev_err(&shost->shost_gendev, "%s\n", __func__);
 
 	spin_lock_irqsave(shost->host_lock, flags);
  restart:
@@ -1509,6 +1530,7 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+	dev_err(&shost->shost_gendev, "%s10 out\n", __func__);
 }
 
 /**
@@ -1524,7 +1546,7 @@ void scsi_remove_target(struct device *dev)
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	struct scsi_target *starget;
 	unsigned long flags;
-
+	dev_err(dev, "%s\n", __func__);
 restart:
 	spin_lock_irqsave(shost->host_lock, flags);
 	list_for_each_entry(starget, &shost->__targets, siblings) {
@@ -1545,6 +1567,7 @@ restart:
 		}
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 EXPORT_SYMBOL(scsi_remove_target);
 

@@ -500,6 +500,8 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	sas_queue_work(ha, &d->reset_work);
 	spin_unlock_irq(&ha->lock);
 
+	pr_err("%s calling sas_drain_work\n", __func__);
+
 	rc = sas_drain_work(ha);
 	if (rc == 0)
 		rc = d->reset_result;
@@ -526,7 +528,7 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->enable_work);
 	spin_unlock_irq(&ha->lock);
-
+	pr_err("%s calling sas_drain_work\n", __func__);
 	rc = sas_drain_work(ha);
 	if (rc == 0)
 		rc = d->enable_result;

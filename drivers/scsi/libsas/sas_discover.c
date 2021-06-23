@@ -342,13 +342,19 @@ void sas_destruct_devices(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
 
+	pr_err("%s port%d\n", __func__, port->id);
+
 	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_node) {
 		list_del_init(&dev->disco_list_node);
-
+		
+		pr_err("%s1 port%d going to sas_remove_children\n", __func__, port->id);
 		sas_remove_children(&dev->rphy->dev);
+		pr_err("%s1 port%d going to sas_rphy_delete\n", __func__, port->id);
 		sas_rphy_delete(dev->rphy);
+		pr_err("%s1 port%d going to sas_unregister_common_dev\n", __func__, port->id);
 		sas_unregister_common_dev(port, dev);
 	}
+	pr_err("%s10 out port%d\n", __func__, port->id);
 }
 
 static void sas_destruct_ports(struct asd_sas_port *port)
@@ -524,7 +530,7 @@ static void sas_revalidate_domain(struct work_struct *work)
 	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 	bool retry;
-
+	pr_err("%s\n", __func__);
 	do {
 		retry = false;
 		sas_do_revalidate_domain(port, &retry);
