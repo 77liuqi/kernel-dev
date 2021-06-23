@@ -205,6 +205,11 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	struct domain_device *dev;
 	unsigned long flags;
 
+	if (phy->phy)
+		pr_err("%s phy%d\n", __func__, phy->phy->number);
+	else
+		pr_err("%s phy?\n", __func__);
+
 	if (!port)
 		return;		  /* done by a phy event */
 
@@ -254,7 +259,17 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		ex_dev->ex_change_count = -1;
 		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
 	}
+	
+	if (phy->phy)
+		pr_err("%s9 phy%d\n", __func__, phy->phy->number);
+	else
+		pr_err("%s9 phy?\n", __func__);
 	flush_workqueue(sas_ha->disco_q);
+
+	if (phy->phy)
+		pr_err("%s10 exit phy%d\n", __func__, phy->phy->number);
+	else
+		pr_err("%s10 exit phy?\n", __func__);
 
 	return;
 }

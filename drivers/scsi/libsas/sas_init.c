@@ -382,7 +382,7 @@ static int phys_suspended(struct sas_ha_struct *ha)
 
 	return rc;
 }
-
+int libsas_suspended_once;
 void sas_resume_ha(struct sas_ha_struct *ha)
 {
 	const unsigned long tmo = msecs_to_jiffies(25000);
@@ -414,7 +414,9 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	/* all phys are back up or timed out, turn on i/o so we can
 	 * flush out disks that did not return
 	 */
+	dev_err(ha->dev, "%s8 unblocking requests\n", __func__);
 	scsi_unblock_requests(ha->core.shost);
+	dev_err(ha->dev, "%s9 going to sas_drain_work\n", __func__);
 	sas_drain_work(ha);
 	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
@@ -438,6 +440,7 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 	mutex_lock(&ha->drain_mutex);
 	__sas_drain_work(ha);
 	mutex_unlock(&ha->drain_mutex);
+	libsas_suspended_once = 1;
 	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
 EXPORT_SYMBOL(sas_suspend_ha);

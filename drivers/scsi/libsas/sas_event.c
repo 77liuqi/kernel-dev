@@ -70,13 +70,15 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 int sas_drain_work(struct sas_ha_struct *ha)
 {
 	int err;
-
+	pr_err("%s", __func__);
 	err = mutex_lock_interruptible(&ha->drain_mutex);
 	if (err)
 		return err;
 	if (test_bit(SAS_HA_REGISTERED, &ha->state))
 		__sas_drain_work(ha);
 	mutex_unlock(&ha->drain_mutex);
+
+	pr_err("%s10 out\n", __func__);
 
 	return 0;
 }

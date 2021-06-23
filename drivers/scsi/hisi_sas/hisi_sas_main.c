@@ -848,7 +848,7 @@ int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_scan_finished);
-
+extern int libsas_suspended_once;
 static void hisi_sas_phyup_work(struct work_struct *work)
 {
 	struct hisi_sas_phy *phy =
@@ -857,9 +857,12 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
 	int phy_no = sas_phy->id;
 
+
 	phy->wait_phyup_cnt = 0;
 	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
 		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
+	if (libsas_suspended_once && phy_no == 0)
+		return;
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no, GFP_KERNEL);
 }
 

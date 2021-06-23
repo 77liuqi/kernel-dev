@@ -76,7 +76,8 @@ static void sas_phye_resume_timeout(struct work_struct *work)
 {
 	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
-
+	struct sas_phy *sas_phy = phy->phy;;
+	pr_err("%s phy%d\n", __func__, sas_phy->number);
 	/* phew, lldd got the phy back in the nick of time */
 	if (!phy->suspended) {
 		dev_info(&phy->phy->dev, "resume timeout cancelled\n");
