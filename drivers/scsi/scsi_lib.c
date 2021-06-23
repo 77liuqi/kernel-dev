@@ -1592,6 +1592,11 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 
 	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
+	
+	if (!cmd->request->rq_disk) {
+		pr_err("%s4 cmd=%pS rq_disk=NULL\n", __func__, cmd);
+		return 0;
+	}
 	drv = scsi_cmd_to_driver(cmd);
 	pr_err("%s5 req=%pS drv=%pS\n", __func__, req, drv);
 	return drv->init_command(cmd);
