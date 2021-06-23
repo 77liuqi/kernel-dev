@@ -334,7 +334,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state))
 		set_bit(DISCE_REVALIDATE_DOMAIN, &dev->port->disc.pending);
 
-	pr_debug("%sex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
+	pr_err("%sex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
 		 test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state) ? "ata: " : "",
 		 SAS_ADDR(dev->sas_addr), phy->phy_id,
 		 sas_route_char(dev, phy), phy->linkrate,
@@ -491,7 +491,7 @@ static int sas_ex_general(struct domain_device *dev)
 				  SAS_ADDR(dev->sas_addr), res);
 			goto out;
 		} else if (rg_resp->result != SMP_RESP_FUNC_ACC) {
-			pr_debug("RG:ex %016llx returned SMP result:0x%x\n",
+			pr_err("RG:ex %016llx returned SMP result:0x%x\n",
 				 SAS_ADDR(dev->sas_addr), rg_resp->result);
 			res = rg_resp->result;
 			goto out;
@@ -500,7 +500,7 @@ static int sas_ex_general(struct domain_device *dev)
 		ex_assign_report_general(dev, rg_resp);
 
 		if (dev->ex_dev.configuring) {
-			pr_debug("RG: ex %016llx self-configuring...\n",
+			pr_err("RG: ex %016llx self-configuring...\n",
 				 SAS_ADDR(dev->sas_addr));
 			schedule_timeout_interruptible(5*HZ);
 		} else
@@ -559,7 +559,7 @@ static int sas_ex_manuf_info(struct domain_device *dev)
 			  SAS_ADDR(dev->sas_addr), res);
 		goto out;
 	} else if (mi_resp[2] != SMP_RESP_FUNC_ACC) {
-		pr_debug("MI ex %016llx returned SMP result:0x%x\n",
+		pr_err("MI ex %016llx returned SMP result:0x%x\n",
 			 SAS_ADDR(dev->sas_addr), mi_resp[2]);
 		goto out;
 	}
@@ -1074,7 +1074,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 	}
 
 	if (sas_ex_join_wide_port(dev, phy_id)) {
-		pr_debug("Attaching ex phy%02d to wide port %016llx\n",
+		pr_err("Attaching ex phy%02d to wide port %016llx\n",
 			 phy_id, SAS_ADDR(ex_phy->attached_sas_addr));
 		return res;
 	}
@@ -1086,7 +1086,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 		break;
 	case SAS_FANOUT_EXPANDER_DEVICE:
 		if (SAS_ADDR(dev->port->disc.fanout_sas_addr)) {
-			pr_debug("second fanout expander %016llx phy%02d attached to ex %016llx phy%02d\n",
+			pr_err("second fanout expander %016llx phy%02d attached to ex %016llx phy%02d\n",
 				 SAS_ADDR(ex_phy->attached_sas_addr),
 				 ex_phy->attached_phy_id,
 				 SAS_ADDR(dev->sas_addr),
@@ -1119,7 +1119,7 @@ static int sas_ex_discover_dev(struct domain_device *dev, int phy_id)
 			    SAS_ADDR(child->sas_addr)) {
 				ex->ex_phy[i].phy_state= PHY_DEVICE_DISCOVERED;
 				if (sas_ex_join_wide_port(dev, i))
-					pr_debug("Attaching ex phy%02d to wide port %016llx\n",
+					pr_err("Attaching ex phy%02d to wide port %016llx\n",
 						 i, SAS_ADDR(ex->ex_phy[i].attached_sas_addr));
 			}
 		}
@@ -1562,7 +1562,7 @@ static int sas_configure_parent(struct domain_device *parent,
 	}
 
 	if (ex_parent->conf_route_table == 0) {
-		pr_debug("ex %016llx has self-configuring routing table\n",
+		pr_err("ex %016llx has self-configuring routing table\n",
 			 SAS_ADDR(parent->sas_addr));
 		return 0;
 	}
@@ -1981,7 +1981,7 @@ static int sas_discover_new(struct domain_device *dev, int phy_id)
 	struct domain_device *child;
 	int res;
 
-	pr_debug("ex %016llx phy%02d new device attached\n",
+	pr_err("ex %016llx phy%02d new device attached\n",
 		 SAS_ADDR(dev->sas_addr), phy_id);
 	res = sas_ex_phy_discover(dev, phy_id);
 	if (res)
@@ -2036,11 +2036,11 @@ static bool sas_process_flutter(struct domain_device *dev, struct ex_phy *phy,
 
 	if (ata_dev && phy->attached_dev_type == SAS_SATA_PENDING)
 		action = ", needs recovery";
-	pr_debug("ex %016llx phy%d broadcast flutter%s\n",
+	pr_err("ex %016llx phy%d broadcast flutter%s\n",
 		 SAS_ADDR(dev->sas_addr), phy_id, action);
 
 	if (linkrate != phy->linkrate) {
-		pr_debug("ex %016llx phy%d linkrate changed from %d to %d\n",
+		pr_err("ex %016llx phy%d linkrate changed from %d to %d\n",
 			 SAS_ADDR(dev->sas_addr), phy_id,
 			 linkrate, phy->linkrate);
 		return false;
@@ -2055,7 +2055,7 @@ static bool sas_process_flutter(struct domain_device *dev, struct ex_phy *phy,
 		 * original address back so that the device can be unregistered
 		 */
 		memcpy(phy->attached_sas_addr, sas_addr, SAS_ADDR_SIZE);
-		pr_debug("phy address(%016llx) abnormal, origin:%016llx\n",
+		pr_err("phy address(%016llx) abnormal, origin:%016llx\n",
 			 SAS_ADDR(phy->attached_sas_addr),
 			 SAS_ADDR(sas_addr));
 		return false;
@@ -2083,7 +2083,7 @@ static int sas_ex_unregister(struct domain_device *dev, int phy_id, bool last,
 	u8 sas_addr[SAS_ADDR_SIZE];
 	int res;
 
-	pr_debug("ex %016llx unregistering phy%02d\n",
+	pr_err("ex %016llx unregistering phy%02d\n",
 		 SAS_ADDR(dev->sas_addr), phy_id);
 
 	memset(sas_addr, 0, SAS_ADDR_SIZE);
@@ -2151,7 +2151,7 @@ static void sas_ex_unregister_device(struct domain_device *dev, const int phy_id
 			continue;
 		if (SAS_ADDR(phy->attached_sas_addr) ==
 		    SAS_ADDR(changed_phy->attached_sas_addr)) {
-			pr_debug("phy%02d part of wide port with phy%02d\n",
+			pr_err("phy%02d part of wide port with phy%02d\n",
 				 phy_id, i);
 			last = false;
 			break;
@@ -2159,7 +2159,7 @@ static void sas_ex_unregister_device(struct domain_device *dev, const int phy_id
 	}
 	res = sas_ex_unregister(dev, phy_id, last, retry);
 
-	pr_debug("ex %016llx phy%d discover returned 0x%x\n",
+	pr_err("ex %016llx phy%d discover returned 0x%x\n",
 		 SAS_ADDR(dev->sas_addr), phy_id, res);
 }
 
@@ -2172,7 +2172,7 @@ static int sas_ex_try_unregister(struct domain_device *dev, u8 *changed_phy,
 	int i;
 
 	for (i = 0; i < nr; i++) {
-		pr_debug("ex %016llx phy%d originated BROADCAST(CHANGE)\n",
+		pr_err("ex %016llx phy%d originated BROADCAST(CHANGE)\n",
 			 SAS_ADDR(dev->sas_addr), changed_phy[i]);
 
 		phy = &ex->ex_phy[changed_phy[i]];
@@ -2203,7 +2203,7 @@ static void sas_ex_register(struct domain_device *dev, u8 *changed_phy,
 
 		res = sas_discover_new(dev, changed_phy[i]);
 
-		pr_debug("ex %016llx phy%d register returned 0x%x\n",
+		pr_err("ex %016llx phy%d register returned 0x%x\n",
 			 SAS_ADDR(dev->sas_addr), changed_phy[i], res);
 	}
 }

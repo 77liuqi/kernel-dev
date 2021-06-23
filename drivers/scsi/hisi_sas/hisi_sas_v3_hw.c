@@ -4978,9 +4978,10 @@ static int __maybe_unused resume_v3_hw(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
-	int rc = _resume_v3_hw(device);
+	int rc;
 
 	dev_err(device, "%s\n", __func__);
+	rc = _resume_v3_hw(device);
 
 	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 
