@@ -3470,6 +3470,7 @@ void device_del(struct device *dev)
 	struct kobject *glue_dir = NULL;
 	struct class_interface *class_intf;
 	unsigned int noio_flag;
+	dev_err(dev, "%s\n", __func__);
 
 	device_lock(dev);
 	kill_device(dev);
@@ -3485,6 +3486,8 @@ void device_del(struct device *dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
+
+	dev_err(dev, "%s2\n", __func__);
 
 	dpm_sysfs_remove(dev);
 	if (parent)
@@ -3507,14 +3510,24 @@ void device_del(struct device *dev)
 		klist_del(&dev->p->knode_class);
 		mutex_unlock(&dev->class->p->mutex);
 	}
+	dev_err(dev, "%s3\n", __func__);
 	device_remove_file(dev, &dev_attr_uevent);
+	dev_err(dev, "%s3.1\n", __func__);
 	device_remove_attrs(dev);
+	dev_err(dev, "%s3.2\n", __func__);
 	bus_remove_device(dev);
+	dev_err(dev, "%s3.3\n", __func__);
 	device_pm_remove(dev);
+	dev_err(dev, "%s3.4\n", __func__);
 	driver_deferred_probe_del(dev);
+	dev_err(dev, "%s3.5\n", __func__);
 	device_platform_notify(dev, KOBJ_REMOVE);
+	dev_err(dev, "%s3.6\n", __func__);
 	device_remove_properties(dev);
+	dev_err(dev, "%s3.7\n", __func__);
 	device_links_purge(dev);
+
+	dev_err(dev, "%s4\n", __func__);
 
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -3525,6 +3538,7 @@ void device_del(struct device *dev)
 	cleanup_glue_dir(dev, glue_dir);
 	memalloc_noio_restore(noio_flag);
 	put_device(parent);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 EXPORT_SYMBOL_GPL(device_del);
 

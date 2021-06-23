@@ -511,6 +511,7 @@ void bus_remove_device(struct device *dev)
 {
 	struct bus_type *bus = dev->bus;
 	struct subsys_interface *sif;
+	dev_err(dev, "%s bus=%pS\n", __func__, bus);
 
 	if (!bus)
 		return;
@@ -521,17 +522,24 @@ void bus_remove_device(struct device *dev)
 			sif->remove_dev(dev, sif);
 	mutex_unlock(&bus->p->mutex);
 
+	dev_err(dev, "%s2\n", __func__);
+
 	sysfs_remove_link(&dev->kobj, "subsystem");
 	sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
 			  dev_name(dev));
+	dev_err(dev, "%s2\n", __func__);
 	device_remove_groups(dev, dev->bus->dev_groups);
+	dev_err(dev, "%s3\n", __func__);
 	if (klist_node_attached(&dev->p->knode_bus))
 		klist_del(&dev->p->knode_bus);
 
-	pr_debug("bus: '%s': remove device %s\n",
+	pr_err("bus: '%s': remove device %s\n",
 		 dev->bus->name, dev_name(dev));
+	dev_err(dev, "%s4\n", __func__);
 	device_release_driver(dev);
+	dev_err(dev, "%s5\n", __func__);
 	bus_put(dev->bus);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 
 static int __must_check add_bind_files(struct device_driver *drv)

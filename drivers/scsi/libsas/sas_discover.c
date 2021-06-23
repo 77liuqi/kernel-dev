@@ -266,8 +266,9 @@ static void sas_resume_devices(struct work_struct *work)
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_RESUME, &port->disc.pending);
-
+	pr_err("%s\n", __func__);
 	sas_resume_sata(port);
+	pr_err("%s10\n", __func__);
 }
 
 /**
