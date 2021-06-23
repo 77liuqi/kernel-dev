@@ -1143,8 +1143,12 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 	struct device_driver *drv;
 
 	drv = dev->driver;
+	dev_err(dev, "%s drv=%pS\n", __func__, drv);
 	if (drv) {
+		dev_err(dev, "%s0\n", __func__);
 		pm_runtime_get_sync(dev);
+		
+		dev_err(dev, "%s1\n", __func__);
 
 		while (device_links_busy(dev)) {
 			__device_driver_unlock(dev, parent);
@@ -1162,6 +1166,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 				return;
 			}
 		}
+		
+		dev_err(dev, "%s2\n", __func__);
 
 		driver_sysfs_remove(dev);
 
@@ -1175,10 +1181,14 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 		device_remove_file(dev, &dev_attr_state_synced);
 		device_remove_groups(dev, drv->dev_groups);
 
+		dev_err(dev, "%s3\n", __func__);
+
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);
 		else if (drv->remove)
 			drv->remove(dev);
+
+		dev_err(dev, "%s4\n", __func__);
 
 		device_links_driver_cleanup(dev);
 
@@ -1191,6 +1201,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 		pm_runtime_reinit(dev);
 		dev_pm_set_driver_flags(dev, 0);
 
+		dev_err(dev, "%s5\n", __func__);
+
 		klist_remove(&dev->p->knode_driver);
 		device_pm_check_callbacks(dev);
 		if (dev->bus)
@@ -1200,18 +1212,24 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 
 		kobject_uevent(&dev->kobj, KOBJ_UNBIND);
 	}
+	dev_err(dev, "%s10 out\n", __func__);
 }
 
 void device_release_driver_internal(struct device *dev,
 				    struct device_driver *drv,
 				    struct device *parent)
 {
+	dev_err(dev, "%s\n", __func__);
+
 	__device_driver_lock(dev, parent);
+	dev_err(dev, "%s1\n", __func__);
 
 	if (!drv || drv == dev->driver)
 		__device_release_driver(dev, parent);
+	dev_err(dev, "%s2\n", __func__);
 
 	__device_driver_unlock(dev, parent);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 
 /**
@@ -1226,13 +1244,15 @@ void device_release_driver_internal(struct device *dev,
  * acquired under the @dev->parent lock.
  */
 void device_release_driver(struct device *dev)
-{
+{	
+	dev_err(dev, "%s\n", __func__);
 	/*
 	 * If anyone calls device_release_driver() recursively from
 	 * within their ->remove callback for the same device, they
 	 * will deadlock right here.
 	 */
 	device_release_driver_internal(dev, NULL, NULL);
+	dev_err(dev, "%s10 out\n", __func__);
 }
 EXPORT_SYMBOL_GPL(device_release_driver);
 
