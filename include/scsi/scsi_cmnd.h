@@ -156,6 +156,17 @@ static inline void *scsi_cmd_priv(struct scsi_cmnd *cmd)
 /* make sure not to use it with passthrough commands */
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
+	if (!cmd)
+		pr_err("%s cmd=NULL\n", __func__);
+	else if (!cmd->request)
+		pr_err("%s cmd=%pS request=NULL\n", __func__, cmd);
+	else if (!cmd->request->rq_disk)
+		pr_err("%s cmd=%pS cmd->request=%pS rq_disk=NULL\n", __func__, cmd, cmd->request);
+	else if (!cmd->request->rq_disk)
+		pr_err("%s cmd=%pS cmd->request=%pS rq_disk=%pS\n", __func__, cmd, cmd->request, cmd->request->rq_disk);
+	else if (!cmd->request->rq_disk->private_data)
+		pr_err("%s cmd=%pS cmd->request=%pS rq_disk=%pS private_data=%pS\n",
+		__func__, cmd, cmd->request, cmd->request->rq_disk, cmd->request->rq_disk->private_data);
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
 }
 
