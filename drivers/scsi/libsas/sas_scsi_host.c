@@ -163,9 +163,16 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 {
 	struct sas_internal *i = to_sas_internal(host->transportt);
+	struct scsi_device *sdev = cmd->device;
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
 	struct sas_task *task;
 	int res = 0;
+
+	if (!sdev)
+		pr_err("%s sdev=NULL cmd=%pS\n", __func__, cmd);
+	if (!dev)
+		pr_err("%s2 dev=NULL sdev=%pS cmd=%pS\n", __func__, dev, cmd);
+
 
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state)) {
