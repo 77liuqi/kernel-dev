@@ -1555,7 +1555,7 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 	struct scsi_device *sdev = req->q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
 	struct scatterlist *sg;
-
+	struct scsi_driver *drv;
 	scsi_init_command(sdev, cmd);
 
 	cmd->request = req;
@@ -1592,7 +1592,9 @@ static blk_status_t scsi_prepare_cmd(struct request *req)
 
 	cmd->cmnd = scsi_req(req)->cmd = scsi_req(req)->__cmd;
 	memset(cmd->cmnd, 0, BLK_MAX_CDB);
-	return scsi_cmd_to_driver(cmd)->init_command(cmd);
+	drv = scsi_cmd_to_driver(cmd);
+	pr_err("%s5 req=%pS drv=%pS\n", __func__, req, drv);
+	return drv->init_command(cmd);
 }
 
 static void scsi_mq_done(struct scsi_cmnd *cmd)
@@ -1980,9 +1982,10 @@ struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
 
 	if (sdev->host->nr_reserved_cmds)
 		flags = BLK_MQ_REQ_RESERVED;
+	//return nvme_is_write(cmd) ? REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 
 	op |= (data_direction == DMA_TO_DEVICE) ?
-		REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN;
+		REQ_OP_DRV_OUT : REQ_OP_DRV_IN;
 	rq = blk_mq_alloc_request(sdev->request_queue, op, flags);
 	if (IS_ERR(rq))
 		return NULL;
