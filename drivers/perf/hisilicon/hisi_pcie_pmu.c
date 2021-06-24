@@ -66,7 +66,6 @@ struct hisi_pcie_pmu {
 	struct hlist_node node;
 	struct pci_dev *pdev;
 	struct pmu pmu;
-	void __iomem *base;
 	int irq;
 	u32 identifier;
 	/* Minimum and maximum bdf of root ports monitored by PMU */
@@ -158,7 +157,7 @@ static DEVICE_ATTR_RO(bus);
 static struct hisi_pcie_reg_pair
 hisi_pcie_parse_reg_value(struct hisi_pcie_pmu *pcie_pmu, u32 reg_off)
 {
-	u32 val = readl_relaxed(pcie_pmu->base + reg_off);
+	u32 val = 0x1234156;//readl_relaxed(pcie_pmu->base + reg_off);
 	struct hisi_pcie_reg_pair regs = {
 		.lo = val,
 		.hi = val >> 16,
@@ -196,33 +195,33 @@ static u32 hisi_pcie_pmu_get_offset(u32 offset, u32 idx)
 static u32 hisi_pcie_pmu_readl(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 			       u32 idx)
 {
-	u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
+	//u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
 
-	return readl_relaxed(pcie_pmu->base + offset);
+	return 0;//readl_relaxed(pcie_pmu->base + offset);
 }
 
 static void hisi_pcie_pmu_writel(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 				 u32 idx, u32 val)
 {
-	u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
+	//u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
 
-	writel_relaxed(val, pcie_pmu->base + offset);
+	//writel_relaxed(val, pcie_pmu->base + offset);
 }
 
 static u64 hisi_pcie_pmu_readq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 			       u32 idx)
 {
-	u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
+	//u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
 
-	return readq_relaxed(pcie_pmu->base + offset);
+	return 0;//readq_relaxed(pcie_pmu->base + offset);
 }
 
 static void hisi_pcie_pmu_writeq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 				 u32 idx, u64 val)
 {
-	u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
+	//u32 offset = hisi_pcie_pmu_get_offset(reg_offset, idx);
 
-	writeq_relaxed(val, pcie_pmu->base + offset);
+	//writeq_relaxed(val, pcie_pmu->base + offset);
 }
 
 static void hisi_pcie_pmu_config_filter(struct perf_event *event)
@@ -577,14 +576,14 @@ static void hisi_pcie_pmu_enable(struct pmu *pmu)
 	if (num == HISI_PCIE_MAX_COUNTERS)
 		return;
 
-	writel(HISI_PCIE_GLOBAL_EN, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
+	//writel(HISI_PCIE_GLOBAL_EN, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
 }
 
 static void hisi_pcie_pmu_disable(struct pmu *pmu)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(pmu);
 
-	writel(HISI_PCIE_GLOBAL_NONE, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
+	//writel(HISI_PCIE_GLOBAL_NONE, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
 }
 
 static irqreturn_t hisi_pcie_pmu_irq(int irq, void *data)
@@ -783,7 +782,7 @@ static int hisi_pcie_alloc_pmu(struct pci_dev *pdev,
 
 	pcie_pmu->pdev = pdev;
 	pcie_pmu->on_cpu = -1;
-	pcie_pmu->identifier = readl(pcie_pmu->base + HISI_PCIE_REG_VERSION);
+	//pcie_pmu->identifier = readl(pcie_pmu->base + HISI_PCIE_REG_VERSION);
 	pcie_pmu->pmu = (struct pmu) {
 		.name		= name,
 		.module		= THIS_MODULE,
@@ -808,11 +807,11 @@ static int hisi_pcie_init_pmu(struct pci_dev *pdev,
 {
 	int ret;
 
-	pcie_pmu->base = pci_ioremap_bar(pdev, 2);
-	if (!pcie_pmu->base) {
-		pci_err(pdev, "Ioremap failed for pcie_pmu resource.\n");
-		return -ENOMEM;
-	}
+	//pcie_pmu->base = pci_ioremap_bar(pdev, 2);
+//	if (!pcie_pmu->base) {
+//		pci_err(pdev, "Ioremap failed for pcie_pmu resource.\n");
+//		return -ENOMEM;
+//	}
 
 	ret = hisi_pcie_alloc_pmu(pdev, pcie_pmu);
 	if (ret)
@@ -845,7 +844,7 @@ err_irq_unregister:
 	hisi_pcie_pmu_irq_unregister(pdev, pcie_pmu);
 
 err_set_pmu_fail:
-	iounmap(pcie_pmu->base);
+	//iounmap(pcie_pmu->base);
 
 	return ret;
 }
@@ -858,7 +857,7 @@ static void hisi_pcie_uninit_pmu(struct pci_dev *pdev)
 	cpuhp_state_remove_instance_nocalls(
 		CPUHP_AP_PERF_ARM_HISI_PCIE_PMU_ONLINE, &pcie_pmu->node);
 	hisi_pcie_pmu_irq_unregister(pdev, pcie_pmu);
-	iounmap(pcie_pmu->base);
+	//iounmap(pcie_pmu->base);
 }
 
 static int hisi_pcie_init_dev(struct pci_dev *pdev)
