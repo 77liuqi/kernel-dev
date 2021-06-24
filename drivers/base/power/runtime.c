@@ -744,6 +744,15 @@ static int rpm_suspend(struct device *dev, int rpmflags)
  *
  * This function must be called under dev->power.lock with interrupts disabled.
  */
+#ifdef ddsdsd
+enum rpm_status {
+	RPM_ACTIVE = 0,
+	RPM_RESUMING,
+	RPM_SUSPENDED,
+	RPM_SUSPENDING,
+};
+#endif
+	
 static int rpm_resume(struct device *dev, int rpmflags)
 	__releases(&dev->power.lock) __acquires(&dev->power.lock)
 {
@@ -753,7 +762,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	trace_rpm_resume_rcuidle(dev, rpmflags);
  
-	dev_err(dev, "%s\n", __func__);
+	dev_err(dev, "%s parent=%s runtime_status=%d\n", __func__,dev->parent ? dev_name(dev->parent) : "no parent",
+		dev->parent ? dev->parent->power.runtime_status : -1);
 
  repeat:
 	if (dev->power.runtime_error)
@@ -766,7 +776,10 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	if (retval)
 		goto out;
 
-	dev_err(dev, "%s1\n", __func__);
+	dev_err(dev, "%s1 parent=%s runtime_status=%d\n", __func__,dev->parent ? dev_name(dev->parent) : "no parent",
+		dev->parent ? dev->parent->power.runtime_status : -1);
+
+
 
 	/*
 	 * Other scheduled or pending requests need to be canceled.  Small

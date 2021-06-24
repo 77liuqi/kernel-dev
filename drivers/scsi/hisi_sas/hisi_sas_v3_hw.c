@@ -2758,6 +2758,8 @@ static int slave_configure_v3_hw(struct scsi_device *sdev)
 	if (sdev->type == TYPE_ENCLOSURE)
 		return 0;
 
+	dev_err(&sdev->sdev_gendev, "%s &sdev->sdev_gendev &shost->shost_gendev=%s\n", __func__, dev_name(&shost->shost_gendev));
+
 	if (!device_link_add(&sdev->sdev_gendev, dev,
 			     DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE)) {
 		if (pm_runtime_enabled(dev)) {
