@@ -287,6 +287,8 @@ static int rpm_get_suppliers(struct device *dev)
 {
 	struct device_link *link;
 
+	dev_err(dev, "%s\n", __func__);
+
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node,
 				device_links_read_lock_held()) {
 		int retval;
@@ -298,10 +300,12 @@ static int rpm_get_suppliers(struct device *dev)
 		/* Ignore suppliers with disabled runtime PM. */
 		if (retval < 0 && retval != -EACCES) {
 			pm_runtime_put_noidle(link->supplier);
+			dev_err(dev, "%s4\n", __func__);
 			return retval;
 		}
 		refcount_inc(&link->rpm_active);
 	}
+	dev_err(dev, "%s10 out\n", __func__);
 	return 0;
 }
 
@@ -347,6 +351,8 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 {
 	int retval, idx;
 	bool use_links = dev->power.links_count > 0;
+
+	dev_err(dev, "%s cb=%pS\n", __func__, cb);
 
 	if (dev->power.irq_safe) {
 		spin_unlock(&dev->power.lock);
@@ -398,6 +404,8 @@ fail:
 
 		spin_lock_irq(&dev->power.lock);
 	}
+
+	dev_err(dev, "%s10 out cb=%pS\n", __func__, cb);
 
 	return retval;
 }
@@ -483,6 +491,7 @@ static int rpm_idle(struct device *dev, int rpmflags)
 static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 {
 	int retval;
+	dev_err(dev, "%s cb=%pS\n", __func__, cb);
 
 	if (!cb)
 		return -ENOSYS;
@@ -901,6 +910,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	dev_err(dev, "%s9.3\n", __func__);
 
 	dev_pm_disable_wake_irq_check(dev);
+	dev_err(dev, "%s9.3.1 callback=%pS\n", __func__, callback);
 	retval = rpm_callback(callback, dev);
 	dev_err(dev, "%s9.4\n", __func__);
 	if (retval) {
