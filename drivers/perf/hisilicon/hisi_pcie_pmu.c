@@ -922,6 +922,7 @@ static void hisi_pcie_pmu_remove(struct pci_dev *pdev)
 
 static const struct pci_device_id hisi_pcie_pmu_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, 0xa12d) },
+	{ PCI_VDEVICE(HUAWEI, 0xa230), hip08 },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, hisi_pcie_pmu_ids);
