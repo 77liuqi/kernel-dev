@@ -383,6 +383,8 @@ static inline int pm_runtime_get(struct device *dev)
  */
 static inline int pm_runtime_get_sync(struct device *dev)
 {
+	dev_err(dev, "%s\n", __func__);
+
 	return __pm_runtime_resume(dev, RPM_GET_PUT);
 }
 

@@ -292,6 +292,9 @@ static int rpm_get_suppliers(struct device *dev)
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node,
 				device_links_read_lock_held()) {
 		int retval;
+		
+		dev_err(dev, "%s1 link=%pS supplier =%s consumer=%s\n",
+			__func__, link, dev_name(link->supplier), dev_name(link->consumer));
 
 		if (!(link->flags & DL_FLAG_PM_RUNTIME))
 			continue;
