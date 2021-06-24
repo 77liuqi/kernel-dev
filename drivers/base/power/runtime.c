@@ -549,7 +549,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	int (*callback)(struct device *);
 	struct device *parent = NULL;
 	int retval;
-
+	dev_err(dev, "%s\n", __func__);
 	trace_rpm_suspend_rcuidle(dev, rpmflags);
 
  repeat:
@@ -747,9 +747,9 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 #ifdef ddsdsd
 enum rpm_status {
 	RPM_ACTIVE = 0,
-	RPM_RESUMING,
-	RPM_SUSPENDED,
-	RPM_SUSPENDING,
+	RPM_RESUMING,1
+	RPM_SUSPENDED,2
+	RPM_SUSPENDING,3
 };
 #endif
 	
@@ -762,7 +762,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	trace_rpm_resume_rcuidle(dev, rpmflags);
  
-	dev_err(dev, "%s parent=%s runtime_status=%d\n", __func__,dev->parent ? dev_name(dev->parent) : "no parent",
+	dev_err(dev, "%s (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
+		__func__, dev->power.runtime_status,
+		dev->parent ? dev_name(dev->parent) : "no parent",
 		dev->parent ? dev->parent->power.runtime_status : -1);
 
  repeat:
@@ -776,8 +778,11 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	if (retval)
 		goto out;
 
-	dev_err(dev, "%s1 parent=%s runtime_status=%d\n", __func__,dev->parent ? dev_name(dev->parent) : "no parent",
+	dev_err(dev, "%s1 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
+		__func__, dev->power.runtime_status,
+		dev->parent ? dev_name(dev->parent) : "no parent",
 		dev->parent ? dev->parent->power.runtime_status : -1);
+
 
 
 
@@ -798,7 +803,11 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto out;
 	}
 
-	dev_err(dev, "%s3\n", __func__);
+	dev_err(dev, "%s3 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
+		__func__, dev->power.runtime_status,
+		dev->parent ? dev_name(dev->parent) : "no parent",
+		dev->parent ? dev->parent->power.runtime_status : -1);
+
 
 	if (dev->power.runtime_status == RPM_RESUMING
 	    || dev->power.runtime_status == RPM_SUSPENDING) {
@@ -824,8 +833,12 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			spin_lock(&dev->power.lock);
 			goto repeat;
 		}
+		
+		dev_err(dev, "%s6 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
+			__func__, dev->power.runtime_status,
+			dev->parent ? dev_name(dev->parent) : "no parent",
+			dev->parent ? dev->parent->power.runtime_status : -1);
 
-		dev_err(dev, "%s6\n", __func__);
 
 		/* Wait for the operation carried out in parallel with us. */
 		for (;;) {
@@ -846,7 +859,10 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto repeat;
 	}
 	
-	dev_err(dev, "%s8\n", __func__);
+	dev_err(dev, "%s8 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
+		__func__, dev->power.runtime_status,
+		dev->parent ? dev_name(dev->parent) : "no parent",
+		dev->parent ? dev->parent->power.runtime_status : -1);
 
 	/*
 	 * See if we can skip waking up the parent.  This is safe only if

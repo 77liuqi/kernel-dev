@@ -4982,7 +4982,8 @@ static int __maybe_unused resume_v3_hw(struct device *device)
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	int rc;
 
-	dev_err(device, "%s\n", __func__);
+	dev_err(device, "%s runtime_status=%d\n", __func__,
+		device->power.runtime_status);
 	rc = _resume_v3_hw(device);
 
 	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
