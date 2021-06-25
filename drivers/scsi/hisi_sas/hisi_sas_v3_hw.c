@@ -3152,6 +3152,14 @@ void hisi_sas_slave_destroy(struct scsi_device *sdev)
 }
 
 
+int hisi_sas_slave_alloc(struct scsi_device *sdev)
+{
+	struct device *dev = &sdev->sdev_gendev;
+	dev_err(dev, "%s\n", __func__);
+
+	return 0;
+}
+
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.proc_name		= DRV_NAME,
@@ -3166,6 +3174,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.change_queue_depth	= sas_change_queue_depth,
 	.target_destroy = hisi_sas_target_destroy,
 	.slave_destroy = hisi_sas_slave_destroy,
+	.slave_alloc = hisi_sas_slave_alloc,
 	.bios_param		= sas_bios_param,
 	.this_id		= -1,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
