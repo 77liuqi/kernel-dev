@@ -3138,6 +3138,20 @@ static int hisi_sas_map_queues(struct Scsi_Host *shost)
 				     BASE_VECTORS_V3_HW);
 }
 
+
+void hisi_sas_target_destroy(struct scsi_target *dev)
+{
+
+	dev_err(&dev->dev, "%s\n", __func__);
+}
+
+void hisi_sas_slave_destroy(struct scsi_device *sdev)
+{
+	struct device *dev = &sdev->sdev_gendev;
+	dev_err(dev, "%s\n", __func__);
+}
+
+
 static struct scsi_host_template sht_v3_hw = {
 	.name			= DRV_NAME,
 	.proc_name		= DRV_NAME,
@@ -3150,6 +3164,8 @@ static struct scsi_host_template sht_v3_hw = {
 	.scan_start		= hisi_sas_scan_start,
 	.map_queues		= hisi_sas_map_queues,
 	.change_queue_depth	= sas_change_queue_depth,
+	.target_destroy = hisi_sas_target_destroy,
+	.slave_destroy = hisi_sas_slave_destroy,
 	.bios_param		= sas_bios_param,
 	.this_id		= -1,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
