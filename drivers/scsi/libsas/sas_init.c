@@ -417,7 +417,7 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	dev_err(ha->dev, "%s8 unblocking requests\n", __func__);
 	scsi_unblock_requests(ha->core.shost);
 	dev_err(ha->dev, "%s9 going to sas_drain_work\n", __func__);
-	//sas_drain_work(ha);
+	sas_drain_work(ha);
 	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
 EXPORT_SYMBOL(sas_resume_ha);
