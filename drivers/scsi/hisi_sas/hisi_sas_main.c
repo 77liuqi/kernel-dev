@@ -861,8 +861,8 @@ static void hisi_sas_phyup_work(struct work_struct *work)
 	phy->wait_phyup_cnt = 0;
 	if (phy->identify.target_port_protocols == SAS_PROTOCOL_SSP)
 		hisi_hba->hw->sl_notify_ssp(hisi_hba, phy_no);
-	if (libsas_suspended_once && phy_no == 0)
-		return;
+//	if (libsas_suspended_once && phy_no == 0)
+//		return;
 	hisi_sas_bytes_dmaed(hisi_hba, phy_no, GFP_KERNEL);
 }
 
