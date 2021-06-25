@@ -915,6 +915,8 @@ void sas_target_destroy(struct scsi_target *starget)
 {
 	struct domain_device *found_dev = starget->hostdata;
 
+	dev_err(&starget->dev, "%s\n", __func__);
+
 	if (!found_dev)
 		return;
 
