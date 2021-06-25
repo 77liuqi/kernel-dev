@@ -187,7 +187,7 @@ static u32 hisi_pcie_pmu_get_real_idx(struct perf_event *event)
 	return FIELD_GET(GENMASK(15, 8), event_idx);
 }
 
-static u32 hisi_pcie_pmu_get_offset(u32 offset, u32 idx)
+static __maybe_unused u32 hisi_pcie_pmu_get_offset(u32 offset, u32 idx)
 {
 	return offset + HISI_PCIE_REG_STEP * idx;
 }
@@ -492,6 +492,7 @@ static void hisi_pcie_pmu_start(struct perf_event *event, int flags)
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 prev_cnt;
+	pr_err("%s event=%pS event=0x%llx subevent=0x%llx\n", __func__, event, hisi_pcie_get_event(event), hisi_pcie_get_subevent(event));
 
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
@@ -538,6 +539,7 @@ static int hisi_pcie_pmu_add(struct perf_event *event, int flags)
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 	idx = hisi_pcie_pmu_get_event_idx(pcie_pmu);
+	pr_err("%s event=%pS\n", __func__, event);
 	if (idx < 0)
 		return idx;
 
@@ -581,7 +583,7 @@ static void hisi_pcie_pmu_enable(struct pmu *pmu)
 
 static void hisi_pcie_pmu_disable(struct pmu *pmu)
 {
-	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(pmu);
+//	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(pmu);
 
 	//writel(HISI_PCIE_GLOBAL_NONE, pcie_pmu->base + HISI_PCIE_GLOBAL_CTRL);
 }
