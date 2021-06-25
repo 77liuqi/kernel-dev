@@ -312,6 +312,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 		}
 	}
 
+	dev_err(&sdev->sdev_gendev, "%s\n", __func__);
+
 	return sdev;
 
 out_device_destroy:
@@ -327,6 +329,8 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	struct device *dev = &starget->dev;
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	unsigned long flags;
+
+	dev_err(dev, "%s\n", __func__);
 
 	BUG_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
