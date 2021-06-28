@@ -1,0 +1,9 @@
+[
+   {
+	    "BriefDescription": "Latency for inbound traffic...",
+	    "MetricName": "hisi_pcie_lat_rx_mrd",
+	    "MetricExpr": "hisi_pcie291_16726@event\\=0x4,subevent\\=0x02@",
+	    "Unit": "hisi_pcie",
+	    "Compat": "0x0"
+   },
+]
