@@ -358,7 +358,7 @@ int sas_set_phy_speed(struct sas_phy *phy,
 void sas_prep_resume_ha(struct sas_ha_struct *ha)
 {
 	int i;
-
+	pr_err("%s SAS_HA_REGISTERED being set\n", __func__);
 	set_bit(SAS_HA_REGISTERED, &ha->state);
 
 	/* clear out any stale link events/data from the suspension path */
