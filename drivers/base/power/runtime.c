@@ -974,7 +974,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	trace_rpm_return_int_rcuidle(dev, _THIS_IP_, retval);
 	
-	 dev_err(dev, "%s10 out\n", __func__);
+	 dev_err(dev, "%s10 retval=%d out\n", __func__, retval);
 
 	return retval;
 }
