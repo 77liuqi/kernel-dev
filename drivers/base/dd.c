@@ -994,10 +994,20 @@ void device_initial_probe(struct device *dev)
  * Normally this will just be the @dev lock, but when called for a USB
  * interface, @parent lock will be held as well.
  */
+extern struct task_struct *__mutex_owner(struct mutex *lock);
 static void __device_driver_lock(struct device *dev, struct device *parent)
 {
-	if (parent && dev->bus->need_parent_lock)
+	
+	struct task_struct *owner1;
+
+	if (parent && dev->bus->need_parent_lock) {
+		struct task_struct *owner = __mutex_owner(&parent->mutex);
+		dev_err(parent, "%s1 parent owner pid=%d\n", __func__, owner ? owner->pid : -123);
+		dev_err(dev, "%s1 dev\n", __func__);
 		device_lock(parent);
+	}
+	owner1 = __mutex_owner(&dev->mutex);
+	dev_err(dev, "%s2 owner pid=%d\n", __func__, owner1 ? owner1->pid : -123);
 	device_lock(dev);
 }
 
