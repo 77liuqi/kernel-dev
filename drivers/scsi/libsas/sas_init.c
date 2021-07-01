@@ -437,8 +437,11 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 	}
 
 	/* flush suspend events while unregistered */
+	dev_err(ha->dev, "%s4 trying for drain mutex\n", __func__);
 	mutex_lock(&ha->drain_mutex);
+	dev_err(ha->dev, "%s5 going to __sas_drain_work\n", __func__);
 	__sas_drain_work(ha);
+	dev_err(ha->dev, "%s6 unlocking drain mutex\n", __func__);
 	mutex_unlock(&ha->drain_mutex);
 	libsas_suspended_once = 1;
 	dev_err(ha->dev, "%s10 exit\n", __func__);
