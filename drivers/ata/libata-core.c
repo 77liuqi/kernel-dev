@@ -2026,6 +2026,7 @@ retry:
 	if (err_mask && dma) {
 		dev->horkage |= ATA_HORKAGE_NO_DMA_LOG;
 		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying PIO\n");
+		WARN_ONCE(1, "READ LOG DMA EXT failed, trying PIO\n");
 		goto retry;
 	}
 
