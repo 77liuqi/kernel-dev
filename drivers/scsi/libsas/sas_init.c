@@ -222,6 +222,7 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
 	enum phy_func reset_type;
+	pr_err("%s phy%d hard=%d\n", __func__, phy->number, hard_reset);
 
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;
@@ -237,6 +238,7 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 
 		if (!hard_reset && sas_try_ata_reset(asd_phy) == 0)
 			return 0;
+		pr_err("%s2 local phy%d hard=%d\n", __func__, phy->number, hard_reset);
 		return i->dft->lldd_control_phy(asd_phy, reset_type, NULL);
 	} else {
 		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
@@ -458,6 +460,8 @@ static void phy_reset_work(struct work_struct *work)
 {
 	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work.work);
 
+	pr_err("%s phy%d hard=%d\n", __func__, d->phy->number, d->hard_reset);
+
 	d->reset_result = transport_sas_phy_reset(d->phy, d->hard_reset);
 }
 
@@ -491,6 +495,8 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	struct sas_phy_data *d = phy->hostdata;
 	int rc;
 
+	pr_err("%s phy%d hard=%d\n", __func__, phy->number, hard_reset);
+
 	if (!d)
 		return -ENOMEM;
 
@@ -503,9 +509,10 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	sas_queue_work(ha, &d->reset_work);
 	spin_unlock_irq(&ha->lock);
 
-	pr_err("%s calling sas_drain_work\n", __func__);
+	pr_err("%s1 calling sas_drain_work\n", __func__);
 
 	rc = sas_drain_work(ha);
+	pr_err("%s2 sas_drain_work finished rc=%d\n", __func__, rc);
 	if (rc == 0)
 		rc = d->reset_result;
 	mutex_unlock(&d->event_lock);

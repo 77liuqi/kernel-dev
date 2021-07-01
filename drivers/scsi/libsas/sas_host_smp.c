@@ -186,6 +186,8 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 	struct sas_phy_linkrates rates;
 	struct asd_sas_phy *asd_phy;
 
+	dev_err(sas_ha->dev, "%s phy%d phy_op=%d\n", __func__, phy_id, phy_op);
+
 	if (phy_id >= sas_ha->num_phys) {
 		resp_data[2] = SMP_RESP_NO_PHY;
 		return;
@@ -216,10 +218,13 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 		return;
 	}
 
+	dev_err(sas_ha->dev, "%s1 phy%d phy_op=%d\n", __func__, phy_id, phy_op);
+
 	if (i->dft->lldd_control_phy(asd_phy, phy_op, &rates))
 		resp_data[2] = SMP_RESP_FUNC_FAILED;
 	else
 		resp_data[2] = SMP_RESP_FUNC_ACC;
+	dev_err(sas_ha->dev, "%s10 out phy%d phy_op=%d\n", __func__, phy_id, phy_op);
 }
 
 void sas_smp_host_handler(struct bsg_job *job, struct Scsi_Host *shost)
