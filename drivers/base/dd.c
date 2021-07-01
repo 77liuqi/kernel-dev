@@ -994,20 +994,50 @@ void device_initial_probe(struct device *dev)
  * Normally this will just be the @dev lock, but when called for a USB
  * interface, @parent lock will be held as well.
  */
+#define MAX_STACK_TRACE_DEPTH	64
+
+void crazy(struct task_struct *owner, struct device *dev)
+{
+	unsigned long *entries;
+	unsigned int nr_entries;
+
+
+	if (!owner)
+		return;
+
+	if (strcmp("3:0:0:0", dev_name(dev)))
+		return;
+
+	entries = kmalloc_array(MAX_STACK_TRACE_DEPTH, sizeof(*entries),
+				GFP_KERNEL);
+	if (!entries)
+		return;
+
+	//err = lock_trace(task);
+	//if (!err) {
+
+	nr_entries = stack_trace_save_tsk(owner, entries,
+						  MAX_STACK_TRACE_DEPTH, 0);
+
+	stack_trace_print(entries, nr_entries, 0);
+
+}
+
 extern struct task_struct *__mutex_owner(struct mutex *lock);
 static void __device_driver_lock(struct device *dev, struct device *parent)
 {
-	
 	struct task_struct *owner1;
 
 	if (parent && dev->bus->need_parent_lock) {
 		struct task_struct *owner = __mutex_owner(&parent->mutex);
 		dev_err(parent, "%s1 parent owner pid=%d\n", __func__, owner ? owner->pid : -123);
 		dev_err(dev, "%s1 dev\n", __func__);
+		
 		device_lock(parent);
 	}
 	owner1 = __mutex_owner(&dev->mutex);
-	dev_err(dev, "%s2 owner pid=%d\n", __func__, owner1 ? owner1->pid : -123);
+	crazy(owner1, dev);
+	dev_err(dev, "%s2 owner pid=%d name=x%sx\n", __func__, owner1 ? owner1->pid : -123, dev_name(dev));
 	device_lock(dev);
 }
 
