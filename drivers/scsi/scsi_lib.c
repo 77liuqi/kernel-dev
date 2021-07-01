@@ -213,6 +213,9 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	struct scsi_request *rq;
 	int ret = DRIVER_ERROR << 24;
 
+	if (cmd[0] == INQUIRY)
+		pr_err("%s INQUIRY rq_flags & RQF_PM=0x%x\n", __func__, rq_flags & RQF_PM);
+
 	req = blk_get_request(sdev->request_queue,
 			data_direction == DMA_TO_DEVICE ?
 			REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN,

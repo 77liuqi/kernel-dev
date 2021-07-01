@@ -310,7 +310,11 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
 {
 	int result;
 	unsigned char cmd[16];
-
+	struct task_struct *curren_taskt = get_current();
+	int pid = curren_taskt ? curren_taskt->pid : -123;
+	struct request_queue *request_queue = sdev->request_queue;
+	dev_err(&sdev->sdev_gendev, "%s current pid=%d request_queue=%pS rpm status=%d\n", __func__, pid,
+		request_queue, queue_rpm_status(request_queue));
 	if (len < 4)
 		return -EINVAL;
 
