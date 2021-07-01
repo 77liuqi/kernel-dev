@@ -506,10 +506,10 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	d->hard_reset = hard_reset;
 
 	spin_lock_irq(&ha->lock);
-	sas_queue_work(ha, &d->reset_work);
+	rc = sas_queue_work(ha, &d->reset_work);
 	spin_unlock_irq(&ha->lock);
 
-	pr_err("%s1 calling sas_drain_work\n", __func__);
+	pr_err("%s1 calling sas_drain_work rc=%d\n", __func__, rc);
 
 	rc = sas_drain_work(ha);
 	pr_err("%s2 sas_drain_work finished rc=%d\n", __func__, rc);

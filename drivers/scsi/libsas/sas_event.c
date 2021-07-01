@@ -15,10 +15,13 @@ int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 	/* it's added to the defer_q when draining so return succeed */
 	int rc = 1;
 
-	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
+	if (!test_bit(SAS_HA_REGISTERED, &ha->state)) {
+		pr_err("%s not SAS_HA_REGISTERED\n", __func__);
 		return 0;
+	}
 
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
+		pr_err("%s SAS_HA_DRAINING\n", __func__);
 		/* add it to the defer list, if not already pending */
 		if (list_empty(&sw->drain_node))
 			list_add_tail(&sw->drain_node, &ha->defer_q);
