@@ -1840,6 +1840,8 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 	struct device *dev = hisi_hba->dev;
 	int rc;
 
+	dev_err(hisi_hba->dev, "%s\n", __func__);
+
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
 					  HISI_SAS_INT_ABT_DEV, 0, false);
 	if (rc < 0) {
