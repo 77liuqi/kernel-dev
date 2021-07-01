@@ -1495,6 +1495,8 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	mutex_lock(&shost->scan_mutex);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
+	if (scsi_host_scan_allowed(shost))
+		pr_err("%s calling scsi_autopm_get_host\n", __func__);
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
@@ -1690,6 +1692,8 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
 		"%s: <%u:%u:%llu>\n",
 		__func__, channel, id, lun));
+
+	pr_err("%s\n", __func__);
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||

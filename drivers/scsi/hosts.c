@@ -174,8 +174,9 @@ void scsi_remove_host(struct Scsi_Host *shost)
 			return;
 		}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-
+	pr_err("%s calling scsi_autopm_get_host\n", __func__);
 	scsi_autopm_get_host(shost);
+	pr_err("%s2 calling scsi_autopm_get_host done\n", __func__);
 	flush_workqueue(shost->tmf_work_q);
 	scsi_forget_host(shost);
 	mutex_unlock(&shost->scan_mutex);
