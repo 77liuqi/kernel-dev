@@ -739,6 +739,9 @@ static inline bool dev_pm_test_driver_flags(struct device *dev, u32 flags)
 
 static inline void device_lock(struct device *dev)
 {
+	if (!strcmp("3:0:0:0", dev_name(dev)))
+		dev_err(dev, "%s\n", __func__);
+
 	mutex_lock(&dev->mutex);
 }
 

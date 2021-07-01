@@ -200,9 +200,13 @@ static ssize_t autosuspend_delay_ms_store(struct device *dev,
 	if (kstrtol(buf, 10, &delay) != 0 || delay != (int) delay)
 		return -EINVAL;
 
+	dev_err(dev, "%s going to device lock pid=%d\n", __func__, get_current()->pid);
+
 	device_lock(dev);
+	dev_err(dev, "%s1 got device lock pid=%d\n", __func__, get_current()->pid);
 	pm_runtime_set_autosuspend_delay(dev, delay);
 	device_unlock(dev);
+	dev_err(dev, "%s2 released device lock pid=%d\n", __func__, get_current()->pid);
 	return n;
 }
 
