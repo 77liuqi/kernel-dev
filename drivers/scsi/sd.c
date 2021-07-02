@@ -3580,8 +3580,8 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	struct scsi_device *sdp = sdkp->device;
 	int res;
 
-	pr_err("%s sdkp=%pS start=%d sdev->sdev_state=%d\n", 
-		__func__, sdkp, start, sdp->sdev_state);
+	pr_err("%s sdkp=%pS start=%d sdev->sdev_state=%d SDEV_DEL=%d\n", 
+		__func__, sdkp, start, sdp->sdev_state, SDEV_DEL);
 
 	if (start)
 		cmd[4] |= 1;	/* START */
