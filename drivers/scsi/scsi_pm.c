@@ -313,12 +313,21 @@ EXPORT_SYMBOL_GPL(scsi_autopm_get_device);
 
 void scsi_autopm_put_device(struct scsi_device *sdev)
 {
+
+	struct device *sdev_gendev = &sdev->sdev_gendev;
+	struct device *parent = sdev_gendev->parent;
+
+	dev_err_once(sdev_gendev, "%s sdev gendev parent=%s\n", __func__, dev_name(parent));
 	pm_runtime_put_sync(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL_GPL(scsi_autopm_put_device);
 
 void scsi_autopm_get_target(struct scsi_target *starget)
 {
+	struct device *dev = &starget->dev;
+	struct device *parent = dev->parent;
+
+	dev_err_once(dev, "%s scsi_target parent=%s\n", __func__, dev_name(parent));
 	pm_runtime_get_sync(&starget->dev);
 }
 

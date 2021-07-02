@@ -1538,19 +1538,24 @@ void scsi_rescan_device(struct device *dev)
 
 	scsi_attach_vpd(sdev);
 
-	if (sdev->handler && sdev->handler->rescan)
-		sdev->handler->rescan(sdev);
-
 	dev_err(dev, "%s2 got device lock pid=%d\n", __func__, get_current()->pid);
+
+	if (sdev->handler && sdev->handler->rescan) {
+	dev_err(dev, "%s2.1 got device lock pid=%d sdev->handler->rescan=%pS\n",
+		__func__, get_current()->pid, sdev->handler->rescan);
+		sdev->handler->rescan(sdev);
+	}
+
+	dev_err(dev, "%s3 got device lock pid=%d\n", __func__, get_current()->pid);
 
 	if (dev->driver && try_module_get(dev->driver->owner)) {
 		struct scsi_driver *drv = to_scsi_driver(dev->driver);
 		
-		dev_err(dev, "%s3 got device lock pid=%d\n", __func__, get_current()->pid);
+		dev_err(dev, "%s4 got device lock pid=%d\n", __func__, get_current()->pid);
 
 		if (drv->rescan)
 			drv->rescan(dev);
-		dev_err(dev, "%s4 got device lock pid=%d\n", __func__, get_current()->pid);
+		dev_err(dev, "%s5 got device lock pid=%d\n", __func__, get_current()->pid);
 		module_put(dev->driver->owner);
 	}
 	device_unlock(dev);
