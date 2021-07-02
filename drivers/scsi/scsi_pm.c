@@ -258,7 +258,7 @@ static int sdev_runtime_resume(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int err = 0;
-	dev_err(dev, "sdev_runtime_resume\n");
+	dev_err(dev, "sdev_runtime_resume pm=%pS\n", pm);
 
 	blk_pre_runtime_resume(sdev->request_queue);
 	if (pm && pm->runtime_resume) {
