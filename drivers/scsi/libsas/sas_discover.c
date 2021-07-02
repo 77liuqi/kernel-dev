@@ -441,7 +441,7 @@ static void sas_discover_domain(struct work_struct *work)
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_DISCOVER_DOMAIN, &port->disc.pending);
-
+	pr_err("%s\n", __func__);
 	if (port->port_dev)
 		return;
 
@@ -498,6 +498,8 @@ static void sas_do_revalidate_domain(struct asd_sas_port *port, bool *retry)
 {
 	struct domain_device *ddev = port->port_dev;
 	struct sas_ha_struct *ha = port->ha;
+
+	pr_err("%s\n", __func__);
 
 	/* prevent revalidation from finding sata links in recovery */
 	mutex_lock(&ha->disco_mutex);
