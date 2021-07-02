@@ -214,7 +214,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	int ret = DRIVER_ERROR << 24;
 
 	if (cmd[0] == INQUIRY)
-		pr_err("%s INQUIRY rq_flags & RQF_PM=0x%x pm only=%d q rpm status=%d q->mq_freeze_depth=%d\n",
+		dev_err(sdev->request_queue->dev, "%s INQUIRY rq_flags & RQF_PM=0x%x pm_only=%d q rpm status=%d q->mq_freeze_depth=%d\n",
 		__func__, rq_flags & RQF_PM, blk_queue_pm_only(sdev->request_queue), queue_rpm_status(sdev->request_queue),
 		sdev->request_queue->mq_freeze_depth);
 
@@ -2566,6 +2566,8 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	if (sdev->quiesced_by == current)
 		return 0;
 
+	dev_err(q->dev, "%s calling blk_set_pm_only() q=%pS\n", __func__, q);
+
 	blk_set_pm_only(q);
 
 	blk_mq_freeze_queue(q);
@@ -2582,8 +2584,10 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	err = scsi_device_set_state(sdev, SDEV_QUIESCE);
 	if (err == 0)
 		sdev->quiesced_by = current;
-	else
+	else {
+		dev_err(q->dev, "%s2 calling blk_clear_pm_only() q=%pS\n", __func__, q);
 		blk_clear_pm_only(q);
+	}
 	mutex_unlock(&sdev->state_mutex);
 
 	return err;
@@ -2610,6 +2614,7 @@ void scsi_device_resume(struct scsi_device *sdev)
 		scsi_device_set_state(sdev, SDEV_RUNNING);
 	if (sdev->quiesced_by) {
 		sdev->quiesced_by = NULL;
+		dev_err(&sdev->sdev_gendev, "%s calling blk_clear_pm_only() request_queue=%pS\n", __func__, sdev->request_queue);
 		blk_clear_pm_only(sdev->request_queue);
 	}
 	mutex_unlock(&sdev->state_mutex);

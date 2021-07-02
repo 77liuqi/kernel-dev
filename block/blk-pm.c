@@ -71,6 +71,8 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 	q->rpm_status = RPM_SUSPENDING;
 	spin_unlock_irq(&q->queue_lock);
 
+	dev_err(q->dev, "%s calling blk_set_pm_only() q=%pS\n", __func__, q);
+
 	/*
 	 * Increase the pm_only counter before checking whether any
 	 * non-PM blk_queue_enter() calls are in progress to avoid that any
@@ -98,6 +100,8 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 		q->rpm_status = RPM_ACTIVE;
 		pm_runtime_mark_last_busy(q->dev);
 		spin_unlock_irq(&q->queue_lock);
+		
+		dev_err(q->dev, "%s2 calling blk_clear_pm_only() q=%pS\n", __func__, q);
 
 		blk_clear_pm_only(q);
 	}
@@ -133,8 +137,10 @@ void blk_post_runtime_suspend(struct request_queue *q, int err)
 	}
 	spin_unlock_irq(&q->queue_lock);
 
-	if (err)
+	if (err) {
+		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS\n", __func__, q);
 		blk_clear_pm_only(q);
+	}
 }
 EXPORT_SYMBOL(blk_post_runtime_suspend);
 
@@ -218,7 +224,9 @@ void blk_set_runtime_active(struct request_queue *q)
 	pm_request_autosuspend(q->dev);
 	spin_unlock_irq(&q->queue_lock);
 
-	if (old_status != RPM_ACTIVE)
+	if (old_status != RPM_ACTIVE) {
+		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS\n", __func__, q);
 		blk_clear_pm_only(q);
+	}
 }
 EXPORT_SYMBOL(blk_set_runtime_active);

@@ -895,7 +895,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto out;
 	}
 	
-	dev_err(dev, "%s9.1\n", __func__);
+	dev_err(dev, "%s9.1 checking parent=%pS\n", __func__, parent);
 
 	if (!parent && dev->parent) {
 		/*
@@ -904,6 +904,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * parent is permanently resumed.
 		 */
 		parent = dev->parent;
+		dev_err(dev, "%s9.11 dev->power.irq_safe=%d\n", __func__, dev->power.irq_safe);
 		if (dev->power.irq_safe)
 			goto skip_parent;
 		spin_unlock(&dev->power.lock);
@@ -915,6 +916,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * Resume the parent if it has runtime PM enabled and not been
 		 * set to ignore its children.
 		 */
+		 
+		dev_err(parent, "%s9.12 disable_depth=%d ignore_children=%d\n",
+		__func__, parent->power.disable_depth, parent->power.ignore_children);
 		if (!parent->power.disable_depth
 		    && !parent->power.ignore_children) {
 			rpm_resume(parent, 0);
@@ -930,7 +934,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	}
  skip_parent:
 
-	dev_err(dev, "%s9.2\n", __func__);
+	dev_err(dev, "%s9.2 skip_parent\n", __func__);
 
 	if (dev->power.no_callbacks)
 		goto no_callback;	/* Assume success. */
