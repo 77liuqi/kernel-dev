@@ -895,7 +895,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		goto out;
 	}
 	
-	dev_err(dev, "%s9.1 checking parent=%pS\n", __func__, parent);
+	dev_err(dev, "%s9.1 checking parent=%pS %s\n",
+	__func__, parent, parent ? dev_name(parent) : "");
 
 	if (!parent && dev->parent) {
 		/*
@@ -904,7 +905,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * parent is permanently resumed.
 		 */
 		parent = dev->parent;
-		dev_err(dev, "%s9.11 dev->power.irq_safe=%d\n", __func__, dev->power.irq_safe);
+		dev_err(dev, "%s9.11 dev->power.irq_safe=%d parent=%pS %s\n",
+		__func__, dev->power.irq_safe, parent, dev_name(parent));
 		if (dev->power.irq_safe)
 			goto skip_parent;
 		spin_unlock(&dev->power.lock);

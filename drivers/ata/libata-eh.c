@@ -2914,6 +2914,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	unsigned long flags;
 	int rc = 0;
 
+	pr_err("%s\n", __func__);
+
 	DPRINTK("ENTER\n");
 
 	/* For PATA drive side cable detection to work, IDENTIFY must
@@ -3545,6 +3547,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	unsigned long flags, deadline;
 
 	DPRINTK("ENTER\n");
+	pr_err("%s\n", __func__);
 
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
