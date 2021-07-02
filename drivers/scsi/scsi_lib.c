@@ -214,9 +214,9 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	int ret = DRIVER_ERROR << 24;
 
 	if (cmd[0] == INQUIRY)
-		dev_err(sdev->request_queue->dev, "%s INQUIRY rq_flags & RQF_PM=0x%x pm_only=%d q rpm status=%d q->mq_freeze_depth=%d\n",
+		dev_err(sdev->request_queue->dev, "%s INQUIRY rq_flags & RQF_PM=0x%x pm_only=%d q rpm status=%d q->mq_freeze_depth=%d sdev->request_queue->dev=%pS\n",
 		__func__, rq_flags & RQF_PM, blk_queue_pm_only(sdev->request_queue), queue_rpm_status(sdev->request_queue),
-		sdev->request_queue->mq_freeze_depth);
+		sdev->request_queue->mq_freeze_depth, sdev->request_queue->dev);
 
 	req = blk_get_request(sdev->request_queue,
 			data_direction == DMA_TO_DEVICE ?
@@ -2555,7 +2555,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 {
 	struct request_queue *q = sdev->request_queue;
 	int err;
-
+	dev_err(&sdev->sdev_gendev, "%s\n", __func__);
 	/*
 	 * It is allowed to call scsi_device_quiesce() multiple times from
 	 * the same context but concurrent scsi_device_quiesce() calls are

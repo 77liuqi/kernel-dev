@@ -62,6 +62,8 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 {
 	int ret = 0;
 
+	dev_err(q->dev, "%s q=%pS q->rpm_status=%d\n", __func__, q, q->rpm_status);
+
 	if (!q->dev)
 		return ret;
 
@@ -71,7 +73,7 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 	q->rpm_status = RPM_SUSPENDING;
 	spin_unlock_irq(&q->queue_lock);
 
-	dev_err(q->dev, "%s calling blk_set_pm_only() q=%pS\n", __func__, q);
+	dev_err(q->dev, "%s1 calling blk_set_pm_only() q=%pS q->rpm_status=%d\n", __func__, q, q->rpm_status);
 
 	/*
 	 * Increase the pm_only counter before checking whether any
@@ -125,6 +127,7 @@ EXPORT_SYMBOL(blk_pre_runtime_suspend);
  */
 void blk_post_runtime_suspend(struct request_queue *q, int err)
 {
+	pr_err("%s q=%pS q->dev=%pS q->rpm_status=%d\n", __func__, q, q->dev, q->rpm_status);
 	if (!q->dev)
 		return;
 
@@ -138,7 +141,7 @@ void blk_post_runtime_suspend(struct request_queue *q, int err)
 	spin_unlock_irq(&q->queue_lock);
 
 	if (err) {
-		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS\n", __func__, q);
+		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS q->rpm_status=%d\n", __func__, q, q->rpm_status);
 		blk_clear_pm_only(q);
 	}
 }
@@ -157,6 +160,7 @@ EXPORT_SYMBOL(blk_post_runtime_suspend);
  */
 void blk_pre_runtime_resume(struct request_queue *q)
 {
+	pr_err("%s q=%pS q->dev=%pS q->rpm_status=%d\n", __func__, q, q->dev, q->rpm_status);
 	if (!q->dev)
 		return;
 
@@ -181,6 +185,9 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  */
 void blk_post_runtime_resume(struct request_queue *q, int err)
 {
+
+	pr_err("%s q=%pS q->dev=%pS q->rpm_status=%d err=%d\n", __func__, q, q->dev, q->rpm_status, err);
+
 	if (!q->dev)
 		return;
 	if (!err) {
@@ -214,6 +221,8 @@ void blk_set_runtime_active(struct request_queue *q)
 {
 	int old_status;
 
+	pr_err("%s q=%pS q->dev=%pS q->rpm_status=%d\n", __func__, q, q->dev, q->rpm_status);
+
 	if (!q->dev)
 		return;
 
@@ -225,7 +234,7 @@ void blk_set_runtime_active(struct request_queue *q)
 	spin_unlock_irq(&q->queue_lock);
 
 	if (old_status != RPM_ACTIVE) {
-		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS\n", __func__, q);
+		dev_err(q->dev, "%s calling blk_clear_pm_only() q=%pS q->rpm_status=%d\n", __func__, q, q->rpm_status);
 		blk_clear_pm_only(q);
 	}
 }
