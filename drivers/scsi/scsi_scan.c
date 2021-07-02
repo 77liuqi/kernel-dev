@@ -1531,10 +1531,10 @@ EXPORT_SYMBOL(scsi_add_device);
 void scsi_rescan_device(struct device *dev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	dev_err(dev, "%s going to device lock pid=%d\n", __func__, get_current()->pid);
+	dev_err(dev, "%s going to device lock pid=%d sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
 	device_lock(dev);
 
-	dev_err(dev, "%s1 got device lock pid=%d\n", __func__, get_current()->pid);
+	dev_err(dev, "%s1 got device lock pid=%d sdev->sdev_state=%dmak\n", __func__, get_current()->pid, sdev->sdev_state);
 
 	scsi_attach_vpd(sdev);
 
@@ -1546,7 +1546,7 @@ void scsi_rescan_device(struct device *dev)
 		sdev->handler->rescan(sdev);
 	}
 
-	dev_err(dev, "%s3 got device lock pid=%d\n", __func__, get_current()->pid);
+	dev_err(dev, "%s3 got device lock pid=%d , sdev->sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
 
 	if (dev->driver && try_module_get(dev->driver->owner)) {
 		struct scsi_driver *drv = to_scsi_driver(dev->driver);
