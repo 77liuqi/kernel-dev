@@ -1425,8 +1425,11 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		 * cache) are errored immediately.
 		 */
 		res = scsi_device_set_state(sdev, SDEV_CANCEL);
+		dev_err(dev, "%s2.11 after cancel res=%d\n", __func__, res);
 		if (res != 0) {
+			dev_err(dev, "%s2.11 setting DEL\n", __func__);
 			res = scsi_device_set_state(sdev, SDEV_DEL);
+			dev_err(dev, "%s2.12 setting DEL res=%d (0 is scsi start queue)\n", __func__, res);
 			if (res == 0)
 				scsi_start_queue(sdev);
 		}
@@ -1463,6 +1466,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	mutex_lock(&sdev->state_mutex);
 	scsi_device_set_state(sdev, SDEV_DEL);
 	mutex_unlock(&sdev->state_mutex);
+
+	pr_err("%s2 q=%pS going to call cleanup\n", __func__, sdev->request_queue);
 
 	blk_cleanup_queue(sdev->request_queue);
 	cancel_work_sync(&sdev->requeue_work);
