@@ -1534,8 +1534,11 @@ void scsi_rescan_device(struct device *dev)
 	dev_err(dev, "%s going to device lock pid=%d sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
 	device_lock(dev);
 
-	dev_err(dev, "%s1 got device lock pid=%d sdev->sdev_state=%dmak\n", __func__, get_current()->pid, sdev->sdev_state);
-
+	dev_err(dev, "%s1 got device lock pid=%d sdev->sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
+	if (sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL) {
+		dev_err(dev, "%s1.1 got device lock pid=%d sdev->sdev_state=%d skipping\n", __func__, get_current()->pid, sdev->sdev_state);
+		goto out;
+	}
 	scsi_attach_vpd(sdev);
 
 	dev_err(dev, "%s2 got device lock pid=%d\n", __func__, get_current()->pid);
@@ -1558,6 +1561,7 @@ void scsi_rescan_device(struct device *dev)
 		dev_err(dev, "%s5 got device lock pid=%d\n", __func__, get_current()->pid);
 		module_put(dev->driver->owner);
 	}
+out:
 	device_unlock(dev);
 	dev_err(dev, "%s10 released device lock pid=%d\n", __func__, get_current()->pid);
 }
