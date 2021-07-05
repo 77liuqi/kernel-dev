@@ -1451,6 +1451,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 		dev_err(dev, "%s2.5\n", __func__);
 		transport_remove_device(dev);
 		dev_err(dev, "%s2.6\n", __func__);
+		blk_set_queue_dying(sdev->request_queue);
+		dev_err(dev, "%s2.61\n", __func__);
 		device_del(dev);
 		dev_err(dev, "%s2.7\n", __func__);
 	} else
