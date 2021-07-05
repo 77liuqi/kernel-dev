@@ -3126,12 +3126,15 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 
 	return 0;
 }
-
+struct blk_mq_tag_set *hisi_tag_set; 
 static int hisi_sas_map_queues(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
 	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 
+	if (!hisi_tag_set)
+		hisi_tag_set = &shost->tag_set;
+	
 	return blk_mq_pci_map_queues(qmap, hisi_hba->pci_dev,
 				     BASE_VECTORS_V3_HW);
 }

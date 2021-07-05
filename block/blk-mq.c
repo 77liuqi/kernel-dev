@@ -40,7 +40,7 @@
 #include "blk-stat.h"
 #include "blk-mq-sched.h"
 #include "blk-rq-qos.h"
-
+extern struct blk_mq_tag_set *hisi_tag_set;
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
 static void blk_mq_poll_stats_start(struct request_queue *q);
@@ -2461,6 +2461,10 @@ int blk_mq_alloc_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 				cache_line_size());
 	left = rq_size * depth;
 
+	if (set == hisi_tag_set)
+		pr_err("%s set=%pS hctx_idx=%d depth=%d left=%zu (per hwq) rq_size=%zu set->cmd_size=%u\n",
+		__func__, set, hctx_idx, depth, left, rq_size, set->cmd_size);
+
 	for (i = 0; i < depth; ) {
 		int this_order = max_order;
 		struct page *page;
@@ -3478,7 +3482,7 @@ static int blk_mq_alloc_tag_set_tags(struct blk_mq_tag_set *set,
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 {
 	int i, ret;
-
+	pr_err("%s set=%pS\n", __func__, set);
 	BUILD_BUG_ON(BLK_MQ_MAX_DEPTH > 1 << BLK_MQ_UNIQUE_TAG_BITS);
 
 	if (!set->nr_hw_queues)
