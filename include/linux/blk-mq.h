@@ -193,6 +193,7 @@ struct blk_mq_queue_map {
 	unsigned int *mq_map;
 	unsigned int nr_queues;
 	unsigned int queue_offset;
+	bool drain_hwq;
 };
 
 /**

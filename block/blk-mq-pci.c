@@ -37,7 +37,7 @@ int blk_mq_pci_map_queues(struct blk_mq_queue_map *qmap, struct pci_dev *pdev,
 		for_each_cpu(cpu, mask)
 			qmap->mq_map[cpu] = qmap->queue_offset + queue;
 	}
-
+	qmap->drain_hwq = 1;
 	return 0;
 
 fallback:

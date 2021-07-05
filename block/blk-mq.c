@@ -3408,7 +3408,8 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 		set->map[HCTX_TYPE_DEFAULT].nr_queues = set->nr_hw_queues;
 
 	if (set->ops->map_queues && !is_kdump_kernel()) {
-		int i;
+		struct blk_mq_queue_map *qmap = &set->map[HCTX_TYPE_DEFAULT];
+		int i, ret;
 
 		/*
 		 * transport .map_queues is usually done in the following
@@ -3427,7 +3428,12 @@ static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 		for (i = 0; i < set->nr_maps; i++)
 			blk_mq_clear_mq_map(&set->map[i]);
 
-		return set->ops->map_queues(set);
+		ret = set->ops->map_queues(set);
+		if (ret)
+			return ret;
+		if (qmap->drain_hwq)
+			set->flags |= BLK_MQ_F_MANAGED_IRQ;
+		return 0;
 	} else {
 		BUG_ON(set->nr_maps > 1);
 		return blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
