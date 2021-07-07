@@ -193,7 +193,6 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 	if (!err) {
 		blk_set_runtime_active(q);
 	} else {
-		wake_up_all(&q->mq_freeze_wq);
 		spin_lock_irq(&q->queue_lock);
 		q->rpm_status = RPM_SUSPENDED;
 		spin_unlock_irq(&q->queue_lock);

@@ -345,7 +345,7 @@ EXPORT_SYMBOL(blk_put_queue);
 
 void blk_set_queue_dying(struct request_queue *q)
 {
-	pr_err("%s q=%pS\n", __func__, q);
+	pr_err("%s q=%pS\n", __func__);
 	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
 
 	/*
@@ -379,7 +379,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	WARN_ON_ONCE(blk_queue_registered(q));
 
-	pr_err("%s q=%pS\n", __func__, q);
+	pr_err("%s q=%pS\n", __func__);
 
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	blk_set_queue_dying(q);
@@ -428,13 +428,6 @@ void blk_cleanup_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_cleanup_queue);
 
-bool qdev_err(struct request_queue *q)
-{
-	if (!q->dev)
-		return false;
-	return q->dev->power.runtime_error;
-}
-
 /**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
@@ -481,14 +474,9 @@ int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags)
 		wait_event(q->mq_freeze_wq,
 			   (!q->mq_freeze_depth &&
 			    blk_pm_resume_queue(pm, q)) ||
-			   blk_queue_dying(q) ||
-			   qdev_err(q));
+			   blk_queue_dying(q));
 		if (blk_queue_dying(q))
 			return -ENODEV;
-		if (qdev_err(q)) {
-			dev_err(q->dev, "%s qdev_err=1\n", __func__);
-			return -ENODEV;
-		}
 	}
 }
 
