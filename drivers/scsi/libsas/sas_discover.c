@@ -266,9 +266,8 @@ static void sas_resume_devices(struct work_struct *work)
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_RESUME, &port->disc.pending);
-	pr_err("%s\n", __func__);
+
 	sas_resume_sata(port);
-	pr_err("%s10\n", __func__);
 }
 
 /**
@@ -343,19 +342,13 @@ void sas_destruct_devices(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
 
-	pr_err("%s port%d\n", __func__, port->id);
-
 	list_for_each_entry_safe(dev, n, &port->destroy_list, disco_list_node) {
 		list_del_init(&dev->disco_list_node);
-		
-		pr_err("%s1 port%d going to sas_remove_children\n", __func__, port->id);
+
 		sas_remove_children(&dev->rphy->dev);
-		pr_err("%s1 port%d going to sas_rphy_delete\n", __func__, port->id);
 		sas_rphy_delete(dev->rphy);
-		pr_err("%s1 port%d going to sas_unregister_common_dev\n", __func__, port->id);
 		sas_unregister_common_dev(port, dev);
 	}
-	pr_err("%s10 out port%d\n", __func__, port->id);
 }
 
 static void sas_destruct_ports(struct asd_sas_port *port)
@@ -441,7 +434,7 @@ static void sas_discover_domain(struct work_struct *work)
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_DISCOVER_DOMAIN, &port->disc.pending);
-	pr_err("%s\n", __func__);
+
 	if (port->port_dev)
 		return;
 
@@ -450,7 +443,7 @@ static void sas_discover_domain(struct work_struct *work)
 		return;
 	dev = port->port_dev;
 
-	pr_err("DOING DISCOVERY on port %d, pid:%d\n", port->id,
+	pr_debug("DOING DISCOVERY on port %d, pid:%d\n", port->id,
 		 task_pid_nr(current));
 
 	switch (dev->dev_type) {
@@ -490,7 +483,7 @@ static void sas_discover_domain(struct work_struct *work)
 
 	sas_probe_devices(port);
 
-	pr_err("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
+	pr_debug("DONE DISCOVERY on port %d, pid:%d, result:%d\n", port->id,
 		 task_pid_nr(current), error);
 }
 
@@ -499,26 +492,24 @@ static void sas_do_revalidate_domain(struct asd_sas_port *port, bool *retry)
 	struct domain_device *ddev = port->port_dev;
 	struct sas_ha_struct *ha = port->ha;
 
-	pr_err("%s\n", __func__);
-
 	/* prevent revalidation from finding sata links in recovery */
 	mutex_lock(&ha->disco_mutex);
 	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)) {
-		pr_err("REVALIDATION DEFERRED on port %d, pid:%d\n",
+		pr_debug("REVALIDATION DEFERRED on port %d, pid:%d\n",
 			 port->id, task_pid_nr(current));
 		goto out;
 	}
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
-	pr_err("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
+	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
 		 task_pid_nr(current));
 
 	if (ddev && dev_is_expander(ddev->dev_type))
 		sas_ex_revalidate_domain(ddev, retry);
 
 
-	pr_err("done REVALIDATING DOMAIN on port %d, pid:%d\n",
+	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d\n",
 		 port->id, task_pid_nr(current));
  out:
 	mutex_unlock(&ha->disco_mutex);
@@ -533,7 +524,7 @@ static void sas_revalidate_domain(struct work_struct *work)
 	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 	bool retry;
-	pr_err("%s\n", __func__);
+
 	do {
 		retry = false;
 		sas_do_revalidate_domain(port, &retry);

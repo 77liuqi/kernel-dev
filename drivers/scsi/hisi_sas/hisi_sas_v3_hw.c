@@ -1005,7 +1005,7 @@ static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	u32 txid_auto;
-	dev_err(hisi_hba->dev, "%s phy%d\n", __func__, phy_no);
+
 	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
 	if (phy->identify.device_type == SAS_END_DEVICE) {
 		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
@@ -2759,8 +2759,6 @@ static int slave_configure_v3_hw(struct scsi_device *sdev)
 
 	if (sdev->type == TYPE_ENCLOSURE)
 		return 0;
-
-	dev_err(&sdev->sdev_gendev, "%s &sdev->sdev_gendev &shost->shost_gendev=%s\n", __func__, dev_name(&shost->shost_gendev));
 
 	if (!device_link_add(&sdev->sdev_gendev, dev,
 			     DL_FLAG_PM_RUNTIME | DL_FLAG_RPM_ACTIVE)) {
@@ -4999,11 +4997,7 @@ static int __maybe_unused resume_v3_hw(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct sas_ha_struct *sha = pci_get_drvdata(pdev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
-	int rc;
-
-	dev_err(device, "%s runtime_status=%d\n", __func__,
-		device->power.runtime_status);
-	rc = _resume_v3_hw(device);
+	int rc = _resume_v3_hw(device);
 
 	clear_bit(HISI_SAS_PM_BIT, &hisi_hba->flags);
 

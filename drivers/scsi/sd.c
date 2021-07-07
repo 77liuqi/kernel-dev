@@ -3372,8 +3372,6 @@ static int sd_probe(struct device *dev)
 	int index;
 	int error;
 
-	dev_err(dev, "%s\n", __func__);
-
 	scsi_autopm_get_device(sdp);
 	error = -ENODEV;
 	if (sdp->type != TYPE_DISK &&
@@ -3580,9 +3578,6 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	struct scsi_device *sdp = sdkp->device;
 	int res;
 
-	pr_err("%s sdkp=%pS start=%d sdev->sdev_state=%d SDEV_DEL=%d\n", 
-		__func__, sdkp, start, sdp->sdev_state, SDEV_DEL);
-
 	if (start)
 		cmd[4] |= 1;	/* START */
 
@@ -3594,10 +3589,6 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 
 	res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
 			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
-
-	pr_err("%s2 sdkp=%pS start=%d res=%d\n",
-		__func__, sdkp, start, res);
-
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
 		if (driver_byte(res) == DRIVER_SENSE)
@@ -3607,9 +3598,6 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 			sshdr.asc == 0x3a)
 			res = 0;
 	}
-
-	pr_err("%s3 sdkp=%pS start=%d res=%d\n",
-		__func__, sdkp, start, res);
 
 	/* SCSI error codes must not go to the generic layer */
 	if (res)
@@ -3701,19 +3689,14 @@ static int sd_resume(struct device *dev)
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 	int ret;
 
-	dev_err(dev, "%s sdkp=%pS\n", __func__, sdkp);
-
 	if (!sdkp)	/* E.g.: runtime resume at the start of sd_probe() */
 		return 0;
-
-	dev_err(dev, "%s2 manage_start_stop=%d\n", __func__, sdkp->device->manage_start_stop);
 
 	if (!sdkp->device->manage_start_stop)
 		return 0;
 
 	sd_printk(KERN_NOTICE, sdkp, "Starting disk\n");
 	ret = sd_start_stop_device(sdkp, 1);
-	dev_err(dev, "%s3 ret=%d\n", __func__, ret);
 	if (!ret)
 		opal_unlock_from_suspend(sdkp->opal_dev);
 	return ret;

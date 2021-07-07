@@ -84,8 +84,6 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		to_sas_internal(sas_ha->core.shost->transportt);
 	unsigned long flags;
 
-	pr_err("%s phy%d\n", __func__, phy->phy->number);
-
 	if (port) {
 		if (!phy_is_wideport_member(port, phy))
 			sas_deform_port(phy, 0);
@@ -112,7 +110,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		if (*(u64 *) port->sas_addr &&
 		    phy_is_wideport_member(port, phy) && port->num_phys > 0) {
 			/* wide port */
-			pr_err("phy%d matched wide port%d\n", phy->id,
+			pr_debug("phy%d matched wide port%d\n", phy->id,
 				 port->id);
 			break;
 		}
@@ -167,7 +165,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	}
 	sas_port_add_phy(port->port, phy->phy);
 
-	pr_err("%s added to %s, phy_mask:0x%x (%016llx)\n",
+	pr_debug("%s added to %s, phy_mask:0x%x (%016llx)\n",
 		 dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		 port->phy_mask,
 		 SAS_ADDR(port->attached_sas_addr));
@@ -187,10 +185,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 		ex_dev->ex_change_count = -1;
 		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
 	}
-	
-	pr_err("%s9 phy%d calling flush_workqueue\n", __func__, phy->phy->number);
 	flush_workqueue(sas_ha->disco_q);
-	pr_err("%s9=10 out phy%d\n", __func__, phy->phy->number);
 }
 
 /**
@@ -210,11 +205,6 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	struct domain_device *dev;
 	unsigned long flags;
 
-	if (phy->phy)
-		pr_err("%s phy%d port=%pS\n", __func__, phy->phy->number, port);
-	else
-		pr_err("%s phy? port=%pS\n", __func__, port);
-
 	if (!port)
 		return;		  /* done by a phy event */
 
@@ -223,24 +213,12 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		dev->pathways--;
 
 	if (port->num_phys == 1) {
-		pr_err("%s1 going sas_unregister_domain_devices phy%d\n", __func__, phy->phy->number);
 		sas_unregister_domain_devices(port, gone);
-		pr_err("%s1 going sas_destruct_devices phy%d\n", __func__, phy->phy->number);
 		sas_destruct_devices(port);
-		pr_err("%s1 going sas_port_delete phy%d\n", __func__, phy->phy->number);
 		sas_port_delete(port->port);
-		pr_err("%s1 going port->port = NULL phy%d\n", __func__, phy->phy->number);
 		port->port = NULL;
 	} else {
-		if (phy->phy)
-			pr_err("%s2 going sas_port_delete_phy phy%d\n", __func__, phy->phy->number);
-		else
-			pr_err("%s2 going sas_port_delete_phy phy?\n", __func__);
 		sas_port_delete_phy(port->port, phy->phy);
-		if (phy->phy)
-			pr_err("%s2 going sas_device_set_phy phy%d\n", __func__, phy->phy->number);
-		else
-			pr_err("%s2 going sas_device_set_phy phy?\n", __func__);
 		sas_device_set_phy(dev, port->port);
 	}
 
@@ -273,25 +251,10 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	if (port->port && dev && dev_is_expander(dev->dev_type)) {
 		struct expander_device *ex_dev = &dev->ex_dev;
 
-		if (phy->phy)
-			pr_err("%s5 insering DISCE_REVALIDATE_DOMAIN phy%d\n", __func__, phy->phy->number);
-		else
-			pr_err("%s5 insering DISCE_REVALIDATE_DOMAIN phy?\n", __func__);
-
 		ex_dev->ex_change_count = -1;
 		sas_discover_event(port, DISCE_REVALIDATE_DOMAIN);
 	}
-	
-	if (phy->phy)
-		pr_err("%s9 phy%d\n", __func__, phy->phy->number);
-	else
-		pr_err("%s9 phy?\n", __func__);
 	flush_workqueue(sas_ha->disco_q);
-
-	if (phy->phy)
-		pr_err("%s10 exit phy%d\n", __func__, phy->phy->number);
-	else
-		pr_err("%s10 exit phy?\n", __func__);
 
 	return;
 }
@@ -317,7 +280,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	prim = phy->sas_prim;
 	spin_unlock_irqrestore(&phy->sas_prim_lock, flags);
 
-	pr_err("broadcast received: %d\n", prim);
+	pr_debug("broadcast received: %d\n", prim);
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
 
 	if (phy->port)

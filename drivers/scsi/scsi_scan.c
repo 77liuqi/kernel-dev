@@ -312,8 +312,6 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 		}
 	}
 
-	dev_err(&sdev->sdev_gendev, "%s\n", __func__);
-
 	return sdev;
 
 out_device_destroy:
@@ -329,8 +327,6 @@ static void scsi_target_destroy(struct scsi_target *starget)
 	struct device *dev = &starget->dev;
 	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 	unsigned long flags;
-
-	dev_err(dev, "%s\n", __func__);
 
 	BUG_ON(starget->state == STARGET_DEL);
 	starget->state = STARGET_DEL;
@@ -1495,8 +1491,6 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	mutex_lock(&shost->scan_mutex);
 	if (!shost->async_scan)
 		scsi_complete_async_scans();
-	if (scsi_host_scan_allowed(shost))
-		pr_err("%s calling scsi_autopm_get_host\n", __func__);
 
 	if (scsi_host_scan_allowed(shost) && scsi_autopm_get_host(shost) == 0) {
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
@@ -1531,39 +1525,22 @@ EXPORT_SYMBOL(scsi_add_device);
 void scsi_rescan_device(struct device *dev)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	dev_err(dev, "%s going to device lock pid=%d sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
+
 	device_lock(dev);
 
-	dev_err(dev, "%s1 got device lock pid=%d sdev->sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
-	if (sdev->sdev_state == SDEV_CANCEL || sdev->sdev_state == SDEV_DEL) {
-		dev_err(dev, "%s1.1 got device lock pid=%d sdev->sdev_state=%d skipping\n", __func__, get_current()->pid, sdev->sdev_state);
-		goto out;
-	}
 	scsi_attach_vpd(sdev);
 
-	dev_err(dev, "%s2 got device lock pid=%d\n", __func__, get_current()->pid);
-
-	if (sdev->handler && sdev->handler->rescan) {
-	dev_err(dev, "%s2.1 got device lock pid=%d sdev->handler->rescan=%pS\n",
-		__func__, get_current()->pid, sdev->handler->rescan);
+	if (sdev->handler && sdev->handler->rescan)
 		sdev->handler->rescan(sdev);
-	}
-
-	dev_err(dev, "%s3 got device lock pid=%d , sdev->sdev_state=%d\n", __func__, get_current()->pid, sdev->sdev_state);
 
 	if (dev->driver && try_module_get(dev->driver->owner)) {
 		struct scsi_driver *drv = to_scsi_driver(dev->driver);
-		
-		dev_err(dev, "%s4 got device lock pid=%d\n", __func__, get_current()->pid);
 
 		if (drv->rescan)
 			drv->rescan(dev);
-		dev_err(dev, "%s5 got device lock pid=%d\n", __func__, get_current()->pid);
 		module_put(dev->driver->owner);
 	}
-out:
 	device_unlock(dev);
-	dev_err(dev, "%s10 released device lock pid=%d\n", __func__, get_current()->pid);
 }
 EXPORT_SYMBOL(scsi_rescan_device);
 
@@ -1701,8 +1678,6 @@ int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
 		"%s: <%u:%u:%llu>\n",
 		__func__, channel, id, lun));
-
-	pr_err("%s\n", __func__);
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id >= shost->max_id)) ||

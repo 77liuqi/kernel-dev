@@ -222,7 +222,6 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
 	enum phy_func reset_type;
-	pr_err("%s phy%d hard=%d\n", __func__, phy->number, hard_reset);
 
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;
@@ -238,7 +237,6 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 
 		if (!hard_reset && sas_try_ata_reset(asd_phy) == 0)
 			return 0;
-		pr_err("%s2 local phy%d hard=%d\n", __func__, phy->number, hard_reset);
 		return i->dft->lldd_control_phy(asd_phy, reset_type, NULL);
 	} else {
 		struct sas_rphy *rphy = dev_to_rphy(phy->dev.parent);
@@ -358,7 +356,7 @@ int sas_set_phy_speed(struct sas_phy *phy,
 void sas_prep_resume_ha(struct sas_ha_struct *ha)
 {
 	int i;
-	pr_err("%s SAS_HA_REGISTERED being set\n", __func__);
+
 	set_bit(SAS_HA_REGISTERED, &ha->state);
 
 	/* clear out any stale link events/data from the suspension path */
@@ -390,7 +388,6 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	const unsigned long tmo = msecs_to_jiffies(25000);
 	int i;
 
-	dev_err(ha->dev, "%s\n", __func__);
 
 	/* deform ports on phys that did not resume
 	 * at this point we may be racing the phy coming back (as posted
@@ -416,11 +413,8 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	/* all phys are back up or timed out, turn on i/o so we can
 	 * flush out disks that did not return
 	 */
-	dev_err(ha->dev, "%s8 unblocking requests\n", __func__);
 	scsi_unblock_requests(ha->core.shost);
-	dev_err(ha->dev, "%s9 going to sas_drain_work\n", __func__);
-	//sas_drain_work(ha);
-	dev_err(ha->dev, "%s10 exit\n", __func__);
+//	sas_drain_work(ha);
 }
 EXPORT_SYMBOL(sas_resume_ha);
 
@@ -428,7 +422,6 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 {
 	int i;
 
-	dev_err(ha->dev, "%s\n", __func__);
 
 	sas_disable_events(ha);
 	scsi_block_requests(ha->core.shost);
@@ -439,14 +432,9 @@ void sas_suspend_ha(struct sas_ha_struct *ha)
 	}
 
 	/* flush suspend events while unregistered */
-	dev_err(ha->dev, "%s4 trying for drain mutex\n", __func__);
 	mutex_lock(&ha->drain_mutex);
-	dev_err(ha->dev, "%s5 going to __sas_drain_work\n", __func__);
 	__sas_drain_work(ha);
-	dev_err(ha->dev, "%s6 unlocking drain mutex\n", __func__);
 	mutex_unlock(&ha->drain_mutex);
-	libsas_suspended_once = 1;
-	dev_err(ha->dev, "%s10 exit\n", __func__);
 }
 EXPORT_SYMBOL(sas_suspend_ha);
 
@@ -459,8 +447,6 @@ static void sas_phy_release(struct sas_phy *phy)
 static void phy_reset_work(struct work_struct *work)
 {
 	struct sas_phy_data *d = container_of(work, typeof(*d), reset_work.work);
-
-	pr_err("%s phy%d hard=%d\n", __func__, d->phy->number, d->hard_reset);
 
 	d->reset_result = transport_sas_phy_reset(d->phy, d->hard_reset);
 }
@@ -495,8 +481,6 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	struct sas_phy_data *d = phy->hostdata;
 	int rc;
 
-	pr_err("%s phy%d hard=%d\n", __func__, phy->number, hard_reset);
-
 	if (!d)
 		return -ENOMEM;
 
@@ -508,8 +492,6 @@ static int queue_phy_reset(struct sas_phy *phy, int hard_reset)
 	spin_lock_irq(&ha->lock);
 	rc = sas_queue_work(ha, &d->reset_work);
 	spin_unlock_irq(&ha->lock);
-
-	pr_err("%s1 calling sas_drain_work rc=%d\n", __func__, rc);
 
 	rc = sas_drain_work(ha);
 	pr_err("%s2 sas_drain_work finished rc=%d\n", __func__, rc);
@@ -538,7 +520,7 @@ static int queue_phy_enable(struct sas_phy *phy, int enable)
 	spin_lock_irq(&ha->lock);
 	sas_queue_work(ha, &d->enable_work);
 	spin_unlock_irq(&ha->lock);
-	pr_err("%s calling sas_drain_work\n", __func__);
+
 	rc = sas_drain_work(ha);
 	if (rc == 0)
 		rc = d->enable_result;

@@ -174,9 +174,8 @@ void scsi_remove_host(struct Scsi_Host *shost)
 			return;
 		}
 	spin_unlock_irqrestore(shost->host_lock, flags);
-	pr_err("%s calling scsi_autopm_get_host\n", __func__);
+
 	scsi_autopm_get_host(shost);
-	pr_err("%s2 calling scsi_autopm_get_host done\n", __func__);
 	flush_workqueue(shost->tmf_work_q);
 	scsi_forget_host(shost);
 	mutex_unlock(&shost->scan_mutex);
@@ -229,16 +228,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto fail;
 
-	dev_err(dev, "%s shost->shost_gendev.parent=%pS %s\n", __func__,
-	shost->shost_gendev.parent, shost->shost_gendev.parent ? dev_name(shost->shost_gendev.parent) : "");
-
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
 	if (!dma_dev)
 		dma_dev = shost->shost_gendev.parent;
-
-	dev_err(dev, "%s2 shost->shost_gendev.parent=%pS %s\n", __func__,
-	shost->shost_gendev.parent, shost->shost_gendev.parent ? dev_name(shost->shost_gendev.parent) : "");
 
 	shost->dma_dev = dma_dev;
 

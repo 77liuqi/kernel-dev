@@ -287,14 +287,9 @@ static int rpm_get_suppliers(struct device *dev)
 {
 	struct device_link *link;
 
-	dev_err(dev, "%s\n", __func__);
-
 	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node,
 				device_links_read_lock_held()) {
 		int retval;
-		
-		dev_err(dev, "%s1 link=%pS supplier =%s consumer=%s\n",
-			__func__, link, dev_name(link->supplier), dev_name(link->consumer));
 
 		if (!(link->flags & DL_FLAG_PM_RUNTIME))
 			continue;
@@ -303,12 +298,10 @@ static int rpm_get_suppliers(struct device *dev)
 		/* Ignore suppliers with disabled runtime PM. */
 		if (retval < 0 && retval != -EACCES) {
 			pm_runtime_put_noidle(link->supplier);
-			dev_err(dev, "%s4\n", __func__);
 			return retval;
 		}
 		refcount_inc(&link->rpm_active);
 	}
-	dev_err(dev, "%s10 out\n", __func__);
 	return 0;
 }
 
@@ -354,8 +347,6 @@ static int __rpm_callback(int (*cb)(struct device *), struct device *dev)
 {
 	int retval, idx;
 	bool use_links = dev->power.links_count > 0;
-
-	dev_err(dev, "%s cb=%pS\n", __func__, cb);
 
 	if (dev->power.irq_safe) {
 		spin_unlock(&dev->power.lock);
@@ -407,8 +398,6 @@ fail:
 
 		spin_lock_irq(&dev->power.lock);
 	}
-
-	dev_err(dev, "%s10 out cb=%pS\n", __func__, cb);
 
 	return retval;
 }
@@ -494,7 +483,6 @@ static int rpm_idle(struct device *dev, int rpmflags)
 static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 {
 	int retval;
-	dev_err(dev, "%s cb=%pS\n", __func__, cb);
 
 	if (!cb)
 		return -ENOSYS;
@@ -518,10 +506,6 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 		retval = __rpm_callback(cb, dev);
 	}
 
-	if (retval)
-		dev_err(dev, "%s2 cb=%pS retval=%d\n", 
-		__func__, cb, retval);
-		
 	dev->power.runtime_error = retval;
 	return retval != -EACCES ? retval : -EIO;
 }
@@ -765,11 +749,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	int retval = 0;
 
 	trace_rpm_resume_rcuidle(dev, rpmflags);
- 
-	dev_err(dev, "%s (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
-		__func__, dev->power.runtime_status,
-		dev->parent ? dev_name(dev->parent) : "no parent",
-		dev->parent ? dev->parent->power.runtime_status : -1);
 
  repeat:
 	if (dev->power.runtime_error)
@@ -782,14 +761,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	if (retval)
 		goto out;
 
-	dev_err(dev, "%s1 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
-		__func__, dev->power.runtime_status,
-		dev->parent ? dev_name(dev->parent) : "no parent",
-		dev->parent ? dev->parent->power.runtime_status : -1);
-
-
-
-
 	/*
 	 * Other scheduled or pending requests need to be canceled.  Small
 	 * optimization: If an autosuspend timer is running, leave it running
@@ -800,24 +771,14 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	if (!dev->power.timer_autosuspends)
 		pm_runtime_deactivate_timer(dev);
 
-	dev_err(dev, "%s2\n", __func__);
-
 	if (dev->power.runtime_status == RPM_ACTIVE) {
 		retval = 1;
 		goto out;
 	}
 
-	dev_err(dev, "%s3 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
-		__func__, dev->power.runtime_status,
-		dev->parent ? dev_name(dev->parent) : "no parent",
-		dev->parent ? dev->parent->power.runtime_status : -1);
-
-
 	if (dev->power.runtime_status == RPM_RESUMING
 	    || dev->power.runtime_status == RPM_SUSPENDING) {
 		DEFINE_WAIT(wait);
-		
-		dev_err(dev, "%s4\n", __func__);
 
 		if (rpmflags & (RPM_ASYNC | RPM_NOWAIT)) {
 			if (dev->power.runtime_status == RPM_SUSPENDING)
@@ -827,8 +788,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			goto out;
 		}
 
-		dev_err(dev, "%s5\n", __func__);
-
 		if (dev->power.irq_safe) {
 			spin_unlock(&dev->power.lock);
 
@@ -837,12 +796,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 			spin_lock(&dev->power.lock);
 			goto repeat;
 		}
-		
-		dev_err(dev, "%s6 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
-			__func__, dev->power.runtime_status,
-			dev->parent ? dev_name(dev->parent) : "no parent",
-			dev->parent ? dev->parent->power.runtime_status : -1);
-
 
 		/* Wait for the operation carried out in parallel with us. */
 		for (;;) {
@@ -858,15 +811,9 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 			spin_lock_irq(&dev->power.lock);
 		}
-		dev_err(dev, "%s7\n", __func__);
 		finish_wait(&dev->power.wait_queue, &wait);
 		goto repeat;
 	}
-	
-	dev_err(dev, "%s8 (runtime_status=%d) parent=%s (runtime_status=%d)\n", 
-		__func__, dev->power.runtime_status,
-		dev->parent ? dev_name(dev->parent) : "no parent",
-		dev->parent ? dev->parent->power.runtime_status : -1);
 
 	/*
 	 * See if we can skip waking up the parent.  This is safe only if
@@ -885,8 +832,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		}
 		spin_unlock(&dev->parent->power.lock);
 	}
-	
-	dev_err(dev, "%s9\n", __func__);
 
 	/* Carry out an asynchronous or a synchronous resume. */
 	if (rpmflags & RPM_ASYNC) {
@@ -898,9 +843,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		retval = 0;
 		goto out;
 	}
-	
-	dev_err(dev, "%s9.1 checking parent=%pS %s\n",
-	__func__, parent, parent ? dev_name(parent) : "");
 
 	if (!parent && dev->parent) {
 		/*
@@ -909,8 +851,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * parent is permanently resumed.
 		 */
 		parent = dev->parent;
-		dev_err(dev, "%s9.11 dev->power.irq_safe=%d parent=%pS %s\n",
-		__func__, dev->power.irq_safe, parent, dev_name(parent));
 		if (dev->power.irq_safe)
 			goto skip_parent;
 		spin_unlock(&dev->power.lock);
@@ -922,9 +862,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 		 * Resume the parent if it has runtime PM enabled and not been
 		 * set to ignore its children.
 		 */
-		 
-		dev_err(parent, "%s9.12 disable_depth=%d ignore_children=%d\n",
-		__func__, parent->power.disable_depth, parent->power.ignore_children);
 		if (!parent->power.disable_depth
 		    && !parent->power.ignore_children) {
 			rpm_resume(parent, 0);
@@ -940,8 +877,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	}
  skip_parent:
 
-	dev_err(dev, "%s9.2 skip_parent\n", __func__);
-
 	if (dev->power.no_callbacks)
 		goto no_callback;	/* Assume success. */
 
@@ -949,12 +884,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	callback = RPM_GET_CALLBACK(dev, runtime_resume);
 
-	dev_err(dev, "%s9.3\n", __func__);
-
 	dev_pm_disable_wake_irq_check(dev);
-	dev_err(dev, "%s9.3.1 callback=%pS\n", __func__, callback);
 	retval = rpm_callback(callback, dev);
-	dev_err(dev, "%s9.4\n", __func__);
 	if (retval) {
 		__update_runtime_status(dev, RPM_SUSPENDED);
 		pm_runtime_cancel_pending(dev);
@@ -970,10 +901,8 @@ static int rpm_resume(struct device *dev, int rpmflags)
 
 	if (retval >= 0)
 		rpm_idle(dev, RPM_ASYNC);
- 
 
  out:
- 	dev_err(dev, "%s9.5 out\n", __func__);
 	if (parent && !dev->power.irq_safe) {
 		spin_unlock_irq(&dev->power.lock);
 
@@ -983,8 +912,6 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	}
 
 	trace_rpm_return_int_rcuidle(dev, _THIS_IP_, retval);
-	
-	 dev_err(dev, "%s10 retval=%d out\n", __func__, retval);
 
 	return retval;
 }
@@ -1182,21 +1109,15 @@ int __pm_runtime_resume(struct device *dev, int rpmflags)
 	unsigned long flags;
 	int retval;
 
-	dev_err(dev, "%s\n", __func__);
-	
 	might_sleep_if(!(rpmflags & RPM_ASYNC) && !dev->power.irq_safe &&
 			dev->power.runtime_status != RPM_ACTIVE);
 
 	if (rpmflags & RPM_GET_PUT)
 		atomic_inc(&dev->power.usage_count);
 
-	dev_err(dev, "%s2\n", __func__);
-
 	spin_lock_irqsave(&dev->power.lock, flags);
 	retval = rpm_resume(dev, rpmflags);
 	spin_unlock_irqrestore(&dev->power.lock, flags);
-
-	dev_err(dev, "%s10 out retval=%d\n", __func__, retval);
 
 	return retval;
 }

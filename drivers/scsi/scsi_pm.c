@@ -258,13 +258,10 @@ static int sdev_runtime_resume(struct device *dev)
 	struct scsi_device *sdev = to_scsi_device(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 	int err = 0;
-	dev_err(dev, "sdev_runtime_resume pm=%pS\n", pm);
 
 	blk_pre_runtime_resume(sdev->request_queue);
-	if (pm && pm->runtime_resume) {
-		dev_err(dev, "%s2 runtime_resume=%pS\n", __func__, pm->runtime_resume);
+	if (pm && pm->runtime_resume)
 		err = pm->runtime_resume(dev);
-	}
 	blk_post_runtime_resume(sdev->request_queue, err);
 
 	return err;
@@ -274,7 +271,7 @@ static int scsi_runtime_resume(struct device *dev)
 {
 	int err = 0;
 
-	dev_err(dev, "scsi_runtime_resume\n");
+	dev_dbg(dev, "scsi_runtime_resume\n");
 	if (scsi_is_sdev_device(dev))
 		err = sdev_runtime_resume(dev);
 
@@ -313,21 +310,12 @@ EXPORT_SYMBOL_GPL(scsi_autopm_get_device);
 
 void scsi_autopm_put_device(struct scsi_device *sdev)
 {
-
-	struct device *sdev_gendev = &sdev->sdev_gendev;
-	struct device *parent = sdev_gendev->parent;
-
-	dev_err_once(sdev_gendev, "%s sdev gendev parent=%s\n", __func__, dev_name(parent));
 	pm_runtime_put_sync(&sdev->sdev_gendev);
 }
 EXPORT_SYMBOL_GPL(scsi_autopm_put_device);
 
 void scsi_autopm_get_target(struct scsi_target *starget)
 {
-	struct device *dev = &starget->dev;
-	struct device *parent = dev->parent;
-
-	dev_err_once(dev, "%s scsi_target parent=%s\n", __func__, dev_name(parent));
 	pm_runtime_get_sync(&starget->dev);
 }
 

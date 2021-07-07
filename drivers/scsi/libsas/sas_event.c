@@ -15,13 +15,10 @@ int sas_queue_work(struct sas_ha_struct *ha, struct sas_work *sw)
 	/* it's added to the defer_q when draining so return succeed */
 	int rc = 1;
 
-	if (!test_bit(SAS_HA_REGISTERED, &ha->state)) {
-		pr_err("%s not SAS_HA_REGISTERED\n", __func__);
+	if (!test_bit(SAS_HA_REGISTERED, &ha->state))
 		return 0;
-	}
 
 	if (test_bit(SAS_HA_DRAINING, &ha->state)) {
-		pr_err("%s SAS_HA_DRAINING\n", __func__);
 		/* add it to the defer list, if not already pending */
 		if (list_empty(&sw->drain_node))
 			list_add_tail(&sw->drain_node, &ha->defer_q);
@@ -50,15 +47,12 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 	struct sas_work *sw, *_sw;
 	int ret;
 
-	pr_err("%s\n", __func__);
-
 	set_bit(SAS_HA_DRAINING, &ha->state);
 	/* flush submitters */
 	spin_lock_irq(&ha->lock);
 	spin_unlock_irq(&ha->lock);
-	pr_err("%s1 going to drain_workqueue(ha->event_q)\n", __func__);
+
 	drain_workqueue(ha->event_q);
-	pr_err("%s2 going to drain_workqueue(ha->disco_q)\n", __func__);
 	drain_workqueue(ha->disco_q);
 
 	spin_lock_irq(&ha->lock);
@@ -71,21 +65,18 @@ void __sas_drain_work(struct sas_ha_struct *ha)
 
 	}
 	spin_unlock_irq(&ha->lock);
-	pr_err("%s10 out\n", __func__);
 }
 
 int sas_drain_work(struct sas_ha_struct *ha)
 {
 	int err;
-	pr_err("%s", __func__);
+
 	err = mutex_lock_interruptible(&ha->drain_mutex);
 	if (err)
 		return err;
 	if (test_bit(SAS_HA_REGISTERED, &ha->state))
 		__sas_drain_work(ha);
 	mutex_unlock(&ha->drain_mutex);
-
-	pr_err("%s10 out\n", __func__);
 
 	return 0;
 }
