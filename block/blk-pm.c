@@ -186,7 +186,7 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
 void blk_post_runtime_resume(struct request_queue *q, int err)
 {
 	pr_err("%s q=%pS q->dev=%pS q->rpm_status=%d err=%d\n", __func__, q, q->dev, q->rpm_status, err);
-	err = 0;
+//	err = 0;
 	if (!q->dev)
 		return;
 	if (!err) {
