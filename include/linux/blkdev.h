@@ -497,6 +497,9 @@ struct request_queue {
 	struct sbitmap_queue	sched_bitmap_tags;
 	struct sbitmap_queue	sched_breserved_tags;
 
+	struct request **static_rqs;
+	struct list_head page_list;
+
 	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
 	DECLARE_BITMAP		(blkcg_pols, BLKCG_MAX_POLS);
