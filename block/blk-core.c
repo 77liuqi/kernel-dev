@@ -345,7 +345,7 @@ EXPORT_SYMBOL(blk_put_queue);
 
 void blk_set_queue_dying(struct request_queue *q)
 {
-	pr_err("%s q=%pS\n", __func__);
+	pr_err("%s q=%pS\n", __func__, q);
 	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
 
 	/*
@@ -379,7 +379,7 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	WARN_ON_ONCE(blk_queue_registered(q));
 
-	pr_err("%s q=%pS\n", __func__);
+	pr_err("%s q=%pS\n", __func__, q);
 
 	/* mark @q DYING, no new request or merges will be allowed afterwards */
 	blk_set_queue_dying(q);
