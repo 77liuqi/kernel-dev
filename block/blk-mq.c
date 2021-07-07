@@ -2352,11 +2352,14 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 	spin_unlock_irqrestore(&drv_tags->lock, flags);
 }
 
-static void __blk_mq_free_rqs(struct blk_mq_tag_set *set, //struct blk_mq_tags *tags,
+void __blk_mq_free_rqs(struct blk_mq_tag_set *set,
 		     unsigned int hctx_idx, struct request **static_rqs, 
 		     struct list_head *page_list, unsigned int nr_tags)
 {
 	struct page *page;
+
+	if (WARN_ON((hctx_idx > 0) && blk_mq_is_sbitmap_shared(set->flags)))
+		return;
 
 	if (static_rqs && set->ops->exit_request) {
 		int i;
@@ -2460,6 +2463,9 @@ int __blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 	unsigned int i, j, entries_per_page, max_order = 4;
 	size_t rq_size, left;
 	int node;
+
+	if (WARN_ON((hctx_idx > 0) && blk_mq_is_sbitmap_shared(set->flags)))
+		return -EINVAL;
 
 	node = blk_mq_hw_queue_to_node(&set->map[HCTX_TYPE_DEFAULT], hctx_idx);
 	if (node == NUMA_NO_NODE)
