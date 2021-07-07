@@ -994,8 +994,8 @@ static void disable_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 
 static void start_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
-	if (phy_no != 1)
-		return;
+//	if (phy_no != 1)
+//		return;
 	config_id_frame_v3_hw(hisi_hba, phy_no);
 	config_phy_opt_mode_v3_hw(hisi_hba, phy_no);
 	enable_phy_v3_hw(hisi_hba, phy_no);
