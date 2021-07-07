@@ -54,6 +54,10 @@ void blk_mq_put_rq_ref(struct request *rq);
  */
 void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 		     unsigned int hctx_idx);
+void __blk_mq_free_rqs(struct blk_mq_tag_set *set, 
+		     unsigned int hctx_idx, struct request **static_rqs, 
+		     struct list_head *page_list, unsigned int nr_tags);
+
 void blk_mq_free_rq_map(struct blk_mq_tags *tags, unsigned int flags);
 struct blk_mq_tags *blk_mq_alloc_rq_map(struct blk_mq_tag_set *set,
 					unsigned int hctx_idx,
