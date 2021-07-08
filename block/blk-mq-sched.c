@@ -572,21 +572,25 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 	struct blk_mq_tag_set *set = queue->tag_set;
 	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags);
 	struct blk_mq_hw_ctx *hctx;
+	/* In case we need to grow, allocate max we will ever need */
+	/* This will waste memory when request queue depth is less than the max, i.e. almost always.
+	But helps keep our sanity, rather than dealing with error handling in update nr requests functionality */ 
+	unsigned int depth = min(set->queue_depth, (unsigned int)MAX_SCHED_RQ);
 	int ret, i, j;
 
-	/* In case we need to grow, make this part simple pre-allocating full range of space for static rqs pointer */
-	queue->static_rqs = kcalloc_node(set->queue_depth, sizeof(struct request *),
+	queue->static_rqs = kcalloc_node(depth, sizeof(struct request *),
 					GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
 					queue->node);
 	if (!queue->static_rqs)
 		return -ENOMEM;
 
-	ret = __blk_mq_alloc_rqs(set, 0, queue->nr_requests, &queue->page_list, queue->static_rqs);
+	ret = __blk_mq_alloc_rqs(set, 0, depth, &queue->page_list, queue->static_rqs);
 	if (ret)
 		goto err_rqs;
 
+	/* Just assign them all -the only thing we change is the sbitmap size when we want to change request queue depth */
 	queue_for_each_hw_ctx(queue, hctx, i) {
-		for (j = 0; j < queue->nr_requests; j++)
+		for (j = 0; j < depth; j++)
 			hctx->sched_tags->static_rqs[j] = queue->static_rqs[j];
 	}
 
