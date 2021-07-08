@@ -557,12 +557,12 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
 		kfree(q->static_rqs);
 		q->static_rqs = NULL;
-	} else {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (hctx->sched_tags) {
-				blk_mq_free_rq_map(hctx->sched_tags, hctx->flags);
-				hctx->sched_tags = NULL;
-			}
+	}
+
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags) {
+			blk_mq_free_rq_map(hctx->sched_tags, hctx->flags);
+			hctx->sched_tags = NULL;
 		}
 	}
 }
