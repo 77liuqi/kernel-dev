@@ -2318,11 +2318,6 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 	struct blk_mq_tags *drv_tags = set->tags[hctx_idx];
 	struct page *page;
 	unsigned long flags;
-	bool same = drv_tags == tags;
-
-	pr_err("%s %s drv_tags=%pS tags=%pS\n", __func__, same ? "s" : "n", drv_tags, tags);
-
-	pr_err("%s drv_tags=%pS S\n", __func__, drv_tags);
 
 	list_for_each_entry(page, page_list, lru) {
 		unsigned long start = (unsigned long)page_address(page);
@@ -2337,10 +2332,9 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 				WARN_ON_ONCE(refcount_read(&rq->ref) != 0);
 				old = cmpxchg(&drv_tags->rqs[i], rq, NULL);
 				if (old == rq)
-					pr_err("%s1 %s drv_tags=%pS tags=%pS rq=%pS swapped i=%d\n", 
+					pr_err("%s1 drv_tags=%pS rq=%pS swapped i=%d\n", 
 					__func__, 
-					same ? "s" : "n",
-					drv_tags, tags, old, i);
+					drv_tags, old, i);
 			}
 		}
 	}
