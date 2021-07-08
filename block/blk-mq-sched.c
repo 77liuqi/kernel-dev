@@ -574,7 +574,8 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 	struct blk_mq_hw_ctx *hctx;
 	int ret, i, j;
 
-	queue->static_rqs = kcalloc_node(queue->nr_requests, sizeof(struct request *),
+	/* In case we need to grow, make this part simple pre-allocating full range of space for static rqs pointer */
+	queue->static_rqs = kcalloc_node(set->queue_depth, sizeof(struct request *),
 					GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
 					queue->node);
 	if (!queue->static_rqs)
@@ -644,6 +645,9 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	 */
 	q->nr_requests = 2 * min_t(unsigned int, q->tag_set->queue_depth,
 				   BLKDEV_DEFAULT_RQ);
+
+	pr_err("%s q->nr_requests=%ld BLKDEV_DEFAULT_RQ=%d q->tag_set->queue_depth=%d\n",
+		__func__, q->nr_requests, BLKDEV_DEFAULT_RQ, q->tag_set->queue_depth);
 
 	queue_for_each_hw_ctx(q, hctx, i) {
 		ret = blk_mq_sched_alloc_tags(q, hctx, i);
