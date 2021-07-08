@@ -3685,6 +3685,8 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
 	struct blk_mq_hw_ctx *hctx;
+	struct request **static_rqs;
+	struct list_head page_list;
 	int i, ret;
 
 	if (!set)
@@ -3692,6 +3694,23 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 
 	if (q->nr_requests == nr)
 		return 0;
+
+	if (q->elevator && blk_mq_is_sbitmap_shared(set->flags)) {
+		if (nr > q->tag_set->queue_depth)
+			return -EINVAL;
+
+		static_rqs = kcalloc_node(set->queue_depth, sizeof(struct request *),
+						GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
+						q->node);
+		if (!static_rqs)
+			return -ENOMEM;
+
+		ret = __blk_mq_alloc_rqs(set, 0, q->nr_requests, &page_list, static_rqs);
+		if (ret) {
+			kfree(static_rqs);
+			return -ENOMEM;
+		}
+	}
 
 	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
@@ -3726,9 +3745,24 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	}
 	if (!ret) {
 		q->nr_requests = nr;
-		if (q->elevator && blk_mq_is_sbitmap_shared(set->flags))
+
+		if (q->elevator && blk_mq_is_sbitmap_shared(set->flags)) {
 			sbitmap_queue_resize(&q->sched_bitmap_tags,
 					     nr - set->reserved_tags);
+
+			__blk_mq_free_rqs(q->tag_set, 0, q->static_rqs, &q->page_list, q->nr_requests);
+			kfree(q->static_rqs);
+
+			q->static_rqs = static_rqs;
+			list_splice(&page_list, &q->page_list);
+			
+			queue_for_each_hw_ctx(q, hctx, i) {
+				for (i = 0; i < q->nr_requests; i++) {
+					WARN_ON(hctx->sched_tags->static_rqs[i]);
+					hctx->sched_tags->static_rqs[i] = q->static_rqs[i];
+				}
+			}
+		}
 	}
 
 	blk_mq_unquiesce_queue(q);
