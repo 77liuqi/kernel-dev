@@ -608,14 +608,13 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 				tags->nr_reserved_tags, set->flags);
 		if (!new)
 			return -ENOMEM;
-		if (!blk_mq_is_sbitmap_shared(hctx->flags)) {
-			ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
-			if (ret) {
-				blk_mq_free_rq_map(new, set->flags);
-				return -ENOMEM;
-			}
-			blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
+		ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
+		if (ret) {
+			blk_mq_free_rq_map(new, set->flags);
+			return -ENOMEM;
 		}
+
+		blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
 		blk_mq_free_rq_map(*tagsptr, set->flags);
 		*tagsptr = new;
 	} else {

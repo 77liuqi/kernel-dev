@@ -3684,38 +3684,27 @@ EXPORT_SYMBOL(blk_mq_free_tag_set);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
+	struct blk_mq_tags **sched_tags = NULL;
 	struct blk_mq_hw_ctx *hctx;
-	struct request **static_rqs;
-	struct list_head page_list;
 	int i, ret;
 
 	if (!set)
 		return -EINVAL;
 
-	if (q->nr_requests == nr)
-		return 0;
-
-	if (q->elevator && blk_mq_is_sbitmap_shared(set->flags)) {
+	if (blk_mq_is_sbitmap_shared(set->flags) && q->elevator) {
 		if (nr > q->tag_set->queue_depth)
 			return -EINVAL;
-
-		static_rqs = kcalloc_node(set->queue_depth, sizeof(struct request *),
-						GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY,
-						q->node);
-		if (!static_rqs)
-			return -ENOMEM;
-
-		ret = __blk_mq_alloc_rqs(set, 0, q->nr_requests, &page_list, static_rqs);
-		if (ret) {
-			kfree(static_rqs);
-			return -ENOMEM;
-		}
 	}
+
+	if (q->nr_requests == nr)
+		return 0;
 
 	blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
 	ret = 0;
+
+	/* Do in two parts for sched tags to deal with errors in tags allocate in a sane way */
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->tags)
 			continue;
@@ -3723,44 +3712,34 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		 * If we're using an MQ scheduler, just update the scheduler
 		 * queue depth. This is similar to what the old code would do.
 		 */
-		if (!hctx->sched_tags) {
+		if (hctx->sched_tags) {
+			ret = blk_mq_tag_update_depth(hctx, &sched_tags[i],
+							nr, true);
+		} else if (blk_mq_is_sbitmap_shared(set->flags)) {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->tags, nr,
 							false);
-			if (!ret && blk_mq_is_sbitmap_shared(set->flags))
-				blk_mq_tag_resize_shared_sbitmap(set, nr);
-		} else {
-			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
-							nr, true);
-			if (blk_mq_is_sbitmap_shared(set->flags)) {
-				hctx->sched_tags->bitmap_tags =
-					&q->sched_bitmap_tags;
-				hctx->sched_tags->breserved_tags =
-					&q->sched_breserved_tags;
-			}
 		}
 		if (ret)
 			break;
-		if (q->elevator && q->elevator->type->ops.depth_updated)
-			q->elevator->type->ops.depth_updated(hctx);
 	}
+
+	if (ret) {
+		queue_for_each_hw_ctx(q, hctx, i) {
+			if (!sched_tags[i])
+				continue;
+			
+		}
+	}
+
 	if (!ret) {
 		q->nr_requests = nr;
-
-		if (q->elevator && blk_mq_is_sbitmap_shared(set->flags)) {
-			sbitmap_queue_resize(&q->sched_bitmap_tags,
+		if (blk_mq_is_sbitmap_shared(set->flags)) {
+			if (q->elevator) {
+						sbitmap_queue_resize(&q->sched_bitmap_tags,
 					     nr - set->reserved_tags);
-
-			__blk_mq_free_rqs(q->tag_set, 0, q->static_rqs, &q->page_list, q->nr_requests);
-			kfree(q->static_rqs);
-
-			q->static_rqs = static_rqs;
-			list_splice(&page_list, &q->page_list);
-			
-			queue_for_each_hw_ctx(q, hctx, i) {
-				for (i = 0; i < q->nr_requests; i++) {
-					WARN_ON(hctx->sched_tags->static_rqs[i]);
-					hctx->sched_tags->static_rqs[i] = q->static_rqs[i];
-				}
+			} else {
+				/* If we fail for one, we fail for all on regular tags as we can't grow */
+				blk_mq_tag_resize_shared_sbitmap(set, nr);
 			}
 		}
 	}
