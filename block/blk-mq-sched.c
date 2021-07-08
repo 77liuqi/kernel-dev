@@ -567,6 +567,12 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	}
 }
 
+static unsigned int blk_mq_shared_sbitmap_max_depth(struct request_queue *queue)
+{
+	return min(queue->tag_set->queue_depth, (unsigned int)MAX_SCHED_RQ);
+}
+
+
 static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 {
 	struct blk_mq_tag_set *set = queue->tag_set;
@@ -575,7 +581,7 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 	/* In case we need to grow, allocate max we will ever need */
 	/* This will waste memory when request queue depth is less than the max, i.e. almost always.
 	But helps keep our sanity, rather than dealing with error handling in update nr requests functionality */ 
-	unsigned int depth = min(set->queue_depth, (unsigned int)MAX_SCHED_RQ);
+	unsigned int depth = blk_mq_shared_sbitmap_max_depth(queue);
 	int ret, i, j;
 
 	queue->static_rqs = kcalloc_node(depth, sizeof(struct request *),
@@ -709,7 +715,7 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 	int i;
 
 	if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
-		__blk_mq_free_rqs(q->tag_set, 0, q->static_rqs, &q->page_list, q->nr_requests);
+		__blk_mq_free_rqs(q->tag_set, 0, q->static_rqs, &q->page_list, blk_mq_shared_sbitmap_max_depth(q));
 	} else {
 		queue_for_each_hw_ctx(q, hctx, i) {
 			if (hctx->sched_tags)
