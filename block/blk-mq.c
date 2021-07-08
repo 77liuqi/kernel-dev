@@ -2312,7 +2312,8 @@ static size_t order_to_size(unsigned int order)
 /* called before freeing request pool in @tags */
 __maybe_unused //fixme
 static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
-		struct blk_mq_tags *tags, unsigned int hctx_idx)
+		unsigned int hctx_idx,
+		struct list_head *page_list)
 {
 	struct blk_mq_tags *drv_tags = set->tags[hctx_idx];
 	struct page *page;
@@ -2321,7 +2322,9 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 
 	pr_err("%s %s drv_tags=%pS tags=%pS\n", __func__, same ? "s" : "n", drv_tags, tags);
 
-	list_for_each_entry(page, &tags->page_list, lru) {
+	pr_err("%s drv_tags=%pS S\n", __func__, drv_tags);
+
+	list_for_each_entry(page, page_list, lru) {
 		unsigned long start = (unsigned long)page_address(page);
 		unsigned long end = start + order_to_size(page->private);
 		int i;
@@ -2353,7 +2356,8 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 }
 
 void __blk_mq_free_rqs(struct blk_mq_tag_set *set,
-		     unsigned int hctx_idx, struct request **static_rqs, 
+		     unsigned int hctx_idx,
+		     struct request **static_rqs, 
 		     struct list_head *page_list, unsigned int nr_tags)
 {
 	struct page *page;
@@ -2374,8 +2378,8 @@ void __blk_mq_free_rqs(struct blk_mq_tag_set *set,
 		}
 	}
 
-	//blk_mq_clear_rq_mapping(set, tags, hctx_idx);
-	pr_err("%s fixme blk_mq_clear_rq_mapping\n", __func__);
+	blk_mq_clear_rq_mapping(set, hctx_idx, page_list);
+
 	while (!list_empty(page_list)) {
 		page = list_first_entry(page_list, struct page, lru);
 		list_del_init(&page->lru);
@@ -3665,7 +3669,8 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 	if (blk_mq_is_sbitmap_shared(set->flags)) {
 		blk_mq_exit_shared_sbitmap(set);
 		__blk_mq_free_rqs(set,
-		     0, set->static_rqs,
+		     0, 
+		     set->static_rqs,
 		     &set->page_list, set->queue_depth);
 		kfree(set->static_rqs);
 		set->static_rqs = NULL;
@@ -3713,7 +3718,7 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		if (hctx->sched_tags) {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
 							nr, true);
-			if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+			if (!ret && blk_mq_is_sbitmap_shared(hctx->flags)) {
 				int j;
 
 				for (j = 0; j < hctx->sched_tags->nr_tags; j++)
