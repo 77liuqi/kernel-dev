@@ -3684,14 +3684,13 @@ EXPORT_SYMBOL(blk_mq_free_tag_set);
 int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
-	struct blk_mq_tags **sched_tags = NULL;
 	struct blk_mq_hw_ctx *hctx;
 	int i, ret;
 
 	if (!set)
 		return -EINVAL;
 
-	if (blk_mq_is_sbitmap_shared(set->flags) && q->elevator) {
+	if (blk_mq_is_sbitmap_shared(set->flags)) {
 		if (nr > q->tag_set->queue_depth)
 			return -EINVAL;
 	}
@@ -3704,7 +3703,6 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 
 	ret = 0;
 
-	/* Do in two parts for sched tags to deal with errors in tags allocate in a sane way */
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (!hctx->tags)
 			continue;
@@ -3713,9 +3711,19 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		 * queue depth. This is similar to what the old code would do.
 		 */
 		if (hctx->sched_tags) {
-			ret = blk_mq_tag_update_depth(hctx, &sched_tags[i],
+			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
 							nr, true);
-		} else if (blk_mq_is_sbitmap_shared(set->flags)) {
+			if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+				int j;
+
+				for (j = 0; j < hctx->sched_tags->nr_tags; j++)
+					hctx->sched_tags->static_rqs[i] = q->static_rqs[j];
+				hctx->sched_tags->bitmap_tags =
+								&q->sched_bitmap_tags;
+				hctx->sched_tags->breserved_tags =
+								&q->sched_breserved_tags;
+			}
+		} else {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->tags, nr,
 							false);
 		}
@@ -3724,19 +3732,14 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	}
 
 	if (ret) {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (!sched_tags[i])
-				continue;
-			
+		if (blk_mq_is_sbitmap_shared(set->flags) && q->elevator) {
+			/* we only fail for growing, in this case don't update q->nr_requests or resize the shared sbitmap */
 		}
-	}
-
-	if (!ret) {
+	} else {
 		q->nr_requests = nr;
 		if (blk_mq_is_sbitmap_shared(set->flags)) {
 			if (q->elevator) {
-						sbitmap_queue_resize(&q->sched_bitmap_tags,
-					     nr - set->reserved_tags);
+				blk_mq_tag_resize_shared_sbitmap_sched(set, nr);
 			} else {
 				/* If we fail for one, we fail for all on regular tags as we can't grow */
 				blk_mq_tag_resize_shared_sbitmap(set, nr);
