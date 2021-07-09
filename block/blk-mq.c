@@ -3668,9 +3668,6 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 {
 	int i, j;
 
-	for (i = 0; i < set->nr_hw_queues; i++)
-		blk_mq_free_map_and_requests(set, i);
-
 	if (blk_mq_is_sbitmap_shared(set->flags)) {
 		blk_mq_exit_shared_sbitmap(set);
 		pr_err("%s set->static_rqs=%pS\n", __func__, set->static_rqs);
@@ -3681,6 +3678,9 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 		kfree(set->static_rqs);
 		set->static_rqs = NULL;
 	}
+
+	for (i = 0; i < set->nr_hw_queues; i++)
+		blk_mq_free_map_and_requests(set, i);
 
 	for (j = 0; j < set->nr_maps; j++) {
 		kfree(set->map[j].mq_map);
