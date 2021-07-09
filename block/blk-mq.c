@@ -2319,9 +2319,12 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 	struct page *page;
 	unsigned long flags;
 
-	if (!set || !page_list || !drv_tags)
+	if (!set || !page_list || !drv_tags) {
 		pr_err("%s set=%pS page_list=%pS drv_tags=%pS hctx_idx=%d\n",
 		__func__, set, page_list, drv_tags, hctx_idx);
+		return;
+	}
+	
 
 	list_for_each_entry(page, page_list, lru) {
 		unsigned long start = (unsigned long)page_address(page);
