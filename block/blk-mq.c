@@ -2310,7 +2310,7 @@ static size_t order_to_size(unsigned int order)
 }
 
 /* called before freeing request pool in @tags */
-static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
+void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 		unsigned int hctx_idx,
 		struct list_head *page_list)
 {
