@@ -702,6 +702,10 @@ err_free_tags:
 	return ret;
 }
 
+extern  void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
+		unsigned int hctx_idx,
+		struct list_head *page_list);
+
 /*
  * called in either blk_queue_cleanup or elevator_switch, tagset
  * is required for freeing requests
@@ -711,12 +715,14 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	if (blk_mq_is_sbitmap_shared(q->tag_set->flags))
-		return;
-
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (hctx->sched_tags)
-			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+		if (hctx->sched_tags) {
+			if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
+				blk_mq_clear_rq_mapping(q->tag_set, i, &q->page_list);
+			} else {
+				blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+			}
+		}
 	}
 }
 
