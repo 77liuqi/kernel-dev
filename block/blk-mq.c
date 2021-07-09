@@ -2360,6 +2360,9 @@ void __blk_mq_free_rqs(struct blk_mq_tag_set *set,
 {
 	struct page *page;
 
+	if (!set || !static_rqs || !page_list || !nr_tags)
+		pr_err("%s set=%pS static_rqs=%pS page_list=%pS nr_tags=%d\n", __func__, set, static_rqs, page_list, nr_tags);
+
 	if (WARN_ON((hctx_idx > 0) && blk_mq_is_sbitmap_shared(set->flags)))
 		return;
 
@@ -3666,6 +3669,7 @@ void blk_mq_free_tag_set(struct blk_mq_tag_set *set)
 
 	if (blk_mq_is_sbitmap_shared(set->flags)) {
 		blk_mq_exit_shared_sbitmap(set);
+		pr_err("%s set->static_rqs=%pS\n", __func__, set->static_rqs);
 		__blk_mq_free_rqs(set,
 		     0, 
 		     set->static_rqs,
