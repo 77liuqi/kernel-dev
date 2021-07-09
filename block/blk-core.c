@@ -410,7 +410,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * it is safe to free requests now.
 	 */
 	mutex_lock(&q->sysfs_lock);
-//	pr_err("%s fixme\n", __func__);
 	if (q->elevator)
 		blk_mq_sched_free_requests(q);
 	mutex_unlock(&q->sysfs_lock);
