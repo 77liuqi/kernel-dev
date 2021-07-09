@@ -554,11 +554,6 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int i;
 
-	if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
-		kfree(q->static_rqs);
-		q->static_rqs = NULL;
-	}
-
 	queue_for_each_hw_ctx(q, hctx, i) {
 		if (hctx->sched_tags) {
 			blk_mq_free_rq_map(hctx->sched_tags, hctx->flags);
@@ -630,6 +625,11 @@ err_rqs:
 
 static void blk_mq_exit_sched_shared_sbitmap(struct request_queue *queue)
 {
+	__blk_mq_free_rqs(queue->tag_set, 0, queue->static_rqs, &queue->page_list, blk_mq_shared_sbitmap_max_depth(queue));
+
+	kfree(queue->static_rqs);
+	queue->static_rqs = NULL;
+
 	sbitmap_queue_free(&queue->sched_bitmap_tags);
 	sbitmap_queue_free(&queue->sched_breserved_tags);
 }
@@ -665,7 +665,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	}
 
 	if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
-		ret = blk_mq_init_sched_shared_sbitmap(q);
+		ret = blk_mq_init_sched_shared_sbitmap(q); // allocs requests
 		if (ret)
 			goto err_free_tags;
 	}
@@ -682,7 +682,6 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 			if (ret) {
 				eq = q->elevator;
 				blk_mq_sched_free_requests(q);
-				pr_err("%s fixme1\n", __func__);
 				blk_mq_exit_sched(q, eq);
 				kobject_put(&eq->kobj);
 				return ret;
@@ -698,7 +697,6 @@ err_free_sbitmap:
 		blk_mq_exit_sched_shared_sbitmap(q);
 err_free_tags:
 	blk_mq_sched_free_requests(q);
-	pr_err("%s fixme2\n", __func__);
 	blk_mq_sched_tags_teardown(q);
 	q->elevator = NULL;
 	return ret;
@@ -712,14 +710,10 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
-
-	if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
-		__blk_mq_free_rqs(q->tag_set, 0, q->static_rqs, &q->page_list, blk_mq_shared_sbitmap_max_depth(q));
-	} else {
-		queue_for_each_hw_ctx(q, hctx, i) {
-			if (hctx->sched_tags)
-				blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
-		}
+		
+	queue_for_each_hw_ctx(q, hctx, i) {
+		if (hctx->sched_tags)
+			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
 	}
 }
 
