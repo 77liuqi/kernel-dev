@@ -118,6 +118,7 @@ void smmu_test_core(int cpus)
 	struct test_data gtdata[NR_CPUS];
 	struct device *dev = NULL;
 	struct pci_dev *pdev = NULL;
+	unsigned int base = 0;
 	smmu_test = 1;
 	for_each_pci_dev(pdev) {
 		struct device *_dev;
@@ -139,6 +140,13 @@ void smmu_test_core(int cpus)
 
 	dev_err(dev, "%s cpus=%d dev=%pS\n", __func__, cpus, dev);
 
+	if (cpus > 1000) {
+		base = num_possible_cpus() / 2;
+		cpus -= 1000;
+		
+		dev_err(dev, "%s now cpus=%d dev=%pS base=%d\n", __func__, cpus, dev, base);
+	}
+
 
 	ways = cpus;
 	arm_smmu_cmdq_zero_times();
@@ -146,7 +154,10 @@ void smmu_test_core(int cpus)
 
 	if (ways > num_possible_cpus()) {
 		ways = num_possible_cpus();
-		pr_err("limiting ways to %d\n", ways);
+		pr_err("limiting ways to %d base=%d\n", ways, base);
+	} else if (ways + base > num_possible_cpus()) {
+		ways = num_possible_cpus() - base;
+		pr_err("limiting ways to %d base=%d\n", ways, base);
 	}
 
 	if (completions > COMPLETIONS_SIZE) {
@@ -154,7 +165,7 @@ void smmu_test_core(int cpus)
 		pr_err("limiting completions to %d\n", completions);
 	}
 
-	for(i=0;i<ways;i++) {
+	for(i=base;i<base+ways;i++) {
 		struct test_data *tdata = &gtdata[i];
 		tdata->sem = &sem[i];
 		tdata->dev = dev;
@@ -166,7 +177,7 @@ void smmu_test_core(int cpus)
 		wake_up_process(tsk);
 	}
 
-	for(i=0;i<ways;i++) {
+	for(i=base;i<base+ways;i++) {
 		down(&sem[i]);
 		total_mappings += mappings[i];
 	}
