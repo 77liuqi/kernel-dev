@@ -2310,7 +2310,6 @@ static size_t order_to_size(unsigned int order)
 }
 
 /* called before freeing request pool in @tags */
-__maybe_unused //fixme
 static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 		unsigned int hctx_idx,
 		struct list_head *page_list)
@@ -2318,6 +2317,7 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 	struct blk_mq_tags *drv_tags = set->tags[hctx_idx];
 	struct page *page;
 	unsigned long flags;
+	unsigned int count = 0;
 
 	if (!set || !page_list || !drv_tags) {
 		pr_err("%s set=%pS page_list=%pS drv_tags=%pS hctx_idx=%d\n",
@@ -2338,10 +2338,12 @@ static void blk_mq_clear_rq_mapping(struct blk_mq_tag_set *set,
 			if (rq_addr >= start && rq_addr < end) {
 				WARN_ON_ONCE(refcount_read(&rq->ref) != 0);
 				old = cmpxchg(&drv_tags->rqs[i], rq, NULL);
-				if (old == rq)
+				if (old == rq && count < 10) {
 					pr_err("%s1 drv_tags=%pS rq=%pS swapped i=%d\n", 
 					__func__, 
 					drv_tags, old, i);
+					count++;
+				}
 			}
 		}
 	}
@@ -2542,7 +2544,7 @@ int __blk_mq_alloc_rqs(struct blk_mq_tag_set *set,
 
 fail:
 	pr_err("%s fixme\n", __func__);
-	//blk_mq_free_rqs(set, tags, hctx_idx);
+	__blk_mq_free_rqs(set, hctx_idx, static_rqs, page_list, depth);
 	return -ENOMEM;	 
 }
 
