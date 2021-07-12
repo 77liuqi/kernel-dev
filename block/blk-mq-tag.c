@@ -578,7 +578,7 @@ void blk_mq_free_tags(struct blk_mq_tags *tags, unsigned int flags)
 
 int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 			    struct blk_mq_tags **tagsptr, unsigned int tdepth,
-			    bool can_grow)
+			    struct request_queue *q, bool can_grow)
 {
 	struct blk_mq_tags *tags = *tagsptr;
 
@@ -608,13 +608,20 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 				tags->nr_reserved_tags, set->flags);
 		if (!new)
 			return -ENOMEM;
-		ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
-		if (ret) {
-			blk_mq_free_rq_map(new, set->flags);
-			return -ENOMEM;
+		if (blk_mq_is_sbitmap_shared(hctx->flags)) {
+			int i;
+
+			for (i = 0; i < tdepth; i++)
+				new->static_rqs[i] = q->static_rqs[i];
+		} else {
+			ret = blk_mq_alloc_rqs(set, new, hctx->queue_num, tdepth);
+			if (ret) {
+				blk_mq_free_rq_map(new, set->flags);
+				return -ENOMEM;
+			}
+			blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
 		}
 
-		blk_mq_free_rqs(set, *tagsptr, hctx->queue_num);
 		blk_mq_free_rq_map(*tagsptr, set->flags);
 		*tagsptr = new;
 	} else {
@@ -630,6 +637,12 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 }
 
 void blk_mq_tag_resize_shared_sbitmap(struct blk_mq_tag_set *set, unsigned int size)
+{
+	sbitmap_queue_resize(&set->__bitmap_tags, size - set->reserved_tags);
+}
+
+void blk_mq_tag_resize_shared_sbitmap_sched(struct blk_mq_tag_set *set,
+					    unsigned int size)
 {
 	sbitmap_queue_resize(&set->__bitmap_tags, size - set->reserved_tags);
 }

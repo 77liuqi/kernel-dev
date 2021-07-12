@@ -538,6 +538,9 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 	if (!hctx->sched_tags)
 		return -ENOMEM;
 
+	if (blk_mq_is_sbitmap_shared(q->tag_set->flags))
+		return 0;
+
 	ret = blk_mq_alloc_rqs(set, hctx->sched_tags, hctx_idx, q->nr_requests);
 	if (ret)
 		blk_mq_sched_free_tags(set, hctx, hctx_idx);
@@ -559,12 +562,41 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	}
 }
 
+static unsigned int
+__blk_mq_sched_shared_sbitmap_depth(struct request_queue *queue)
+{
+	return min(queue->tag_set->queue_depth, (unsigned int)MAX_SCHED_RQ);
+}
+
 static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 {
 	struct blk_mq_tag_set *set = queue->tag_set;
 	int alloc_policy = BLK_MQ_FLAG_TO_ALLOC_POLICY(set->flags);
 	struct blk_mq_hw_ctx *hctx;
-	int ret, i;
+	/*
+	 * In case we need to grow, allocate max we will ever need. This will
+	 * waste memory when the request queue depth is less than the max,
+	 * i.e. almost always. But helps keep our sanity, rather than dealing
+	 * with error handling in blk_mq_update_nr_requests().
+	 */
+	unsigned int depth = __blk_mq_sched_shared_sbitmap_depth(queue);
+	gfp_t flags = GFP_NOIO | __GFP_NOWARN | __GFP_NORETRY;
+	int ret, i, j;
+
+	queue->static_rqs = kcalloc_node(depth, sizeof(struct request *),
+					 flags, queue->node);
+	if (!queue->static_rqs)
+		return -ENOMEM;
+
+	ret = __blk_mq_alloc_rqs(set, 0, depth, &queue->page_list,
+				 queue->static_rqs);
+	if (ret)
+		goto err_rqs;
+
+	queue_for_each_hw_ctx(queue, hctx, i) {
+		for (j = 0; j < depth; j++)
+			hctx->sched_tags->static_rqs[j] = queue->static_rqs[j];
+	}
 
 	/*
 	 * Set initial depth at max so that we don't need to reallocate for
@@ -575,7 +607,7 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 				  MAX_SCHED_RQ, set->reserved_tags,
 				  set->numa_node, alloc_policy);
 	if (ret)
-		return ret;
+		goto err_bitmaps;
 
 	queue_for_each_hw_ctx(queue, hctx, i) {
 		hctx->sched_tags->bitmap_tags =
@@ -588,10 +620,25 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 			     queue->nr_requests - set->reserved_tags);
 
 	return 0;
+
+err_bitmaps:
+	__blk_mq_free_rqs(set, 0, depth, &queue->page_list, queue->static_rqs);
+err_rqs:
+	kfree(queue->static_rqs);
+	queue->static_rqs = NULL;
+	return ret;
 }
 
 static void blk_mq_exit_sched_shared_sbitmap(struct request_queue *queue)
 {
+	unsigned int depth = __blk_mq_sched_shared_sbitmap_depth(queue);
+
+	__blk_mq_free_rqs(queue->tag_set, 0, depth, &queue->page_list,
+			  queue->static_rqs);
+
+	kfree(queue->static_rqs);
+	queue->static_rqs = NULL;
+
 	sbitmap_queue_free(&queue->sched_bitmap_tags);
 	sbitmap_queue_free(&queue->sched_breserved_tags);
 }
@@ -671,8 +718,12 @@ void blk_mq_sched_free_requests(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
-		if (hctx->sched_tags)
-			blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+		if (hctx->sched_tags) {
+			if (blk_mq_is_sbitmap_shared(q->tag_set->flags)) {
+			} else {
+				blk_mq_free_rqs(q->tag_set, hctx->sched_tags, i);
+			}
+		}
 	}
 }
 

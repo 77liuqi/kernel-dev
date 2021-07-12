@@ -3672,6 +3672,11 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	if (!set)
 		return -EINVAL;
 
+	if (blk_mq_is_sbitmap_shared(set->flags)) {
+		if (nr > q->tag_set->queue_depth)
+			return -EINVAL;
+	}
+
 	if (q->nr_requests == nr)
 		return 0;
 
@@ -3688,10 +3693,10 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		 */
 		if (!hctx->sched_tags) {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->tags, nr,
-							false);
+							q, false);
 		} else {
 			ret = blk_mq_tag_update_depth(hctx, &hctx->sched_tags,
-							nr, true);
+							nr, q, true);
 			if (blk_mq_is_sbitmap_shared(set->flags)) {
 				hctx->sched_tags->bitmap_tags =
 					&q->sched_bitmap_tags;
@@ -3704,12 +3709,13 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		if (q->elevator && q->elevator->type->ops.depth_updated)
 			q->elevator->type->ops.depth_updated(hctx);
 	}
-	if (!ret) {
+	if (ret) {
+		q->nr_requests = min((unsigned long)nr, q->nr_requests);
+	} else {
 		q->nr_requests = nr;
 		if (blk_mq_is_sbitmap_shared(set->flags)) {
 			if (q->elevator) {
-				sbitmap_queue_resize(&q->sched_bitmap_tags,
-						     nr - set->reserved_tags);
+				blk_mq_tag_resize_shared_sbitmap_sched(set, nr);
 			} else {
 				blk_mq_tag_resize_shared_sbitmap(set, nr);
 			}
