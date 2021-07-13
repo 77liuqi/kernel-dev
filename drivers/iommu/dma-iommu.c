@@ -377,9 +377,11 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 
 		iova_len = max_opt_dma_size >> shift;
 		iova_len = roundup_pow_of_two(iova_len);
+		pr_err("%s iova_len=%lu max_opt_dma_size=%zu\n", 
+			__func__, iova_len, max_opt_dma_size);
 	}
 
-	init_iova_domain(iovad, 1UL << order, base_pfn, iova_len);
+	init_iova_domain(iovad, 1UL << order, base_pfn, iova_len, iommu_group_id(dev->iommu_group));
 
 	if (!cookie->fq_domain && (!dev || !dev_is_untrusted(dev)) &&
 	    domain->ops->flush_iotlb_all && !iommu_get_dma_strict(domain)) {
