@@ -3712,9 +3712,24 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 	if (ret) {
 		q->nr_requests = min((unsigned long)nr, q->nr_requests);
 	} else {
+		int old = q->nr_requests;
 		q->nr_requests = nr;
 		if (blk_mq_is_sbitmap_shared(set->flags)) {
 			if (q->elevator) {
+				int i;
+
+				queue_for_each_hw_ctx(q, hctx, i) {
+					int x;
+					for (x = 0; x < q->nr_requests; x++) {
+						if (!hctx->sched_tags->static_rqs[x])
+							pr_err_once("%s fixme old=%d nr_requests=%lu x=%d i=%d q->static_rqs[x]=%pS\n",
+								__func__, old, q->nr_requests, x, i, q->static_rqs[x]);
+						if (!q->static_rqs[x])
+							pr_err_once("%s2 fixme old=%d nr_requests=%lu x=%d i=%d q->static_rqs[x]=%pS\n",
+								__func__, old, q->nr_requests, x, i, q->static_rqs[x]);
+					}
+				}
+
 				blk_mq_tag_resize_sched_shared_sbitmap(q, nr);
 			} else {
 				blk_mq_tag_resize_shared_sbitmap(set, nr);

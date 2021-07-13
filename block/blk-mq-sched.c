@@ -594,8 +594,11 @@ static int blk_mq_init_sched_shared_sbitmap(struct request_queue *queue)
 		goto err_rqs;
 
 	queue_for_each_hw_ctx(queue, hctx, i) {
-		for (j = 0; j < depth; j++)
+		for (j = 0; j < queue->nr_requests; j++) {
 			hctx->sched_tags->static_rqs[j] = queue->static_rqs[j];
+			if (!hctx->sched_tags->static_rqs[j])
+				pr_err_once("%s fixme i=%d j=%d\n", __func__, i, j);
+		}
 	}
 
 	/*
