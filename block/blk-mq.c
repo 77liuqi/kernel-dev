@@ -3715,7 +3715,7 @@ int blk_mq_update_nr_requests(struct request_queue *q, unsigned int nr)
 		q->nr_requests = nr;
 		if (blk_mq_is_sbitmap_shared(set->flags)) {
 			if (q->elevator) {
-				blk_mq_tag_resize_shared_sbitmap_sched(set, nr);
+				blk_mq_tag_resize_sched_shared_sbitmap(q, nr);
 			} else {
 				blk_mq_tag_resize_shared_sbitmap(set, nr);
 			}

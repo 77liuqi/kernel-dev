@@ -636,9 +636,9 @@ int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 	return 0;
 }
 
-void blk_mq_tag_resize_shared_sbitmap(struct blk_mq_tag_set *set, unsigned int size)
+void blk_mq_tag_resize_sched_shared_sbitmap(struct request_queue *q, unsigned int size)
 {
-	sbitmap_queue_resize(&set->__bitmap_tags, size - set->reserved_tags);
+	sbitmap_queue_resize(&q->sched_bitmap_tags, size - q->tag_set->reserved_tags);
 }
 
 void blk_mq_tag_resize_shared_sbitmap_sched(struct blk_mq_tag_set *set,
