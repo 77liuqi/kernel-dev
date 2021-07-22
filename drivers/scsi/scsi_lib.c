@@ -1742,11 +1742,12 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 {
 	struct Scsi_Host *shost = set->driver_data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
+	int nid = page_to_nid(virt_to_page(rq));
 	struct scatterlist *sg;
 	int ret = 0;
 
 	cmd->sense_buffer =
-		kmem_cache_alloc_node(scsi_sense_cache, GFP_KERNEL, numa_node);
+		kmem_cache_alloc_node(scsi_sense_cache, GFP_KERNEL, nid);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
 	cmd->req.sense = cmd->sense_buffer;
