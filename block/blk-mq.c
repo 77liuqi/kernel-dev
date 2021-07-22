@@ -2356,7 +2356,7 @@ void blk_mq_free_rqs(struct blk_mq_tag_set *set, struct blk_mq_tags *tags,
 
 			if (!rq)
 				continue;
-			set->ops->exit_request(set, rq, hctx_idx);
+			set->ops->exit_request(set, rq);
 			tags->static_rqs[i] = NULL;
 		}
 	}
@@ -2682,7 +2682,7 @@ static void blk_mq_exit_hctx(struct request_queue *q,
 	blk_mq_clear_flush_rq_mapping(set->tags[hctx_idx],
 			set->queue_depth, flush_rq);
 	if (set->ops->exit_request)
-		set->ops->exit_request(set, flush_rq, hctx_idx);
+		set->ops->exit_request(set, flush_rq);
 
 	if (set->ops->exit_hctx)
 		set->ops->exit_hctx(hctx, hctx_idx);

@@ -1766,8 +1766,7 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	return ret;
 }
 
-static void scsi_mq_exit_request(struct blk_mq_tag_set *set, struct request *rq,
-				 unsigned int hctx_idx)
+static void scsi_mq_exit_request(struct blk_mq_tag_set *set, struct request *rq)
 {
 	struct Scsi_Host *shost = set->driver_data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);

@@ -360,8 +360,7 @@ struct blk_mq_ops {
 	/**
 	 * @exit_request: Ditto for exit/teardown.
 	 */
-	void (*exit_request)(struct blk_mq_tag_set *set, struct request *,
-			     unsigned int);
+	void (*exit_request)(struct blk_mq_tag_set *set, struct request *);
 
 	/**
 	 * @initialize_rq_fn: Called from inside blk_get_request().

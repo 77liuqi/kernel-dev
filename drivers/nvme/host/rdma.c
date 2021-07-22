@@ -286,7 +286,7 @@ static int nvme_rdma_create_qp(struct nvme_rdma_queue *queue, const int factor)
 }
 
 static void nvme_rdma_exit_request(struct blk_mq_tag_set *set,
-		struct request *rq, unsigned int hctx_idx)
+		struct request *rq)
 {
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 

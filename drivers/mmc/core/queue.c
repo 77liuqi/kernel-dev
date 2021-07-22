@@ -233,8 +233,7 @@ static int mmc_mq_init_request(struct blk_mq_tag_set *set, struct request *req,
 	return __mmc_init_request(set->driver_data, req, GFP_KERNEL);
 }
 
-static void mmc_mq_exit_request(struct blk_mq_tag_set *set, struct request *req,
-				unsigned int hctx_idx)
+static void mmc_mq_exit_request(struct blk_mq_tag_set *set, struct request *req)
 {
 	struct mmc_queue *mq = set->driver_data;
 

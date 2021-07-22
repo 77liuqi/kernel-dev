@@ -313,8 +313,7 @@ static void bsg_initialize_rq(struct request *req)
 	job->dd_data = job + 1;
 }
 
-static void bsg_exit_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx)
+static void bsg_exit_rq(struct blk_mq_tag_set *set, struct request *req)
 {
 	struct bsg_job *job = blk_mq_rq_to_pdu(req);
 

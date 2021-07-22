@@ -1823,8 +1823,7 @@ __nvme_fc_exit_request(struct nvme_fc_ctrl *ctrl,
 }
 
 static void
-nvme_fc_exit_request(struct blk_mq_tag_set *set, struct request *rq,
-		unsigned int hctx_idx)
+nvme_fc_exit_request(struct blk_mq_tag_set *set, struct request *rq)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 

@@ -3463,8 +3463,7 @@ static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq,
-			  unsigned int hctx_idx)
+static void mtip_free_cmd(struct blk_mq_tag_set *set, struct request *rq)
 {
 	struct driver_data *dd = set->driver_data;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
