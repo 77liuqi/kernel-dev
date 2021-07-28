@@ -298,13 +298,6 @@ struct hisi_sas_err_record_v1 {
 };
 
 enum {
-	HISI_SAS_PHY_BCAST_ACK = 0,
-	HISI_SAS_PHY_SL_PHY_ENABLED,
-	HISI_SAS_PHY_INT_ABNORMAL,
-	HISI_SAS_PHY_INT_NR
-};
-
-enum {
 	DMA_TX_ERR_BASE = 0x0,
 	DMA_RX_ERR_BASE = 0x100,
 	TRANS_TX_FAIL_BASE = 0x200,
@@ -401,13 +394,7 @@ enum {
 	TRANS_RX_SMP_RESP_TIMEOUT_ERR, /* 0x31a */
 };
 
-#define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
-#define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
-#define HISI_SAS_FATAL_INT_NR (2)
-
-#define HISI_SAS_MAX_INT_NR \
-	(HISI_SAS_PHY_MAX_INT_NR + HISI_SAS_CQ_MAX_INT_NR +\
-	HISI_SAS_FATAL_INT_NR)
+ #define HISI_SAS_FATAL_INT_NR (2)
 
 static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 {
@@ -1623,11 +1610,13 @@ static irqreturn_t fatal_axi_int_v1_hw(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static irq_handler_t phy_interrupts[HISI_SAS_PHY_INT_NR] = {
+static irq_handler_t phy_interrupts[] = {
 	int_bcast_v1_hw,
 	int_phyup_v1_hw,
 	int_abnormal_v1_hw
 };
+
+#define HISI_SAS_PHY_INT_NR ARRAY_SIZE(phy_interrupts)
 
 static irq_handler_t fatal_interrupts[HISI_SAS_MAX_QUEUES] = {
 	fatal_ecc_int_v1_hw,

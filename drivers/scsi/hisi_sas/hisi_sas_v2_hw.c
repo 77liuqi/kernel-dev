@@ -564,12 +564,6 @@ static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
 };
 
 enum {
-	HISI_SAS_PHY_PHY_UPDOWN,
-	HISI_SAS_PHY_CHNL_INT,
-	HISI_SAS_PHY_INT_NR
-};
-
-enum {
 	TRANS_TX_FAIL_BASE = 0x0, /* dw0 */
 	TRANS_RX_FAIL_BASE = 0x20, /* dw1 */
 	DMA_TX_ERR_BASE = 0x40, /* dw2 bit 15-0 */
@@ -3293,10 +3287,12 @@ end:
 	return res;
 }
 
-static irq_handler_t phy_interrupts[HISI_SAS_PHY_INT_NR] = {
+static irq_handler_t phy_interrupts[] = {
 	int_phy_updown_v2_hw,
 	int_chnl_int_v2_hw,
 };
+
+#define HISI_SAS_PHY_INT_NR ARRAY_SIZE(phy_interrupts)
 
 static irq_handler_t fatal_interrupts[HISI_SAS_FATAL_INT_NR] = {
 	fatal_ecc_int_v2_hw,
