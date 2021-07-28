@@ -192,6 +192,11 @@ void scsi_remove_host(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_remove_host);
 
+unsigned long total_rqs;
+unsigned long total_rqs_diff;
+unsigned long total_rqs_diff2;
+
+
 /**
  * scsi_add_host_with_dma - add a scsi host with dma device
  * @shost:	scsi host pointer to add
@@ -290,6 +295,9 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
+
+	dev_err(dev, "%s total rqs=%lu nid diff to numa node=%lu nid2 diff to nid=%lu\n", __func__, total_rqs, total_rqs_diff, total_rqs_diff2);
+	
 	return error;
 
 	/*

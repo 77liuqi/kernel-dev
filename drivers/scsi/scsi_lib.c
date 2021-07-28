@@ -1737,20 +1737,33 @@ static enum blk_eh_timer_return scsi_timeout(struct request *req,
 	return scsi_times_out(req);
 }
 
+extern unsigned long total_rqs;
+extern unsigned long total_rqs_diff;
+extern unsigned long total_rqs_diff2;
+
 static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 				unsigned int hctx_idx, unsigned int numa_node)
 {
 	struct Scsi_Host *shost = set->driver_data;
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	int nid = page_to_nid(virt_to_page(rq));
+	int nid2;
 	struct scatterlist *sg;
 	int ret = 0;
+
+	if (nid != numa_node)
+		total_rqs_diff++;
 
 	cmd->sense_buffer =
 		kmem_cache_alloc_node(scsi_sense_cache, GFP_KERNEL, nid);
 	if (!cmd->sense_buffer)
 		return -ENOMEM;
 	cmd->req.sense = cmd->sense_buffer;
+
+	nid2 = page_to_nid(virt_to_page(cmd->sense_buffer));
+
+	if (nid != nid2)
+		total_rqs_diff2++;
 
 	if (scsi_host_get_prot(shost)) {
 		sg = (void *)cmd + sizeof(struct scsi_cmnd) +
@@ -1763,6 +1776,7 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		if (ret < 0)
 			kmem_cache_free(scsi_sense_cache, cmd->sense_buffer);
 	}
+	total_rqs++;
 
 	return ret;
 }
