@@ -172,7 +172,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct ata_device *ata_device;
 	struct scsi_device	*sdev = NULL;
 	int retries = -1;
+	int allowed = -1;
 	struct request *rq = NULL;
+	int cmd0 = -1;
 
 
 	/* TODO: we should try to remove that unlock */
@@ -186,15 +188,18 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	sdev = ata_device ? ata_device->sdev : NULL;
 	if (qc->scsicmd) {
 		retries = qc->scsicmd->retries;
+		allowed = qc->scsicmd->allowed;
 		rq = qc->scsicmd->request;
+		if (qc->scsicmd->cmnd)
+			cmd0 = qc->scsicmd->cmnd[0];
 	}
 
-	pr_err("%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS\n",
-		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq);
+	pr_err("%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS allowed=%d cmd0=%d\n",
+		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq, allowed, cmd0);
 
 	if (special)
-	WARN_ONCE(special == rq, "%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS\n",
-		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq);
+	WARN_ONCE(special == rq, "%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS allowed=%d cmd0=%d\n",
+		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq, allowed, cmd0);
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
