@@ -3593,6 +3593,7 @@ static void scsi_disk_release(struct device *dev)
 	kfree(sdkp);
 }
 
+
 static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 {
 	unsigned char cmd[6] = { START_STOP };	/* START_VALID */

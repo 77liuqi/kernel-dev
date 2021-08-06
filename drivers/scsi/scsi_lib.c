@@ -203,6 +203,7 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  * Returns the scsi_cmnd result field if a command was executed, or a negative
  * Linux error code if we didn't get that far.
  */
+ extern struct request *special;
 int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
@@ -213,7 +214,6 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	struct scsi_request *rq;
 	int ret;
 
-
 	req = blk_get_request(sdev->request_queue,
 			data_direction == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
@@ -222,6 +222,9 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		return PTR_ERR(req);
 
 	rq = scsi_req(req);
+
+	if (cmd[0] == START_STOP)
+		special = req;
 
 	if (bufflen) {
 		ret = blk_rq_map_kern(sdev->request_queue, req,

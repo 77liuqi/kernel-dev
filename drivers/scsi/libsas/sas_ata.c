@@ -154,6 +154,9 @@ qc_already_gone:
 	sas_free_task(task);
 }
 
+struct request *special = NULL;
+
+
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	__must_hold(ap->lock)
 {
@@ -187,6 +190,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	pr_err("%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS\n",
+		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq);
+
+	WARN(special == rq, "%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS\n",
 		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq);
 
 	task = sas_alloc_task(GFP_ATOMIC);
