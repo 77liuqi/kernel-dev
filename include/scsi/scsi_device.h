@@ -443,7 +443,7 @@ extern int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 			int data_direction, void *buffer, unsigned bufflen,
 			unsigned char *sense, struct scsi_sense_hdr *sshdr,
 			int timeout, int retries, u64 flags,
-			req_flags_t rq_flags, int *resid);
+			req_flags_t rq_flags, int *resid, bool special_rq);
 /* Make sure any sense buffer is the correct size. */
 #define scsi_execute(sdev, cmd, data_direction, buffer, bufflen, sense,	\
 		     sshdr, timeout, retries, flags, rq_flags, resid)	\
@@ -452,7 +452,16 @@ extern int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		     sizeof(sense) != SCSI_SENSE_BUFFERSIZE);		\
 	__scsi_execute(sdev, cmd, data_direction, buffer, bufflen,	\
 		       sense, sshdr, timeout, retries, flags, rq_flags,	\
-		       resid);						\
+		       resid, false);						\
+})
+#define scsi_execute_special(sdev, cmd, data_direction, buffer, bufflen, sense,	\
+		     sshdr, timeout, retries, flags, rq_flags, resid)	\
+({									\
+	BUILD_BUG_ON((sense) != NULL &&					\
+		     sizeof(sense) != SCSI_SENSE_BUFFERSIZE);		\
+	__scsi_execute(sdev, cmd, data_direction, buffer, bufflen,	\
+		       sense, sshdr, timeout, retries, flags, rq_flags,	\
+		       resid, true);						\
 })
 static inline int scsi_execute_req(struct scsi_device *sdev,
 	const unsigned char *cmd, int data_direction, void *buffer,

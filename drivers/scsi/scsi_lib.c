@@ -208,7 +208,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, struct scsi_sense_hdr *sshdr,
 		 int timeout, int retries, u64 flags, req_flags_t rq_flags,
-		 int *resid)
+		 int *resid, bool special_rq)
 {
 	struct request *req;
 	struct scsi_request *rq;
@@ -223,7 +223,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 
 	rq = scsi_req(req);
 
-	if (cmd[0] == START_STOP)
+	if (special_rq)
 		special = req;
 
 	if (bufflen) {

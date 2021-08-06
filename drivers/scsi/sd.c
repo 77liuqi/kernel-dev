@@ -3612,7 +3612,7 @@ static int sd_start_stop_device(struct scsi_disk *sdkp, int start)
 	sd_printk(KERN_ERR, sdkp, "%s cmd=%pS\n", __func__, cmd);
 	dev_err(&sdp->sdev_gendev, "%s cmd=%pS\n", __func__, cmd);
 
-	res = scsi_execute(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
+	res = scsi_execute_special(sdp, cmd, DMA_NONE, NULL, 0, NULL, &sshdr,
 			SD_TIMEOUT, sdkp->max_retries, 0, RQF_PM, NULL);
 	if (res) {
 		sd_print_result(sdkp, "Start/Stop Unit failed", res);
