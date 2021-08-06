@@ -166,6 +166,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
+	struct ata_device *ata_device;
+	struct scsi_device	*sdev = NULL;
+	int retries = -1;
+	struct request *rq = NULL;
+
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -173,6 +178,16 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
+
+	ata_device = sas_to_ata_dev(dev);
+	sdev = ata_device ? ata_device->sdev : NULL;
+	if (qc->scsicmd) {
+		retries = qc->scsicmd->retries;
+		rq = qc->scsicmd->request;
+	}
+
+	pr_err("%s qc=%pS ata_device=%pS sdev=%pS qc->scsicmd=%pS retries=%d rq=%pS\n",
+		__func__, qc, ata_device, sdev, qc->scsicmd, retries, rq);
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)

@@ -213,6 +213,7 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	struct scsi_request *rq;
 	int ret;
 
+
 	req = blk_get_request(sdev->request_queue,
 			data_direction == DMA_TO_DEVICE ?
 			REQ_OP_DRV_OUT : REQ_OP_DRV_IN,
@@ -228,6 +229,9 @@ int __scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		if (ret)
 			goto out;
 	}
+
+	dev_err(&sdev->sdev_gendev, "%s cmd=%pS retries=%d request=%pS scsi_request=%pS sdev=%pS\n", __func__, cmd, retries, req, rq, sdev);
+	
 	rq->cmd_len = COMMAND_SIZE(cmd[0]);
 	memcpy(rq->cmd, cmd, rq->cmd_len);
 	rq->retries = retries;
