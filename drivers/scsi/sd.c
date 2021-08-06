@@ -3382,6 +3382,7 @@ static int sd_format_disk_name(char *prefix, int index, char *buf, int buflen)
  *	Assume sd_probe is not re-entrant (for time being)
  *	Also think about sd_probe() and sd_remove() running coincidentally.
  **/
+ static int sd_start_stop_device(struct scsi_disk *sdkp, int start);
 static int sd_probe(struct device *dev)
 {
 	struct scsi_device *sdp = to_scsi_device(dev);
@@ -3504,6 +3505,9 @@ static int sd_probe(struct device *dev)
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
 	scsi_autopm_put_device(sdp);
+
+
+	sd_start_stop_device(sdkp, 1);
 
 	return 0;
 
