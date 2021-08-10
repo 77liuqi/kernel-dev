@@ -890,7 +890,10 @@ static int process_std_cpu_events(FILE *outfp)
 		fprintf(outfp, "\t.desc = \"%s\",\n", es->desc);
 		if (es->compat)
 			fprintf(outfp, "\t.compat = \"%s\",\n", es->compat);
-		fprintf(outfp, "\t.topic = \"%s\",\n", "Common and microarch");
+		if (es->topic)
+			fprintf(outfp, "\t.topic = \"%s\",\n", es->topic);
+		else
+			fprintf(outfp, "\t.topic = \"%s\",\n", "Common and microarch");
 		if (es->long_desc && es->long_desc[0])
 			fprintf(outfp, "\t.long_desc = \"%s\",\n", es->long_desc);
 		if (es->pmu)
