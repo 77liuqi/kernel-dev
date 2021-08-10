@@ -4,54 +4,63 @@
         "EventCode": "0x00",
         "EventName": "SW_INCR",
         "BriefDescription": "Instruction architecturally executed, Condition code check pass, software increment"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Level 1 instruction cache refill",
         "EventCode": "0x01",
         "EventName": "L1I_CACHE_REFILL",
         "BriefDescription": "Level 1 instruction cache refill"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Attributable Level 1 instruction TLB refill",
         "EventCode": "0x02",
         "EventName": "L1I_TLB_REFILL",
         "BriefDescription": "Attributable Level 1 instruction TLB refill"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Level 1 data cache refill",
         "EventCode": "0x03",
         "EventName": "L1D_CACHE_REFILL",
         "BriefDescription": "Level 1 data cache refill"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Level 1 data cache access",
         "EventCode": "0x04",
         "EventName": "L1D_CACHE",
         "BriefDescription": "Level 1 data cache access"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Attributable Level 1 data TLB refill",
         "EventCode": "0x05",
         "EventName": "L1D_TLB_REFILL",
         "BriefDescription": "Attributable Level 1 data TLB refill"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Instruction architecturally executed",
         "EventCode": "0x08",
         "EventName": "INST_RETIRED",
         "BriefDescription": "Instruction architecturally executed"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Exception taken",
         "EventCode": "0x09",
         "EventName": "EXC_TAKEN",
         "BriefDescription": "Exception taken"
+	"Topic": "Exception"
     },
     {
         "PublicDescription": "Instruction architecturally executed, condition check pass, exception return",
         "EventCode": "0x0a",
         "EventName": "EXC_RETURN",
         "BriefDescription": "Instruction architecturally executed, condition check pass, exception return"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR",
@@ -71,72 +80,84 @@
         "EventCode": "0x11",
         "EventName": "CPU_CYCLES",
         "BriefDescription": "Cycle"
+        "Topic": "Bus"
     },
     {
         "PublicDescription": "Predictable branch speculatively executed",
         "EventCode": "0x12",
         "EventName": "BR_PRED",
         "BriefDescription": "Predictable branch speculatively executed"
+        "Topic": "Branch"
     },
     {
         "PublicDescription": "Data memory access",
         "EventCode": "0x13",
         "EventName": "MEM_ACCESS",
         "BriefDescription": "Data memory access"
+        "Topic": "Memory"
     },
     {
         "PublicDescription": "Attributable Level 1 instruction cache access",
         "EventCode": "0x14",
         "EventName": "L1I_CACHE",
         "BriefDescription": "Attributable Level 1 instruction cache access"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Attributable Level 1 data cache write-back",
         "EventCode": "0x15",
         "EventName": "L1D_CACHE_WB",
         "BriefDescription": "Attributable Level 1 data cache write-back"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Level 2 data cache access",
         "EventCode": "0x16",
         "EventName": "L2D_CACHE",
         "BriefDescription": "Level 2 data cache access"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Level 2 data refill",
         "EventCode": "0x17",
         "EventName": "L2D_CACHE_REFILL",
         "BriefDescription": "Level 2 data refill"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Attributable Level 2 data cache write-back",
         "EventCode": "0x18",
         "EventName": "L2D_CACHE_WB",
         "BriefDescription": "Attributable Level 2 data cache write-back"
+	"Topic": "Cache"
     },
     {
         "PublicDescription": "Attributable Bus access",
         "EventCode": "0x19",
         "EventName": "BUS_ACCESS",
         "BriefDescription": "Attributable Bus access"
+	"Topic": "Bus"
     },
     {
         "PublicDescription": "Local memory error",
         "EventCode": "0x1a",
         "EventName": "MEMORY_ERROR",
         "BriefDescription": "Local memory error"
+	"Topic": "Exception"
     },
     {
         "PublicDescription": "Operation speculatively executed",
         "EventCode": "0x1b",
         "EventName": "INST_SPEC",
         "BriefDescription": "Operation speculatively executed"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Instruction architecturally executed, Condition code check pass, write to TTBR",
         "EventCode": "0x1c",
         "EventName": "TTBR_WRITE_RETIRED",
         "BriefDescription": "Instruction architecturally executed, Condition code check pass, write to TTBR"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Bus cycle",
