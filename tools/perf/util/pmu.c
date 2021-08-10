@@ -871,14 +871,11 @@ static void pmu_add_cpu_aliases_std(struct list_head *head, struct perf_pmu *pmu
 	if (pmu_aliases(name, &tmp))
 		return;
 
-//	list_for_each_entry(alias, &tmp, list)
-//		pr_err("%s pmu=%s alias name=%s\n", __func__, name, alias->name);
-
 	/*
 	 * Found a matching PMU events table. Create aliases
 	 */
 	list_for_each_entry(alias, &tmp, list) {
-		pr_err("%s pmu=%s alias name=%s\n", __func__, name, alias->name);
+		//pr_err("%s pmu=%s alias name=%s\n", __func__, name, alias->name);
 		i = 0;
 		while (1) {
 			struct pmu_event *pe = &std_cpu_events[i++];
@@ -891,7 +888,7 @@ static void pmu_add_cpu_aliases_std(struct list_head *head, struct perf_pmu *pmu
 			if (strcmp(alias->name, pe->name))
 				continue;
 
-			pr_err("%s2 new_alias pmu=%s name=%s topic=%s\n", __func__, name, pe->name, alias->topic);
+			//pr_err("%s2 new_alias pmu=%s name=%s topic=%s\n", __func__, name, pe->name, alias->topic);
 			/* need type casts to override 'const' */
 			__perf_pmu__new_alias(head, NULL, (char *)pe->name,
 					(char *)pe->desc, (char *)pe->event,
