@@ -858,9 +858,50 @@ new_alias:
 	}
 }
 
+static void pmu_add_cpu_aliases_std(struct list_head *head, struct perf_pmu *pmu)
+{
+	int i;
+	const char *name = pmu->name;
+
+	if (!is_pmu_core(name))
+		return;
+
+	/*
+	 * Found a matching PMU events table. Create aliases
+	 */
+	i = 0;
+	while (1) {
+		const char *cpu_name = is_arm_pmu_core(name) ? name : "cpu";
+		struct pmu_event *pe = &std_cpu_events[i++];
+		const char *pname = pe->pmu ? pe->pmu : cpu_name;
+
+		if (!pe->name) {
+			if (pe->metric_group || pe->metric_name)
+				continue;
+			break;
+		}
+
+		if (pmu_is_uncore(name) &&
+		    pmu_uncore_alias_match(pname, name))
+			goto new_alias;
+
+		if (strcmp(pname, name))
+			continue;
+
+new_alias:
+		pr_err("%s pmu=%s name=%s\n", __func__, name, pe->name);
+		/* need type casts to override 'const' */
+		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
+				(char *)pe->desc, (char *)pe->event,
+				pe);
+	}
+}
+
 static void pmu_add_cpu_aliases(struct list_head *head, struct perf_pmu *pmu)
 {
 	struct pmu_events_map *map;
+
+	pmu_add_cpu_aliases_std(head, pmu);
 
 	map = perf_pmu__find_map(pmu);
 	if (!map)

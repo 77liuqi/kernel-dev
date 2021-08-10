@@ -54,5 +54,6 @@ struct pmu_sys_events {
  */
 extern struct pmu_events_map pmu_events_map[];
 extern struct pmu_sys_events pmu_sys_event_tables[];
+extern struct pmu_event std_cpu_events[];
 
 #endif
