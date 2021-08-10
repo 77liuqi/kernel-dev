@@ -68,6 +68,7 @@ struct json_event {
 	char *metric_group;
 	char *deprecated;
 	char *metric_constraint;
+	char *topic;// for std arch events
 };
 
 enum aggr_mode_class convert(const char *aggr_mode)
@@ -633,6 +634,8 @@ static int json_events(const char *fn,
 				addfield(map, &je.name, "", "", val);
 			} else if (json_streq(map, field, "Compat")) {
 				addfield(map, &je.compat, "", "", val);
+			} else if (json_streq(map, field, "Topc")) {
+				addfield(map, &je.topic, "", "", val);
 			} else if (json_streq(map, field, "BriefDescription")) {
 				addfield(map, &je.desc, "", "", val);
 				fixdesc(je.desc);

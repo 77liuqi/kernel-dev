@@ -64,6 +64,7 @@
         "EventCode": "0x10",
         "EventName": "BR_MIS_PRED",
         "BriefDescription": "Mispredicted or not predicted branch speculatively executed"
+        "Topic": "Branch"
     },
     {
         "PublicDescription": "Cycle",
