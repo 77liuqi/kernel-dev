@@ -875,7 +875,7 @@ static int process_std_cpu_events(FILE *outfp)
 	print_events_table_prefix(outfp, "std_cpu_events");
 
 	list_for_each_entry(es, &arch_std_cpu_events, list) {
-	//	pr_err("%s snakk %s\n", es->name);
+	//	pr_err("%s snakk topic %s\n", es->topic);
 		fprintf(outfp, "{\n");
 		if (es->name)
 			fprintf(outfp, "\t.name = \"%s\",\n", es->name);
@@ -884,7 +884,7 @@ static int process_std_cpu_events(FILE *outfp)
 		fprintf(outfp, "\t.desc = \"%s\",\n", es->desc);
 		if (es->compat)
 			fprintf(outfp, "\t.compat = \"%s\",\n", es->compat);
-		fprintf(outfp, "\t.topic = \"%s\",\n", topic);
+		fprintf(outfp, "\t.topic = \"%s\",\n", "Common and microarch");
 		if (es->long_desc && es->long_desc[0])
 			fprintf(outfp, "\t.long_desc = \"%s\",\n", es->long_desc);
 		if (es->pmu)
