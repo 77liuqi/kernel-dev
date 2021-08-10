@@ -67,6 +67,7 @@
         "EventCode": "0x0b",
         "EventName": "CID_WRITE_RETIRED",
         "BriefDescription": "Instruction architecturally executed, condition code check pass, write to CONTEXTIDR"
+	"Topic": "Instruction"
     },
     {
         "PublicDescription": "Mispredicted or not predicted branch speculatively executed",
@@ -164,6 +165,7 @@
         "EventCode": "0x1D",
         "EventName": "BUS_CYCLES",
         "BriefDescription": "Bus cycle"
+	"Topic": "Bus"
     },
     {
         "PublicDescription": "Attributable Level 2 data cache allocation without refill",
