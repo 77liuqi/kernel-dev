@@ -891,7 +891,7 @@ static void pmu_add_cpu_aliases_std(struct list_head *head, struct perf_pmu *pmu
 			if (strcmp(alias->name, pe->name))
 				continue;
 
-			pr_err("%s2 new_alias pmu=%s name=%s\n", __func__, name, pe->name);
+			pr_err("%s2 new_alias pmu=%s name=%s topic=%s\n", __func__, name, pe->name, alias->topic);
 			/* need type casts to override 'const' */
 			__perf_pmu__new_alias(head, NULL, (char *)pe->name,
 					(char *)pe->desc, (char *)pe->event,
