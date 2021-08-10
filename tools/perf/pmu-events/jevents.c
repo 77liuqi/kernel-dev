@@ -482,6 +482,7 @@ static int save_arch_std_events(void *data, struct json_event *je)
 	memset(es, 0, sizeof(*es));
 	FOR_ALL_EVENT_STRUCT_FIELDS(ADD_EVENT_FIELD);
 	list_add_tail(&es->list, &arch_std_events);
+	pr_err("%s je name=%s\n", __func__, je->name);
 	return 0;
 out_free:
 	FOR_ALL_EVENT_STRUCT_FIELDS(FREE_EVENT_FIELD);
@@ -493,7 +494,7 @@ static int save_arch_std_events2(void *data, struct json_event *je)
 {
 	struct event_struct *es;
 
-	pr_err("%s je name=%s event=%s\n", __func__, je->name, je->event);
+	//pr_err("%s je name=%s event=%s\n", __func__, je->name, je->event);
 
 	es = malloc(sizeof(*es));
 	if (!es)
@@ -501,6 +502,7 @@ static int save_arch_std_events2(void *data, struct json_event *je)
 	memset(es, 0, sizeof(*es));
 	FOR_ALL_EVENT_STRUCT_FIELDS(ADD_EVENT_FIELD);
 	list_add_tail(&es->list, &arch_std_cpu_events);
+	pr_err("%s je name=%s\n", __func__, je->name);
 	return 0;
 out_free:
 	FOR_ALL_EVENT_STRUCT_FIELDS(FREE_EVENT_FIELD);
@@ -868,21 +870,12 @@ static int process_system_event_tables(FILE *outfp)
 
 static int process_std_cpu_events(FILE *outfp)
 {
-//	struct sys_event_table *sys_event_table;
-
-//	fprintf(outfp, "\nstruct pmu_sys_events pmu_sys_event_tables[] = {");
-	print_events_table_prefix(outfp, "std_cpu_events");
-
-//	list_for_each_entry(sys_event_table, &arch_std_cpu_events, list) {
-//		fprintf(outfp, "\n\t{\n\t\t.table = %s,\n\t},",
-//			sys_event_table->soc_id);
-//		print_events_table_entry();
-
-//	}
-
 	struct event_struct *es;
 
-	list_for_each_entry(es, &arch_std_events, list) {
+	print_events_table_prefix(outfp, "std_cpu_events");
+
+	list_for_each_entry(es, &arch_std_cpu_events, list) {
+	//	pr_err("%s snakk %s\n", es->name);
 		fprintf(outfp, "{\n");
 		if (es->name)
 			fprintf(outfp, "\t.name = \"%s\",\n", es->name);
@@ -1116,12 +1109,12 @@ static int preprocess_arch_std_files2(const char *fpath, const struct stat *sb,
 	int level = ftwbuf->level;
 	int is_file = typeflag == FTW_F;
 
-	pr_err("%sx fpath=%s\n", __func__, fpath);
+	//pr_err("%sx fpath=%s\n", __func__, fpath);
 
 	if (level == 1 && is_file && is_json_file(fpath)) {
-		pr_err("%sx2 fpath=%s\n", __func__, fpath);
+		//pr_err("%sx2 fpath=%s\n", __func__, fpath);
 		if (strstr(fpath, "armv8-common-and-microarch.json")) {
-			pr_err("%sx3 fpath=%s\n", __func__, fpath);
+		//	pr_err("%sx3 fpath=%s\n", __func__, fpath);
 			return json_events(fpath, save_arch_std_events2, (void *)sb);
 		}
 	}

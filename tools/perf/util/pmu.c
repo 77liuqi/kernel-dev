@@ -860,36 +860,40 @@ new_alias:
 
 static void pmu_add_cpu_aliases_std(struct list_head *head, struct perf_pmu *pmu)
 {
-	int i;
 	const char *name = pmu->name;
+	struct perf_pmu_alias *alias;
+	LIST_HEAD(tmp);
+	int i;
 
 	if (!is_pmu_core(name))
 		return;
+
+	if (pmu_aliases(name, &tmp))
+		return;
+
+	list_for_each_entry(alias, &tmp, list)
+		pr_err("%s pmu=%s alias name=%s\n", __func__, name, alias->name);
 
 	/*
 	 * Found a matching PMU events table. Create aliases
 	 */
 	i = 0;
 	while (1) {
-		const char *cpu_name = is_arm_pmu_core(name) ? name : "cpu";
 		struct pmu_event *pe = &std_cpu_events[i++];
-		const char *pname = pe->pmu ? pe->pmu : cpu_name;
 
-		if (!pe->name) {
-			if (pe->metric_group || pe->metric_name)
-				continue;
+		pr_err("%s1 pmu=%s pe=%s\n", __func__, name, pe->name);
+
+		if (!pe->name)
 			break;
+
+		list_for_each_entry(alias, &tmp, list) {
+			if (!strcmp(alias->name, pe->name))
+				goto new_alias;
 		}
-
-		if (pmu_is_uncore(name) &&
-		    pmu_uncore_alias_match(pname, name))
-			goto new_alias;
-
-		if (strcmp(pname, name))
-			continue;
+		continue;
 
 new_alias:
-		pr_err("%s pmu=%s name=%s\n", __func__, name, pe->name);
+		pr_err("%s2 new_alias pmu=%s name=%s\n", __func__, name, pe->name);
 		/* need type casts to override 'const' */
 		__perf_pmu__new_alias(head, NULL, (char *)pe->name,
 				(char *)pe->desc, (char *)pe->event,
@@ -1679,8 +1683,12 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 	pmu = NULL;
 	len = 0;
 	while ((pmu = perf_pmu__scan(pmu)) != NULL) {
-		list_for_each_entry(alias, &pmu->aliases, list)
+		list_for_each_entry(alias, &pmu->aliases, list) {
+			//bool is_cpu = is_pmu_core(pmu->name);
+			//if (is_cpu)
+			//	pr_err("%s snake pmu name=%s alias name=%s event_glob=%s\n", __func__, pmu->name, alias->name, event_glob);
 			len++;
+		}
 		if (pmu->selectable)
 			len++;
 	}
@@ -1708,6 +1716,8 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet_flag,
 
 			if (is_cpu && !name_only && !alias->desc)
 				name = format_alias_or(buf, sizeof(buf), pmu, alias);
+		//	if (is_cpu)
+		//		pr_err("%s2 snake pmu name=%s alias name=%s event_glob=%s\n", __func__, pmu->name, alias->name, event_glob);
 
 			aliases[j].name = name;
 			if (is_cpu && !name_only && !alias->desc)
