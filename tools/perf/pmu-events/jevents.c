@@ -427,6 +427,7 @@ struct event_struct {
 	char *metric_group;
 	char *deprecated;
 	char *metric_constraint;
+	char *topic;
 };
 
 #define ADD_EVENT_FIELD(field) do { if (je->field) {		\
@@ -456,6 +457,7 @@ struct event_struct {
 	op(metric_name);					\
 	op(metric_group);					\
 	op(deprecated);						\
+	op(topic);						\
 } while (0)
 
 static LIST_HEAD(arch_std_events);
@@ -503,7 +505,7 @@ static int save_arch_std_events2(void *data, struct json_event *je)
 	memset(es, 0, sizeof(*es));
 	FOR_ALL_EVENT_STRUCT_FIELDS(ADD_EVENT_FIELD);
 	list_add_tail(&es->list, &arch_std_cpu_events);
-	pr_err("%s je name=%s\n", __func__, je->name);
+	pr_err("%s je name=%s topic=%s\n", __func__, je->name, je->topic);
 	return 0;
 out_free:
 	FOR_ALL_EVENT_STRUCT_FIELDS(FREE_EVENT_FIELD);
@@ -634,7 +636,7 @@ static int json_events(const char *fn,
 				addfield(map, &je.name, "", "", val);
 			} else if (json_streq(map, field, "Compat")) {
 				addfield(map, &je.compat, "", "", val);
-			} else if (json_streq(map, field, "Topc")) {
+			} else if (json_streq(map, field, "Topic")) {
 				addfield(map, &je.topic, "", "", val);
 			} else if (json_streq(map, field, "BriefDescription")) {
 				addfield(map, &je.desc, "", "", val);
@@ -878,7 +880,8 @@ static int process_std_cpu_events(FILE *outfp)
 	print_events_table_prefix(outfp, "std_cpu_events");
 
 	list_for_each_entry(es, &arch_std_cpu_events, list) {
-	//	pr_err("%s snakk topic %s\n", es->topic);
+		if (es->topic)
+			pr_err("%s snakk %s topic %s\n", es->name, es->topic);
 		fprintf(outfp, "{\n");
 		if (es->name)
 			fprintf(outfp, "\t.name = \"%s\",\n", es->name);
