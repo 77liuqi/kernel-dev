@@ -50,7 +50,7 @@
 #include "json.h"
 #include "pmu-events.h"
 
-int verbose;
+int verbose = 5;
 char *prog;
 
 struct json_event {
@@ -458,6 +458,8 @@ struct event_struct {
 } while (0)
 
 static LIST_HEAD(arch_std_events);
+static LIST_HEAD(arch_std_cpu_events);
+
 
 static void free_arch_std_events(void)
 {
@@ -480,6 +482,25 @@ static int save_arch_std_events(void *data, struct json_event *je)
 	memset(es, 0, sizeof(*es));
 	FOR_ALL_EVENT_STRUCT_FIELDS(ADD_EVENT_FIELD);
 	list_add_tail(&es->list, &arch_std_events);
+	return 0;
+out_free:
+	FOR_ALL_EVENT_STRUCT_FIELDS(FREE_EVENT_FIELD);
+	free(es);
+	return -ENOMEM;
+}
+
+static int save_arch_std_events2(void *data, struct json_event *je)
+{
+	struct event_struct *es;
+
+	pr_err("%s je name=%s event=%s\n", __func__, je->name, je->event);
+
+	es = malloc(sizeof(*es));
+	if (!es)
+		return -ENOMEM;
+	memset(es, 0, sizeof(*es));
+	FOR_ALL_EVENT_STRUCT_FIELDS(ADD_EVENT_FIELD);
+	list_add_tail(&es->list, &arch_std_cpu_events);
 	return 0;
 out_free:
 	FOR_ALL_EVENT_STRUCT_FIELDS(FREE_EVENT_FIELD);
@@ -845,6 +866,60 @@ static int process_system_event_tables(FILE *outfp)
 	return 0;
 }
 
+static int process_std_cpu_events(FILE *outfp)
+{
+//	struct sys_event_table *sys_event_table;
+
+//	fprintf(outfp, "\nstruct pmu_sys_events pmu_sys_event_tables[] = {");
+	print_events_table_prefix(outfp, "std_cpu_events");
+
+//	list_for_each_entry(sys_event_table, &arch_std_cpu_events, list) {
+//		fprintf(outfp, "\n\t{\n\t\t.table = %s,\n\t},",
+//			sys_event_table->soc_id);
+//		print_events_table_entry();
+
+//	}
+
+	struct event_struct *es;
+
+	list_for_each_entry(es, &arch_std_events, list) {
+		fprintf(outfp, "{\n");
+		if (es->name)
+			fprintf(outfp, "\t.name = \"%s\",\n", es->name);
+		if (es->event)
+			fprintf(outfp, "\t.event = \"%s\",\n", es->event);
+		fprintf(outfp, "\t.desc = \"%s\",\n", es->desc);
+		if (es->compat)
+			fprintf(outfp, "\t.compat = \"%s\",\n", es->compat);
+		fprintf(outfp, "\t.topic = \"%s\",\n", topic);
+		if (es->long_desc && es->long_desc[0])
+			fprintf(outfp, "\t.long_desc = \"%s\",\n", es->long_desc);
+		if (es->pmu)
+			fprintf(outfp, "\t.pmu = \"%s\",\n", es->pmu);
+		if (es->unit)
+			fprintf(outfp, "\t.unit = \"%s\",\n", es->unit);
+		if (es->perpkg)
+			fprintf(outfp, "\t.perpkg = \"%s\",\n", es->perpkg);
+		if (es->aggr_mode)
+			fprintf(outfp, "\t.aggr_mode = \"%d\",\n", convert(es->aggr_mode));
+		if (es->metric_expr)
+			fprintf(outfp, "\t.metric_expr = \"%s\",\n", es->metric_expr);
+		if (es->metric_name)
+			fprintf(outfp, "\t.metric_name = \"%s\",\n", es->metric_name);
+		if (es->metric_group)
+			fprintf(outfp, "\t.metric_group = \"%s\",\n", es->metric_group);
+		if (es->deprecated)
+			fprintf(outfp, "\t.deprecated = \"%s\",\n", es->deprecated);
+		if (es->metric_constraint)
+			fprintf(outfp, "\t.metric_constraint = \"%s\",\n", es->metric_constraint);
+		fprintf(outfp, "},\n");
+	}
+
+	print_events_table_suffix(outfp);
+
+	return 0;
+}
+
 static int process_mapfile(FILE *outfp, char *fpath)
 {
 	int n = 16384;
@@ -1031,6 +1106,25 @@ static int preprocess_arch_std_files(const char *fpath, const struct stat *sb,
 
 	if (level == 1 && is_file && is_json_file(fpath))
 		return json_events(fpath, save_arch_std_events, (void *)sb);
+
+	return 0;
+}
+
+static int preprocess_arch_std_files2(const char *fpath, const struct stat *sb,
+				int typeflag, struct FTW *ftwbuf)
+{
+	int level = ftwbuf->level;
+	int is_file = typeflag == FTW_F;
+
+	pr_err("%sx fpath=%s\n", __func__, fpath);
+
+	if (level == 1 && is_file && is_json_file(fpath)) {
+		pr_err("%sx2 fpath=%s\n", __func__, fpath);
+		if (strstr(fpath, "armv8-common-and-microarch.json")) {
+			pr_err("%sx3 fpath=%s\n", __func__, fpath);
+			return json_events(fpath, save_arch_std_events2, (void *)sb);
+		}
+	}
 
 	return 0;
 }
@@ -1248,6 +1342,10 @@ int main(int argc, char *argv[])
 	rc = nftw(ldirname, process_one_file, maxfds, 0);
 	if (rc)
 		goto err_processing_dir;
+	pr_err("%s snake ldirname=%s\n", __func__, ldirname);
+	rc = nftw(ldirname, preprocess_arch_std_files2, maxfds, 0);
+	if (rc)
+		goto err_processing_dir;
 
 	sprintf(ldirname, "%s/test", start_dirname);
 
@@ -1277,6 +1375,7 @@ int main(int argc, char *argv[])
 	}
 
 	rc = process_system_event_tables(eventsfp);
+	rc = process_std_cpu_events(eventsfp);
 	fclose(eventsfp);
 	if (rc) {
 		ret = 1;
