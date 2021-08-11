@@ -108,7 +108,7 @@ extern void arm_smmu_cmdq_zero_times(void);
 extern void arm_smmu_cmdq_zero_cmpxchg(void);
 extern u64 arm_smmu_cmdq_get_tries(void);
 extern u64 arm_smmu_cmdq_get_cmpxcgh_tries(void);
-
+extern u64 arm_smmu_cmdq_get_tries_size(void);
 extern u64 arm_smmu_cmdq_get_fails_cons(void);
 extern u64 arm_smmu_cmdq_get_fails_prod(void);
 extern u64 arm_smmu_cmdq_get_fails_both(void);
@@ -193,10 +193,11 @@ void smmu_test_core(int cpus)
 	arm_smmu_cmdq_get_average_time_cpus(),
 	arm_smmu_cmdq_get_average_place_time());
 
-	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) \n", 
+	printk(KERN_ERR "tries=%lld cmpxcgh tries=%lld (%ld%%) tries size=%lld fails both=%lld (%ld%%) prod=%lld (%ld%%) cons=%lld (%ld%%) \n", 
 		arm_smmu_cmdq_get_tries(),
 		arm_smmu_cmdq_get_cmpxcgh_tries(),
 		cmpxhg_ratio,
+		arm_smmu_cmdq_get_tries_size(),
 		arm_smmu_cmdq_get_fails_both(), both_ratio, 
 		arm_smmu_cmdq_get_fails_prod(), prod_ratio,
 		arm_smmu_cmdq_get_fails_cons(), cons_ratio);

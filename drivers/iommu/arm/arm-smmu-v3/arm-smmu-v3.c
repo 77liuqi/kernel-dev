@@ -724,6 +724,8 @@ static DEFINE_PER_CPU(ktime_t, cmdlist);
 static DEFINE_PER_CPU(ktime_t, get_place);
 
 static atomic64_t tries;
+static atomic64_t tries_size;
+
 static atomic64_t cmpxchg_tries;
 static atomic64_t cmpxchg_fail_prod;
 static atomic64_t cmpxchg_fail_cons;
@@ -750,6 +752,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 	initial = ktime_get();
 	llq.val = READ_ONCE(cmdq->q.llq.val);
 	atomic64_inc(&tries);
+	atomic64_add(n, &tries_size);
 	do {
 		struct arm_smmu_ll_queue	llq_old;
 	
@@ -876,6 +879,12 @@ u64 arm_smmu_cmdq_get_tries(void)
 	return atomic64_read(&tries);
 }
 
+u64 arm_smmu_cmdq_get_tries_size(void)
+{
+	return atomic64_read(&tries_size);
+}
+
+
 ktime_t arm_smmu_cmdq_get_average_time(void)
 {
 	int cpu, cpus = 0;
@@ -951,6 +960,7 @@ u64 arm_smmu_cmdq_get_fails_both(void)
 void arm_smmu_cmdq_zero_cmpxchg(void)
 {
 	atomic64_set(&tries, 0);
+	atomic64_set(&tries_size, 0);
 	atomic64_set(&cmpxchg_tries, 0);
 	atomic64_set(&cmpxchg_fail_prod, 0);
 	atomic64_set(&cmpxchg_fail_cons, 0);
