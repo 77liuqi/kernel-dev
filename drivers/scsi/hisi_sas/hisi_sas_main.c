@@ -1133,10 +1133,18 @@ static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
 static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 				void *funcdata)
 {
+	struct hisi_sas_phy *phy = container_of(sas_phy,
+			struct hisi_sas_phy, sas_phy);
 	struct sas_ha_struct *sas_ha = sas_phy->ha;
 	struct hisi_hba *hisi_hba = sas_ha->lldd_ha;
+	struct device *dev = hisi_hba->dev;
+	DECLARE_COMPLETION_ONSTACK(reset_completion);
 	int phy_no = sas_phy->id;
+	bool is_wait_for_phyup = true;
+	u8 status = phy->phy_attached;
+	int ret = 0;
 
+	phy->reset_completion = &reset_completion;
 	switch (func) {
 	case PHY_FUNC_HARD_RESET:
 		hisi_hba->hw->phy_hard_reset(hisi_hba, phy_no);
@@ -1150,21 +1158,37 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 
 	case PHY_FUNC_DISABLE:
 		hisi_sas_phy_enable(hisi_hba, phy_no, 0);
+		is_wait_for_phyup = false;
 		break;
 
 	case PHY_FUNC_SET_LINK_RATE:
-		return hisi_sas_phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		ret = hisi_sas_phy_set_linkrate(hisi_hba, phy_no, funcdata);
+		break;
 	case PHY_FUNC_GET_EVENTS:
 		if (hisi_hba->hw->get_events) {
 			hisi_hba->hw->get_events(hisi_hba, phy_no);
+			is_wait_for_phyup = false;
 			break;
 		}
 		fallthrough;
 	case PHY_FUNC_RELEASE_SPINUP_HOLD:
 	default:
-		return -EOPNOTSUPP;
+		is_wait_for_phyup = false;
+		ret = -EOPNOTSUPP;
 	}
-	return 0;
+
+	if (status && is_wait_for_phyup) {
+
+		if (!wait_for_completion_timeout(&reset_completion, 2 * HZ)) {
+			dev_warn(dev, "phy%d of func%d wait phyup timeout\n",
+				 phy_no, func);
+			if (phy->in_reset)
+				ret = -ETIMEDOUT;
+		}
+	}
+	phy->reset_completion = NULL;
+
+	return ret;
 }
 
 static void hisi_sas_task_done(struct sas_task *task)
@@ -1785,7 +1809,6 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
-	DECLARE_COMPLETION_ONSTACK(phyreset);
 	int rc, reset_type;
 
 	if (!local_phy->enabled) {
@@ -1799,7 +1822,6 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 		struct hisi_sas_phy *phy =
 			container_of(sas_phy, struct hisi_sas_phy, sas_phy);
 		phy->in_reset = 1;
-		phy->reset_completion = &phyreset;
 	}
 
 	reset_type = (sas_dev->dev_status == HISI_SAS_DEV_INIT ||
@@ -1813,17 +1835,14 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 			sas_ha->sas_phy[local_phy->number];
 		struct hisi_sas_phy *phy =
 			container_of(sas_phy, struct hisi_sas_phy, sas_phy);
-		int ret = wait_for_completion_timeout(&phyreset,
-						I_T_NEXUS_RESET_PHYUP_TIMEOUT);
 		unsigned long flags;
 
 		spin_lock_irqsave(&phy->lock, flags);
-		phy->reset_completion = NULL;
 		phy->in_reset = 0;
 		spin_unlock_irqrestore(&phy->lock, flags);
 
 		/* report PHY down if timed out */
-		if (!ret)
+		if (rc == -ETIMEDOUT)
 			hisi_sas_phy_down(hisi_hba, sas_phy->id, 0, GFP_KERNEL);
 	} else if (sas_dev->dev_status != HISI_SAS_DEV_INIT) {
 		/*
