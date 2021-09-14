@@ -528,6 +528,9 @@ static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
 	return 0;
 }
 
+struct pmu *gl3c_pmu;
+
+
 static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 {
 	struct hisi_pmu *l3c_pmu;
@@ -572,6 +575,11 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 		.attr_groups	= l3c_pmu->pmu_events.attr_groups,
 		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
+
+	if (!gl3c_pmu)
+		gl3c_pmu = &l3c_pmu->pmu;
+
+	dev_err(&pdev->dev, "%s pmu=%pS\n", __func__, &l3c_pmu->pmu);
 
 	ret = perf_pmu_register(&l3c_pmu->pmu, name, -1);
 	if (ret) {

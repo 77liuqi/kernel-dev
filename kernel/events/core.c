@@ -10997,9 +10997,13 @@ free_dev:
 static struct lock_class_key cpuctx_mutex;
 static struct lock_class_key cpuctx_lock;
 
+extern struct pmu *gl3c_pmu;
+
 int perf_pmu_register(struct pmu *pmu, const char *name, int type)
 {
 	int cpu, ret, max = PERF_TYPE_MAX;
+
+	pr_err("%s pmu=%pS\n", __func__, pmu);
 
 	mutex_lock(&pmus_lock);
 	ret = -ENOMEM;
@@ -11061,6 +11065,8 @@ skip_type:
 		struct perf_cpu_context *cpuctx;
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
+		if (gl3c_pmu == pmu)
+			pr_err("%s2 pmu=%pS cpu%d cpuctx=%pS\n", __func__, pmu, cpu, cpuctx);
 		__perf_event_init_context(&cpuctx->ctx);
 		lockdep_set_class(&cpuctx->ctx.mutex, &cpuctx_mutex);
 		lockdep_set_class(&cpuctx->ctx.lock, &cpuctx_lock);
@@ -12494,6 +12500,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(perf_event_create_kernel_counter);
 
+
 void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 {
 	struct perf_event_context *src_ctx;
@@ -12504,6 +12511,9 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	src_ctx = &per_cpu_ptr(pmu->pmu_cpu_context, src_cpu)->ctx;
 	dst_ctx = &per_cpu_ptr(pmu->pmu_cpu_context, dst_cpu)->ctx;
 
+	if (pmu == gl3c_pmu)
+		pr_err("%s src%d ctx=%pS dst%d dtx=%pS pmu=%pS\n", __func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu);
+
 	/*
 	 * See perf_event_ctx_lock() for comments on the details
 	 * of swizzling perf_event::ctx.
@@ -12511,6 +12521,9 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	mutex_lock_double(&src_ctx->mutex, &dst_ctx->mutex);
 	list_for_each_entry_safe(event, tmp, &src_ctx->event_list,
 				 event_entry) {
+		if (pmu == gl3c_pmu)
+			pr_err("%s1 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
+				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		perf_remove_from_context(event, 0);
 		unaccount_event_cpu(event, src_cpu);
 		put_ctx(src_ctx);

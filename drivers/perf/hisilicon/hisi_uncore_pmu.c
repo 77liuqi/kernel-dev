@@ -518,6 +518,8 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	if (target >= nr_cpu_ids)
 		return 0;
 
+	pr_err("%s pmu=%pS cpu%d target%d\n", __func__, &hisi_pmu->pmu, cpu, target);
+
 	perf_pmu_migrate_context(&hisi_pmu->pmu, cpu, target);
 	/* Use this CPU for event counting */
 	hisi_pmu->on_cpu = target;
