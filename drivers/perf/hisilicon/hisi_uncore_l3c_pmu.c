@@ -536,6 +536,7 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	struct hisi_pmu *l3c_pmu;
 	char *name;
 	int ret;
+	const cpumask_t *cpumask;
 
 	l3c_pmu = devm_kzalloc(&pdev->dev, sizeof(*l3c_pmu), GFP_KERNEL);
 	if (!l3c_pmu)
@@ -578,8 +579,10 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 
 	if (!gl3c_pmu)
 		gl3c_pmu = &l3c_pmu->pmu;
+	cpumask = &l3c_pmu->associated_cpus;
 
-	dev_err(&pdev->dev, "%s pmu=%pS\n", __func__, &l3c_pmu->pmu);
+	dev_err(&pdev->dev, "%s pmu=%pS cpumask=%*pbl cpu%d\n",
+		__func__, &l3c_pmu->pmu, cpumask_pr_args(cpumask), l3c_pmu->on_cpu);
 
 	ret = perf_pmu_register(&l3c_pmu->pmu, name, -1);
 	if (ret) {
