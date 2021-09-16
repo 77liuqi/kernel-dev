@@ -2839,7 +2839,14 @@ perf_install_in_context(struct perf_event_context *ctx,
 			int cpu)
 {
 	struct task_struct *task = READ_ONCE(ctx->task);
+	static int county;
 
+	pr_err("%s ctx=%pS event=%pS cpu%d\n", __func__, ctx, event, cpu);
+	if (county < 20)
+		WARN_ON(1);
+
+	county++;
+	
 	lockdep_assert_held(&ctx->mutex);
 
 	WARN_ON_ONCE(!exclusive_event_installable(event, ctx));

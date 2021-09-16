@@ -268,7 +268,7 @@ static void hisi_l3c_pmu_write_evtype(struct hisi_pmu *l3c_pmu, int idx,
 static void hisi_l3c_pmu_start_counters(struct hisi_pmu *l3c_pmu)
 {
 	u32 val;
-
+	dev_err(l3c_pmu->dev, "%s\n", __func__);
 	/*
 	 * Set perf_enable bit in L3C_PERF_CTRL register to start counting
 	 * for all enabled counters.
@@ -295,6 +295,7 @@ static void hisi_l3c_pmu_enable_counter(struct hisi_pmu *l3c_pmu,
 					struct hw_perf_event *hwc)
 {
 	u32 val;
+	dev_err(l3c_pmu->dev, "%s pmu=%pS %s\n", __func__, &l3c_pmu->pmu, l3c_pmu->pmu.name);
 
 	/* Enable counter index in L3C_EVENT_CTRL register */
 	val = readl(l3c_pmu->base + L3C_EVENT_CTRL);
@@ -497,6 +498,8 @@ static const struct hisi_uncore_ops hisi_uncore_l3c_ops = {
 	.disable_filter		= hisi_l3c_pmu_disable_filter,
 };
 
+struct pmu *gl3c_pmu;
+
 static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
 				  struct hisi_pmu *l3c_pmu)
 {
@@ -525,10 +528,12 @@ static int hisi_l3c_pmu_dev_probe(struct platform_device *pdev,
 	l3c_pmu->dev = &pdev->dev;
 	l3c_pmu->on_cpu = -1;
 
+	if (gl3c_pmu == &l3c_pmu->pmu)
+		dev_err(&pdev->dev, "%s pmu=%pS %s\n", __func__, &l3c_pmu->pmu, l3c_pmu->pmu.name);
+
 	return 0;
 }
 
-struct pmu *gl3c_pmu;
 
 
 static int hisi_l3c_pmu_probe(struct platform_device *pdev)

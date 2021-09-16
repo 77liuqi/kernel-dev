@@ -19,6 +19,7 @@
 #include <asm/local64.h>
 
 #include "hisi_uncore_pmu.h"
+extern struct pmu *gl3c_pmu;
 
 #define HISI_GET_EVENTID(ev) (ev->hw.config_base & 0xff)
 #define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
