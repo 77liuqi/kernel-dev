@@ -20,6 +20,7 @@
 
 #include "hisi_uncore_pmu.h"
 extern struct pmu *gl3c_pmu;
+extern struct pmu *ghha_pmu;
 
 #define HISI_GET_EVENTID(ev) (ev->hw.config_base & 0xff)
 #define HISI_MAX_PERIOD(nr) (GENMASK_ULL((nr) - 1, 0))
@@ -501,7 +502,7 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 						     node);
 	cpumask_t pmu_online_cpus;
 	unsigned int target;
-	bool print = (gl3c_pmu == &hisi_pmu->pmu);
+	bool print = (gl3c_pmu == &hisi_pmu->pmu || ghha_pmu == &hisi_pmu->pmu);
 
 	if (print)
 		pr_err("%s pmu=%pS cpu%d target%d\n", __func__, &hisi_pmu->pmu, cpu, target);

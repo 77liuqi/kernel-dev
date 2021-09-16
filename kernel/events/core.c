@@ -11005,6 +11005,8 @@ static struct lock_class_key cpuctx_mutex;
 static struct lock_class_key cpuctx_lock;
 
 extern struct pmu *gl3c_pmu;
+extern struct pmu *ghha_pmu;
+
 
 int perf_pmu_register(struct pmu *pmu, const char *name, int type)
 {
@@ -11072,7 +11074,7 @@ skip_type:
 		struct perf_cpu_context *cpuctx;
 
 		cpuctx = per_cpu_ptr(pmu->pmu_cpu_context, cpu);
-		if (gl3c_pmu == pmu)
+		if (gl3c_pmu == pmu || ghha_pmu == pmu)
 			pr_err("%s2 pmu=%pS cpu%d cpuctx=%pS\n", __func__, pmu, cpu, cpuctx);
 		__perf_event_init_context(&cpuctx->ctx);
 		lockdep_set_class(&cpuctx->ctx.mutex, &cpuctx_mutex);
@@ -12518,7 +12520,7 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	src_ctx = &per_cpu_ptr(pmu->pmu_cpu_context, src_cpu)->ctx;
 	dst_ctx = &per_cpu_ptr(pmu->pmu_cpu_context, dst_cpu)->ctx;
 
-	if (pmu == gl3c_pmu)
+	if (gl3c_pmu == pmu || ghha_pmu == pmu)
 		pr_err("%s src%d ctx=%pS dst%d dtx=%pS pmu=%pS\n", __func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu);
 
 	/*
@@ -12528,7 +12530,7 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	mutex_lock_double(&src_ctx->mutex, &dst_ctx->mutex);
 	list_for_each_entry_safe(event, tmp, &src_ctx->event_list,
 				 event_entry) {
-		if (pmu == gl3c_pmu)
+		if (gl3c_pmu == pmu || ghha_pmu == pmu)
 			pr_err("%s1 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
 				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		perf_remove_from_context(event, 0);
@@ -12551,13 +12553,13 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	 * context.
 	 */
 	list_for_each_entry_safe(event, tmp, &events, migrate_entry) {
-		if (pmu == gl3c_pmu)
+		if (gl3c_pmu == pmu || ghha_pmu == pmu)
 			pr_err("%s2 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
 				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		if (event->group_leader == event)
 			continue;
 
-		if (pmu == gl3c_pmu)
+		if (gl3c_pmu == pmu || ghha_pmu == pmu)
 			pr_err("%s3 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
 				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 
@@ -12575,7 +12577,7 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	 */
 	list_for_each_entry_safe(event, tmp, &events, migrate_entry) {
 	
-		if (pmu == gl3c_pmu)
+		if (gl3c_pmu == pmu || ghha_pmu == pmu)
 			pr_err("%s4 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
 				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		list_del(&event->migrate_entry);

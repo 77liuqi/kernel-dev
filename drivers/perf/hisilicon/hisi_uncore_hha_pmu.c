@@ -35,6 +35,8 @@
  */
 #define HHA_CNT0_LOWER		0x1F00
 
+struct pmu *ghha_pmu;
+
 /* HHA PMU v1 has 16 counters and v2 only has 8 counters */
 #define HHA_V1_NR_COUNTERS	0x10
 #define HHA_V2_NR_COUNTERS	0x8
@@ -491,12 +493,16 @@ static int hisi_hha_pmu_dev_probe(struct platform_device *pdev,
 	hha_pmu->dev = &pdev->dev;
 	hha_pmu->on_cpu = -1;
 
+	if (!ghha_pmu)
+		ghha_pmu = &hha_pmu->pmu;
+
 	return 0;
 }
 
 static int hisi_hha_pmu_probe(struct platform_device *pdev)
 {
 	struct hisi_pmu *hha_pmu;
+	const cpumask_t *cpumask;
 	char *name;
 	int ret;
 
@@ -541,6 +547,11 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 		cpuhp_state_remove_instance_nocalls(
 			CPUHP_AP_PERF_ARM_HISI_HHA_ONLINE, &hha_pmu->node);
 	}
+
+	cpumask = &hha_pmu->associated_cpus;
+
+	dev_err(&pdev->dev, "%s pmu=%pS cpumask=%*pbl cpu%d\n",
+		__func__, &hha_pmu->pmu, cpumask_pr_args(cpumask), hha_pmu->on_cpu);
 
 	return ret;
 }
