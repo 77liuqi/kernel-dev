@@ -11,7 +11,6 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
-#include "rcache.h"
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -283,7 +282,7 @@ static struct iova *alloc_iova_mem(void)
 	return kmem_cache_zalloc(iova_cache, GFP_ATOMIC | __GFP_NOWARN);
 }
 
-static void free_iova_mem(struct iova *iova)
+void free_iova_mem(struct iova *iova)
 {
 	if (iova->pfn_lo != IOVA_ANCHOR)
 		kmem_cache_free(iova_cache, iova);
@@ -376,7 +375,7 @@ alloc_iova(struct iova_domain *iovad, unsigned long size,
 }
 EXPORT_SYMBOL_GPL(alloc_iova);
 
-static struct iova *
+struct iova *
 private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 {
 	struct rb_node *node = iovad->rbroot.rb_node;
@@ -397,7 +396,7 @@ private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 	return NULL;
 }
 
-static void remove_iova(struct iova_domain *iovad, struct iova *iova)
+void remove_iova(struct iova_domain *iovad, struct iova *iova)
 {
 	assert_spin_locked(&iovad->iova_rbtree_lock);
 	__cached_rbnode_delete_update(iovad, iova);
@@ -466,78 +465,6 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 	free_iova_mem(iova);
 }
 EXPORT_SYMBOL_GPL(free_iova);
-
-/**
- * alloc_iova_fast - allocates an iova from rcache
- * @iovad: - iova domain in question
- * @size: - size of page frames to allocate
- * @limit_pfn: - max limit address
- * @flush_rcache: - set to flush rcache on regular allocation failure
- * This function tries to satisfy an iova allocation from the rcache,
- * and falls back to regular allocation on failure. If regular allocation
- * fails too and the flush_rcache flag is set then the rcache will be flushed.
-*/
-unsigned long
-alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-		unsigned long limit_pfn, bool flush_rcache)
-{
-	unsigned long iova_pfn;
-	struct iova *new_iova;
-
-	/*
-	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
-	 * will come back to bite us badly, so we have to waste a bit of space
-	 * rounding up anything cacheable to make sure that can't happen. The
-	 * order of the unadjusted size will still match upon freeing.
-	 */
-	if (size < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
-		size = roundup_pow_of_two(size);
-
-	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
-	if (iova_pfn)
-		return iova_pfn;
-
-retry:
-	new_iova = alloc_iova(iovad, size, limit_pfn, true);
-	if (!new_iova) {
-		#ifdef fixme
-		unsigned int cpu;
-		#endif
-
-		if (!flush_rcache)
-			return 0;
-
-		/* Try replenishing IOVAs by flushing rcache. */
-		flush_rcache = false;
-		#ifdef fixme
-		for_each_online_cpu(cpu)
-			free_cpu_cached_iovas(cpu, iovad);
-		free_global_cached_iovas(iovad);
-		#endif
-		goto retry;
-	}
-
-	return new_iova->pfn_lo;
-}
-EXPORT_SYMBOL_GPL(alloc_iova_fast);
-
-/**
- * free_iova_fast - free iova pfn range into rcache
- * @iovad: - iova domain in question.
- * @pfn: - pfn that is allocated previously
- * @size: - # of pages in range
- * This functions frees an iova range by trying to put it into the rcache,
- * falling back to regular iova deallocation via free_iova() if this fails.
- */
-void
-free_iova_fast(struct iova_domain *iovad, unsigned long pfn, unsigned long size)
-{
-	if (iova_rcache_insert(iovad, pfn, size))
-		return;
-
-	free_iova(iovad, pfn);
-}
-EXPORT_SYMBOL_GPL(free_iova_fast);
 
 #define fq_ring_for_each(i, fq) \
 	for ((i) = (fq)->head; (i) != (fq)->tail; (i) = ((i) + 1) % IOVA_FQ_SIZE)
