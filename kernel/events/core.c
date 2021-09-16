@@ -12544,8 +12544,15 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	 * context.
 	 */
 	list_for_each_entry_safe(event, tmp, &events, migrate_entry) {
+		if (pmu == gl3c_pmu)
+			pr_err("%s2 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
+				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		if (event->group_leader == event)
 			continue;
+
+		if (pmu == gl3c_pmu)
+			pr_err("%s3 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
+				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 
 		list_del(&event->migrate_entry);
 		if (event->state >= PERF_EVENT_STATE_OFF)
@@ -12560,6 +12567,10 @@ void perf_pmu_migrate_context(struct pmu *pmu, int src_cpu, int dst_cpu)
 	 * to make it go.
 	 */
 	list_for_each_entry_safe(event, tmp, &events, migrate_entry) {
+	
+		if (pmu == gl3c_pmu)
+			pr_err("%s4 src%d ctx=%pS dst%d dtx=%pS pmu=%pS event=%pS\n", 
+				__func__, src_cpu, src_ctx, dst_cpu, dst_ctx, pmu, event);
 		list_del(&event->migrate_entry);
 		if (event->state >= PERF_EVENT_STATE_OFF)
 			event->state = PERF_EVENT_STATE_INACTIVE;

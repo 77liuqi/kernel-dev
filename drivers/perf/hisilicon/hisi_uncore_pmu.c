@@ -500,6 +500,10 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 						     node);
 	cpumask_t pmu_online_cpus;
 	unsigned int target;
+	bool print = (gl3c_pmu == &hisi_pmu->pmu);
+
+	if (print)
+		pr_err("%s pmu=%pS cpu%d target%d\n", __func__, &hisi_pmu->pmu, cpu, target);
 
 	if (!cpumask_test_and_clear_cpu(cpu, &hisi_pmu->associated_cpus))
 		return 0;
@@ -518,7 +522,8 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	if (target >= nr_cpu_ids)
 		return 0;
 
-	pr_err("%s pmu=%pS cpu%d target%d\n", __func__, &hisi_pmu->pmu, cpu, target);
+	if (print)
+		pr_err("%s1 pmu=%pS cpu%d target%d\n", __func__, &hisi_pmu->pmu, cpu, target);
 
 	perf_pmu_migrate_context(&hisi_pmu->pmu, cpu, target);
 	/* Use this CPU for event counting */
