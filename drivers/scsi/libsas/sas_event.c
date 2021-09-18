@@ -176,6 +176,7 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 	if (!ev)
 		return -ENOMEM;
 
+	WARN_ON(pm_runtime_status_suspended(ha->dev));
 	/* Call pm_runtime_put() with pairs in sas_port_event_worker() */
 	pm_runtime_get_noresume(ha->dev);
 
@@ -205,6 +206,7 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 	if (!ev)
 		return -ENOMEM;
 
+	WARN_ON(pm_runtime_status_suspended(ha->dev));
 	/* Call pm_runtime_put() with pairs in sas_phy_event_worker() */
 	pm_runtime_get_noresume(ha->dev);
 
