@@ -41,8 +41,10 @@ struct iommu_dma_cookie {
 	enum iommu_dma_cookie_type	type;
 	union {
 		/* Full allocator for IOMMU_DMA_IOVA_COOKIE */
-		struct iova_caching_domain	rcached;
-		struct iova_fq_domain fq;
+		struct {
+			struct iova_caching_domain	rcached;
+			struct iova_fq_domain fq;
+		};
 		/* Trivial linear page allocator for IOMMU_DMA_MSI_COOKIE */
 		dma_addr_t		msi_iova;
 	};
