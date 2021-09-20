@@ -515,9 +515,9 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	domain->file = file;
 	spin_lock_init(&domain->iotlb_lock);
 
-	init_iova_domain(&domain->stream_iovad,
+	init_iova_caching_domain(&domain->stream_iovad,
 			PAGE_SIZE, IOVA_START_PFN);
-	init_iova_domain(&domain->consistent_iovad,
+	init_iova_caching_domain(&domain->consistent_iovad,
 			PAGE_SIZE, bounce_pfns);
 
 

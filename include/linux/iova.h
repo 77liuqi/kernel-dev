@@ -171,6 +171,9 @@ void iova_exit_flush_queue(struct iova_fq_domain *fq_domain);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
 void put_iova_caching_domain(struct iova_caching_domain *rcached);
+int
+init_iova_caching_domain(struct iova_caching_domain *rcached, unsigned long granule,
+	unsigned long start_pfn);
 
 #else
 static inline int iova_cache_get(void)

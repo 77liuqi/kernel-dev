@@ -374,12 +374,15 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_caching_domain *rcached;
 	unsigned long order, base_pfn;
+	struct iova_fq_domain *fq;
 	struct iova_domain *iovad;
+	int ret;
 
 	if (!cookie || cookie->type != IOMMU_DMA_IOVA_COOKIE)
 		return -EINVAL;
 
 	rcached = &cookie->rcached;
+	fq = &cookie->fq;
 	iovad = &rcached->iovad;
 
 	/* Use the smallest supported page size for IOVA granularity */
@@ -409,7 +412,11 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		return 0;
 	}
 
-	init_iova_domain(iovad, 1UL << order, base_pfn);
+	ret = init_iova_caching_domain(rcached, 1UL << order, base_pfn);
+	if (ret) {
+		dev_err(dev, "%s init_iova_caching_domain failed %d\n", __func__, ret);
+		return ret;
+	}
 
 	/* If the FQ fails we can simply fall back to strict mode */
 	if (domain->type == IOMMU_DOMAIN_DMA_FQ && iommu_dma_init_fq(domain))
