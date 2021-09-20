@@ -21,7 +21,7 @@ static bool iova_rcache_insert(struct iova_caching_domain *rcached,
 static unsigned long iova_rcache_get(struct iova_caching_domain *rcached,
 				     unsigned long size,
 				     unsigned long limit_pfn);
-static void init_iova_rcaches(struct iova_caching_domain *rcached);
+static int init_iova_rcaches(struct iova_caching_domain *rcached);
 static void free_cpu_cached_iovas(unsigned int cpu, struct iova_caching_domain *rcached);
 static void free_iova_rcaches(struct iova_caching_domain *rcached);
 static void fq_destroy_all_entries(struct iova_fq_domain *fq_domain);
@@ -70,12 +70,19 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
-#ifdef fixme
-	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &iovad->cpuhp_dead);
-	init_iova_rcaches(iovad);
-#endif
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
+
+int
+init_iova_caching_domain(struct iova_caching_domain *rcached, unsigned long granule,
+	unsigned long start_pfn)
+{
+	init_iova_domain(&rcached->iovad, granule, start_pfn);
+
+	cpuhp_state_add_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD, &rcached->cpuhp_dead);
+	return init_iova_rcaches(rcached);
+}
+EXPORT_SYMBOL_GPL(init_iova_caching_domain);
 
 static bool has_iova_flush_queue(struct iova_fq_domain *fq_domain)
 {
@@ -910,7 +917,7 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	mag->pfns[mag->size++] = pfn;
 }
 
-static void init_iova_rcaches(struct iova_caching_domain *rcached)
+static int init_iova_rcaches(struct iova_caching_domain *rcached)
 {
 	struct iova_cpu_rcache *cpu_rcache;
 	struct iova_rcache *rcache;
@@ -922,8 +929,8 @@ static void init_iova_rcaches(struct iova_caching_domain *rcached)
 		spin_lock_init(&rcache->lock);
 		rcache->depot_size = 0;
 		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache), cache_line_size());
-		if (WARN_ON(!rcache->cpu_rcaches))
-			continue;
+		if (!rcache->cpu_rcaches)
+			goto err;
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
@@ -931,6 +938,12 @@ static void init_iova_rcaches(struct iova_caching_domain *rcached)
 			cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
 		}
 	}
+
+	return 0;
+
+err:
+	free_iova_rcaches(rcached);
+	return -ENOMEM;
 }
 
 /*
