@@ -161,19 +161,20 @@ EXPORT_SYMBOL(iommu_get_msi_cookie);
 void iommu_put_dma_cookie(struct iommu_domain *domain)
 {
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
-#ifdef fixme
 	struct iova_caching_domain *rcached = &cookie->rcached;
 	struct iova_domain *iovad = &rcached->iovad;
-#endif
 	struct iommu_dma_msi_page *msi, *tmp;
 
 	if (!cookie)
 		return;
 
-#ifdef fixme
-	if (cookie->type == IOMMU_DMA_IOVA_COOKIE && iovad->granule)
-		put_iova_domain(&cookie->iovad);
-#endif
+	if (cookie->type == IOMMU_DMA_IOVA_COOKIE && iovad->granule) {
+		struct iova_caching_domain *rcached = &cookie->rcached;
+		struct iova_fq_domain *fq = &cookie->fq;
+		iova_exit_flush_queue(fq);
+		put_iova_caching_domain(rcached);
+	}
+
 	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list) {
 		list_del(&msi->list);
 		kfree(msi);

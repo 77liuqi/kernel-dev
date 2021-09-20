@@ -63,10 +63,6 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = 1UL << (32 - iova_shift(iovad));
 	iovad->max32_alloc_size = iovad->dma_32bit_pfn;
-#ifdef fixme
-	iovad->flush_cb = NULL;
-	iovad->fq = NULL;
-#endif
 	iovad->anchor.pfn_lo = iovad->anchor.pfn_hi = IOVA_ANCHOR;
 	rb_link_node(&iovad->anchor.node, NULL, &iovad->rbroot.rb_node);
 	rb_insert_color(&iovad->anchor.node, &iovad->rbroot);
@@ -89,7 +85,7 @@ static bool has_iova_flush_queue(struct iova_fq_domain *fq_domain)
 	return !!fq_domain->fq;
 }
 
-static void free_iova_flush_queue(struct iova_fq_domain *fq_domain)
+void iova_exit_flush_queue(struct iova_fq_domain *fq_domain)
 {
 	if (!has_iova_flush_queue(fq_domain))
 		return;
@@ -721,8 +717,6 @@ void put_iova_caching_domain(struct iova_caching_domain *rcached)
 
 	cpuhp_state_remove_instance_nocalls(CPUHP_IOMMU_IOVA_DEAD,
 					    &rcached->cpuhp_dead);
-
-	//free_iova_flush_queue(rcached->);
 	free_iova_rcaches(rcached);
 
 	put_iova_domain(iovad);
