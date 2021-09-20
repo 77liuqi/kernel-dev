@@ -385,6 +385,8 @@ static int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 	fq = &cookie->fq;
 	iovad = &rcached->iovad;
 
+	pr_err_once("%s rcached=%pS iovad=%pS fq=%pS\n", __func__, rcached, iovad, fq);
+
 	/* Use the smallest supported page size for IOVA granularity */
 	order = __ffs(domain->pgsize_bitmap);
 	base_pfn = max_t(unsigned long, 1, base >> order);
