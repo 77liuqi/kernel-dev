@@ -1,4 +1,7 @@
 
+#ifndef _RCACHE_H_
+#define _RCACHE_H_
+
 #define MAX_GLOBAL_MAGS 32	/* magazines per bin */
 
 #define MAG_SIZE 128
@@ -28,4 +31,6 @@ struct rcache {
 	struct magazine *depot[MAX_GLOBAL_MAGS];
 	struct cpu_rcache __percpu *cpu_rcaches;
 };
+
+#endif
 
