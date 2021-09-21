@@ -863,6 +863,7 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
+		rcache->mem_size = sizeof(unsigned long);
 		spin_lock_init(&rcache->lock);
 		rcache->depot_size = 0;
 		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache), cache_line_size());
@@ -871,8 +872,8 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL);
-			cpu_rcache->prev = magazine_alloc(GFP_KERNEL);
+			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL, rcache->mem_size);
+			cpu_rcache->prev = magazine_alloc(GFP_KERNEL, rcache->mem_size);
 		}
 	}
 }
@@ -901,7 +902,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
-		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC);
+		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, rcache->mem_size);
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
