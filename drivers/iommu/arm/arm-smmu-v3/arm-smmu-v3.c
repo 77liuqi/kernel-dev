@@ -118,7 +118,7 @@ static bool queue_has_space(struct arm_smmu_ll_queue *q, u32 n)
 	return space >= n;
 }
 
-static bool queue_full(struct arm_smmu_ll_queue *q)
+static __maybe_unused bool queue_full(struct arm_smmu_ll_queue *q)
 {
 	return Q_IDX(q, q->prod) == Q_IDX(q, q->cons) &&
 	       Q_WRP(q, q->prod) != Q_WRP(q, q->cons);
@@ -570,13 +570,14 @@ static void arm_smmu_cmdq_poll_valid_map(struct arm_smmu_cmdq *cmdq,
 }
 
 /* Wait for the command queue to become non-full */
-static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
-					     struct arm_smmu_ll_queue *llq)
+static int arm_smmu_cmdq_poll_until_has_space(struct arm_smmu_device *smmu,
+					     struct arm_smmu_ll_queue *llq, u32 n)
 {
 	unsigned long flags;
 	struct arm_smmu_queue_poll qp;
 	struct arm_smmu_cmdq *cmdq = &smmu->cmdq;
 	int ret = 0;
+	int prod;
 
 	/*
 	 * Try to update our copy of cons by grabbing exclusive cmdq access. If
@@ -586,14 +587,22 @@ static int arm_smmu_cmdq_poll_until_not_full(struct arm_smmu_device *smmu,
 		WRITE_ONCE(cmdq->q.llq.cons, readl_relaxed(cmdq->q.cons_reg));
 		arm_smmu_cmdq_exclusive_unlock_irqrestore(cmdq, flags);
 		llq->val = READ_ONCE(cmdq->q.llq.val);
-		return 0;
+		if (queue_has_space(llq, n))
+			return 0;
+		else
+			return -EAGAIN;
+
 	}
 
 	queue_poll_init(smmu, &qp);
+	prod = llq->prod;
 	do {
 		llq->val = READ_ONCE(smmu->cmdq.q.llq.val);
-		if (!queue_full(llq))
+		if (!queue_has_space(llq, n))
 			break;
+
+		if (llq->prod != prod)
+			return -EAGAIN;
 
 		ret = queue_poll(&qp);
 	} while (!ret);
@@ -756,7 +765,7 @@ static int arm_smmu_cmdq_issue_cmdlist(struct arm_smmu_device *smmu,
 
 		while (!queue_has_space(&llq, n + sync)) {
 			local_irq_restore(flags);
-			if (arm_smmu_cmdq_poll_until_not_full(smmu, &llq))
+			if (arm_smmu_cmdq_poll_until_has_space(smmu, &llq, n + sync) == -ETIMEDOUT)
 				dev_err_ratelimited(smmu->dev, "CMDQ timeout\n");
 			local_irq_save(flags);
 		}
