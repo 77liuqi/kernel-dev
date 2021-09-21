@@ -14,6 +14,7 @@
 #include <linux/rbtree.h>
 #include <linux/atomic.h>
 #include <linux/dma-mapping.h>
+#include <linux/rcache.h>
 
 /* iova structure */
 struct iova {
@@ -22,20 +23,11 @@ struct iova {
 	unsigned long	pfn_lo; /* Lowest allocated pfn */
 };
 
-struct iova_magazine;
 struct iova_cpu_rcache;
 
-#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
-#define MAX_GLOBAL_MAGS 32	/* magazines per bin */
-
-struct iova_rcache {
-	spinlock_t lock;
-	unsigned long depot_size;
-	struct iova_magazine *depot[MAX_GLOBAL_MAGS];
-	struct iova_cpu_rcache __percpu *cpu_rcaches;
-};
-
 struct iova_domain;
+
+#define IOVA_RANGE_CACHE_MAX_SIZE 6	/* log of max cached IOVA range size (in pages) */
 
 /* Call-Back from IOVA code into IOMMU drivers */
 typedef void (* iova_flush_cb)(struct iova_domain *domain);
@@ -83,7 +75,7 @@ struct iova_domain {
 						   have been finished */
 
 	struct iova	anchor;		/* rbtree lookup anchor */
-	struct iova_rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
+	struct rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
 
 	iova_flush_cb	flush_cb;	/* Call-Back function to flush IOMMU
 					   TLBs */

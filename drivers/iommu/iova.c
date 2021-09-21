@@ -12,6 +12,8 @@
 #include <linux/bitops.h>
 #include <linux/cpu.h>
 
+#define PFN_CONST (sizeof(unsigned long) / sizeof(unsigned char))
+
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
 
@@ -798,31 +800,8 @@ EXPORT_SYMBOL_GPL(reserve_iova);
  * dynamic size tuning described in the paper.
  */
 
-#define IOVA_MAG_SIZE 128
-
-struct iova_magazine {
-	unsigned long size;
-	unsigned long pfns[IOVA_MAG_SIZE];
-};
-
-struct iova_cpu_rcache {
-	spinlock_t lock;
-	struct iova_magazine *loaded;
-	struct iova_magazine *prev;
-};
-
-static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
-{
-	return kzalloc(sizeof(struct iova_magazine), flags);
-}
-
-static void iova_magazine_free(struct iova_magazine *mag)
-{
-	kfree(mag);
-}
-
 static void
-iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
+iova_magazine_free_pfns(struct magazine *mag, struct iova_domain *iovad)
 {
 	unsigned long flags;
 	int i;
@@ -833,7 +812,8 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
 	for (i = 0 ; i < mag->size; ++i) {
-		struct iova *iova = private_find_iova(iovad, mag->pfns[i]);
+		unsigned long *pfn = (unsigned long *)&mag->mem[PFN_CONST][i];
+		struct iova *iova = private_find_iova(iovad, *pfn);
 
 		if (WARN_ON(!iova))
 			continue;
@@ -847,47 +827,37 @@ iova_magazine_free_pfns(struct iova_magazine *mag, struct iova_domain *iovad)
 	mag->size = 0;
 }
 
-static bool iova_magazine_full(struct iova_magazine *mag)
-{
-	return (mag && mag->size == IOVA_MAG_SIZE);
-}
-
-static bool iova_magazine_empty(struct iova_magazine *mag)
-{
-	return (!mag || mag->size == 0);
-}
-
-static unsigned long iova_magazine_pop(struct iova_magazine *mag,
+static unsigned long iova_magazine_pop(struct magazine *mag,
 				       unsigned long limit_pfn)
 {
 	int i;
 	unsigned long pfn;
 
-	BUG_ON(iova_magazine_empty(mag));
+	BUG_ON(magazine_empty(mag));
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
-	for (i = mag->size - 1; mag->pfns[i] > limit_pfn; i--)
+	for (i = mag->size - 1; mag->mem[0][i] > limit_pfn; i--)
 		if (i == 0)
 			return 0;
 
 	/* Swap it to pop it */
-	pfn = mag->pfns[i];
-	mag->pfns[i] = mag->pfns[--mag->size];
+	pfn = mag->mem[0][i];
+	mag->mem[0][i] = mag->mem[0][--mag->size];
 
 	return pfn;
 }
 
-static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
+static void magazine_push(struct magazine *mag, unsigned long pfn)
 {
-	BUG_ON(iova_magazine_full(mag));
+	BUG_ON(magazine_full(mag));
 
-	mag->pfns[mag->size++] = pfn;
+	mag->mem[0][mag->size++] = pfn;
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
 {
-	struct iova_cpu_rcache *cpu_rcache;
-	struct iova_rcache *rcache;
+	struct cpu_rcache *cpu_rcache;
+	struct rcache *rcache;
 	unsigned int cpu;
 	int i;
 
@@ -901,8 +871,8 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = iova_magazine_alloc(GFP_KERNEL);
-			cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
+			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL);
+			cpu_rcache->prev = magazine_alloc(GFP_KERNEL);
 		}
 	}
 }
@@ -914,24 +884,24 @@ static void init_iova_rcaches(struct iova_domain *iovad)
  * range to the rbtree instead.
  */
 static bool __iova_rcache_insert(struct iova_domain *iovad,
-				 struct iova_rcache *rcache,
+				 struct rcache *rcache,
 				 unsigned long iova_pfn)
 {
-	struct iova_magazine *mag_to_free = NULL;
-	struct iova_cpu_rcache *cpu_rcache;
+	struct magazine *mag_to_free = NULL;
+	struct cpu_rcache *cpu_rcache;
 	bool can_insert = false;
 	unsigned long flags;
 
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
-	if (!iova_magazine_full(cpu_rcache->loaded)) {
+	if (!magazine_full(cpu_rcache->loaded)) {
 		can_insert = true;
-	} else if (!iova_magazine_full(cpu_rcache->prev)) {
+	} else if (!magazine_full(cpu_rcache->prev)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
-		struct iova_magazine *new_mag = iova_magazine_alloc(GFP_ATOMIC);
+		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC);
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
@@ -949,13 +919,13 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 	}
 
 	if (can_insert)
-		iova_magazine_push(cpu_rcache->loaded, iova_pfn);
+		magazine_push(cpu_rcache->loaded, iova_pfn);
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 
 	if (mag_to_free) {
 		iova_magazine_free_pfns(mag_to_free, iovad);
-		iova_magazine_free(mag_to_free);
+		magazine_free(mag_to_free);
 	}
 
 	return can_insert;
@@ -977,10 +947,10 @@ static bool iova_rcache_insert(struct iova_domain *iovad, unsigned long pfn,
  * satisfy the request, return a matching non-NULL range and remove
  * it from the 'rcache'.
  */
-static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
+static unsigned long __iova_rcache_get(struct rcache *rcache,
 				       unsigned long limit_pfn)
 {
-	struct iova_cpu_rcache *cpu_rcache;
+	struct cpu_rcache *cpu_rcache;
 	unsigned long iova_pfn = 0;
 	bool has_pfn = false;
 	unsigned long flags;
@@ -988,15 +958,15 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
-	if (!iova_magazine_empty(cpu_rcache->loaded)) {
+	if (!magazine_empty(cpu_rcache->loaded)) {
 		has_pfn = true;
-	} else if (!iova_magazine_empty(cpu_rcache->prev)) {
+	} else if (!magazine_empty(cpu_rcache->prev)) {
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		has_pfn = true;
 	} else {
 		spin_lock(&rcache->lock);
 		if (rcache->depot_size > 0) {
-			iova_magazine_free(cpu_rcache->loaded);
+			magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
 			has_pfn = true;
 		}
@@ -1033,8 +1003,8 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
  */
 static void free_iova_rcaches(struct iova_domain *iovad)
 {
-	struct iova_rcache *rcache;
-	struct iova_cpu_rcache *cpu_rcache;
+	struct rcache *rcache;
+	struct cpu_rcache *cpu_rcache;
 	unsigned int cpu;
 	int i, j;
 
@@ -1042,12 +1012,12 @@ static void free_iova_rcaches(struct iova_domain *iovad)
 		rcache = &iovad->rcaches[i];
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
-			iova_magazine_free(cpu_rcache->loaded);
-			iova_magazine_free(cpu_rcache->prev);
+			magazine_free(cpu_rcache->loaded);
+			magazine_free(cpu_rcache->prev);
 		}
 		free_percpu(rcache->cpu_rcaches);
 		for (j = 0; j < rcache->depot_size; ++j)
-			iova_magazine_free(rcache->depot[j]);
+			magazine_free(rcache->depot[j]);
 	}
 }
 
@@ -1056,8 +1026,8 @@ static void free_iova_rcaches(struct iova_domain *iovad)
  */
 static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
 {
-	struct iova_cpu_rcache *cpu_rcache;
-	struct iova_rcache *rcache;
+	struct cpu_rcache *cpu_rcache;
+	struct rcache *rcache;
 	unsigned long flags;
 	int i;
 
@@ -1076,7 +1046,7 @@ static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad)
  */
 static void free_global_cached_iovas(struct iova_domain *iovad)
 {
-	struct iova_rcache *rcache;
+	struct rcache *rcache;
 	unsigned long flags;
 	int i, j;
 
@@ -1085,7 +1055,7 @@ static void free_global_cached_iovas(struct iova_domain *iovad)
 		spin_lock_irqsave(&rcache->lock, flags);
 		for (j = 0; j < rcache->depot_size; ++j) {
 			iova_magazine_free_pfns(rcache->depot[j], iovad);
-			iova_magazine_free(rcache->depot[j]);
+			magazine_free(rcache->depot[j]);
 		}
 		rcache->depot_size = 0;
 		spin_unlock_irqrestore(&rcache->lock, flags);
