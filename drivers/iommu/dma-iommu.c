@@ -41,7 +41,10 @@ struct iommu_dma_cookie {
 	enum iommu_dma_cookie_type	type;
 	union {
 		/* Full allocator for IOMMU_DMA_IOVA_COOKIE */
-		struct iova_domain	iovad;
+		struct {
+			struct iova_domain	iovad;
+			struct iova_fq_domain	fq;
+		};
 		/* Trivial linear page allocator for IOMMU_DMA_MSI_COOKIE */
 		dma_addr_t		msi_iova;
 	};
@@ -162,8 +165,10 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
 	if (!cookie)
 		return;
 
-	if (cookie->type == IOMMU_DMA_IOVA_COOKIE && cookie->iovad.granule)
+	if (cookie->type == IOMMU_DMA_IOVA_COOKIE && cookie->iovad.granule) {
+		iova_free_flush_queue(&cookie->fq);
 		put_iova_domain(&cookie->iovad);
+	}
 
 	list_for_each_entry_safe(msi, tmp, &cookie->msi_page_list, list) {
 		list_del(&msi->list);
@@ -301,12 +306,12 @@ static int iova_reserve_iommu_regions(struct device *dev,
 	return ret;
 }
 
-static void iommu_dma_flush_iotlb_all(struct iova_domain *iovad)
+static void iommu_dma_flush_iotlb_all(struct iova_fq_domain *fq_domain)
 {
 	struct iommu_dma_cookie *cookie;
 	struct iommu_domain *domain;
 
-	cookie = container_of(iovad, struct iommu_dma_cookie, iovad);
+	cookie = container_of(fq_domain, struct iommu_dma_cookie, fq);
 	domain = cookie->fq_domain;
 
 	domain->ops->flush_iotlb_all(domain);
@@ -321,17 +326,21 @@ static bool dev_is_untrusted(struct device *dev)
 int iommu_dma_init_fq(struct iommu_domain *domain)
 {
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	struct iova_fq_domain *fq = &cookie->fq;
 	int ret;
 
 	if (cookie->fq_domain)
 		return 0;
 
-	ret = init_iova_flush_queue(&cookie->iovad, iommu_dma_flush_iotlb_all,
+	ret = init_iova_flush_queue(fq, iommu_dma_flush_iotlb_all,
 				    iommu_dma_entry_dtor);
 	if (ret) {
 		pr_warn("iova flush queue initialization failed\n");
 		return ret;
 	}
+
+	fq->iovad = &cookie->iovad;
+
 	/*
 	 * Prevent incomplete iovad->fq being observable. Pairs with path from
 	 * __iommu_dma_unmap() through iommu_dma_free_iova() to queue_iova()
@@ -468,15 +477,16 @@ static void iommu_dma_free_iova(struct iommu_dma_cookie *cookie,
 	struct iova_domain *iovad = &cookie->iovad;
 
 	/* The MSI case is only ever cleaning up its most recent allocation */
-	if (cookie->type == IOMMU_DMA_MSI_COOKIE)
+	if (cookie->type == IOMMU_DMA_MSI_COOKIE) {
 		cookie->msi_iova -= size;
-	else if (gather && gather->queued)
-		queue_iova(iovad, iova_pfn(iovad, iova),
+	} else if (gather && gather->queued) {
+		queue_iova(&cookie->fq, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad),
 				(unsigned long)gather->freelist);
-	else
-		free_iova_fast(iovad, iova_pfn(iovad, iova),
+	} else {
+		free_iova_fast(&cookie->iovad, iova_pfn(iovad, iova),
 				size >> iova_shift(iovad));
+	}
 }
 
 static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
