@@ -76,6 +76,11 @@ struct iova_domain {
 	unsigned long	dma_32bit_pfn;
 	unsigned long	max32_alloc_size; /* Size of last failed allocation */
 	struct iova	anchor;		/* rbtree lookup anchor */
+};
+
+/* holds all the iova translations for a domain */
+struct iova_caching_domain {
+	struct iova_domain	iovad;
 	struct iova_rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
 	struct hlist_node	cpuhp_dead;
 };
@@ -99,7 +104,7 @@ struct iova_fq_domain {
 						   flush-queues */
 	atomic_t fq_timer_on;			/* 1 when timer is active, 0
 						   when not */
-	struct iova_domain *iovad;
+	struct iova_caching_domain *rcached;
 };
 
 static inline unsigned long iova_size(struct iova *iova)
@@ -146,12 +151,12 @@ void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
 	bool size_aligned);
-void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
+void free_iova_fast(struct iova_caching_domain *rcached, unsigned long pfn,
 		    unsigned long size);
 void queue_iova(struct iova_fq_domain *fq_domain,
 		unsigned long pfn, unsigned long pages,
 		unsigned long data);
-unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
+unsigned long alloc_iova_fast(struct iova_caching_domain *rcached, unsigned long size,
 			      unsigned long limit_pfn, bool flush_rcache);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
@@ -163,6 +168,10 @@ void iova_free_flush_queue(struct iova_fq_domain *fq_domain);
 
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
+void put_iova_caching_domain(struct iova_caching_domain *rcached);
+int
+init_iova_caching_domain(struct iova_caching_domain *rcached, unsigned long granule,
+	unsigned long start_pfn);
 #else
 static inline int iova_cache_get(void)
 {
