@@ -83,4 +83,124 @@ int rcache_init(struct rcache *rcache, unsigned int size)
 	return 0;
 }
 
+static void magazine_push(struct magazine *mag, unsigned long pfn)
+{
+	BUG_ON(magazine_full(mag));
+
+	mag->val[mag->size++] = pfn;
+}
+
+/*
+ * Try inserting IOVA range starting with 'iova_pfn' into 'rcache', and
+ * return true on success.  Can fail if rcache is full and we can't free
+ * space, and free_iova() (our only caller) will then return the IOVA
+ * range to the rbtree instead.
+ */
+bool rcache_insert(struct rcache *rcache,
+				 unsigned long iova_pfn)
+{
+	struct magazine *mag_to_free = NULL;
+	struct cpu_rcache *cpu_rcache;
+	bool can_insert = false;
+	unsigned long flags;
+
+	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
+	spin_lock_irqsave(&cpu_rcache->lock, flags);
+
+	if (!magazine_full(cpu_rcache->loaded)) {
+		can_insert = true;
+	} else if (!magazine_full(cpu_rcache->prev)) {
+		swap(cpu_rcache->prev, cpu_rcache->loaded);
+		can_insert = true;
+	} else {
+		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, rcache);
+
+		if (new_mag) {
+			spin_lock(&rcache->lock);
+			if (rcache->depot_size < MAX_GLOBAL_MAGS) {
+				rcache->depot[rcache->depot_size++] =
+						cpu_rcache->loaded;
+			} else {
+				mag_to_free = cpu_rcache->loaded;
+			}
+			spin_unlock(&rcache->lock);
+
+			cpu_rcache->loaded = new_mag;
+			can_insert = true;
+		}
+	}
+
+	if (can_insert)
+		magazine_push(cpu_rcache->loaded, iova_pfn);
+
+	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+
+	if (mag_to_free) {
+		// fixme
+		//iova_magazine_free_pfns(mag_to_free, iovad);
+		magazine_free(mag_to_free, rcache);
+	}
+
+	return can_insert;
+}
+
+static unsigned long magazine_pop(struct magazine *mag,
+				       unsigned long limit_pfn)
+{
+	int i;
+	unsigned long pfn;
+
+	BUG_ON(magazine_empty(mag));
+
+	/* Only fall back to the rbtree if we have no suitable pfns at all */
+	for (i = mag->size - 1; mag->val[i] > limit_pfn; i--)
+		if (i == 0)
+			return 0;
+
+	/* Swap it to pop it */
+	pfn = mag->val[i];
+	mag->val[i] = mag->val[--mag->size];
+
+	return pfn;
+}
+
+/*
+ * Caller wants to allocate a new IOVA range from 'rcache'.  If we can
+ * satisfy the request, return a matching non-NULL range and remove
+ * it from the 'rcache'.
+ */
+unsigned long rcache_get(struct rcache *rcache,
+				       unsigned long limit_pfn)
+{
+	struct cpu_rcache *cpu_rcache;
+	unsigned long iova_pfn = 0;
+	bool has_pfn = false;
+	unsigned long flags;
+
+	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
+	spin_lock_irqsave(&cpu_rcache->lock, flags);
+
+	if (!magazine_empty(cpu_rcache->loaded)) {
+		has_pfn = true;
+	} else if (!magazine_empty(cpu_rcache->prev)) {
+		swap(cpu_rcache->prev, cpu_rcache->loaded);
+		has_pfn = true;
+	} else {
+		spin_lock(&rcache->lock);
+		if (rcache->depot_size > 0) {
+			magazine_free(cpu_rcache->loaded, rcache);
+			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
+			has_pfn = true;
+		}
+		spin_unlock(&rcache->lock);
+	}
+
+	if (has_pfn)
+		iova_pfn = magazine_pop(cpu_rcache->loaded, limit_pfn);
+
+	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+
+	return iova_pfn;
+}
+
 

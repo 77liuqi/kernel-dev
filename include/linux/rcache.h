@@ -40,5 +40,11 @@ bool magazine_empty(struct magazine *mag);
 
 int rcache_init(struct rcache *rcache, unsigned int);
 
+unsigned long rcache_get(struct rcache *rcache,
+				       unsigned long limit_pfn);
+
+bool rcache_insert(struct rcache *rcache,
+				 unsigned long iova_pfn);
+
 #endif
 

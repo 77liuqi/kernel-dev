@@ -503,6 +503,13 @@ err_free:
 	return NULL;
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
+				 
+struct bio *bio_alloc_bioset_rcache(gfp_t gfp_mask, unsigned short nr_iovecs,
+			     struct bio_set *bs)
+{
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, bs);
+}
+EXPORT_SYMBOL(bio_alloc_bioset_rcache);
 
 /**
  * bio_kmalloc - kmalloc a bio for I/O
@@ -1709,7 +1716,7 @@ struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
 	struct bio *bio;
 
 	if ((kiocb->ki_flags & IOCB_ALLOC_RCACHE) && nr_vecs <= BIO_INLINE_VECS)
-		return bio_alloc_bioset(GFP_KERNEL, nr_vecs, bs);
+		return bio_alloc_bioset_rcache(GFP_KERNEL, nr_vecs, bs);
 
 	if (!(kiocb->ki_flags & IOCB_ALLOC_CACHE) || nr_vecs > BIO_INLINE_VECS)
 		return bio_alloc_bioset(GFP_KERNEL, nr_vecs, bs);
