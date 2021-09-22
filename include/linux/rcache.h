@@ -29,14 +29,6 @@ struct rcache {
 	struct kmem_cache *kmem_cache;
 };
 
-struct magazine *magazine_alloc(gfp_t flags, struct rcache* rcache);
-
-void magazine_free(struct magazine *mag, struct rcache *rcache);
-
-bool magazine_full(struct magazine *mag);
-
-bool magazine_empty(struct magazine *mag);
-
 
 int rcache_init(struct rcache *rcache, unsigned int);
 

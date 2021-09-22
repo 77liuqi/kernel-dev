@@ -35,7 +35,7 @@ err_out:
 void magazine_free(struct magazine *mag, struct rcache *rcache)
 {
 	int i;
-
+	pr_err("%s mag=%pS size=%lu rcache=%pS\n", __func__, mag, mag->size, rcache);
 	for (i = 0; i < MAG_SIZE && rcache->size; i++)
 		kmem_cache_free(rcache->kmem_cache, mag->ptr[i]);
 

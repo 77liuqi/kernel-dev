@@ -503,13 +503,7 @@ err_free:
 	return NULL;
 }
 EXPORT_SYMBOL(bio_alloc_bioset);
-				 
-struct bio *bio_alloc_bioset_rcache(gfp_t gfp_mask, unsigned short nr_iovecs,
-			     struct bio_set *bs)
-{
-	return bio_alloc_bioset(gfp_mask, nr_iovecs, bs);
-}
-EXPORT_SYMBOL(bio_alloc_bioset_rcache);
+
 
 /**
  * bio_kmalloc - kmalloc a bio for I/O
@@ -701,6 +695,10 @@ void bio_put(struct bio *bio)
 		if (++cache->nr > ALLOC_CACHE_MAX + ALLOC_CACHE_SLACK)
 			bio_alloc_cache_prune(cache, ALLOC_CACHE_SLACK);
 		put_cpu();
+	} else if (bio_flagged(bio, BIO_PERCPU_RCACHE)) {
+		bool res;
+		res = rcache_insert(&rcache, (unsigned long)bio);
+		pr_err_once("%s RCACHE bio=%pS res=%d\n", __func__, bio, res);
 	} else {
 		bio_free(bio);
 	}
@@ -1695,6 +1693,27 @@ int bioset_init_from_src(struct bio_set *bs, struct bio_set *src)
 }
 EXPORT_SYMBOL(bioset_init_from_src);
 
+struct bio *bio_alloc_bioset_rcache(gfp_t gfp_mask, unsigned short nr_iovecs,
+			     struct bio_set *bs)
+{
+	struct bio *bio = (struct bio *)rcache_get(&rcache, -1UL);
+
+	pr_err_once("%s bio=%pS\n", __func__, bio);
+
+	if (bio) {
+		bio_init(bio, nr_iovecs ? bio->bi_inline_vecs : NULL, nr_iovecs);
+		bio->bi_pool = bs;
+		bio_set_flag(bio, BIO_PERCPU_RCACHE);
+		return bio;
+	}
+
+	bio = bio_alloc_bioset(GFP_KERNEL, nr_iovecs, bs);
+	bio_set_flag(bio, BIO_PERCPU_RCACHE);
+
+	return bio;
+}
+EXPORT_SYMBOL(bio_alloc_bioset_rcache);
+
 /**
  * bio_alloc_kiocb - Allocate a bio from bio_set based on kiocb
  * @kiocb:	kiocb describing the IO
@@ -1761,7 +1780,7 @@ static int __init init_bio(void)
 	if (bioset_integrity_create(&fs_bio_set, BIO_POOL_SIZE))
 		panic("bio: can't create integrity pool\n");
 
-	i = rcache_init(&rcache, 0);
+	i = rcache_init(&rcache, sizeof(struct bio));
 
 	pr_err("%s rcache init=%d\n", __func__, i);
 
