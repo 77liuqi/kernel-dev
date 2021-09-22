@@ -853,24 +853,12 @@ static void magazine_push(struct magazine *mag, unsigned long pfn)
 
 static void init_iova_rcaches(struct iova_domain *iovad)
 {
-	struct cpu_rcache *cpu_rcache;
 	struct rcache *rcache;
-	unsigned int cpu;
 	int i;
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
-		spin_lock_init(&rcache->lock);
-		rcache->depot_size = 0;
-		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache), cache_line_size());
-		if (WARN_ON(!rcache->cpu_rcaches))
-			continue;
-		for_each_possible_cpu(cpu) {
-			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
-			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL, 0);
-			cpu_rcache->prev = magazine_alloc(GFP_KERNEL, 0);
-		}
+		rcache_init(rcache);
 	}
 }
 

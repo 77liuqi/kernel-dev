@@ -25,6 +25,8 @@
 #include "blk.h"
 #include "blk-rq-qos.h"
 
+#include "linux/rcache.h"
+
 struct bio_alloc_cache {
 	struct bio_list		free_list;
 	unsigned int		nr;

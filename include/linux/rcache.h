@@ -35,5 +35,7 @@ struct rcache {
 	struct cpu_rcache __percpu *cpu_rcaches;
 };
 
+int rcache_init(struct rcache *rcache);
+
 #endif
 
