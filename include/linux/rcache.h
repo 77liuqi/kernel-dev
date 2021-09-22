@@ -27,7 +27,9 @@ struct rcache {
 	unsigned long depot_size;
 	struct magazine *depot[MAX_GLOBAL_MAGS];
 	struct cpu_rcache __percpu *cpu_rcaches;
+	#ifdef removing
 	struct kmem_cache *kmem_cache;
+	#endif
 };
 
 

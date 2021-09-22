@@ -11,6 +11,9 @@
 
 struct magazine *magazine_alloc(gfp_t flags, struct rcache *rcache)
 {
+	
+#ifdef removing
+
 	int i, j;
 
 	struct magazine *mag = kzalloc(sizeof(struct magazine) + (rcache->size * MAG_SIZE), flags);
@@ -22,22 +25,30 @@ struct magazine *magazine_alloc(gfp_t flags, struct rcache *rcache)
 			goto err_out;
 
 	}
-
 	return mag;
+#else
+	return kzalloc(sizeof(struct magazine), flags);
+
+#endif
+
+#ifdef removing
 
 err_out:
 	for (j = 0; j < i; j++)
 		kmem_cache_free(rcache->kmem_cache, mag->ptr[j]);
 	kfree(mag);
 	return NULL;
+#endif
 }
 
 void magazine_free(struct magazine *mag, struct rcache *rcache)
 {
+	#ifdef removing
 	int i;
 	pr_err("%s mag=%pS size=%lu rcache=%pS\n", __func__, mag, mag->size, rcache);
 	for (i = 0; i < MAG_SIZE && rcache->size; i++)
 		kmem_cache_free(rcache->kmem_cache, mag->ptr[i]);
+	#endif
 
 	kfree(mag);
 }
@@ -71,6 +82,7 @@ int rcache_init(struct rcache *rcache, unsigned int size)
 		cpu_rcache->prev = magazine_alloc(GFP_KERNEL, rcache);
 		WARN_ON(!cpu_rcache->prev);
 	}
+	#ifdef removing
 	if (size) {
 		rcache->kmem_cache = kmem_cache_create("rcache",
 					size,
@@ -79,6 +91,7 @@ int rcache_init(struct rcache *rcache, unsigned int size)
 		if (WARN_ON(!rcache->kmem_cache))
 			return -ENOMEM;
 	}
+	#endif
 
 	return 0;
 }
