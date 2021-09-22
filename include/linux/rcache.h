@@ -6,13 +6,14 @@
 
 #define MAG_SIZE 128
 
+union magazine_member {
+	unsigned long val;
+	void *ptr;
+};
 
 struct magazine {
 	unsigned long size;
-	union {
-		unsigned long val[MAG_SIZE];
-		void *ptr[MAG_SIZE];
-	};
+	union magazine_member mem[MAG_SIZE];
 };
 
 struct cpu_rcache {

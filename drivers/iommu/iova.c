@@ -810,7 +810,7 @@ iova_magazine_free_pfns(struct magazine *mag, struct iova_domain *iovad)
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
 	for (i = 0 ; i < mag->size; ++i) {
-		struct iova *iova = private_find_iova(iovad, mag->val[i]);
+		struct iova *iova = private_find_iova(iovad, mag->mem[i].val);
 
 		if (WARN_ON(!iova))
 			continue;

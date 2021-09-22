@@ -100,7 +100,7 @@ static void magazine_push(struct magazine *mag, unsigned long pfn)
 {
 	BUG_ON(magazine_full(mag));
 
-	mag->val[mag->size++] = pfn;
+	mag->mem[mag->size++].val = pfn;
 }
 
 /*
@@ -166,13 +166,13 @@ static unsigned long magazine_pop(struct magazine *mag,
 	BUG_ON(magazine_empty(mag));
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
-	for (i = mag->size - 1; mag->val[i] > limit_pfn; i--)
+	for (i = mag->size - 1; mag->mem[i].val > limit_pfn; i--)
 		if (i == 0)
 			return 0;
 
 	/* Swap it to pop it */
-	pfn = mag->val[i];
-	mag->val[i] = mag->val[--mag->size];
+	pfn = mag->mem[i].val;
+	mag->mem[i].val = mag->mem[--mag->size].val;
 
 	return pfn;
 }
