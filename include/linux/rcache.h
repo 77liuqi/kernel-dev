@@ -6,6 +6,7 @@
 
 #define MAG_SIZE 128
 
+
 struct magazine {
 	unsigned long size;
 	union {
@@ -29,6 +30,8 @@ struct rcache {
 	struct kmem_cache *kmem_cache;
 };
 
+
+void magazine_free(struct magazine *mag, struct rcache *rcache);
 
 int rcache_init(struct rcache *rcache, unsigned int);
 

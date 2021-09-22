@@ -1696,11 +1696,12 @@ EXPORT_SYMBOL(bioset_init_from_src);
 struct bio *bio_alloc_bioset_rcache(gfp_t gfp_mask, unsigned short nr_iovecs,
 			     struct bio_set *bs)
 {
-	struct bio *bio = (struct bio *)rcache_get(&rcache, -1UL);
+	struct bio *bio = (struct bio *)rcache_get(&rcache, 0);
 
 	pr_err_once("%s bio=%pS\n", __func__, bio);
 
 	if (bio) {
+		pr_err_once("%s2 bio=%pS\n", __func__, bio);
 		bio_init(bio, nr_iovecs ? bio->bi_inline_vecs : NULL, nr_iovecs);
 		bio->bi_pool = bs;
 		bio_set_flag(bio, BIO_PERCPU_RCACHE);
