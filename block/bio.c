@@ -26,6 +26,7 @@
 #include "blk-rq-qos.h"
 
 #include "linux/rcache.h"
+struct rcache rcache;
 
 struct bio_alloc_cache {
 	struct bio_list		free_list;
@@ -1752,6 +1753,10 @@ static int __init init_bio(void)
 
 	if (bioset_integrity_create(&fs_bio_set, BIO_POOL_SIZE))
 		panic("bio: can't create integrity pool\n");
+
+	i = rcache_init(&rcache, 0);
+
+	pr_err("%s rcache init=%d\n", __func__, i);
 
 	return 0;
 }

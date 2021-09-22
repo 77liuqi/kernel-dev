@@ -858,7 +858,7 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
-		rcache_init(rcache);
+		rcache_init(rcache, 0);
 	}
 }
 
@@ -886,7 +886,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
-		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, 0);
+		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, rcache);
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);
