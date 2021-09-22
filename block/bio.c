@@ -1705,6 +1705,9 @@ struct bio *bio_alloc_kiocb(struct kiocb *kiocb, unsigned short nr_vecs,
 	struct bio_alloc_cache *cache;
 	struct bio *bio;
 
+	if ((kiocb->ki_flags & IOCB_ALLOC_RCACHE) && nr_vecs <= BIO_INLINE_VECS)
+		return bio_alloc_bioset(GFP_KERNEL, nr_vecs, bs);
+
 	if (!(kiocb->ki_flags & IOCB_ALLOC_CACHE) || nr_vecs > BIO_INLINE_VECS)
 		return bio_alloc_bioset(GFP_KERNEL, nr_vecs, bs);
 

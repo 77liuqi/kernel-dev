@@ -299,6 +299,7 @@ enum {
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
 	BIO_PERCPU_CACHE,	/* can participate in per-cpu alloc cache */
+	BIO_PERCPU_RCACHE,	/* can participate in per-cpu alloc cache */
 	BIO_FLAG_LAST
 };
 
