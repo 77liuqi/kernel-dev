@@ -98,9 +98,18 @@ int rcache_init(struct rcache *rcache, unsigned int size)
 
 static void magazine_push(struct magazine *mag, unsigned long pfn)
 {
+	static int count;
 	BUG_ON(magazine_full(mag));
 
 	mag->mem[mag->size++].val = pfn;
+	if (count == 0) {
+		int i;
+
+		for (i = 0; i < mag->size; i++)
+			pr_err("%s i=%d mag->size=%ld mag->mem[mag->size++].val=%ld\n",
+				__func__, i, mag->size, mag->mem[mag->size].val);
+		count = 1;
+	}
 }
 
 /*
@@ -167,8 +176,10 @@ static unsigned long magazine_pop(struct magazine *mag,
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
 	for (i = mag->size - 1; mag->mem[i].val > limit_pfn; i--)
-		if (i == 0)
+		if (i == 0) {
+			pr_err_ratelimited("%s mag->size=%ld limit_pfn=%ld mag->mem[i].val=%ld\n", __func__, mag->size, limit_pfn, mag->mem[i].val);
 			return 0;
+		}
 
 	/* Swap it to pop it */
 	pfn = mag->mem[i].val;

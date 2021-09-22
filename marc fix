@@ -1,0 +1,30 @@
+diff --git a/drivers/irqchip/irq-gic-v3-its.c b/drivers/irqchip/irq-gic-v3-its.c
+index 9199fb53c75c..ebbfc8d44d35 100644
+--- a/drivers/irqchip/irq-gic-v3-its.c
++++ b/drivers/irqchip/irq-gic-v3-its.c
+@@ -1539,6 +1539,8 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+        if (irqd_is_forwarded_to_vcpu(d))
+                return -EINVAL;
+ 
++       its_dec_lpi_count(d, its_dev->event_map.col_map[id]);
++
+        if (!force)
+                cpu = its_select_cpu(d, mask_val);
+        else
+@@ -1549,14 +1551,14 @@ static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
+ 
+        /* don't set the affinity when the target cpu is same as current one */
+        if (cpu != its_dev->event_map.col_map[id]) {
+-               its_inc_lpi_count(d, cpu);
+-               its_dec_lpi_count(d, its_dev->event_map.col_map[id]);
+                target_col = &its_dev->its->collections[cpu];
+                its_send_movi(its_dev, target_col, id);
+                its_dev->event_map.col_map[id] = cpu;
+                irq_data_update_effective_affinity(d, cpumask_of(cpu));
+        }
+ 
++       its_inc_lpi_count(d, cpu);
++
+        return IRQ_SET_MASK_OK_DONE;
+ }
+

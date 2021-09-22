@@ -699,6 +699,8 @@ void bio_put(struct bio *bio)
 		bool res;
 		res = rcache_insert(&rcache, (unsigned long)bio);
 		pr_err_once("%s RCACHE bio=%pS res=%d\n", __func__, bio, res);
+		if (res == false)
+			pr_err("%s2 RCACHE bio=%pS res=%d\n", __func__, bio, res);
 	} else {
 		bio_free(bio);
 	}
