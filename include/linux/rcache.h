@@ -26,11 +26,12 @@ struct rcache {
 	unsigned long depot_size;
 	struct magazine *depot[MAX_GLOBAL_MAGS];
 	struct cpu_rcache __percpu *cpu_rcaches;
+	struct kmem_cache *kmem_cache;
 };
 
 struct magazine *magazine_alloc(gfp_t flags, struct rcache* rcache);
 
-void magazine_free(struct magazine *mag);
+void magazine_free(struct magazine *mag, struct rcache *rcache);
 
 bool magazine_full(struct magazine *mag);
 
