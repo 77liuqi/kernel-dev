@@ -175,11 +175,16 @@ static unsigned long magazine_pop(struct magazine *mag,
 	BUG_ON(magazine_empty(mag));
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
-	for (i = mag->size - 1; mag->mem[i].val > limit_pfn; i--)
+	for (i = mag->size - 1; mag->mem[i].val > limit_pfn; i--) {
+		if (!limit_pfn)
+			break;
 		if (i == 0) {
-			pr_err_ratelimited("%s mag->size=%ld limit_pfn=%ld mag->mem[i].val=%ld\n", __func__, mag->size, limit_pfn, mag->mem[i].val);
+			if (!limit_pfn)
+			pr_err_ratelimited("%s mag->size=%ld limit_pfn=%ld mag->mem[i].val=%ld %pS\n",
+				__func__, mag->size, limit_pfn, mag->mem[i].val, mag->mem[i].ptr);
 			return 0;
 		}
+	}
 
 	/* Swap it to pop it */
 	pfn = mag->mem[i].val;
