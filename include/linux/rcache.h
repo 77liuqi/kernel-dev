@@ -8,7 +8,10 @@
 
 struct magazine {
 	unsigned long size;
-	unsigned char mem[][MAG_SIZE];
+	union {
+		unsigned long val[MAG_SIZE];
+		void *ptr[MAG_SIZE];
+	};
 };
 
 struct cpu_rcache {
@@ -17,7 +20,7 @@ struct cpu_rcache {
 	struct magazine *prev;
 };
 
-struct magazine *magazine_alloc(gfp_t flags, unsigned int mem_size);
+struct magazine *magazine_alloc(gfp_t flags, unsigned long size);
 
 void magazine_free(struct magazine *mag);
 
@@ -27,7 +30,6 @@ bool magazine_empty(struct magazine *mag);
 
 struct rcache {
 	spinlock_t lock;
-	unsigned int mem_size;
 	unsigned long depot_size;
 	struct magazine *depot[MAX_GLOBAL_MAGS];
 	struct cpu_rcache __percpu *cpu_rcaches;

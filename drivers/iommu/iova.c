@@ -12,8 +12,6 @@
 #include <linux/bitops.h>
 #include <linux/cpu.h>
 
-#define PFN_CONST (sizeof(unsigned long) / sizeof(unsigned char))
-
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
 
@@ -812,8 +810,7 @@ iova_magazine_free_pfns(struct magazine *mag, struct iova_domain *iovad)
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 
 	for (i = 0 ; i < mag->size; ++i) {
-		unsigned long *pfn = (unsigned long *)&mag->mem[PFN_CONST][i];
-		struct iova *iova = private_find_iova(iovad, *pfn);
+		struct iova *iova = private_find_iova(iovad, mag->val[i]);
 
 		if (WARN_ON(!iova))
 			continue;
@@ -836,13 +833,13 @@ static unsigned long iova_magazine_pop(struct magazine *mag,
 	BUG_ON(magazine_empty(mag));
 
 	/* Only fall back to the rbtree if we have no suitable pfns at all */
-	for (i = mag->size - 1; mag->mem[0][i] > limit_pfn; i--)
+	for (i = mag->size - 1; mag->val[i] > limit_pfn; i--)
 		if (i == 0)
 			return 0;
 
 	/* Swap it to pop it */
-	pfn = mag->mem[0][i];
-	mag->mem[0][i] = mag->mem[0][--mag->size];
+	pfn = mag->val[i];
+	mag->val[i] = mag->val[--mag->size];
 
 	return pfn;
 }
@@ -851,7 +848,7 @@ static void magazine_push(struct magazine *mag, unsigned long pfn)
 {
 	BUG_ON(magazine_full(mag));
 
-	mag->mem[0][mag->size++] = pfn;
+	mag->val[mag->size++] = pfn;
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
@@ -863,7 +860,6 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 
 	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
 		rcache = &iovad->rcaches[i];
-		rcache->mem_size = sizeof(unsigned long);
 		spin_lock_init(&rcache->lock);
 		rcache->depot_size = 0;
 		rcache->cpu_rcaches = __alloc_percpu(sizeof(*cpu_rcache), cache_line_size());
@@ -872,8 +868,8 @@ static void init_iova_rcaches(struct iova_domain *iovad)
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL, rcache->mem_size);
-			cpu_rcache->prev = magazine_alloc(GFP_KERNEL, rcache->mem_size);
+			cpu_rcache->loaded = magazine_alloc(GFP_KERNEL, 0);
+			cpu_rcache->prev = magazine_alloc(GFP_KERNEL, 0);
 		}
 	}
 }
@@ -902,7 +898,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 		swap(cpu_rcache->prev, cpu_rcache->loaded);
 		can_insert = true;
 	} else {
-		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, rcache->mem_size);
+		struct magazine *new_mag = magazine_alloc(GFP_ATOMIC, 0);
 
 		if (new_mag) {
 			spin_lock(&rcache->lock);

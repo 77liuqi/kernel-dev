@@ -9,9 +9,10 @@
 #include <linux/rcache.h>
 
 
-struct magazine *magazine_alloc(gfp_t flags, unsigned int mem_size)
+struct magazine *magazine_alloc(gfp_t flags, unsigned long size)
 {
-	return kzalloc(sizeof(struct magazine) + (mem_size * MAG_SIZE), flags);
+	BUG_ON(size > 0);
+	return kzalloc(sizeof(struct magazine), flags);
 }
 
 void magazine_free(struct magazine *mag)
