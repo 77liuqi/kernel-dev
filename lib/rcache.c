@@ -16,7 +16,7 @@ struct magazine *magazine_alloc(gfp_t flags, struct rcache *rcache)
 	struct magazine *mag = kzalloc(sizeof(struct magazine) + (rcache->size * MAG_SIZE), flags);
 	if (!mag)
 		return NULL;
-	for (i = 0; i < MAG_SIZE; i++) {
+	for (i = 0; i < MAG_SIZE && rcache->size; i++) {
 		mag->ptr[i] = kmem_cache_alloc(rcache->kmem_cache, flags);
 		if (!mag->ptr[i])
 			goto err_out;
@@ -67,7 +67,9 @@ int rcache_init(struct rcache *rcache, unsigned int size)
 		cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 		spin_lock_init(&cpu_rcache->lock);
 		cpu_rcache->loaded = magazine_alloc(GFP_KERNEL, rcache);
+		WARN_ON(!cpu_rcache->loaded);
 		cpu_rcache->prev = magazine_alloc(GFP_KERNEL, rcache);
+		WARN_ON(!cpu_rcache->prev);
 	}
 	if (size) {
 		rcache->kmem_cache = kmem_cache_create("rcache",
