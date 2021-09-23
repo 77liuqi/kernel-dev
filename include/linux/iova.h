@@ -36,34 +36,6 @@ struct iova_rcache {
 };
 
 struct iova_domain;
-struct fq_domain;
-
-/* Call-Back from IOVA code into IOMMU drivers */
-typedef void (*iova_flush_cb)(struct fq_domain *fq_domain);
-
-/* Destructor for per-entry data */
-typedef void (*iova_entry_dtor)(unsigned long data);
-
-/* Number of entries per Flush Queue */
-#define IOVA_FQ_SIZE	256
-
-/* Timeout (in ms) after which entries are flushed from the Flush-Queue */
-#define IOVA_FQ_TIMEOUT	10
-
-/* Flush Queue entry for defered flushing */
-struct iova_fq_entry {
-	unsigned long iova_pfn;
-	unsigned long pages;
-	unsigned long data;
-	u64 counter; /* Flush counter when this entrie was added */
-};
-
-/* Per-CPU Flush Queue structure */
-struct iova_fq {
-	struct iova_fq_entry entries[IOVA_FQ_SIZE];
-	unsigned head, tail;
-	spinlock_t lock;
-};
 
 /* holds all the iova translations for a domain */
 struct iova_domain {
@@ -78,28 +50,6 @@ struct iova_domain {
 	struct iova	anchor;		/* rbtree lookup anchor */
 	struct iova_rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
 	struct hlist_node	cpuhp_dead;
-};
-
-struct fq_domain {
-	struct iova_fq __percpu *fq;	/* Flush Queue */
-
-	atomic64_t	fq_flush_start_cnt;	/* Number of TLB flushes that
-						   have been started */
-
-	atomic64_t	fq_flush_finish_cnt;	/* Number of TLB flushes that
-						   have been finished */
-
-	iova_flush_cb	flush_cb;	/* Call-Back function to flush IOMMU
-					   TLBs */
-
-	iova_entry_dtor entry_dtor;	/* IOMMU driver specific destructor for
-					   iova entry */
-
-	struct timer_list fq_timer;		/* Timer to regularily empty the
-						   flush-queues */
-	atomic_t fq_timer_on;			/* 1 when timer is active, 0
-						   when not */
-	struct iova_domain *iovad;
 };
 
 static inline unsigned long iova_size(struct iova *iova)
@@ -148,19 +98,12 @@ struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	bool size_aligned);
 void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
 		    unsigned long size);
-void queue_iova(struct fq_domain *fq_domain,
-		unsigned long pfn, unsigned long pages,
-		unsigned long data);
 unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 			      unsigned long limit_pfn, bool flush_rcache);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
-int init_iova_flush_queue(struct fq_domain *fq_domain,
-			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor);
-void iova_free_flush_queue(struct fq_domain *fq_domain);
-
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
 #else
@@ -195,12 +138,6 @@ static inline void free_iova_fast(struct iova_domain *iovad,
 {
 }
 
-static inline void queue_iova(struct fq_domain *fq_domain,
-			      unsigned long pfn, unsigned long pages,
-			      unsigned long data)
-{
-}
-
 static inline unsigned long alloc_iova_fast(struct iova_domain *iovad,
 					    unsigned long size,
 					    unsigned long limit_pfn,
@@ -219,17 +156,6 @@ static inline struct iova *reserve_iova(struct iova_domain *iovad,
 static inline void init_iova_domain(struct iova_domain *iovad,
 				    unsigned long granule,
 				    unsigned long start_pfn)
-{
-}
-
-static inline int init_iova_flush_queue(struct fq_domain *fq_domain,
-					iova_flush_cb flush_cb,
-					iova_entry_dtor entry_dtor)
-{
-	return -ENODEV;
-}
-
-static inline void iova_free_flush_queue(struct fq_domain *fq_domain)
 {
 }
 
