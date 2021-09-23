@@ -746,8 +746,8 @@ static int init_iova_rcaches(struct iova_caching_domain *rcached)
 		for_each_possible_cpu(cpu) {
 			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
 			spin_lock_init(&cpu_rcache->lock);
-			cpu_rcache->loaded = iova_magazine_alloc(GFP_KERNEL);
-			cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
+			//cpu_rcache->loaded = iova_magazine_alloc(GFP_KERNEL);
+			//cpu_rcache->prev = iova_magazine_alloc(GFP_KERNEL);
 		}
 	}
 
