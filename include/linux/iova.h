@@ -48,6 +48,10 @@ struct iova_domain {
 	unsigned long	dma_32bit_pfn;
 	unsigned long	max32_alloc_size; /* Size of last failed allocation */
 	struct iova	anchor;		/* rbtree lookup anchor */
+};
+
+struct iova_caching_domain {
+	struct iova_domain	iovad;
 	struct iova_rcache rcaches[IOVA_RANGE_CACHE_MAX_SIZE];	/* IOVA range caches */
 	struct hlist_node	cpuhp_dead;
 };
@@ -96,16 +100,20 @@ void __free_iova(struct iova_domain *iovad, struct iova *iova);
 struct iova *alloc_iova(struct iova_domain *iovad, unsigned long size,
 	unsigned long limit_pfn,
 	bool size_aligned);
-void free_iova_fast(struct iova_domain *iovad, unsigned long pfn,
+void free_iova_fast(struct iova_caching_domain *rcached, unsigned long pfn,
 		    unsigned long size);
-unsigned long alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
-			      unsigned long limit_pfn, bool flush_rcache);
+unsigned long alloc_iova_fast(struct iova_caching_domain *rcached,
+			      unsigned long size, unsigned long limit_pfn,
+			      bool flush_rcache);
 struct iova *reserve_iova(struct iova_domain *iovad, unsigned long pfn_lo,
 	unsigned long pfn_hi);
 void init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	unsigned long start_pfn);
 struct iova *find_iova(struct iova_domain *iovad, unsigned long pfn);
 void put_iova_domain(struct iova_domain *iovad);
+void put_iova_caching_domain(struct iova_caching_domain *rcached);
+int init_iova_caching_domain(struct iova_caching_domain *rcached,
+			     unsigned long granule, unsigned long start_pfn);
 #else
 static inline int iova_cache_get(void)
 {
@@ -132,13 +140,13 @@ static inline struct iova *alloc_iova(struct iova_domain *iovad,
 	return NULL;
 }
 
-static inline void free_iova_fast(struct iova_domain *iovad,
+static inline void free_iova_fast(struct iova_caching_domain *rcached,
 				  unsigned long pfn,
 				  unsigned long size)
 {
 }
 
-static inline unsigned long alloc_iova_fast(struct iova_domain *iovad,
+static inline unsigned long alloc_iova_fast(struct iova_caching_domain *rcached,
 					    unsigned long size,
 					    unsigned long limit_pfn,
 					    bool flush_rcache)
