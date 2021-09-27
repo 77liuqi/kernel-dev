@@ -455,7 +455,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	} else {
 		struct Scsi_Host *shost = hisi_hba->shost;
 		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-		int queue = qmap->mq_map[raw_smp_processor_id()];
+		int queue = qmap->mq_map[0];
 
 		*dq_pointer = dq = &hisi_hba->dq[queue];
 	}
@@ -2383,6 +2383,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 		/* Completion queue structure */
 		cq->id = i;
 		cq->hisi_hba = hisi_hba;
+		spin_lock_init(&cq->lock);
 
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);

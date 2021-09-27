@@ -518,6 +518,9 @@ struct hisi_sas_err_record_v3 {
 #define CHNL_INT_STS_INT2_MSK BIT(3)
 #define CHNL_WIDTH 4
 
+
+#define IO_URING_QUEUE_NR 8
+
 enum {
 	DSM_FUNC_ERR_HANDLE_MSI = 0,
 };
@@ -2381,6 +2384,59 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
+{
+	struct hisi_sas_cq *cq = &hisi_hba->cq[queue];
+	struct hisi_sas_slot *slot;
+	struct hisi_sas_complete_v3_hdr *complete_queue;
+	u32 rd_point, wr_point;
+
+	rd_point = cq->rd_point;
+	complete_queue = hisi_hba->complete_hdr[queue];
+
+	spin_lock(&cq->lock);
+
+	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
+				   (0x14 * queue));
+
+	while (rd_point != wr_point) {
+		struct hisi_sas_complete_v3_hdr *complete_hdr;
+		struct device *dev = hisi_hba->dev;
+		u32 dw1;
+		int iptt;
+
+		complete_hdr = &complete_queue[rd_point];
+		dw1 = le32_to_cpu(complete_hdr->dw1);
+
+		iptt = dw1 & CMPLT_HDR_IPTT_MSK;
+		if (likely(iptt < HISI_SAS_COMMAND_ENTRIES_V3_HW)) {
+			slot = &hisi_hba->slot_info[iptt];
+			slot->cmplt_queue_slot = rd_point;
+			slot->cmplt_queue = queue;
+			slot_complete_v3_hw(hisi_hba, slot);
+		} else
+			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
+
+		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
+			rd_point = 0;
+	}
+
+	/* update rd_point */
+	cq->rd_point = rd_point;
+	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	spin_unlock(&cq->lock);
+}
+
+int v3_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
+{
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	queue_slot_complete_v3_hw(hisi_hba, queue_num);
+
+	return 0;
+}
+
 static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -2395,7 +2451,7 @@ static irqreturn_t cq_interrupt_v3_hw(int irq_no, void *p)
 static int interrupt_preinit_v3_hw(struct hisi_hba *hisi_hba)
 {
 	int vectors;
-	int max_msi = HISI_SAS_MSI_COUNT_V3_HW, min_msi;
+	int max_msi = HISI_SAS_MSI_COUNT_V3_HW - hisi_hba->iopoll_q_count, min_msi;
 	struct Scsi_Host *shost = hisi_hba->shost;
 	struct irq_affinity desc = {
 		.pre_vectors = BASE_VECTORS_V3_HW,
@@ -2412,7 +2468,10 @@ static int interrupt_preinit_v3_hw(struct hisi_hba *hisi_hba)
 
 
 	hisi_hba->cq_nvecs = vectors - BASE_VECTORS_V3_HW;
-	shost->nr_hw_queues = hisi_hba->cq_nvecs;
+	shost->nr_hw_queues = hisi_hba->cq_nvecs + hisi_hba->iopoll_q_count;
+
+	dev_err(hisi_hba->dev, "iopoll_q_count=%d max_msi=%d cq_nvecs=%d\n",
+		hisi_hba->iopoll_q_count, max_msi, hisi_hba->cq_nvecs);
 
 	return 0;
 }
@@ -3130,10 +3189,41 @@ static int debugfs_set_bist_v3_hw(struct hisi_hba *hisi_hba, bool enable)
 static int hisi_sas_map_queues(struct Scsi_Host *shost)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
-	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+	struct blk_mq_queue_map *qmap;
+	int i, qoff, ret = 0;
 
-	return blk_mq_pci_map_queues(qmap, hisi_hba->pci_dev,
+	for (i = 0, qoff = 0; i < shost->nr_maps; i++) {
+		qmap = &shost->tag_set.map[i];
+
+		if (i == HCTX_TYPE_DEFAULT) {
+			qmap->nr_queues = hisi_hba->cq_nvecs;
+		} else if (i == HCTX_TYPE_POLL) {
+			qmap->nr_queues = hisi_hba->queue_count - hisi_hba->cq_nvecs;
+		} else {
+			continue;
+		}
+		if (!qmap->nr_queues)
+			BUG_ON(i == HCTX_TYPE_DEFAULT);
+
+		qmap->queue_offset = qoff;
+		if (i != HCTX_TYPE_POLL) {
+			ret = blk_mq_pci_map_queues(qmap, hisi_hba->pci_dev,
 				     BASE_VECTORS_V3_HW);
+			if (ret)
+				break;
+		} else {
+			int total_cpus = num_online_cpus();
+			int cpus_per_q = total_cpus / qmap->nr_queues;
+			unsigned int cpu;
+			for_each_possible_cpu(cpu) {
+				qmap->mq_map[cpu] = cpu / cpus_per_q + qoff;
+				pr_err("%s cpu%d queue=%d\n", __func__, cpu, qmap->mq_map[cpu]);
+
+			}
+		}
+	}
+
+	return ret;
 }
 
 static struct scsi_host_template sht_v3_hw = {
@@ -3165,6 +3255,7 @@ static struct scsi_host_template sht_v3_hw = {
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
 	.host_reset             = hisi_sas_host_reset,
 	.host_tagset		= 1,
+	.mq_poll		= v3_mq_poll,
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
@@ -3213,6 +3304,7 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 	hisi_hba->pci_dev = pdev;
 	hisi_hba->dev = dev;
 	hisi_hba->shost = shost;
+	hisi_hba->iopoll_q_count = IO_URING_QUEUE_NR;
 	SHOST_TO_SAS_HA(shost) = &hisi_hba->sha;
 
 	if (prot_mask & ~HISI_SAS_PROT_MASK)
@@ -4733,6 +4825,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_cmd_len = 16;
 	shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
 	shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
+	shost->nr_maps = 3;
 
 	sha->sas_ha_name = DRV_NAME;
 	sha->dev = dev;
