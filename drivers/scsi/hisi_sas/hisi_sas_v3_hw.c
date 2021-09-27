@@ -2431,6 +2431,7 @@ static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
 int v3_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
+	dev_err_ratelimited(hisi_hba->dev, "%s\n", __func__);
 
 	queue_slot_complete_v3_hw(hisi_hba, queue_num);
 
