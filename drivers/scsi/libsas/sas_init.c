@@ -56,7 +56,7 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 	if (shost->nr_reserved_cmds) {
 		struct scsi_device *sdev;
 
-		if (dev) {
+		if (dev && dev->scsi_dev) {
 			sdev = dev->scsi_dev;
 			if (!sdev)
 				goto out_err_scmd;
