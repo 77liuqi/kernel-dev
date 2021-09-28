@@ -175,7 +175,7 @@ struct domain_device {
 
 	struct domain_device *parent;
 	struct list_head siblings; /* devices on the same level */
-	struct scsi_target *starget; /* Corresponding SCSI target device */
+	struct scsi_device	*scsi_dev;
 	struct asd_sas_port *port;        /* shortcut to root of the tree */
 	struct sas_phy *phy;
 
@@ -623,7 +623,6 @@ struct sas_task_slow {
 extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 					    struct domain_device *dev,
-					    struct scsi_lun *lun,
 					    gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
