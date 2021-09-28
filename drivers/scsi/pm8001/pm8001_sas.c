@@ -724,7 +724,10 @@ static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
 	DECLARE_COMPLETION_ONSTACK(completion_setstate);
 
 	for (retry = 0; retry < 3; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		//fixme
+		task = sas_alloc_slow_task(pm8001_ha->sas,
+					   pm8001_dev->sas_device,
+					   NULL, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -804,7 +807,9 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		//fixme
+		task = sas_alloc_slow_task(pm8001_ha->sas, dev,
+					   NULL, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
