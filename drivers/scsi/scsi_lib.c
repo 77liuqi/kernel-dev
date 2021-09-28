@@ -1921,8 +1921,13 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	else
 		tag_set->ops = &scsi_mq_ops_no_commit;
 	tag_set->nr_hw_queues = shost->nr_hw_queues ? : 1;
+
 	tag_set->nr_maps = shost->nr_maps ? : 1;
-	tag_set->queue_depth = shost->can_queue;
+
+	tag_set->queue_depth =
+		shost->can_queue + shost->nr_reserved_cmds;
+	tag_set->reserved_tags = shost->nr_reserved_cmds;
+
 	tag_set->cmd_size = cmd_size;
 	tag_set->numa_node = NUMA_NO_NODE;
 	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
@@ -1947,6 +1952,9 @@ void scsi_mq_destroy_tags(struct Scsi_Host *shost)
  * @flags: BLK_MQ_REQ_* flags, e.g. BLK_MQ_REQ_NOWAIT.
  *
  * Allocates a SCSI command for internal LLDD use.
+ * If 'nr_reserved_commands' is spectified by the host the
+ * command will be allocated from the reserved tag pool;
+ * otherwise the normal tag pool will be used.
  */
 struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
 	unsigned int op, blk_mq_req_flags_t flags)
@@ -1954,13 +1962,16 @@ struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
 	struct request *rq;
 	struct scsi_cmnd *scmd;
 
-	WARN_ON_ONCE(((op & REQ_OP_MASK) != REQ_OP_SCSI_IN) &&
-		     ((op & REQ_OP_MASK) != REQ_OP_SCSI_OUT));
+	WARN_ON_ONCE(((op & REQ_OP_MASK) != REQ_OP_DRV_IN) &&
+		     ((op & REQ_OP_MASK) != REQ_OP_DRV_OUT));
+
+	if (sdev->host->nr_reserved_cmds)
+		flags = BLK_MQ_REQ_RESERVED;
+
 	rq = blk_mq_alloc_request(sdev->request_queue, op, flags);
 	if (IS_ERR(rq))
 		return NULL;
 	scmd = blk_mq_rq_to_pdu(rq);
-	scmd->request = rq;
 	scmd->device = sdev;
 	return scmd;
 }
