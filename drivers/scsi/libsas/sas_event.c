@@ -126,16 +126,22 @@ void sas_enable_revalidation(struct sas_ha_struct *ha)
 static void sas_port_event_worker(struct work_struct *work)
 {
 	struct asd_sas_event *ev = to_asd_sas_event(work);
+	struct asd_sas_phy *phy = ev->phy;
+	struct sas_ha_struct *ha = phy->ha;
 
 	sas_port_event_fns[ev->event](work);
+	pm_runtime_put(ha->dev);
 	sas_free_event(ev);
 }
 
 static void sas_phy_event_worker(struct work_struct *work)
 {
 	struct asd_sas_event *ev = to_asd_sas_event(work);
+	struct asd_sas_phy *phy = ev->phy;
+	struct sas_ha_struct *ha = phy->ha;
 
 	sas_phy_event_fns[ev->event](work);
+	pm_runtime_put(ha->dev);
 	sas_free_event(ev);
 }
 
@@ -170,6 +176,9 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 	if (!ev)
 		return -ENOMEM;
 
+	/* Call pm_runtime_put() with pairs in sas_port_event_worker() */
+	pm_runtime_get_noresume(ha->dev);
+
 	INIT_SAS_EVENT(ev, sas_port_event_worker, phy, event);
 
 	if (sas_defer_event(phy, ev))
@@ -195,6 +204,9 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 	ev = sas_alloc_event(phy, gfp_flags);
 	if (!ev)
 		return -ENOMEM;
+
+	/* Call pm_runtime_put() with pairs in sas_phy_event_worker() */
+	pm_runtime_get_noresume(ha->dev);
 
 	INIT_SAS_EVENT(ev, sas_phy_event_worker, phy, event);
 
