@@ -188,6 +188,8 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 	if (scsi_cmnd)
 		return scsi_cmd_to_rq(scsi_cmnd)->tag;
 
+	WARN_ON_ONCE(!scsi_cmnd);
+
 	spin_lock(&hisi_hba->lock);
 	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
 				   hisi_hba->last_slot_index + 1);
@@ -2000,7 +2002,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
-	rc = hisi_sas_slot_index_alloc(hisi_hba, NULL);
+	rc = hisi_sas_slot_index_alloc(hisi_hba, task->slow_task->scmd);
 	if (rc < 0)
 		goto err_out;
 
