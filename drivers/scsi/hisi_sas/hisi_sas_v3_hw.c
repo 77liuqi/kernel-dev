@@ -2391,10 +2391,11 @@ static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
 	struct hisi_sas_complete_v3_hdr *complete_queue;
 	u32 rd_point, wr_point;
 
-	rd_point = cq->rd_point;
 	complete_queue = hisi_hba->complete_hdr[queue];
 
 	spin_lock(&cq->lock);
+
+	rd_point = cq->rd_point;
 
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
@@ -2431,7 +2432,7 @@ static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
 int v3_mq_poll(struct Scsi_Host *shost, unsigned int queue_num)
 {
 	struct hisi_hba *hisi_hba = shost_priv(shost);
-	dev_err_ratelimited(hisi_hba->dev, "%s\n", __func__);
+	//dev_err_ratelimited(hisi_hba->dev, "%s\n", __func__);
 
 	queue_slot_complete_v3_hw(hisi_hba, queue_num);
 
@@ -3222,6 +3223,8 @@ static int hisi_sas_map_queues(struct Scsi_Host *shost)
 
 			}
 		}
+		qoff += qmap->nr_queues;
+		pr_err("%s i=%d nr_queues=%d queue_offset=%d\n", __func__, i, qmap->nr_queues, qmap->queue_offset);
 	}
 
 	return ret;
