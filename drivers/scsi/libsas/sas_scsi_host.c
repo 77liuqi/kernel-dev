@@ -922,6 +922,10 @@ void sas_task_abort(struct sas_task *task)
 
 int sas_slave_alloc(struct scsi_device *sdev)
 {
+	/* This is a test for SAS host dev */
+	if (!sdev->sdev_target->hostdata)
+		return 0;
+
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
 
