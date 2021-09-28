@@ -1211,15 +1211,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		struct scsi_lun lun;
-
-		int_to_scsilun(0, &lun);
-		if (!dev_is_sata(device)) {
-			struct sas_ssp_task *ssp_task = parameter;
-
-			memcpy(lun.scsi_lun, &ssp_task->LUN[0], 8);
-		}
-		task = sas_alloc_slow_task(sha, device, &lun, GFP_KERNEL);
+		task = sas_alloc_slow_task(sha, device, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -2102,8 +2094,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	task = sas_alloc_slow_task(sha, device,
-				   (struct scsi_lun *)lun, GFP_KERNEL);
+	task = sas_alloc_slow_task(sha, device, GFP_KERNEL);
 	if (!task)
 		return -ENOMEM;
 

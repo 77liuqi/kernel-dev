@@ -1282,8 +1282,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 	struct sas_task *task = NULL;
 
 	for (retry = 0; retry < 3; retry++) {
-		//fixme
- 		task = sas_alloc_slow_task(sha, dev, NULL, GFP_KERNEL);
+ 		task = sas_alloc_slow_task(sha, dev, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 

@@ -830,7 +830,6 @@ int sas_target_alloc(struct scsi_target *starget)
 
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
-	found_dev->starget = starget;
 	return 0;
 }
 
@@ -839,6 +838,8 @@ int sas_target_alloc(struct scsi_target *starget)
 int sas_slave_configure(struct scsi_device *scsi_dev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+
+	dev->scsi_dev = scsi_dev;
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
@@ -928,7 +929,6 @@ void sas_target_destroy(struct scsi_target *starget)
 		return;
 
 	starget->hostdata = NULL;
-	found_dev->starget = NULL;
 	sas_put_device(found_dev);
 }
 

@@ -40,7 +40,7 @@ EXPORT_SYMBOL_GPL(sas_alloc_task);
 
 struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 				     struct domain_device *dev,
-				     struct scsi_lun *lun, gfp_t flags)
+				     gfp_t flags)
 {
 	struct sas_task *task = sas_alloc_task(flags);
 	struct Scsi_Host *shost = ha->core.shost;
@@ -56,9 +56,8 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 	if (shost->nr_reserved_cmds) {
 		struct scsi_device *sdev;
 
-		if (dev && dev->starget) {
-			sdev = scsi_device_lookup_by_target(dev->starget,
-						    scsilun_to_int(lun));
+		if (dev) {
+			sdev = dev->scsi_dev;
 			if (!sdev)
 				goto out_err_scmd;
 		} else
@@ -79,7 +78,9 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
 
 out_err_scmd:
 	kfree(slow);
+	pr_err("%s out_err_scmd dev=%pS ha=%pS\n", __func__, dev, ha);
 out_err_slow:
+	pr_err("%s out_err_slow dev=%pS ha=%pS\n", __func__, dev, ha);
 	kmem_cache_free(sas_task_cache, task);
 	return NULL;
 }
