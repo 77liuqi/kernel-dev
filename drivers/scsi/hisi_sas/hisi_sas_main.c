@@ -1207,13 +1207,12 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
-	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(sha, device, GFP_KERNEL);
+		task = sas_alloc_slow_task(device, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -2079,7 +2078,6 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				  bool rst_to_recover)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res;
@@ -2096,7 +2094,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	task = sas_alloc_slow_task(sha, device, GFP_KERNEL);
+	task = sas_alloc_slow_task(device, GFP_KERNEL);
 	if (!task)
 		return -ENOMEM;
 

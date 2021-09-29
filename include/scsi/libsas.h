@@ -621,8 +621,7 @@ struct sas_task_slow {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
-extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
-					    struct domain_device *dev,
+extern struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
 					    gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
