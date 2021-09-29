@@ -442,13 +442,17 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 		if (dev_is_sata(device)) {
 			qc = task->uldd_task;
-			scmd = qc->scsicmd;
+			 if (task->slow_task)
+				scmd = task->slow_task->scmd; //ata internal
+			else
+				scmd = qc->scsicmd;
 		} else {
 			scmd = task->uldd_task;
 		}
-	} else if (task->slow_task) {
-		scmd = task->slow_task->scmd;
-	}
+	} else if (task->slow_task)
+		scmd = task->slow_task->scmd; //for smp sg command
+	WARN_ONCE(!scmd, "%s1 task->uldd_task=%pS task->slow_task=%pS\n", __func__, task->uldd_task, task->slow_task);
+	//WARN_ONCE(!task->uldd_task, "%s2\n", __func__);//for smp sg command
 
 	if (scmd) {
 		unsigned int dq_index;
