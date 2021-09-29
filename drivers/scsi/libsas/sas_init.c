@@ -62,7 +62,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
 				goto out_err_scmd;
 		} else
 			sdev = ha->core.shost_dev;
-		slow->scmd = scsi_get_internal_cmd(sdev, DMA_BIDIRECTIONAL,
+		slow->scmd = scsi_get_internal_cmd(sdev, REQ_OP_DRV_IN,
 						   REQ_NOWAIT);
 		if (!slow->scmd)
 			goto out_err_scmd;
