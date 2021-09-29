@@ -174,7 +174,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
-	task = sas_alloc_task(GFP_ATOMIC);
+	if (qc->scsicmd)
+		task = sas_alloc_task(GFP_ATOMIC);
+	else
+		task = sas_alloc_slow_task(dev, GFP_ATOMIC);
 	if (!task)
 		goto out;
 	task->dev = dev;
