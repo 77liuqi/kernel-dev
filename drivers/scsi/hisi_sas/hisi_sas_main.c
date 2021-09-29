@@ -446,6 +446,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		} else {
 			scmd = task->uldd_task;
 		}
+	} else if (task->slow_task) {
+		scmd = task->slow_task->scmd;
 	}
 
 	if (scmd) {
