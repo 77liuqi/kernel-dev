@@ -38,11 +38,11 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *ha,
-				     struct domain_device *dev,
+struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
 				     gfp_t flags)
 {
 	struct sas_task *task = sas_alloc_task(flags);
+	struct sas_ha_struct *ha = dev->port->ha;
 	struct Scsi_Host *shost = ha->core.shost;
 	struct sas_task_slow *slow;
 
