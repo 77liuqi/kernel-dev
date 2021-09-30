@@ -39,7 +39,7 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
 struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
-				     gfp_t flags)
+				     gfp_t flags, unsigned int qid)
 {
 	struct sas_task *task = sas_alloc_task(flags);
 	struct sas_ha_struct *ha = dev->port->ha;
@@ -63,7 +63,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
 		} else
 			sdev = ha->core.shost_dev;
 		slow->scmd = scsi_get_internal_cmd(sdev, REQ_OP_DRV_IN,
-						   REQ_NOWAIT);
+						   REQ_NOWAIT, qid);
 		if (!slow->scmd)
 			goto out_err_scmd;
 		ASSIGN_SAS_TASK(slow->scmd, task);
