@@ -67,6 +67,7 @@ struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
 		if (!slow->scmd)
 			goto out_err_scmd;
 		ASSIGN_SAS_TASK(slow->scmd, task);
+		blk_mq_start_request(scsi_cmd_to_rq(slow->scmd));
 	}
 
 	task->slow_task = slow;
