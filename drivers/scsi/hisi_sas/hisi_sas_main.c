@@ -1183,7 +1183,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(device, GFP_KERNEL);
+		task = sas_alloc_slow_task(device, GFP_KERNEL, -1);
 		if (!task)
 			return -ENOMEM;
 
@@ -2065,7 +2065,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	task = sas_alloc_slow_task(device, GFP_KERNEL);
+	task = sas_alloc_slow_task(device, GFP_KERNEL, dq->id);
 	if (!task)
 		return -ENOMEM;
 

@@ -1957,7 +1957,7 @@ void scsi_mq_destroy_tags(struct Scsi_Host *shost)
  * otherwise the normal tag pool will be used.
  */
 struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
-	unsigned int op, blk_mq_req_flags_t flags)
+	unsigned int op, blk_mq_req_flags_t flags, unsigned int qid)
 {
 	struct request *rq;
 	struct scsi_cmnd *scmd;
@@ -1968,7 +1968,11 @@ struct scsi_cmnd *scsi_get_internal_cmd(struct scsi_device *sdev,
 	if (sdev->host->nr_reserved_cmds)
 		flags = BLK_MQ_REQ_RESERVED;
 
-	rq = blk_mq_alloc_request(sdev->request_queue, op, flags);
+	if (qid == -1)
+		rq = blk_mq_alloc_request(sdev->request_queue, op, flags);
+	else
+		rq = blk_mq_alloc_request_hctx(sdev->request_queue, op, flags, qid);
+
 	if (IS_ERR(rq))
 		return NULL;
 	scmd = blk_mq_rq_to_pdu(rq);

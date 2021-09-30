@@ -2465,6 +2465,7 @@ static int interrupt_preinit_v3_hw(struct hisi_hba *hisi_hba)
 						 PCI_IRQ_MSI |
 						 PCI_IRQ_AFFINITY,
 						 &desc);
+	dev_err(hisi_hba->dev, "%s vectors=%d min_msi=%d max_msi=%d\n", __func__, vectors, min_msi, max_msi);
 	if (vectors < 0)
 		return -ENOENT;
 
@@ -4888,19 +4889,26 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 err_out_hw_init:
+	dev_err(dev, "%s err_out_hw_init\n", __func__);
 	sas_unregister_ha(sha);
 err_out_register_ha:
+	dev_err(dev, "%s err_out_register_ha\n", __func__);
 	scsi_remove_host(shost);
 err_out_free_irq_vectors:
+	dev_err(dev, "%s err_out_free_irq_vectors\n", __func__);
 	pci_free_irq_vectors(pdev);
 err_out_debugfs:
+	dev_err(dev, "%s err_out_debugfs\n", __func__);
 	debugfs_exit_v3_hw(hisi_hba);
 err_out_ha:
+	dev_err(dev, "%s err_out_ha\n", __func__);
 	hisi_sas_free(hisi_hba);
 	scsi_host_put(shost);
 err_out_regions:
+	dev_err(dev, "%s err_out_regions\n", __func__);
 	pci_release_regions(pdev);
 err_out_disable_device:
+	dev_err(dev, "%s err_out_disable_device\n", __func__);
 	pci_disable_device(pdev);
 err_out:
 	return rc;
@@ -4910,6 +4918,8 @@ static void
 hisi_sas_v3_destroy_irqs(struct pci_dev *pdev, struct hisi_hba *hisi_hba)
 {
 	int i;
+
+	dev_err(&pdev->dev, "%s hisi_hba->cq_nvecs=%d\n", __func__, hisi_hba->cq_nvecs);
 
 	devm_free_irq(&pdev->dev, pci_irq_vector(pdev, 1), hisi_hba);
 	devm_free_irq(&pdev->dev, pci_irq_vector(pdev, 2), hisi_hba);

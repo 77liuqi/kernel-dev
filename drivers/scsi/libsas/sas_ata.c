@@ -177,7 +177,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		task = sas_alloc_task(GFP_ATOMIC);
 	else
-		task = sas_alloc_slow_task(dev, GFP_ATOMIC);
+		task = sas_alloc_slow_task(dev, GFP_ATOMIC, -1);
 	if (!task)
 		goto out;
 	task->dev = dev;

@@ -622,7 +622,7 @@ struct sas_task_slow {
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(struct domain_device *dev,
-					    gfp_t flags);
+					    gfp_t flags, unsigned int qid);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
