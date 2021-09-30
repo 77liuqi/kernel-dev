@@ -873,6 +873,8 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 void sas_slave_destroy(struct scsi_device *scsi_dev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+	if (!dev)
+		return;
 	dev->scsi_dev = NULL;
 }
 
