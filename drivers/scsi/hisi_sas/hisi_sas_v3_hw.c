@@ -2205,6 +2205,10 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	bool is_internal = slot->is_internal;
 	u32 dw0, dw1, dw3;
 
+	pr_err("%s slot=%pS task=%pS\n", __func__, slot, task);
+	if (task)
+		pr_err("%s0 slot=%pS lldd_task=%pS task->dev=%pS\n", __func__, slot, task->lldd_task, task->dev);
+
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
 
@@ -2230,6 +2234,7 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	dw0 = le32_to_cpu(complete_hdr->dw0);
 	dw1 = le32_to_cpu(complete_hdr->dw1);
 	dw3 = le32_to_cpu(complete_hdr->dw3);
+	pr_err("%s1 slot=%pS lldd_task=%pS task->dev=%pS\n", __func__, slot, task->lldd_task, task->dev);
 
 	/*
 	 * Use SAS+TMF status codes
@@ -2255,6 +2260,7 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	default:
 		break;
 	}
+	pr_err("%s2 slot=%pS lldd_task=%pS task->dev=%pS\n", __func__, slot, task->lldd_task, task->dev);
 
 	/* check for erroneous completion */
 	if ((dw0 & CMPLT_HDR_CMPLT_MSK) == 0x3) {
@@ -2274,6 +2280,9 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 		}
 		goto out;
 	}
+	
+	pr_err("%s3 slot=%pS task=%pS task->task_proto=%d\n", 
+	__func__, slot, task, task->task_proto);
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP: {
@@ -2316,6 +2325,7 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	}
 
 out:
+	pr_err("%s10 out slot=%pS lldd_task=%pS task->dev=%pS\n", __func__, slot, task->lldd_task, task->dev);
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -2392,7 +2402,7 @@ static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
 	u32 rd_point, wr_point;
 
 	complete_queue = hisi_hba->complete_hdr[queue];
-
+//	pr_err_ratelimited("%s cq id=%d\n", __func__, cq->id);
 	spin_lock(&cq->lock);
 
 	rd_point = cq->rd_point;
@@ -2414,6 +2424,7 @@ static void queue_slot_complete_v3_hw(struct hisi_hba *hisi_hba, int queue)
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
+			pr_err("%s2 calling slot complete cq id=%d\n", __func__, cq->id);
 			slot_complete_v3_hw(hisi_hba, slot);
 		} else
 			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
