@@ -196,6 +196,8 @@ void sas_notify_lldd_dev_gone(struct domain_device *dev)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(shost->transportt);
 
+	pr_err("%s dev=%pS\n", __func__, dev);
+
 	if (!i->dft->lldd_dev_gone)
 		return;
 
@@ -286,7 +288,7 @@ int sas_discover_end_dev(struct domain_device *dev)
 void sas_free_device(struct kref *kref)
 {
 	struct domain_device *dev = container_of(kref, typeof(*dev), kref);
-
+	pr_err("%s dev=%pS dev->scsi_dev=%pS\n", __func__, dev, dev->scsi_dev);
 	put_device(&dev->rphy->dev);
 	dev->rphy = NULL;
 
@@ -314,6 +316,8 @@ void sas_free_device(struct kref *kref)
 static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_device *dev)
 {
 	struct sas_ha_struct *ha = port->ha;
+
+	pr_err("%s dev=%pS\n", __func__, dev);
 
 	sas_notify_lldd_dev_gone(dev);
 	if (!dev->parent)

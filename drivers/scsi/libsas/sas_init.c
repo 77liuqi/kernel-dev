@@ -155,6 +155,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	if (shost->nr_reserved_cmds) {
 		sas_ha->core.shost_dev = scsi_get_host_dev(shost);
+		pr_err("%s shost_dev=%pS\n", __func__, sas_ha->core.shost_dev);
 		if (!sas_ha->core.shost_dev) {
 			pr_notice("couldn't register sas host device\n");
 			return -ENOMEM;
