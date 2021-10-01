@@ -1141,8 +1141,31 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 	return 0;
 }
 
+ static bool blk_rq_is_poll(struct request *rq)
+{
+	return rq->mq_hctx && rq->mq_hctx->type == HCTX_TYPE_POLL;
+}
+
 static void hisi_sas_task_done(struct sas_task *task)
 {
+	struct scsi_cmnd *scmd =  task->slow_task->scmd;
+
+	pr_err("%s task=%pS scmd=%pS\n", __func__, task, scmd);
+
+	if (scmd) {
+		struct request *rq = scsi_cmd_to_rq(scmd);
+
+		pr_err("%s2 task=%pS scmd=%pS rq=%pS poll=%d\n", __func__, task, scmd, rq, blk_rq_is_poll(rq));
+
+		if (blk_rq_is_poll(rq)) {
+			pr_err("%s3 poll task=%pS scmd=%pS rq=%pS rq->end_io_data=%pS\n", __func__, task, scmd, rq, rq->end_io_data);
+			del_timer(&task->slow_task->timer);
+			complete(rq->end_io_data);
+			return;
+		}
+
+	}
+
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
@@ -2035,6 +2058,22 @@ err_out:
  * @rst_to_recover: If rst_to_recover set, queue a controller
  *		    reset if an internal abort times out.
  */
+
+static void hisi_sas_blk_rq_poll_completion(struct request *rq, struct completion *wait)
+{
+	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
+	do {
+		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
+		cond_resched();
+	} while (!completion_done(wait));
+	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
+}
+
+static void eh_lock_door_done(struct request *req, blk_status_t status)
+{
+	pr_err("%s req=%pS status=%d\n", __func__, req, status);
+}
+
 static int
 _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device,
@@ -2043,8 +2082,11 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				  bool rst_to_recover)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	DECLARE_COMPLETION_ONSTACK(wait);
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
+	struct scsi_cmnd *scmd;
+	struct request *rq;
 	int res;
 
 	pr_err("%s device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
@@ -2055,15 +2097,21 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	 * TMF_RESP_FUNC_FAILED and let other steps go on, which depends that
 	 * the internal abort has been executed and returned CQ.
 	 */
-	if (!hisi_hba->hw->prep_abort)
+	if (!hisi_hba->hw->prep_abort) {
+		pr_err("%s00 !prep_abort err device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
 		return TMF_RESP_FUNC_FAILED;
+	}
 
-	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
-		return -EIO;
+//	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags)) {
+//		pr_err("%s01 HISI_SAS_HW_FAULT_BIT err device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
+//		return -EIO;
+//	}
 
 	task = sas_alloc_slow_task(device, GFP_KERNEL, dq->id);
-	if (!task)
+	if (!task) {
+		pr_err("%s02 !sas_alloc_slow_task err device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
 		return -ENOMEM;
+	}
 
 	task->dev = device;
 	task->task_proto = device->tproto;
@@ -2071,7 +2119,19 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->slow_task->timer.function = hisi_sas_tmf_timedout;
 	task->slow_task->timer.expires = jiffies + INTERNAL_ABORT_TIMEOUT;
 	add_timer(&task->slow_task->timer);
+	scmd = task->slow_task->scmd;
+	rq = scsi_cmd_to_rq(scmd);
 
+	pr_err("%s2 device=%pS abort_flag=%d tag=%d dq id=%d scmd=%pS rq=%pS poll=%d &wait=%pS\n",
+		__func__, device, abort_flag, tag, dq->id,
+		scmd, rq, blk_rq_is_poll(rq),
+		&wait);
+
+	if (blk_rq_is_poll(rq)) {
+		rq->end_io_data = &wait;
+		rq->end_io = eh_lock_door_done;
+	}
+		
 	res = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
 						task, abort_flag, tag, dq);
 	if (res) {
@@ -2080,7 +2140,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			res);
 		goto exit;
 	}
-	wait_for_completion(&task->slow_task->completion);
+	if (blk_rq_is_poll(rq))
+		hisi_sas_blk_rq_poll_completion(rq, &wait);
+	else
+		wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
 
 	/* Internal abort timed out */
@@ -2168,8 +2231,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
 					abort_flag, tag, dq, rst_to_recover);
 			pr_err("%s1 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
-			if (rc)
-				return rc;
+		//	if (rc)
+		//		return rc;
 		}
 		for (i = hisi_hba->cq_nvecs; i < hisi_hba->cq_nvecs + hisi_hba->iopoll_q_count; i++) {
 		//	struct hisi_sas_cq *cq = &hisi_hba->cq[i];
@@ -2181,8 +2244,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
 					abort_flag, tag, dq, rst_to_recover);
 			pr_err("%s2 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
-			if (rc)
-				return rc;
+		//	if (rc)
+		//		return rc;
 		}
 		break;
 	default:
