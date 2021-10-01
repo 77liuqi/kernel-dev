@@ -15,7 +15,6 @@ static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
 static int
 hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
-			     struct scsi_lun *lun,
 			     int abort_flag, int tag, bool rst_to_recover);
 static int hisi_sas_softreset_ata_disk(struct domain_device *device);
 static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
@@ -1040,17 +1039,15 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-	struct scsi_lun lun;
 	int ret = 0;
 
 	dev_info(dev, "dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
 
 	down(&hisi_hba->sem);
-	int_to_scsilun(0, &lun);
 	if (!test_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags)) {
 		hisi_sas_internal_task_abort(hisi_hba, device,
-				&lun, HISI_SAS_INT_ABT_DEV, 0, true);
+				HISI_SAS_INT_ABT_DEV, 0, true);
 
 		hisi_sas_dereg_device(hisi_hba, device);
 
@@ -1483,9 +1480,7 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
 	int port_no, rc, i;
-	struct scsi_lun lun;
 
-	int_to_scsilun(0, &lun);
 	for (i = 0; i < HISI_SAS_MAX_DEVICES; i++) {
 		struct hisi_sas_device *sas_dev = &hisi_hba->devices[i];
 		struct domain_device *device = sas_dev->sas_device;
@@ -1494,7 +1489,7 @@ static void hisi_sas_terminate_stp_reject(struct hisi_hba *hisi_hba)
 			continue;
 
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
-				&lun, HISI_SAS_INT_ABT_DEV, 0, false);
+				 HISI_SAS_INT_ABT_DEV, 0, false);
 		if (rc < 0)
 			dev_err(dev, "STP reject: abort dev failed %d\n", rc);
 	}
@@ -1601,7 +1596,6 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 
 static int hisi_sas_abort_task(struct sas_task *task)
 {
-	struct scsi_lun lun;
 	struct hisi_sas_tmf_task tmf_task;
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
@@ -1640,6 +1634,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u16 tag = slot->idx;
+		struct scsi_lun lun;
 		int rc2;
 
 		int_to_scsilun(cmnd->device->lun, &lun);
@@ -1650,7 +1645,8 @@ static int hisi_sas_abort_task(struct sas_task *task)
 						  &tmf_task);
 
 		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
-				&lun, HISI_SAS_INT_ABT_CMD, tag, false);
+						   HISI_SAS_INT_ABT_CMD, tag,
+						   false);
 		if (rc2 < 0) {
 			dev_err(dev, "abort task: internal abort (%d)\n", rc2);
 			return TMF_RESP_FUNC_FAILED;
@@ -1670,9 +1666,10 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
 		task->task_proto & SAS_PROTOCOL_STP) {
 		if (task->dev->dev_type == SAS_SATA_DEV) {
+			struct scsi_lun lun;
 			int_to_scsilun(0, &lun);
 			rc = hisi_sas_internal_task_abort(hisi_hba, device,
-					&lun, HISI_SAS_INT_ABT_DEV, 0, false);
+					HISI_SAS_INT_ABT_DEV, 0, false);
 			if (rc < 0) {
 				dev_err(dev, "abort task: internal abort failed\n");
 				goto out;
@@ -1685,10 +1682,11 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		struct hisi_sas_slot *slot = task->lldd_task;
 		u32 tag = slot->idx;
 		struct hisi_sas_cq *cq = &hisi_hba->cq[slot->dlvry_queue];
+		struct scsi_lun lun;
 
 		int_to_scsilun(0, &lun);
 		rc = hisi_sas_internal_task_abort(hisi_hba, device,
-				&lun, HISI_SAS_INT_ABT_CMD, tag, false);
+				HISI_SAS_INT_ABT_CMD, tag, false);
 		if (((rc < 0) || (rc == TMF_RESP_FUNC_FAILED)) &&
 					task->lldd_task) {
 			/*
@@ -1714,7 +1712,7 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	int rc;
 
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
-			(struct scsi_lun *)lun, HISI_SAS_INT_ABT_DEV, 0, false);
+			 HISI_SAS_INT_ABT_DEV, 0, false);
 	if (rc < 0) {
 		dev_err(dev, "abort task set: internal abort rc=%d\n", rc);
 		return TMF_RESP_FUNC_FAILED;
@@ -1805,12 +1803,10 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 {
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-	struct scsi_lun lun;
 	int rc;
 
-	int_to_scsilun(0, &lun);
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
-			&lun, HISI_SAS_INT_ABT_DEV, 0, false);
+			HISI_SAS_INT_ABT_DEV, 0, false);
 	if (rc < 0) {
 		dev_err(dev, "I_T nexus reset: internal abort (%d)\n", rc);
 		return TMF_RESP_FUNC_FAILED;
@@ -1840,7 +1836,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 
 	/* Clear internal IO and then lu reset */
 	rc = hisi_sas_internal_task_abort(hisi_hba, device,
-			(struct scsi_lun *)lun, HISI_SAS_INT_ABT_DEV, 0, false);
+			HISI_SAS_INT_ABT_DEV, 0, false);
 	if (rc < 0) {
 		dev_err(dev, "lu_reset: internal abort failed\n");
 		goto out;
@@ -2043,7 +2039,6 @@ err_out:
 static int
 _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device,
-			      struct scsi_lun *lun,
 			      int abort_flag, int tag,
 			      struct hisi_sas_dq *dq,
 				  bool rst_to_recover)
@@ -2146,7 +2141,6 @@ exit:
 static int
 hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
-			     struct scsi_lun *lun,
 			     int abort_flag, int tag, bool rst_to_recover)
 {
 	struct hisi_sas_slot *slot;
@@ -2159,7 +2153,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		slot = &hisi_hba->slot_info[tag];
 		dq = &hisi_hba->dq[slot->dlvry_queue];
 		return _hisi_sas_internal_task_abort(hisi_hba, device,
-				lun, abort_flag, tag, dq, rst_to_recover);
+				abort_flag, tag, dq, rst_to_recover);
 	case HISI_SAS_INT_ABT_DEV:
 		for (i = 0; i < hisi_hba->cq_nvecs; i++) {
 			struct hisi_sas_cq *cq = &hisi_hba->cq[i];
@@ -2169,7 +2163,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				continue;
 			dq = &hisi_hba->dq[i];
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
-					lun, abort_flag, tag, dq, rst_to_recover);
+					abort_flag, tag, dq, rst_to_recover);
 			if (rc)
 				return rc;
 		}

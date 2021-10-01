@@ -826,11 +826,15 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct domain_device *found_dev;
 	struct sas_rphy *rphy;
 
+	dev_err(parent, "%s starget=%pS scsi_is_host_device=%d\n", __func__, starget, scsi_is_host_device(parent));
+
 	if (scsi_is_host_device(parent))
 		return 0;
 
 	rphy = dev_to_rphy(starget->dev.parent);
 	found_dev = sas_find_dev_by_rphy(rphy);
+
+	pr_err("%s1 starget=%pS found_dev=%pS\n", __func__, starget, found_dev);
 
 	if (!found_dev)
 		return -ENODEV;
@@ -847,6 +851,8 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
 
 	dev->scsi_dev = scsi_dev;
+
+	pr_err("%s scsi_dev=%pS dev=%pS\n", __func__, scsi_dev, dev);
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
@@ -872,7 +878,14 @@ int sas_slave_configure(struct scsi_device *scsi_dev)
 
 void sas_slave_destroy(struct scsi_device *scsi_dev)
 {
-	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+	struct domain_device *dev;
+
+	pr_err("%s scsi_dev=%pS\n", __func__, scsi_dev);
+	pr_err("%s1 scsi_dev=%pS sdev->sdev_target=%pS\n", __func__, scsi_dev, scsi_dev->sdev_target);
+	dev = sdev_to_domain_dev(scsi_dev);
+	pr_err("%s2 scsi_dev=%pS dev=%pS\n", __func__, scsi_dev, dev);
+	pr_err("%s3 scsi_dev=%pS dev=%pS sdev->sdev_target=%pS\n", __func__, scsi_dev, dev, scsi_dev->sdev_target);
+	pr_err("%s4 scsi_dev=%pS dev=%pS sdev->sdev_target->hostdata=%pS\n", __func__, scsi_dev, dev, scsi_dev->sdev_target->hostdata);
 	if (!dev)
 		return;
 	dev->scsi_dev = NULL;
@@ -944,6 +957,8 @@ int sas_slave_alloc(struct scsi_device *sdev)
 void sas_target_destroy(struct scsi_target *starget)
 {
 	struct domain_device *found_dev = starget->hostdata;
+
+	pr_err("%s found_dev=%pS starget=%pS\n", __func__, found_dev, starget);
 
 	if (!found_dev)
 		return;
