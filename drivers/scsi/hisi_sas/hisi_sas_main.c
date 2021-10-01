@@ -2047,6 +2047,8 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct sas_task *task;
 	int res;
 
+	pr_err("%s device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
+
 	/*
 	 * The interface is not realized means this HW don't support internal
 	 * abort, or don't need to do internal abort. Then here, we return
@@ -2147,6 +2149,8 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct hisi_sas_dq *dq;
 	int i, rc;
 
+	pr_err("%s device=%pS abort_flag=%d tag=%d\n", __func__, device, abort_flag, tag);
+
 	switch (abort_flag) {
 	case HISI_SAS_INT_ABT_CMD:
 		slot = &hisi_hba->slot_info[tag];
@@ -2163,6 +2167,20 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			dq = &hisi_hba->dq[i];
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
 					abort_flag, tag, dq, rst_to_recover);
+			pr_err("%s1 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
+			if (rc)
+				return rc;
+		}
+		for (i = hisi_hba->cq_nvecs; i < hisi_hba->cq_nvecs + hisi_hba->iopoll_q_count; i++) {
+		//	struct hisi_sas_cq *cq = &hisi_hba->cq[i];
+		//	const struct cpumask *mask = cq->irq_mask;
+
+		//	if (mask && !cpumask_intersects(cpu_online_mask, mask))
+		//		continue;
+			dq = &hisi_hba->dq[i];
+			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
+					abort_flag, tag, dq, rst_to_recover);
+			pr_err("%s2 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
 			if (rc)
 				return rc;
 		}

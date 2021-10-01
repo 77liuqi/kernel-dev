@@ -3220,7 +3220,7 @@ static int hisi_sas_map_queues(struct Scsi_Host *shost)
 			unsigned int cpu;
 			for_each_possible_cpu(cpu) {
 				qmap->mq_map[cpu] = cpu / cpus_per_q + qoff;
-				pr_err("%s cpu%d queue=%d\n", __func__, cpu, qmap->mq_map[cpu]);
+				pr_err("%s POLL cpu%d queue=%d\n", __func__, cpu, qmap->mq_map[cpu]);
 
 			}
 		}
