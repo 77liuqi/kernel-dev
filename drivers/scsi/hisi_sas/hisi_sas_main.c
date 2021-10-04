@@ -2674,6 +2674,7 @@ static int hisi_sas_interrupt_preinit(struct hisi_hba *hisi_hba)
 		return hisi_hba->hw->interrupt_preinit(hisi_hba);
 	return 0;
 }
+extern struct device *hisi_sas_dev;
 
 int hisi_sas_probe(struct platform_device *pdev,
 		   const struct hisi_sas_hw *hw)
@@ -2689,6 +2690,9 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost = hisi_sas_shost_alloc(pdev, hw);
 	if (!shost)
 		return -ENOMEM;
+
+	if (!hisi_sas_dev)
+		hisi_sas_dev = dev;
 
 	sha = SHOST_TO_SAS_HA(shost);
 	hisi_hba = shost_priv(shost);
