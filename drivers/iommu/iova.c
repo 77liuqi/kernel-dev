@@ -1019,6 +1019,7 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
  static atomic64_t range[IOVA_RANGE_CACHE_MAX_SIZE];
  static atomic64_t too_big;
  static atomic64_t total;
+ extern atomic64_t total_cmdq_issued;
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn)
@@ -1030,12 +1031,15 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 		char string[1024];
 		int i;
 
-		sprintf(string, "%s total=%lld too_big=%lld ", __func__, _total, atomic64_read(&too_big));
+		sprintf(string, "%s total=%lld too_big=%lld total_cmdq_issued=%lld ", __func__, _total, 
+			atomic64_read(&too_big),
+			atomic64_read(&total_cmdq_issued));
 		for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; i++) {
 			sprintf(string + strlen(string), "[%d]=%lld ", i, atomic64_read(&range[i]));
 			atomic64_set(&range[i], 0);
 		}
 		atomic64_set(&total, 1);
+		atomic64_set(&total_cmdq_issued, 0);
 		atomic64_set(&too_big, 0);
 		pr_err("%s\n", string);
 	}
