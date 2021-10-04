@@ -172,7 +172,7 @@ static bool g_shared_tag_bitmap;
 module_param_named(shared_tag_bitmap, g_shared_tag_bitmap, bool, 0444);
 MODULE_PARM_DESC(shared_tag_bitmap, "Use shared tag bitmap for all submission queues for blk-mq");
 
-static int g_irqmode = NULL_IRQ_SOFTIRQ;
+static int g_irqmode = NULL_IRQ_TIMER;
 
 static int null_set_irqmode(const char *str, const struct kernel_param *kp)
 {
@@ -692,6 +692,7 @@ static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
 	finish_wait(&nq->wait, &wait);
 	return cmd;
 }
+extern struct device *hisi_sas_dev;
 
 static void end_cmd(struct nullb_cmd *cmd)
 {
@@ -699,11 +700,18 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 	switch (queue_mode)  {
 	case NULL_Q_MQ:
+		if (cmd->n_sg) {
+			pr_err_once("%s hisi_sas_dev=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, cmd, cmd->n_sg);
+			dma_unmap_sg(hisi_sas_dev, &cmd->sgl[0], cmd->n_sg, cmd->dma_dir);
+		}
 		blk_mq_end_request(cmd->rq, cmd->error);
 		return;
 	case NULL_Q_BIO:
 		cmd->bio->bi_status = cmd->error;
 		bio_endio(cmd->bio);
+		break;
+	default:
+		pr_err_once("%s errr1\n", __func__);
 		break;
 	}
 
@@ -712,8 +720,9 @@ static void end_cmd(struct nullb_cmd *cmd)
 
 static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 {
-	end_cmd(container_of(timer, struct nullb_cmd, timer));
+	struct nullb_cmd *cmd = container_of(timer, struct nullb_cmd, timer);
 
+	end_cmd(cmd);
 	return HRTIMER_NORESTART;
 }
 
@@ -988,8 +997,10 @@ again:
 		if (c_pages[i] == NULL)
 			continue;
 		err = null_flush_cache_page(nullb, c_pages[i]);
-		if (err)
+		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			return err;
+		}
 		one_round++;
 	}
 	flushed += one_round << PAGE_SHIFT;
@@ -1118,8 +1129,10 @@ static int null_handle_flush(struct nullb *nullb)
 	while (true) {
 		err = null_make_cache_space(nullb,
 			nullb->dev->cache_size * 1024 * 1024);
-		if (err || nullb->dev->curr_cache == 0)
+		if (err || nullb->dev->curr_cache == 0) {
+			pr_err_once("%s errr1\n", __func__);
 			break;
+		}
 	}
 
 	WARN_ON(!radix_tree_empty(&nullb->dev->cache));
@@ -1155,6 +1168,9 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 		err = copy_to_nullb(nullb, page, off, sector, len, is_fua);
 	}
 
+	if (err)
+		pr_err_once("%s errr1\n", __func__);
+
 	return err;
 }
 
@@ -1175,6 +1191,7 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 				     op_is_write(req_op(rq)), sector,
 				     rq->cmd_flags & REQ_FUA);
 		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			spin_unlock_irq(&nullb->lock);
 			return err;
 		}
@@ -1202,6 +1219,7 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 				     op_is_write(bio_op(bio)), sector,
 				     bio->bi_opf & REQ_FUA);
 		if (err) {
+			pr_err_once("%s errr1\n", __func__);
 			spin_unlock_irq(&nullb->lock);
 			return err;
 		}
@@ -1256,8 +1274,10 @@ static inline blk_status_t null_handle_badblocks(struct nullb_cmd *cmd,
 	sector_t first_bad;
 	int bad_sectors;
 
-	if (badblocks_check(bb, sector, nr_sectors, &first_bad, &bad_sectors))
+	if (badblocks_check(bb, sector, nr_sectors, &first_bad, &bad_sectors)) {
+		pr_err_once("%s errr1\n", __func__);
 		return BLK_STS_IOERR;
+	}
 
 	return BLK_STS_OK;
 }
@@ -1278,6 +1298,8 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 	else
 		err = null_handle_rq(cmd);
 
+	if (err)
+		pr_err_once("%s errr1\n", __func__);
 	return errno_to_blk_status(err);
 }
 
@@ -1314,6 +1336,7 @@ static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 	case NULL_IRQ_SOFTIRQ:
 		switch (cmd->nq->dev->queue_mode) {
 		case NULL_Q_MQ:
+			BUG();
 			if (likely(!blk_should_fake_timeout(cmd->rq->q)))
 				blk_mq_complete_request(cmd->rq);
 			break;
@@ -1362,12 +1385,15 @@ static blk_status_t null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 
 	if (test_bit(NULLB_DEV_FL_THROTTLED, &dev->flags)) {
 		sts = null_handle_throttled(cmd);
-		if (sts != BLK_STS_OK)
+		if (sts != BLK_STS_OK) {
+			pr_err_once("%s errr1\n", __func__);
 			return sts;
+		}
 	}
 
 	if (op == REQ_OP_FLUSH) {
 		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
+		pr_err_once("%s errr1\n", __func__);
 		goto out;
 	}
 
@@ -1471,7 +1497,45 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 	cmd->error = BLK_STS_TIMEOUT;
 	if (cmd->fake_timeout)
 		blk_mq_complete_request(rq);
+	WARN_ON_ONCE(1);
+	blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
+}
+
+static blk_status_t null_dma_map_rq(struct nullb_cmd *cmd, struct request_queue *q)
+{
+
+	struct request *rq = cmd->rq;
+	struct scatterlist *sgl = &cmd->sgl[0];
+	int n_sg, n_sg1;
+	static int n_sg_max, n_sg1_max;
+
+	n_sg = blk_rq_map_sg(q, rq, sgl);
+
+	if (n_sg <= 0)
+		return BLK_STS_IOERR;
+	n_sg1 = n_sg;
+	/*
+	 * Map scatterlist to PCI bus addresses.
+	 * Note PCI might change the number of entries.
+	 */
+	cmd->dma_dir = DMA_TO_DEVICE;
+	n_sg = dma_map_sg(hisi_sas_dev, sgl, n_sg, cmd->dma_dir);
+	if (n_sg <= 0)
+		return BLK_STS_IOERR;
+
+	if (n_sg > n_sg_max) {
+		pr_err("%s1 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		n_sg_max = n_sg;
+	} else if (n_sg1 > n_sg1_max) {
+		pr_err("%s2 n_sg_max=%d n_sg1_max=%d\n", __func__, n_sg_max, n_sg1_max);
+		n_sg1_max = n_sg1;
+	}
+	cmd->n_sg = n_sg;
+
+	pr_err_once("%s3 hisi_sas_dev=%pS q=%pS cmd=%pS n_sg=%d\n", __func__, hisi_sas_dev, q, cmd, n_sg);
+
+	return BLK_STS_OK;
 }
 
 static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1481,6 +1545,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nullb_queue *nq = hctx->driver_data;
 	sector_t nr_sectors = blk_rq_sectors(bd->rq);
 	sector_t sector = blk_rq_pos(bd->rq);
+	struct request_queue *q = hctx->queue;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
@@ -1492,6 +1557,11 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
 	cmd->fake_timeout = should_timeout_request(bd->rq);
+
+	if (null_dma_map_rq(cmd, q) != BLK_STS_OK) {
+		pr_err_once("%s errr1\n", __func__);
+		return BLK_STS_IOERR;
+	}
 
 	blk_mq_start_request(bd->rq);
 
@@ -1563,6 +1633,16 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 
 	return 0;
 }
+int null_init_request(struct blk_mq_tag_set *set, struct request *rq,
+			unsigned int hctx_idx, unsigned int numa_node)
+{
+	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
+
+	//pr_err_once("%s set=%pS rq=%pS cmd=%pS\n", __func__, set, rq, cmd);
+	sg_init_table(&cmd->sgl[0], NULL_BLK_MAX_SEGMENTS);
+
+	return 0;
+}
 
 static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
@@ -1570,6 +1650,7 @@ static const struct blk_mq_ops null_mq_ops = {
 	.timeout	= null_timeout_rq,
 	.init_hctx	= null_init_hctx,
 	.exit_hctx	= null_exit_hctx,
+	.init_request = null_init_request,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -1896,8 +1977,16 @@ static int null_add_dev(struct nullb_device *dev)
 				 BLK_DEF_MAX_SECTORS);
 	blk_queue_max_hw_sectors(nullb->q, dev->max_sectors);
 
+
 	if (dev->virt_boundary)
 		blk_queue_virt_boundary(nullb->q, PAGE_SIZE - 1);
+
+	blk_queue_max_segment_size(nullb->q, 65536);
+
+	blk_queue_flag_set(QUEUE_FLAG_ADD_RANDOM, nullb->q);
+	blk_queue_max_segments(nullb->q, NULL_BLK_MAX_SEGMENTS);
+
+	dma_set_max_seg_size(hisi_sas_dev, 65536);
 
 	null_config_discard(nullb);
 

@@ -4664,6 +4664,8 @@ static void debugfs_exit_v3_hw(struct hisi_hba *hisi_hba)
 {
 	debugfs_remove_recursive(hisi_hba->debugfs_dir);
 }
+struct device *hisi_sas_dev;
+EXPORT_SYMBOL_GPL(hisi_sas_dev);
 
 static int
 hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -4675,6 +4677,9 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct asd_sas_port **arr_port;
 	struct sas_ha_struct *sha;
 	int rc, phy_nr, port_nr, i;
+
+	if (!hisi_sas_dev)
+		hisi_sas_dev = dev;
 
 	rc = pci_enable_device(pdev);
 	if (rc)

@@ -15,6 +15,10 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
+#include <linux/dma-mapping.h>
+
+#define NULL_BLK_MAX_SEGMENTS 124
+
 struct nullb_cmd {
 	struct request *rq;
 	struct bio *bio;
@@ -23,6 +27,10 @@ struct nullb_cmd {
 	struct nullb_queue *nq;
 	struct hrtimer timer;
 	bool fake_timeout;
+	u32 n_sg;
+	enum dma_data_direction dma_dir;
+	dma_addr_t dma_address;
+	struct scatterlist sgl[NULL_BLK_MAX_SEGMENTS];
 };
 
 struct nullb_queue {
