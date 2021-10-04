@@ -480,6 +480,15 @@ free_iova(struct iova_domain *iovad, unsigned long pfn)
 }
 EXPORT_SYMBOL_GPL(free_iova);
 
+atomic64_t iova_allocs_rcache_log_too_big;
+
+atomic64_t atomic__iova_rcache_get;
+atomic64_t atomic__iova_rcache_get_no_depot;
+atomic64_t atomic__iova_rcache_get_has_pfn;
+atomic64_t atomic__iova_rcache_get_has_pfn_success;
+atomic64_t atomic__iova_rcache_get_zero_depot;
+atomic64_t atomic__iova_rcache_grab_depot;
+atomic64_t atomic__iova_depot_full_at_insert;
 /**
  * alloc_iova_fast - allocates an iova from rcache
  * @iovad: - iova domain in question
@@ -490,24 +499,206 @@ EXPORT_SYMBOL_GPL(free_iova);
  * and falls back to regular allocation on failure. If regular allocation
  * fails too and the flush_rcache flag is set then the rcache will be flushed.
 */
+atomic64_t iova_allocs;
+atomic64_t iova_allocs_rcache;
+atomic64_t iova_allocs_rcache_alloc_fail;
+atomic64_t iova_allocs_rcache_alloc_fail_flush;
+atomic64_t iova_allocs_new_iova;
+
+#define IOVA_MAG_SIZE 128
+
+struct iova_magazine {
+	unsigned long size;
+	unsigned long pfns[IOVA_MAG_SIZE];
+	unsigned long low_watermark, high_watermark;
+};
+
+struct iova_cpu_rcache {
+	spinlock_t lock;
+	bool prev_mag_hit;
+	unsigned long nr_hit;
+	struct iova_magazine *loaded;
+	struct iova_magazine *prev;
+};
+
+unsigned long print_cpu_iova(int cpu, struct iova_domain *iovad, bool  print_cpus)
+{
+	struct iova_cpu_rcache *cpu_rcache;
+	struct iova_rcache *rcache;
+	unsigned long flags;
+	char string[2000] = {};
+	int i;
+	unsigned long total = 0;
+
+
+	if (print_cpus)
+		sprintf(string, "%s cpu%d ", __func__, cpu);
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
+		struct iova_magazine *loaded, *prev;
+		rcache = &iovad->rcaches[i];
+		
+		cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
+		spin_lock_irqsave(&cpu_rcache->lock, flags);
+		loaded = cpu_rcache->loaded;
+		if (loaded)
+			total += loaded->size;
+		prev = cpu_rcache->prev;
+		if (prev)
+			total += prev->size;
+		if (print_cpus) {
+			sprintf(string + strlen(string), "i=%d l=%lu p=%lu, ", i, 
+				loaded ? loaded->size : -1,
+				prev ? prev->size : -1);
+		}
+		spin_unlock_irqrestore(&cpu_rcache->lock, flags);
+	}
+
+
+	if (print_cpus)
+		pr_err("%s total=%lu\n", string, total);
+	return total;
+}
+
+void print_iova(struct iova_domain *iovad, bool print_cpus)
+{
+	unsigned int cpu;
+	unsigned long cpu_total = 0, depot_total = 0;
+	int i;
+	u64 _iova_allocs, _iova_allocs_rcache, _iova_allocs_new_iova,
+		 _iova_allocs_rcache_log_too_big;
+	u64 _atomic__iova_rcache_get;
+	u64 _atomic__iova_rcache_get_has_pfn;
+	u64 _atomic__iova_rcache_get_has_pfn_success;
+	u64 _atomic__iova_rcache_get_zero_depot;
+	u64 _atomic__iova_depot_full_at_insert;
+	u64 _iova_allocs_rcache_alloc_fail;
+	u64 _iova_allocs_rcache_alloc_fail_flush;
+	u64 _atomic__iova_rcache_grab_depot;
+	u64 too_big;
+	u64 diff;
+
+
+	_atomic__iova_depot_full_at_insert = atomic64_read(&atomic__iova_depot_full_at_insert);
+	_iova_allocs = atomic64_read(&iova_allocs);
+	_iova_allocs_rcache = atomic64_read(&iova_allocs_rcache);
+	_iova_allocs_new_iova = atomic64_read(&iova_allocs_new_iova);
+	_iova_allocs_rcache_log_too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
+	_atomic__iova_rcache_get = atomic64_read(&atomic__iova_rcache_get);
+	_atomic__iova_rcache_get_has_pfn = atomic64_read(&atomic__iova_rcache_get_has_pfn);
+	_atomic__iova_rcache_get_has_pfn_success = atomic64_read(&atomic__iova_rcache_get_has_pfn_success);
+	_atomic__iova_rcache_get_zero_depot = atomic64_read(&atomic__iova_rcache_get_zero_depot);
+	_iova_allocs_rcache_alloc_fail = atomic64_read(&iova_allocs_rcache_alloc_fail);
+	_atomic__iova_rcache_grab_depot = atomic64_read(&atomic__iova_rcache_grab_depot);
+	_iova_allocs_rcache_alloc_fail_flush = atomic64_read(&iova_allocs_rcache_alloc_fail_flush);
+	too_big = atomic64_read(&iova_allocs_rcache_log_too_big);
+		
+	for_each_online_cpu(cpu)
+		cpu_total += print_cpu_iova(cpu, iovad, print_cpus);
+
+	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
+		struct iova_rcache *rcache = &iovad->rcaches[i];
+		int j;
+		unsigned long flags;
+		char string[500];
+		int dcount = 0;
+		sprintf(string, "%s rcache%d ", __func__, i);
+
+
+		spin_lock_irqsave(&rcache->lock, flags);
+		for (j = 0; j < MAX_GLOBAL_MAGS; ++j) {
+			struct iova_magazine *depot = rcache->depot[j];
+
+			if (!depot)
+				continue;
+			if (depot->size <= IOVA_MAG_SIZE) {
+				depot_total += depot->size;
+				sprintf(string+strlen(string), "%lu ", depot->size);
+				dcount++;
+			} else {
+				sprintf(string+strlen(string), "- ");
+				pr_err_once("%s iova=%pS i=%d j=%d depot->size=%lu\n", __func__, iovad, i, i, depot->size);
+			}
+				
+		}
+		spin_unlock_irqrestore(&rcache->lock, flags);
+		if (print_cpus)
+			pr_err("%s [dcount=%d]\n", string, dcount);
+	}
+
+
+		
+	pr_err("%s1 cpu_total=%lu depot_total=%lu total=%lu\n", __func__, cpu_total, depot_total, cpu_total + depot_total);
+
+	if (_iova_allocs > _iova_allocs_rcache + _iova_allocs_new_iova)
+		diff = _iova_allocs - _iova_allocs_rcache - _iova_allocs_new_iova;
+	else
+		diff = _iova_allocs_rcache + _iova_allocs_new_iova - _iova_allocs;
+
+	pr_err("%s2 iova_allocs(=%llu rcache=%llu (%llu %%) new_iova=%llu diff=%llu fail=%llu flush=%llu) rcache_get=(%llu, pfn=%llu, success=%llu, zero depot=%llu) insert depot full=%llu grab from depot=%llu too_big for rcache=%llu\n",
+		__func__, 
+		_iova_allocs,
+		_iova_allocs_rcache, (_iova_allocs_rcache * 100) / _iova_allocs,
+		_iova_allocs_new_iova,
+		diff, 
+		_iova_allocs_rcache_alloc_fail,
+		_iova_allocs_rcache_alloc_fail_flush,
+		_atomic__iova_rcache_get,
+		_atomic__iova_rcache_get_has_pfn,
+		_atomic__iova_rcache_get_has_pfn_success,
+		_atomic__iova_rcache_get_zero_depot,
+		_atomic__iova_depot_full_at_insert,
+		_atomic__iova_rcache_grab_depot,
+		too_big);
+
+	atomic64_sub(_iova_allocs, &iova_allocs);
+	atomic64_sub(_iova_allocs_rcache, &iova_allocs_rcache);
+	atomic64_sub(_iova_allocs_new_iova, &iova_allocs_new_iova);
+	atomic64_set(&iova_allocs_rcache_log_too_big, 0);
+	atomic64_sub(_atomic__iova_rcache_get, &atomic__iova_rcache_get);
+	atomic64_sub(_atomic__iova_rcache_get_has_pfn, &atomic__iova_rcache_get_has_pfn);
+	atomic64_sub(_atomic__iova_rcache_get_has_pfn_success, &atomic__iova_rcache_get_has_pfn_success);
+	atomic64_sub(_atomic__iova_rcache_get_zero_depot, &atomic__iova_rcache_get_zero_depot);
+	atomic64_sub(_atomic__iova_depot_full_at_insert, &atomic__iova_depot_full_at_insert);
+	atomic64_sub(_iova_allocs_rcache_alloc_fail, &iova_allocs_rcache_alloc_fail);
+	atomic64_sub(_iova_allocs_rcache_alloc_fail_flush, &iova_allocs_rcache_alloc_fail_flush);
+	atomic64_sub(_atomic__iova_rcache_grab_depot, &atomic__iova_rcache_grab_depot);
+}
 unsigned long
 alloc_iova_fast(struct iova_domain *iovad, unsigned long size,
 		unsigned long limit_pfn, bool flush_rcache)
 {
 	unsigned long iova_pfn;
 	struct iova *new_iova;
+	u64 old = atomic64_inc_return(&iova_allocs);
+	static int count;
+
+	 if((old % 5000000) == 0) {
+	 	count++;
+		if (count == 10) {
+			print_iova(iovad, true);
+			count= 0;
+		} else {
+			print_iova(iovad, false);
+		}
+	}
 
 	iova_pfn = iova_rcache_get(iovad, size, limit_pfn + 1);
-	if (iova_pfn)
+	if (iova_pfn) {
+		atomic64_inc(&iova_allocs_rcache);
 		return iova_pfn;
+	}
 
 retry:
 	new_iova = alloc_iova(iovad, size, limit_pfn, true);
 	if (!new_iova) {
 		unsigned int cpu;
+		atomic64_inc(&iova_allocs_rcache_alloc_fail);
 
 		if (!flush_rcache)
 			return 0;
+		
+		atomic64_inc(&iova_allocs_rcache_alloc_fail_flush);
 
 		/* Try replenishing IOVAs by flushing rcache. */
 		flush_rcache = false;
@@ -515,6 +706,8 @@ retry:
 			free_cpu_cached_iovas(cpu, iovad);
 		free_global_cached_iovas(iovad);
 		goto retry;
+	} else {
+		atomic64_inc(&iova_allocs_new_iova);
 	}
 
 	return new_iova->pfn_lo;
@@ -798,19 +991,6 @@ EXPORT_SYMBOL_GPL(reserve_iova);
  * dynamic size tuning described in the paper.
  */
 
-#define IOVA_MAG_SIZE 128
-
-struct iova_magazine {
-	unsigned long size;
-	unsigned long pfns[IOVA_MAG_SIZE];
-};
-
-struct iova_cpu_rcache {
-	spinlock_t lock;
-	struct iova_magazine *loaded;
-	struct iova_magazine *prev;
-};
-
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 {
 	return kzalloc(sizeof(struct iova_magazine), flags);
@@ -873,6 +1053,7 @@ static unsigned long iova_magazine_pop(struct iova_magazine *mag,
 	/* Swap it to pop it */
 	pfn = mag->pfns[i];
 	mag->pfns[i] = mag->pfns[--mag->size];
+	mag->low_watermark = min(mag->size, mag->low_watermark);
 
 	return pfn;
 }
@@ -882,6 +1063,7 @@ static void iova_magazine_push(struct iova_magazine *mag, unsigned long pfn)
 	BUG_ON(iova_magazine_full(mag));
 
 	mag->pfns[mag->size++] = pfn;
+	mag->high_watermark = max(mag->size, mag->high_watermark);
 }
 
 static void init_iova_rcaches(struct iova_domain *iovad)
@@ -939,6 +1121,7 @@ static bool __iova_rcache_insert(struct iova_domain *iovad,
 				rcache->depot[rcache->depot_size++] =
 						cpu_rcache->loaded;
 			} else {
+				atomic64_inc(&atomic__iova_depot_full_at_insert);
 				mag_to_free = cpu_rcache->loaded;
 			}
 			spin_unlock(&rcache->lock);
@@ -985,6 +1168,8 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 	bool has_pfn = false;
 	unsigned long flags;
 
+	atomic64_inc(&atomic__iova_rcache_get);
+
 	cpu_rcache = raw_cpu_ptr(rcache->cpu_rcaches);
 	spin_lock_irqsave(&cpu_rcache->lock, flags);
 
@@ -998,13 +1183,23 @@ static unsigned long __iova_rcache_get(struct iova_rcache *rcache,
 		if (rcache->depot_size > 0) {
 			iova_magazine_free(cpu_rcache->loaded);
 			cpu_rcache->loaded = rcache->depot[--rcache->depot_size];
+			cpu_rcache->loaded->low_watermark = IOVA_MAG_SIZE;
+			cpu_rcache->loaded->high_watermark = IOVA_MAG_SIZE;
+			rcache->depot[rcache->depot_size] = NULL;
 			has_pfn = true;
+			atomic64_inc(&atomic__iova_rcache_grab_depot);
+		} else {
+			atomic64_inc(&atomic__iova_rcache_get_zero_depot);
 		}
 		spin_unlock(&rcache->lock);
 	}
 
-	if (has_pfn)
+	if (has_pfn) {
+		atomic64_inc(&atomic__iova_rcache_get_has_pfn);
 		iova_pfn = iova_magazine_pop(cpu_rcache->loaded, limit_pfn);
+		if (iova_pfn)
+			atomic64_inc(&atomic__iova_rcache_get_has_pfn_success);
+	}
 
 	spin_unlock_irqrestore(&cpu_rcache->lock, flags);
 
@@ -1046,10 +1241,9 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 
 	if (log_size >= IOVA_RANGE_CACHE_MAX_SIZE) {
 		atomic64_inc(&too_big);
+		atomic64_inc_return(&iova_allocs_rcache_log_too_big);
 		return 0;
 	}
-	
-	atomic64_inc(&range[log_size]);
 
 	return __iova_rcache_get(&iovad->rcaches[log_size], limit_pfn - size);
 }
