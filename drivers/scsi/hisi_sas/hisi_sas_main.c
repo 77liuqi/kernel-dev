@@ -405,9 +405,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 
 		if (dev_is_sata(device)) {
 			qc = task->uldd_task;
-			 if (task->slow_task)
+			 if (task->slow_task) {
 				scmd = task->slow_task->scmd; //ata internal
-			else
+				WARN_ON_ONCE(1);
+			} else
 				scmd = qc->scsicmd;
 		} else {
 			scmd = task->uldd_task;
