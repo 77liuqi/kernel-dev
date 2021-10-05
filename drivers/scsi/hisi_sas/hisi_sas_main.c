@@ -1151,15 +1151,15 @@ static void hisi_sas_task_done(struct sas_task *task)
 {
 	struct scsi_cmnd *scmd =  task->slow_task->scmd;
 
-	pr_err("%s task=%pS scmd=%pS\n", __func__, task, scmd);
+	pr_err_once("%s task=%pS scmd=%pS\n", __func__, task, scmd);
 
 	if (scmd) {
 		struct request *rq = scsi_cmd_to_rq(scmd);
 
-		pr_err("%s2 task=%pS scmd=%pS rq=%pS poll=%d\n", __func__, task, scmd, rq, blk_rq_is_poll(rq));
+		pr_err_once("%s2 task=%pS scmd=%pS rq=%pS poll=%d\n", __func__, task, scmd, rq, blk_rq_is_poll(rq));
 
 		if (blk_rq_is_poll(rq)) {
-			pr_err("%s3 poll task=%pS scmd=%pS rq=%pS rq->end_io_data=%pS\n", __func__, task, scmd, rq, rq->end_io_data);
+			pr_err_once("%s3 poll task=%pS scmd=%pS rq=%pS rq->end_io_data=%pS\n", __func__, task, scmd, rq, rq->end_io_data);
 			del_timer(&task->slow_task->timer);
 			complete(rq->end_io_data);
 			return;
@@ -2062,12 +2062,12 @@ err_out:
 
 static void hisi_sas_blk_rq_poll_completion(struct request *rq, struct completion *wait)
 {
-	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
+//	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
 	do {
 		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
 		cond_resched();
 	} while (!completion_done(wait));
-	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
+//	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
 }
 
 static void eh_lock_door_done(struct request *req, blk_status_t status)
@@ -2090,7 +2090,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct request *rq;
 	int res;
 
-	pr_err("%s device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
+//	pr_err("%s device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
 
 	/*
 	 * The interface is not realized means this HW don't support internal
@@ -2123,10 +2123,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	scmd = task->slow_task->scmd;
 	rq = scsi_cmd_to_rq(scmd);
 
-	pr_err("%s2 device=%pS abort_flag=%d tag=%d dq id=%d scmd=%pS rq=%pS poll=%d &wait=%pS\n",
-		__func__, device, abort_flag, tag, dq->id,
-		scmd, rq, blk_rq_is_poll(rq),
-		&wait);
+//	pr_err("%s2 device=%pS abort_flag=%d tag=%d dq id=%d scmd=%pS rq=%pS poll=%d &wait=%pS\n",
+//		__func__, device, abort_flag, tag, dq->id,
+//		scmd, rq, blk_rq_is_poll(rq),
+//		&wait);
 
 	if (blk_rq_is_poll(rq)) {
 		rq->end_io_data = &wait;
@@ -2213,7 +2213,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct hisi_sas_dq *dq;
 	int i, rc;
 
-	pr_err("%s device=%pS abort_flag=%d tag=%d\n", __func__, device, abort_flag, tag);
+//	pr_err("%s device=%pS abort_flag=%d tag=%d\n", __func__, device, abort_flag, tag);
 
 	switch (abort_flag) {
 	case HISI_SAS_INT_ABT_CMD:
@@ -2231,9 +2231,11 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			dq = &hisi_hba->dq[i];
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
 					abort_flag, tag, dq, rst_to_recover);
-			pr_err("%s1 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
-		//	if (rc)
-		//		return rc;
+			
+			if (rc) {
+				pr_err("%s1 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
+				return rc;
+			}
 		}
 		for (i = hisi_hba->cq_nvecs; i < hisi_hba->cq_nvecs + hisi_hba->iopoll_q_count; i++) {
 		//	struct hisi_sas_cq *cq = &hisi_hba->cq[i];
@@ -2244,9 +2246,11 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			dq = &hisi_hba->dq[i];
 			rc = _hisi_sas_internal_task_abort(hisi_hba, device,
 					abort_flag, tag, dq, rst_to_recover);
-			pr_err("%s2 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
-		//	if (rc)
-		//		return rc;
+			
+			if (rc) {
+				pr_err("%s2 i=%d rc=%d DEV device=%pS abort_flag=%d tag=%d\n", __func__, i, rc, device, abort_flag, tag);
+				return rc;
+			}
 		}
 		break;
 	default:
