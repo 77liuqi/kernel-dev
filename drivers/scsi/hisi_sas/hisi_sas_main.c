@@ -1176,6 +1176,16 @@ static void hisi_sas_tmf_timedout(struct timer_list *t)
 		complete(&task->slow_task->completion);
 }
 
+static void hisi_sas_poll_completion(struct request *rq, struct completion *wait)
+{
+//	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
+	do {
+		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
+		cond_resched();
+	} while (!completion_done(wait));
+//	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
+}
+
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 #define INTERNAL_ABORT_TIMEOUT		(6 * HZ)
@@ -1236,8 +1246,11 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 				res);
 			goto ex_err;
 		}
+		if (hisi_sas_is_poll_queue(dq))
+			hisi_sas_poll_completion(rq, &task->slow_task->completion);
+		else
+			wait_for_completion(&task->slow_task->completion);
 
-		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -2050,18 +2063,6 @@ err_out:
 	dev_err(dev, "internal abort task prep: failed[%d]!\n", rc);
 
 	return rc;
-}
-
-
-
-static void hisi_sas_poll_completion(struct request *rq, struct completion *wait)
-{
-//	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
-	do {
-		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
-		cond_resched();
-	} while (!completion_done(wait));
-//	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
 }
 
 /**
