@@ -369,6 +369,11 @@ err_out_dif_dma_unmap:
 	return rc;
 }
 
+ static bool blk_rq_is_poll(struct request *rq)
+{
+	return rq->mq_hctx && rq->mq_hctx->type == HCTX_TYPE_POLL;
+}
+
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
 			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
@@ -390,6 +395,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	unsigned long flags;
 	u32 blk_tag;
 	int wr_q_index;
+	struct request *rq;
 
 	if (DEV_IS_GONE(sas_dev)) {
 		if (sas_dev)
@@ -427,6 +433,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
 	dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 	*dq_pointer = dq = &hisi_hba->dq[dq_index];
+	rq = scsi_cmd_to_rq(scmd);
+
+	if (tmf)
+		pr_err("%s tmf dq id=%d is poll=%d\n", __func__, dq->id, blk_rq_is_poll(rq));
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
@@ -1137,10 +1147,6 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 	return 0;
 }
 
- static bool blk_rq_is_poll(struct request *rq)
-{
-	return rq->mq_hctx && rq->mq_hctx->type == HCTX_TYPE_POLL;
-}
 
 static void hisi_sas_task_done(struct sas_task *task)
 {
@@ -1195,6 +1201,9 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
+		struct scsi_cmnd *scmd;
+		struct request *rq;
+	
 		task = sas_alloc_slow_task(device, GFP_KERNEL, -1);
 		if (!task)
 			return -ENOMEM;
@@ -1213,6 +1222,10 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->slow_task->timer.function = hisi_sas_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
+		scmd = task->slow_task->scmd;
+		rq = scsi_cmd_to_rq(scmd);
+		if (blk_rq_is_poll(rq))
+			pr_err_once("%s polling rq by we will not poll\n", __func__);
 
 		res = hisi_sas_task_exec(task, GFP_KERNEL, 1, tmf);
 
