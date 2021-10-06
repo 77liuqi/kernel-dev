@@ -386,7 +386,9 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
 	struct scsi_cmnd *scmd = NULL;
 	struct hisi_sas_dq *dq;
+	unsigned int dq_index;
 	unsigned long flags;
+	u32 blk_tag;
 	int wr_q_index;
 
 	if (DEV_IS_GONE(sas_dev)) {
@@ -419,20 +421,12 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	WARN_ONCE(task->uldd_task && task->slow_task, "%s2 task->uldd_task=%pS task->slow_task=%pS\n", __func__, task->uldd_task, task->slow_task);
 	//WARN_ONCE(!task->uldd_task, "%s2\n", __func__);//for smp sg command
 
-	if (scmd) {
-		unsigned int dq_index;
-		u32 blk_tag;
+	if (!scmd)
+		return -EIO;
 
-		blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
-		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
-		*dq_pointer = dq = &hisi_hba->dq[dq_index];
-	} else {
-		struct Scsi_Host *shost = hisi_hba->shost;
-		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-		int queue = qmap->mq_map[0];
-
-		*dq_pointer = dq = &hisi_hba->dq[queue];
-	}
+	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+	dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	*dq_pointer = dq = &hisi_hba->dq[dq_index];
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
