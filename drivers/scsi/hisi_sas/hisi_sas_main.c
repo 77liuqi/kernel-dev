@@ -1155,9 +1155,6 @@ static void hisi_sas_task_done(struct sas_task *task)
 
 		if (blk_rq_is_poll(rq)) {
 			pr_err_once("%s3 poll task=%pS scmd=%pS rq=%pS rq->end_io_data=%pS\n", __func__, task, scmd, rq, rq->end_io_data);
-			del_timer(&task->slow_task->timer);
-			complete(rq->end_io_data);
-			return;
 		}
 
 	}
@@ -2041,6 +2038,18 @@ err_out:
 	return rc;
 }
 
+
+
+static void hisi_sas_poll_completion(struct request *rq, struct completion *wait)
+{
+//	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
+	do {
+		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
+		cond_resched();
+	} while (!completion_done(wait));
+//	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
+}
+
 /**
  * _hisi_sas_internal_task_abort -- execute an internal
  * abort command for single IO command or a device
@@ -2054,22 +2063,6 @@ err_out:
  * @rst_to_recover: If rst_to_recover set, queue a controller
  *		    reset if an internal abort times out.
  */
-
-static void hisi_sas_blk_rq_poll_completion(struct request *rq, struct completion *wait)
-{
-//	pr_err("%s rq=%pS wait=%pS\n", __func__, rq, wait);
-	do {
-		blk_poll(rq->q, request_to_qc_t(rq->mq_hctx, rq), true);
-		cond_resched();
-	} while (!completion_done(wait));
-//	pr_err("%s10 finished rq=%pS wait=%pS\n", __func__, rq, wait);
-}
-
-static void eh_lock_door_done(struct request *req, blk_status_t status)
-{
-	pr_err("%s req=%pS status=%d\n", __func__, req, status);
-}
-
 static int
 _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device,
@@ -2078,7 +2071,6 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				  bool rst_to_recover)
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	DECLARE_COMPLETION_ONSTACK(wait);
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	struct scsi_cmnd *scmd;
@@ -2122,11 +2114,6 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 //		__func__, device, abort_flag, tag, dq->id,
 //		scmd, rq, blk_rq_is_poll(rq),
 //		&wait);
-
-	if (blk_rq_is_poll(rq)) {
-		rq->end_io_data = &wait;
-		rq->end_io = eh_lock_door_done;
-	}
 		
 	res = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
 						task, abort_flag, tag, dq);
@@ -2137,7 +2124,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		goto exit;
 	}
 	if (blk_rq_is_poll(rq))
-		hisi_sas_blk_rq_poll_completion(rq, &wait);
+		hisi_sas_poll_completion(rq, &task->slow_task->completion);
 	else
 		wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
