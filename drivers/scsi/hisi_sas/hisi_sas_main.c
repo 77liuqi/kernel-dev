@@ -369,9 +369,9 @@ err_out_dif_dma_unmap:
 	return rc;
 }
 
- static bool blk_rq_is_poll(struct request *rq)
+static bool hisi_sas_is_poll_queue(struct hisi_sas_dq *dq)
 {
-	return rq->mq_hctx && rq->mq_hctx->type == HCTX_TYPE_POLL;
+	return dq->id >= dq->hisi_hba->iopoll_q_count; // this might not be the right check
 }
 
 static int hisi_sas_task_prep(struct sas_task *task,
@@ -436,7 +436,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	rq = scsi_cmd_to_rq(scmd);
 
 	if (tmf)
-		pr_err("%s tmf dq id=%d is poll=%d\n", __func__, dq->id, blk_rq_is_poll(rq));
+		pr_err("%s tmf dq id=%d is poll=%d\n", __func__, dq->id, hisi_sas_is_poll_queue(dq));
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
@@ -1154,17 +1154,6 @@ static void hisi_sas_task_done(struct sas_task *task)
 
 	pr_err_once("%s task=%pS scmd=%pS\n", __func__, task, scmd);
 
-	if (scmd) {
-		struct request *rq = scsi_cmd_to_rq(scmd);
-
-		pr_err_once("%s2 task=%pS scmd=%pS rq=%pS poll=%d\n", __func__, task, scmd, rq, blk_rq_is_poll(rq));
-
-		if (blk_rq_is_poll(rq)) {
-			pr_err_once("%s3 poll task=%pS scmd=%pS rq=%pS rq->end_io_data=%pS\n", __func__, task, scmd, rq, rq->end_io_data);
-		}
-
-	}
-
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
@@ -1202,9 +1191,14 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		struct scsi_cmnd *scmd;
+		struct hisi_sas_dq *dq;
 		struct request *rq;
+		u32 blk_tag;
+		u16 dq_index;
+		
 	
-		task = sas_alloc_slow_task(device, GFP_KERNEL, -1);
+	
+		task = sas_alloc_slow_task(device, GFP_KERNEL, 10);
 		if (!task)
 			return -ENOMEM;
 
@@ -1224,7 +1218,14 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		add_timer(&task->slow_task->timer);
 		scmd = task->slow_task->scmd;
 		rq = scsi_cmd_to_rq(scmd);
-		if (blk_rq_is_poll(rq))
+
+		
+		blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+		dq = &hisi_hba->dq[dq_index];
+
+		
+		if (hisi_sas_is_poll_queue(dq))
 			pr_err_once("%s polling rq by we will not poll\n", __func__);
 
 		res = hisi_sas_task_exec(task, GFP_KERNEL, 1, tmf);
@@ -2090,6 +2091,9 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct request *rq;
 	int res;
 
+	u16 dq_index;
+	u32 blk_tag;
+
 //	pr_err("%s device=%pS abort_flag=%d tag=%d dq id=%d\n", __func__, device, abort_flag, tag, dq->id);
 
 	/*
@@ -2123,6 +2127,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	scmd = task->slow_task->scmd;
 	rq = scsi_cmd_to_rq(scmd);
 
+	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+	dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+	dq = &hisi_hba->dq[dq_index];
+
 //	pr_err("%s2 device=%pS abort_flag=%d tag=%d dq id=%d scmd=%pS rq=%pS poll=%d &wait=%pS\n",
 //		__func__, device, abort_flag, tag, dq->id,
 //		scmd, rq, blk_rq_is_poll(rq),
@@ -2136,7 +2144,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			res);
 		goto exit;
 	}
-	if (blk_rq_is_poll(rq))
+	if (hisi_sas_is_poll_queue(dq))
 		hisi_sas_poll_completion(rq, &task->slow_task->completion);
 	else
 		wait_for_completion(&task->slow_task->completion);
