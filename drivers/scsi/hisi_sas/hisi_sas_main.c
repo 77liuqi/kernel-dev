@@ -405,7 +405,7 @@ err_out_dif_dma_unmap:
 
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
-			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
+			      struct hisi_sas_tmf_task *tmf)
 {
 	struct domain_device *device = task->dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
@@ -513,7 +513,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	slot->task = task;
 	slot->port = port;
 	slot->tmf = tmf;
-	slot->is_internal = is_tmf;
+	slot->is_internal = tmf;
 	task->lldd_task = slot;
 
 	memset(slot->cmd_hdr, 0, sizeof(struct hisi_sas_cmd_hdr));
@@ -563,7 +563,7 @@ prep_out:
 }
 
 static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
-			      bool is_tmf, struct hisi_sas_tmf_task *tmf)
+			      struct hisi_sas_tmf_task *tmf)
 {
 	u32 rc;
 	struct hisi_hba *hisi_hba;
@@ -598,7 +598,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	}
 
 	/* protect task_prep and start_delivery sequence */
-	rc = hisi_sas_task_prep(task, &dq, is_tmf, tmf);
+	rc = hisi_sas_task_prep(task, &dq, tmf);
 	if (rc)
 		dev_err(dev, "task exec: failed[%d]!\n", rc);
 
@@ -1116,7 +1116,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	return hisi_sas_task_exec(task, gfp_flags, 0, NULL);
+	return hisi_sas_task_exec(task, gfp_flags, NULL);
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
@@ -1273,7 +1273,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		res = hisi_sas_task_exec(task, GFP_KERNEL, 1, tmf);
+		res = hisi_sas_task_exec(task, GFP_KERNEL, tmf);
 
 		if (res) {
 			del_timer_sync(&task->slow_task->timer);
