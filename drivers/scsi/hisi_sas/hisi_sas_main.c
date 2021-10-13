@@ -422,6 +422,12 @@ static int hisi_sas_task_prep(struct sas_task *task,
 	struct hisi_sas_dq *dq;
 	unsigned long flags;
 	int wr_q_index;
+	struct scatterlist *sc;
+	int num_sg, i;
+	bool print = false;
+
+
+	num_sg = task->num_scatter;
 
 	if (DEV_IS_GONE(sas_dev)) {
 		if (sas_dev)
@@ -442,8 +448,17 @@ static int hisi_sas_task_prep(struct sas_task *task,
 			scmd = qc->scsicmd;
 		} else {
 			scmd = task->uldd_task;
+			print = true;
 		}
 	}
+
+	if (print) {
+		for_each_sg(task->scatter, sc, num_sg, i) {
+			pr_err("%s1 scmd=%pS i=%d num_sg=%d sc=%pS page_link=0x%lx offset=0x%x length=0x%x dma_addr=%pad dma_length=0x%x\n",
+				__func__, scmd, i, num_sg, sc, sc->page_link, sc->offset, sc->length, &sc->dma_address, sc->dma_length);
+		}
+	}
+
 
 	if (scmd) {
 		unsigned int dq_index;
@@ -470,10 +485,19 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		return -ECOMM;
 	}
 
+	
+
 	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
 			      &n_elem_req);
 	if (rc < 0)
 		goto prep_out;
+
+	if (print) {
+		for_each_sg(task->scatter, sc, num_sg, i) {
+			pr_err("%s2 scmd=%pS i=%d num_sg=%d sc=%pS page_link=0x%lx offset=0x%x length=0x%x dma_addr=%pad dma_length=0x%x\n",
+				__func__, scmd, i, num_sg, sc, sc->page_link, sc->offset, sc->length, &sc->dma_address, sc->dma_length);
+		}
+	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
 		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
