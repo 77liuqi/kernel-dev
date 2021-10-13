@@ -2186,7 +2186,7 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 }
 
 static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
-				struct hisi_sas_slot *slot)
+				struct hisi_sas_slot *slot, bool *done)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -2321,7 +2321,7 @@ out:
 	}
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
-	hisi_sas_slot_task_free(hisi_hba, task, slot);
+	*done = true;
 
 	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
 		spin_lock_irqsave(&device->done_lock, flags);
@@ -2334,8 +2334,6 @@ out:
 		spin_unlock_irqrestore(&device->done_lock, flags);
 	}
 
-	if (task->task_done)
-		task->task_done(task);
 }
 
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
@@ -2357,6 +2355,7 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 		struct device *dev = hisi_hba->dev;
 		u32 dw1;
 		int iptt;
+		bool done = false;
 
 		complete_hdr = &complete_queue[rd_point];
 		dw1 = le32_to_cpu(complete_hdr->dw1);
@@ -2366,9 +2365,17 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v3_hw(hisi_hba, slot);
+			slot_complete_v3_hw(hisi_hba, slot, &done);
 		} else
 			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
+
+		if (done) {
+			struct sas_task *task = slot->task;
+
+			hisi_sas_slot_task_free(hisi_hba, task, slot);
+			if (task->task_done)
+				task->task_done(task);
+		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
