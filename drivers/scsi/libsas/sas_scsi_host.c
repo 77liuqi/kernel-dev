@@ -150,7 +150,9 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	task->ssp_task.task_attr = TASK_ATTR_SIMPLE;
 	task->ssp_task.cmd = cmd;
 
+
 	task->scatter = scsi_sglist(cmd);
+	pr_err("%s cmd=%pS scatter=%pS\n", __func__, cmd, task->scatter);
 	task->num_scatter = scsi_sg_count(cmd);
 	task->total_xfer_len = scsi_bufflen(cmd);
 	task->data_dir = cmd->sc_data_direction;
