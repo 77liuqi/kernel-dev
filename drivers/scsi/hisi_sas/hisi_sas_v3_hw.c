@@ -2344,6 +2344,9 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v3_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point;
 	int queue = cq->id;
+	struct hisi_sas_slot *head = NULL, *prev = NULL;
+	static int max;
+	int count = 0;
 
 	complete_queue = hisi_hba->complete_hdr[queue];
 
@@ -2369,12 +2372,15 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 		} else
 			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
 
-		if (done) {
-			struct sas_task *task = slot->task;
 
-			hisi_sas_slot_task_free(hisi_hba, task, slot);
-			if (task->task_done)
-				task->task_done(task);
+
+		if (done) {
+			if (!head) {
+				head = prev = slot;
+			} else {
+				prev->next = slot;
+				prev = slot;
+			}
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
@@ -2384,6 +2390,20 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	if (head) {
+		struct sas_task *task = head->task;
+		count++;
+		if (count > max) {
+			max = count;
+			pr_err("%s max=%d\n", __func__, max);
+		}
+		hisi_sas_slot_task_free(hisi_hba, task, slot);
+		if (task->task_done)
+			task->task_done(task);
+
+		head = head->next;
+	}
 
 	return IRQ_HANDLED;
 }
