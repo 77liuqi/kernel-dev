@@ -2319,7 +2319,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 }
 
 static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
-				struct hisi_sas_slot *slot)
+				struct hisi_sas_slot *slot, bool *done)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -2465,21 +2465,10 @@ out:
 	}
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
-	hisi_sas_slot_task_free(hisi_hba, task, slot);
 
-	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
-		spin_lock_irqsave(&device->done_lock, flags);
-		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
-			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n",
-				 task);
-			return;
-		}
-		spin_unlock_irqrestore(&device->done_lock, flags);
-	}
+	*done = true;
 
-	if (task->task_done)
-		task->task_done(task);
+
 }
 
 static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
@@ -3117,6 +3106,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
+	struct hisi_sas_slot *head = NULL, *prev = NULL;
+	static int max;
+	int count = 0;
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3144,6 +3136,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 			/* The NCQ tags are held in the itct header */
 			while (ncq_tag_count) {
+				bool done = false;
 				__le64 *_ncq_tag = &itct->qw4_15[0], __ncq_tag;
 				u64 ncq_tag;
 
@@ -3156,28 +3149,61 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
-				slot_complete_v2_hw(hisi_hba, slot);
+				slot_complete_v2_hw(hisi_hba, slot, &done);
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
+				if (done) {
+					if (!head) {
+						head = prev = slot;
+					} else {
+						prev->next = slot;
+						prev = slot;
+					}
+				}
 			}
 		} else {
+			bool done = false;
 			u32 dw1 = le32_to_cpu(complete_hdr->dw1);
 
 			iptt = dw1 & CMPLT_HDR_IPTT_MSK;
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v2_hw(hisi_hba, slot);
+			slot_complete_v2_hw(hisi_hba, slot, &done);
+
+			if (done) {
+				if (!head) {
+					head = prev = slot;
+				} else {
+					prev->next = slot;
+					prev = slot;
+				}
+			}
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
 	}
 
+	if (head) {
+		struct sas_task *task = head->task;
+		count++;
+		if (count > max) {
+			max = count;
+			pr_err("%s max=%d\n", __func__, max);
+		}
+		hisi_sas_slot_task_free(hisi_hba, task, slot);
+		if (task->task_done)
+			task->task_done(task);
+
+		head = head->next;
+	}
+
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
 
 	return IRQ_HANDLED;
 }

@@ -2387,10 +2387,6 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 			rd_point = 0;
 	}
 
-	/* update rd_point */
-	cq->rd_point = rd_point;
-	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
-
 	if (head) {
 		struct sas_task *task = head->task;
 		count++;
@@ -2404,6 +2400,10 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 
 		head = head->next;
 	}
+
+	/* update rd_point */
+	cq->rd_point = rd_point;
+	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 
 	return IRQ_HANDLED;
 }
