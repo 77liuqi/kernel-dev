@@ -447,6 +447,9 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 
 		*sg = blk_next_sg(sg, sglist);
 		sg_set_page(*sg, page, len, offset);
+		
+		pr_err("%s *sg=%pS page=%pS len=0x%x bv.offset=0x%x\n",
+			__func__, *sg, page, len, offset);
 
 		total += len;
 		nbytes -= len;
@@ -461,6 +464,8 @@ static inline int __blk_bvec_map_sg(struct bio_vec bv,
 {
 	*sg = blk_next_sg(sg, sglist);
 	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+	pr_err("%s sglist=%pS bv.bv_page=%pS bv.bv_len=0x%x bv.bv_offset=0x%x\n",
+		__func__, sglist, bv.bv_page, bv.bv_len, bv.bv_offset);
 	return 1;
 }
 
