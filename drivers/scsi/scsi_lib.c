@@ -997,7 +997,7 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	if (need_drain)
 		nr_segs++;
 
-	pr_err("%s cmd=%pS scatter=%pS\n", __func__, cmd, &cmd->sdb.table);
+	pr_err("%s cmd=%pS scatter=%pS rq=%pS\n", __func__, cmd, &cmd->sdb.table, rq);
 
 	/*
 	 * If sg table allocation fails, requeue request later.

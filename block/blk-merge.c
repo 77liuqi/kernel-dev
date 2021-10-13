@@ -531,12 +531,16 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 {
 	int nsegs = 0;
 
-	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD) {
+		pr_err("%s1 RQF_SPECIAL_PAYLOAD sglist=%pS rq=%pS\n", __func__, sglist, rq);
 		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, last_sg);
-	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
+	} else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME) {
+		pr_err("%s2 REQ_OP_WRITE_SAME sglist=%pS rq=%pS\n", __func__, sglist, rq);
 		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, last_sg);
-	else if (rq->bio)
+	} else if (rq->bio) {
+		pr_err("%s3 bio sglist=%pS rq=%pS\n", __func__, sglist, rq);
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
+	}
 
 	if (*last_sg)
 		sg_mark_end(*last_sg);
