@@ -2332,7 +2332,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_complete_v2_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
-	bool is_internal = slot->is_internal;
+	//bool is_internal = slot->is_internal;
 	u32 dw0;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
@@ -3153,6 +3153,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
+
 				if (done) {
 					if (!head) {
 						head = prev = slot;
@@ -3186,7 +3187,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			rd_point = 0;
 	}
 
-	if (head) {
+	while (head) {
 		struct sas_task *task = head->task;
 		count++;
 		if (count > max) {
