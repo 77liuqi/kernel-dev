@@ -464,8 +464,10 @@ static inline int __blk_bvec_map_sg(struct bio_vec bv,
 {
 	*sg = blk_next_sg(sg, sglist);
 	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+	#ifdef snake
 	pr_err("%s sglist=%pS bv.bv_page=%pS bv.bv_len=0x%x bv.bv_offset=0x%x\n",
 		__func__, sglist, bv.bv_page, bv.bv_len, bv.bv_offset);
+	#endif
 	return 1;
 }
 
@@ -537,13 +539,19 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	int nsegs = 0;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD) {
+		#ifdef snake
 		pr_err("%s1 RQF_SPECIAL_PAYLOAD sglist=%pS rq=%pS\n", __func__, sglist, rq);
+		#endif
 		nsegs = __blk_bvec_map_sg(rq->special_vec, sglist, last_sg);
 	} else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME) {
+		#ifdef snake
 		pr_err("%s2 REQ_OP_WRITE_SAME sglist=%pS rq=%pS\n", __func__, sglist, rq);
+		#endif
 		nsegs = __blk_bvec_map_sg(bio_iovec(rq->bio), sglist, last_sg);
 	} else if (rq->bio) {
+		#ifdef snake
 		pr_err("%s3 bio sglist=%pS rq=%pS\n", __func__, sglist, rq);
+		#endif
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, last_sg);
 	}
 
