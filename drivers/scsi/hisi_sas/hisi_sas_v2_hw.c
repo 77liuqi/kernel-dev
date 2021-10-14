@@ -3153,7 +3153,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
+				#ifdef snake
 				pr_err("%s1 head=%pS prev=%pS slot=%pS done=%d\n", __func__, head, prev, slot, done);
+				#endif
 				if (done) {
 					if (!head) {
 						head = prev = slot;
@@ -3175,7 +3177,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			slot->cmplt_queue = queue;
 			slot_complete_v2_hw(hisi_hba, slot, &done);
 			
+			#ifdef snake
 			pr_err("%s2 head=%pS prev=%pS slot=%pS done=%d\n", __func__, head, prev, slot, done);
+			#endif
 
 			if (done) {
 				if (!head) {
@@ -3203,7 +3207,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			max = count;
 			pr_err("%s max=%d\n", __func__, max);
 		}
+		#ifdef snake
 		pr_err("%s3 head=%pS prev=%pS s1=%pS\n", __func__, head, prev, s1);
+		#endif
 		hisi_sas_slot_task_free(hisi_hba, t1, s1);
 		if (t1->task_done)
 			t1->task_done(t1);

@@ -448,8 +448,10 @@ static unsigned blk_bvec_map_sg(struct request_queue *q,
 		*sg = blk_next_sg(sg, sglist);
 		sg_set_page(*sg, page, len, offset);
 		
+	#ifdef snake
 		pr_err("%s *sg=%pS page=%pS len=0x%x bv.offset=0x%x\n",
 			__func__, *sg, page, len, offset);
+	#endif
 
 		total += len;
 		nbytes -= len;
