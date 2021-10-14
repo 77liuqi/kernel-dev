@@ -1225,7 +1225,9 @@ static blk_status_t sd_setup_read_write_cmnd(struct scsi_cmnd *cmd)
 	unsigned int dif;
 	bool dix;
 
+	#ifdef snake
 	pr_err("%s cmd=%pS\n", __func__, cmd);
+	#endif
 
 	ret = scsi_alloc_sgtables(cmd);
 	if (ret != BLK_STS_OK)
