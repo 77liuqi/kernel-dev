@@ -3153,11 +3153,13 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
-
+				pr_err("%s1 head=%pS prev=%pS slot=%pS done=%d\n", __func__, head, prev, slot, done);
 				if (done) {
 					if (!head) {
 						head = prev = slot;
+						head->next = NULL;
 					} else {
+						slot->next = NULL;
 						prev->next = slot;
 						prev = slot;
 					}
@@ -3172,11 +3174,15 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
 			slot_complete_v2_hw(hisi_hba, slot, &done);
+			
+			pr_err("%s2 head=%pS prev=%pS slot=%pS done=%d\n", __func__, head, prev, slot, done);
 
 			if (done) {
 				if (!head) {
 					head = prev = slot;
+					head->next = NULL;
 				} else {
+					slot->next = NULL;
 					prev->next = slot;
 					prev = slot;
 				}
@@ -3188,15 +3194,19 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	}
 
 	while (head) {
-		struct sas_task *task = head->task;
+		struct hisi_sas_slot *s1;
+		struct sas_task *t1;
+		s1 = head;
+		t1 = s1->task;
 		count++;
 		if (count > max) {
 			max = count;
 			pr_err("%s max=%d\n", __func__, max);
 		}
-		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		if (task->task_done)
-			task->task_done(task);
+		pr_err("%s3 head=%pS prev=%pS s1=%pS\n", __func__, head, prev, s1);
+		hisi_sas_slot_task_free(hisi_hba, t1, s1);
+		if (t1->task_done)
+			t1->task_done(t1);
 
 		head = head->next;
 	}
