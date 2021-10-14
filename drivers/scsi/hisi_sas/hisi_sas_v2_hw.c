@@ -3193,6 +3193,8 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
+		if (count > 10)
+			break;
 	}
 
 
