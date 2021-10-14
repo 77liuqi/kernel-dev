@@ -3106,9 +3106,11 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
-	struct hisi_sas_slot *head = NULL, *prev = NULL;
 	static int max;
 	int count = 0;
+	struct hisi_sas_slot *slot_array[100];
+	int index;
+	
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3157,14 +3159,11 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				pr_err("%s1 head=%pS prev=%pS slot=%pS done=%d\n", __func__, head, prev, slot, done);
 				#endif
 				if (done) {
-					if (!head) {
-						head = prev = slot;
-						head->next = NULL;
-					} else {
-						slot->next = NULL;
-						prev->next = slot;
-						prev = slot;
-					}
+					slot_array[count] = slot;
+					count++;
+					BUG_ON(count >= 100);
+				} else {
+					pr_err("%s1 not done\n", __func__);
 				}
 			}
 		} else {
@@ -3182,14 +3181,12 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			#endif
 
 			if (done) {
-				if (!head) {
-					head = prev = slot;
-					head->next = NULL;
-				} else {
-					slot->next = NULL;
-					prev->next = slot;
-					prev = slot;
-				}
+				slot_array[count] = slot;
+				count++;
+			
+				BUG_ON(count >= 100);
+			} else {
+				pr_err("%s2 not done\n", __func__);
 			}
 		}
 
@@ -3197,16 +3194,20 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			rd_point = 0;
 	}
 
-	while (head) {
+
+	
+	if (count > max) {
+		max = count;
+		pr_err("%s max=%d\n", __func__, max);
+	}
+
+	for (index = 0; index < count; index++) {
 		struct hisi_sas_slot *s1;
 		struct sas_task *t1;
-		s1 = head;
+
+		s1 = slot_array[index];
 		t1 = s1->task;
-		count++;
-		if (count > max) {
-			max = count;
-			pr_err("%s max=%d\n", __func__, max);
-		}
+		//count++;
 		#ifdef snake
 		pr_err("%s3 head=%pS prev=%pS s1=%pS\n", __func__, head, prev, s1);
 		#endif
@@ -3214,7 +3215,6 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 		if (t1->task_done)
 			t1->task_done(t1);
 
-		head = head->next;
 	}
 
 	/* update rd_point */
