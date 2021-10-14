@@ -3108,7 +3108,8 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	int queue = cq->id;
 	static int max;
 	int count = 0;
-	struct hisi_sas_slot *slot_array[100];
+	#define SLOT_ARRAY_SIZE 1000
+	struct hisi_sas_slot *slot_array[SLOT_ARRAY_SIZE];
 	int index;
 	
 
@@ -3161,7 +3162,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				if (done) {
 					slot_array[count] = slot;
 					count++;
-					BUG_ON(count >= 100);
+					BUG_ON(count >= SLOT_ARRAY_SIZE);
 				} else {
 					pr_err("%s1 not done\n", __func__);
 				}
@@ -3184,7 +3185,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot_array[count] = slot;
 				count++;
 			
-				BUG_ON(count >= 100);
+				BUG_ON(count >= SLOT_ARRAY_SIZE);
 			} else {
 				pr_err("%s2 not done\n", __func__);
 			}
