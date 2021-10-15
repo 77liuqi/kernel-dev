@@ -1119,9 +1119,19 @@ static void iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	__iommu_dma_unmap(dev, start, end - start);
 }
 
+
 static void iommu_dma_unmap_sgt(struct device *dev, struct sg_table2 *table)
 {
-	BUG();
+	int index;
+
+	for (index = 0; index < table->nents; index++) {
+		struct scatterlist2 *sg2 = &table->sgl[index];
+		struct scatterlist *sg = sg2->sgl;
+		int nents = sg2->num_scatter;
+		enum dma_data_direction dir = sg2->data_dir;
+
+		iommu_dma_unmap_sg(dev, sg, nents, dir, 0);
+	}
 }
 
 static dma_addr_t iommu_dma_map_resource(struct device *dev, phys_addr_t phys,
