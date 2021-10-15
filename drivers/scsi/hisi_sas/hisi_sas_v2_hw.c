@@ -3202,20 +3202,27 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 		pr_err("%s max=%d\n", __func__, max);
 	}
 
+	//unmap
 	for (index = 0; index < count; index++) {
 		struct hisi_sas_slot *s1;
 		struct sas_task *t1;
 
 		s1 = slot_array[index];
 		t1 = s1->task;
-		//count++;
-		#ifdef snake
-		pr_err("%s3 head=%pS prev=%pS s1=%pS\n", __func__, head, prev, s1);
-		#endif
+	
+		hisi_sas_slot_task_unmap(hisi_hba, t1, s1);
+	}
+
+	for (index = 0; index < count; index++) {
+		struct hisi_sas_slot *s1;
+		struct sas_task *t1;
+
+		s1 = slot_array[index];
+		t1 = s1->task;
+		
 		hisi_sas_slot_task_free(hisi_hba, t1, s1);
 		if (t1->task_done)
 			t1->task_done(t1);
-
 	}
 
 	/* update rd_point */

@@ -221,12 +221,30 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 	struct hisi_sas_device *sas_dev = &hisi_hba->devices[device_id];
 
 	if (task) {
-		struct device *dev = hisi_hba->dev;
-
 		if (!task->lldd_task)
 			return;
 
 		task->lldd_task = NULL;
+	}
+
+	spin_lock(&sas_dev->lock);
+	list_del_init(&slot->entry);
+	spin_unlock(&sas_dev->lock);
+
+	memset(slot, 0, offsetof(struct hisi_sas_slot, buf));
+
+	hisi_sas_slot_index_free(hisi_hba, slot->idx);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
+
+void hisi_sas_slot_task_unmap(struct hisi_hba *hisi_hba, struct sas_task *task,
+			     struct hisi_sas_slot *slot)
+{
+	if (task) {
+		struct device *dev = hisi_hba->dev;
+
+		if (!task->lldd_task)
+			return;
 
 		if (!sas_protocol_ata(task->task_proto)) {
 			if (slot->n_elem)
@@ -244,15 +262,9 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 		}
 	}
 
-	spin_lock(&sas_dev->lock);
-	list_del_init(&slot->entry);
-	spin_unlock(&sas_dev->lock);
-
-	memset(slot, 0, offsetof(struct hisi_sas_slot, buf));
-
-	hisi_sas_slot_index_free(hisi_hba, slot->idx);
 }
-EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
+EXPORT_SYMBOL_GPL(hisi_sas_slot_task_unmap);
+
 
 static void hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,
 				  struct hisi_sas_slot *slot)
