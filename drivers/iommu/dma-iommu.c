@@ -1163,7 +1163,7 @@ static void iommu_dma_unmap_sg2(struct device *dev, struct scatterlist *sg,
 
 static void iommu_dma_unmap_sgt(struct device *dev, struct sg_table2 *table)
 {
-	struct iommu_iotlb_gather2 gather2[10];
+	struct iommu_iotlb_gather2 gather2[HISI_SLOT_ARRAY_SIZE];
 	struct iommu_domain *domain = iommu_get_dma_domain(dev);
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	int index;

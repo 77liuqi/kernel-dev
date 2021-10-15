@@ -413,6 +413,7 @@ struct hisi_hba {
 	u8 sas_addr[SAS_ADDR_SIZE];
 
 	int *irq_map; /* v2 hw */
+	int sgt;
 
 	int n_phy;
 	spinlock_t lock;

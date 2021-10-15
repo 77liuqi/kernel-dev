@@ -2792,6 +2792,7 @@ int hisi_sas_probe(struct platform_device *pdev,
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
 		goto err_out_ha;
+	hisi_hba->sgt = 10;
 
 	rc = sas_register_ha(sha);
 	if (rc)

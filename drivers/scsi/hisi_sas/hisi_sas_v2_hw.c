@@ -3106,10 +3106,12 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	int queue = cq->id;
 	static int max;
 	int count = 0;
-	#define SLOT_ARRAY_SIZE 10
-	struct hisi_sas_slot *slot_array[SLOT_ARRAY_SIZE];
+	
+	struct hisi_sas_slot *slot_array[HISI_SLOT_ARRAY_SIZE];
 	int index;
 	struct sg_table2 table = {};
+	int sgt = READ_ONCE(hisi_hba->sgt);
+	pr_err_once("%s sgt=%d\n", __func__, sgt);
 	
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
@@ -3161,7 +3163,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				if (done) {
 					slot_array[count] = slot;
 					count++;
-					BUG_ON(count > SLOT_ARRAY_SIZE);
+					BUG_ON(count > HISI_SLOT_ARRAY_SIZE);
 				} else {
 					pr_err("%s1 not done\n", __func__);
 				}
@@ -3184,7 +3186,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot_array[count] = slot;
 				count++;
 			
-				BUG_ON(count > SLOT_ARRAY_SIZE);
+				BUG_ON(count > HISI_SLOT_ARRAY_SIZE);
 			} else {
 				pr_err("%s2 not done\n", __func__);
 			}
@@ -3192,7 +3194,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
-		if (count >= SLOT_ARRAY_SIZE)
+		if (count >= sgt)
 			break;
 	}
 
@@ -3596,8 +3598,41 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 }
 
+static inline ssize_t sgt_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hisi_hba->sgt);
+}
+
+static inline ssize_t sgt_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	hisi_hba->sgt = simple_strtol(buf, NULL, 10);
+
+	/* threshold cannot be set too small */
+	if (hisi_hba->sgt > HISI_SLOT_ARRAY_SIZE)
+		hisi_hba->sgt = HISI_SLOT_ARRAY_SIZE;
+	if (hisi_hba->sgt == 0)
+		hisi_hba->sgt = 1;
+
+	return count;
+}
+
+DEVICE_ATTR(sgt,
+	S_IRUGO|S_IWUSR,
+	sgt_show,
+	sgt_store);
+
 static struct device_attribute *host_attrs_v2_hw[] = {
 	&dev_attr_phy_event_threshold,
+	&dev_attr_sgt,
 	NULL
 };
 

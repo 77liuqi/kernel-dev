@@ -54,6 +54,8 @@
  */
 #define DMA_ATTR_NO_WARN	(1UL << 8)
 
+#define HISI_SLOT_ARRAY_SIZE 30
+
 /*
  * DMA_ATTR_PRIVILEGED: used to indicate that the buffer is fully
  * accessible at an elevated privilege level (and ideally inaccessible or
