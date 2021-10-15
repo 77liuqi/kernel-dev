@@ -534,8 +534,15 @@ static inline void iommu_iotlb_sync(struct iommu_domain *domain,
 static inline void iommu_iotlb_sync2(struct iommu_domain *domain,
 				  struct iommu_iotlb_gather2 *gather2, int size)
 {
+	int i;
+
 	if (domain->ops->iotlb_sync2)
 		domain->ops->iotlb_sync2(domain, gather2, size);
+
+	for (i = 0; i < size; i++) {
+		struct iommu_iotlb_gather2 *gather3 = &gather2[i];
+		iommu_iotlb_gather_init(&gather3->iotlb_gather);
+	}
 
 }
 
