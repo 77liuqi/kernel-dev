@@ -3109,6 +3109,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	#define SLOT_ARRAY_SIZE 10
 	struct hisi_sas_slot *slot_array[SLOT_ARRAY_SIZE];
 	int index;
+	struct sg_table2 table = {};
 	
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
@@ -3210,8 +3211,10 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 		s1 = slot_array[index];
 		t1 = s1->task;
 	
-		hisi_sas_slot_task_unmap(hisi_hba, t1, s1);
+		hisi_sas_slot_task_unmap(hisi_hba, t1, s1, &table);
 	}
+
+	hisi_sas_slot_task_dma_unmap(hisi_hba, &table);
 
 	for (index = 0; index < count; index++) {
 		struct hisi_sas_slot *s1;

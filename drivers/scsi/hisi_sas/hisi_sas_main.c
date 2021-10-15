@@ -238,7 +238,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_free);
 
 void hisi_sas_slot_task_unmap(struct hisi_hba *hisi_hba, struct sas_task *task,
-			     struct hisi_sas_slot *slot)
+			     struct hisi_sas_slot *slot, struct sg_table2 *table)
 {
 	if (task) {
 		struct device *dev = hisi_hba->dev;
@@ -247,13 +247,25 @@ void hisi_sas_slot_task_unmap(struct hisi_hba *hisi_hba, struct sas_task *task,
 			return;
 
 		if (!sas_protocol_ata(task->task_proto)) {
-			if (slot->n_elem)
-				dma_unmap_sg(dev, task->scatter,
-					     task->num_scatter,
-					     task->data_dir);
+			if (slot->n_elem) {
+				struct scatterlist2 *sgl = &table->sgl[table->nents];
+				//pr_err("%s1 table=%pS nents=%d sgl=%pS  task->scatter=%pS\n", __func__, table, table->nents, sgl, task->scatter);
+				//pr_err("%s2 table=%pS sgl->sgl=%pS  task->scatter=%pS\n", __func__, table, sgl->sgl, task->scatter);
+				
+				sgl->sgl = task->scatter;
+				sgl->num_scatter = task->num_scatter;
+				sgl->data_dir = task->data_dir;
+				table->nents++;
+				
+	//			dma_unmap_sg(dev, task->scatter,
+	//				     task->num_scatter,
+	//				     task->data_dir);
+				return;
+			}
 			if (slot->n_elem_dif) {
 				struct sas_ssp_task *ssp_task = &task->ssp_task;
 				struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
+				BUG();
 
 				dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
 					     scsi_prot_sg_count(scsi_cmnd),
@@ -261,9 +273,20 @@ void hisi_sas_slot_task_unmap(struct hisi_hba *hisi_hba, struct sas_task *task,
 			}
 		}
 	}
-
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_unmap);
+
+void hisi_sas_slot_task_dma_unmap(struct hisi_hba *hisi_hba, struct sg_table2 *table)
+{
+	int index;
+
+	for (index = 0; index < table->nents; index++) {
+		dma_unmap_sg(hisi_hba->dev, table->sgl[index].sgl,
+			table->sgl[index].num_scatter,
+			table->sgl[index].data_dir);
+	}
+}
+EXPORT_SYMBOL_GPL(hisi_sas_slot_task_dma_unmap);
 
 
 static void hisi_sas_task_prep_smp(struct hisi_hba *hisi_hba,

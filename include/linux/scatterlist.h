@@ -39,6 +39,17 @@ struct sg_table {
 	unsigned int orig_nents;	/* original size of list */
 };
 
+struct scatterlist2 {
+	struct scatterlist *sgl;
+	int    num_scatter;
+	u8     data_dir:2;	  /* Use PCI_DMA_... */
+};
+
+struct sg_table2 {
+	unsigned int nents;		/* number of mapped entries */
+	struct scatterlist2 sgl[10];	/* the list */
+};
+
 struct sg_append_table {
 	struct sg_table sgt;		/* The scatter list table */
 	struct scatterlist *prv;	/* last populated sge in the table */
