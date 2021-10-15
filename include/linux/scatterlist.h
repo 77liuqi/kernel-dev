@@ -45,9 +45,11 @@ struct scatterlist2 {
 	u8     data_dir:2;	  /* Use PCI_DMA_... */
 };
 
+#define HISI_SLOT_ARRAY_SIZE 30
+
 struct sg_table2 {
 	unsigned int nents;		/* number of mapped entries */
-	struct scatterlist2 sgl[10];	/* the list */
+	struct scatterlist2 sgl[HISI_SLOT_ARRAY_SIZE];	/* the list */
 };
 
 struct sg_append_table {
