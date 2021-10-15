@@ -510,6 +510,24 @@ static void __iommu_dma_unmap(struct device *dev, dma_addr_t dma_addr,
 	iommu_dma_free_iova(cookie, dma_addr, size, &iotlb_gather);
 }
 
+
+static void __iommu_dma_unmap2(struct device *dev, dma_addr_t dma_addr,
+		size_t size, struct iommu_iotlb_gather *iotlb_gather)
+{
+	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
+	struct iova_domain *iovad = &cookie->iovad;
+	size_t iova_off = iova_offset(iovad, dma_addr);
+	
+	size_t unmapped;
+
+	dma_addr -= iova_off;
+	size = iova_align(iovad, size + iova_off);
+
+	unmapped = iommu_unmap_fast(domain, dma_addr, size, iotlb_gather);
+	WARN_ON(unmapped != size);
+}
+
 static void __iommu_dma_unmap_swiotlb(struct device *dev, dma_addr_t dma_addr,
 		size_t size, enum dma_data_direction dir,
 		unsigned long attrs)
@@ -1119,10 +1137,37 @@ static void iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	__iommu_dma_unmap(dev, start, end - start);
 }
 
+static void iommu_dma_unmap_sg2(struct device *dev, struct scatterlist *sg,
+		int nents, enum dma_data_direction dir, unsigned long attrs, struct iommu_iotlb_gather *iotlb_gather)
+{
+	dma_addr_t start, end;
+	struct scatterlist *tmp;
+	int i;
+
+	/*
+	 * The scatterlist segments are mapped into a single
+	 * contiguous IOVA allocation, so this is incredibly easy.
+	 */
+	start = sg_dma_address(sg);
+	for_each_sg(sg_next(sg), tmp, nents - 1, i) {
+		if (sg_dma_len(tmp) == 0)
+			break;
+		sg = tmp;
+	}
+	end = sg_dma_address(sg) + sg_dma_len(sg);
+	__iommu_dma_unmap2(dev, start, end - start, iotlb_gather);
+}
+
 
 static void iommu_dma_unmap_sgt(struct device *dev, struct sg_table2 *table)
 {
+	struct iommu_iotlb_gather iotlb_gather;
+	struct iommu_domain *domain = iommu_get_dma_domain(dev);
+	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	int index;
+
+	iommu_iotlb_gather_init(&iotlb_gather);
+	iotlb_gather.queued = READ_ONCE(cookie->fq_domain);
 
 	for (index = 0; index < table->nents; index++) {
 		struct scatterlist2 *sg2 = &table->sgl[index];
@@ -1130,8 +1175,12 @@ static void iommu_dma_unmap_sgt(struct device *dev, struct sg_table2 *table)
 		int nents = sg2->num_scatter;
 		enum dma_data_direction dir = sg2->data_dir;
 
-		iommu_dma_unmap_sg(dev, sg, nents, dir, 0);
+		iommu_dma_unmap_sg2(dev, sg, nents, dir, 0, &iotlb_gather);
 	}
+	
+	if (!iotlb_gather.queued)
+		iommu_iotlb_sync(domain, &iotlb_gather);
+	//iommu_dma_free_iova(cookie, dma_addr, size, &iotlb_gather);
 }
 
 static dma_addr_t iommu_dma_map_resource(struct device *dev, phys_addr_t phys,
