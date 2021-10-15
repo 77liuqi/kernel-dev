@@ -2326,7 +2326,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	struct device *dev = hisi_hba->dev;
 	struct task_status_struct *ts;
 	struct domain_device *device;
-	struct sas_ha_struct *ha;
 	struct hisi_sas_complete_v2_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v2_hdr *complete_hdr =
@@ -2340,7 +2339,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 	ts = &task->task_status;
 	device = task->dev;
-	ha = device->port->ha;
 	sas_dev = device->lldd_dev;
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -3108,7 +3106,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	int queue = cq->id;
 	static int max;
 	int count = 0;
-	#define SLOT_ARRAY_SIZE 1000
+	#define SLOT_ARRAY_SIZE 10
 	struct hisi_sas_slot *slot_array[SLOT_ARRAY_SIZE];
 	int index;
 	
@@ -3162,7 +3160,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				if (done) {
 					slot_array[count] = slot;
 					count++;
-					BUG_ON(count >= SLOT_ARRAY_SIZE);
+					BUG_ON(count > SLOT_ARRAY_SIZE);
 				} else {
 					pr_err("%s1 not done\n", __func__);
 				}
@@ -3185,7 +3183,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot_array[count] = slot;
 				count++;
 			
-				BUG_ON(count >= SLOT_ARRAY_SIZE);
+				BUG_ON(count > SLOT_ARRAY_SIZE);
 			} else {
 				pr_err("%s2 not done\n", __func__);
 			}
@@ -3193,7 +3191,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
-		if (count > 10)
+		if (count >= SLOT_ARRAY_SIZE)
 			break;
 	}
 
