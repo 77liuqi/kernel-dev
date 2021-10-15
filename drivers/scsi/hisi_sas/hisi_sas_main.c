@@ -278,13 +278,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_slot_task_unmap);
 
 void hisi_sas_slot_task_dma_unmap(struct hisi_hba *hisi_hba, struct sg_table2 *table)
 {
-	int index;
-
-	for (index = 0; index < table->nents; index++) {
-		dma_unmap_sg(hisi_hba->dev, table->sgl[index].sgl,
-			table->sgl[index].num_scatter,
-			table->sgl[index].data_dir);
-	}
+	dma_unmap_sgt(hisi_hba->dev, table);
 }
 EXPORT_SYMBOL_GPL(hisi_sas_slot_task_dma_unmap);
 

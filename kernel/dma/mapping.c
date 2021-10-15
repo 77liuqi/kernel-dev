@@ -269,6 +269,21 @@ int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 }
 EXPORT_SYMBOL_GPL(dma_map_sgtable);
 
+void dma_unmap_sgt_attrs(struct device *dev, struct sg_table2 *table, unsigned long attrs)
+{
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	//BUG_ON(!valid_dma_direction(dir));
+	//debug_dma_unmap_sg(dev, sg, nents, dir);
+	if (dma_map_direct(dev, ops))
+		BUG();
+	else if (ops->unmap_sgt)
+		ops->unmap_sgt(dev, table);
+	else
+		BUG();
+}
+EXPORT_SYMBOL(dma_unmap_sgt_attrs);
+
 void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg,
 				      int nents, enum dma_data_direction dir,
 				      unsigned long attrs)

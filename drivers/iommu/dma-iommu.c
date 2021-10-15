@@ -1119,6 +1119,11 @@ static void iommu_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 	__iommu_dma_unmap(dev, start, end - start);
 }
 
+static void iommu_dma_unmap_sgt(struct device *dev, struct sg_table2 *table)
+{
+	BUG();
+}
+
 static dma_addr_t iommu_dma_map_resource(struct device *dev, phys_addr_t phys,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
@@ -1323,6 +1328,7 @@ static const struct dma_map_ops iommu_dma_ops = {
 	.unmap_page		= iommu_dma_unmap_page,
 	.map_sg			= iommu_dma_map_sg,
 	.unmap_sg		= iommu_dma_unmap_sg,
+	.unmap_sgt		= iommu_dma_unmap_sgt,
 	.sync_single_for_cpu	= iommu_dma_sync_single_for_cpu,
 	.sync_single_for_device	= iommu_dma_sync_single_for_device,
 	.sync_sg_for_cpu	= iommu_dma_sync_sg_for_cpu,
