@@ -1909,6 +1909,64 @@ static void __arm_smmu_tlb_inv_range(struct arm_smmu_cmdq_ent *cmd,
 	arm_smmu_cmdq_batch_submit(smmu, &cmds);
 }
 
+static void __arm_smmu_tlb_inv_range2(struct arm_smmu_cmdq_ent *cmd,
+				     unsigned long iova, size_t size,
+				     size_t granule,
+				     struct arm_smmu_domain *smmu_domain,
+				     struct arm_smmu_cmdq_batch *cmds)
+{
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	unsigned long end = iova + size, num_pages = 0, tg = 0;
+	size_t inv_range = granule;
+
+	if (!size)
+		return;
+
+	if (smmu->features & ARM_SMMU_FEAT_RANGE_INV) {
+		/* Get the leaf page size */
+		tg = __ffs(smmu_domain->domain.pgsize_bitmap);
+
+		/* Convert page size of 12,14,16 (log2) to 1,2,3 */
+		cmd->tlbi.tg = (tg - 10) / 2;
+
+		/* Determine what level the granule is at */
+		cmd->tlbi.ttl = 4 - ((ilog2(granule) - 3) / (tg - 3));
+
+		num_pages = size >> tg;
+	}
+
+	while (iova < end) {
+		if (smmu->features & ARM_SMMU_FEAT_RANGE_INV) {
+			/*
+			 * On each iteration of the loop, the range is 5 bits
+			 * worth of the aligned size remaining.
+			 * The range in pages is:
+			 *
+			 * range = (num_pages & (0x1f << __ffs(num_pages)))
+			 */
+			unsigned long scale, num;
+
+			/* Determine the power of 2 multiple number of pages */
+			scale = __ffs(num_pages);
+			cmd->tlbi.scale = scale;
+
+			/* Determine how many chunks of 2^scale size we have */
+			num = (num_pages >> scale) & CMDQ_TLBI_RANGE_NUM_MAX;
+			cmd->tlbi.num = num - 1;
+
+			/* range is num * 2^scale * pgsize */
+			inv_range = num << (scale + tg);
+
+			/* Clear out the lower order bits for the next iteration */
+			num_pages -= num << scale;
+		}
+
+		cmd->tlbi.addr = iova;
+		arm_smmu_cmdq_batch_add(smmu, cmds, cmd);
+		iova += inv_range;
+	}
+}
+
 static void arm_smmu_tlb_inv_range_domain(unsigned long iova, size_t size,
 					  size_t granule, bool leaf,
 					  struct arm_smmu_domain *smmu_domain)
@@ -1934,6 +1992,28 @@ static void arm_smmu_tlb_inv_range_domain(unsigned long iova, size_t size,
 	 * zapped an entire table.
 	 */
 	arm_smmu_atc_inv_domain(smmu_domain, 0, iova, size);
+}
+
+static void arm_smmu_tlb_inv_range_domain2(unsigned long iova, size_t size,
+					  size_t granule, bool leaf,
+					  struct arm_smmu_domain *smmu_domain,
+					  struct arm_smmu_cmdq_batch *cmds)
+{
+	struct arm_smmu_cmdq_ent cmd = {
+		.tlbi = {
+			.leaf	= leaf,
+		},
+	};
+
+	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
+		cmd.opcode	= smmu_domain->smmu->features & ARM_SMMU_FEAT_E2H ?
+				  CMDQ_OP_TLBI_EL2_VA : CMDQ_OP_TLBI_NH_VA;
+		cmd.tlbi.asid	= smmu_domain->s1_cfg.cd.asid;
+	} else {
+		cmd.opcode	= CMDQ_OP_TLBI_S2_IPA;
+		cmd.tlbi.vmid	= smmu_domain->s2_cfg.vmid;
+	}
+	__arm_smmu_tlb_inv_range2(&cmd, iova, size, granule, smmu_domain, cmds);
 }
 
 void arm_smmu_tlb_inv_range_asid(unsigned long iova, size_t size, int asid,
@@ -2497,6 +2577,37 @@ static void arm_smmu_iotlb_sync(struct iommu_domain *domain,
 				      gather->pgsize, true, smmu_domain);
 }
 
+static void arm_smmu_iotlb_sync2(struct iommu_domain *domain,
+				struct iommu_iotlb_gather2 *gather2, int n_ents)
+{
+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_cmdq_batch cmds;
+	int index;
+	static int max;
+
+	cmds.num = 0;
+
+	for (index = 0; index < n_ents; index++) {
+		struct iommu_iotlb_gather2 *gather3 = &gather2[index];
+		struct iommu_iotlb_gather *gather = &gather3->iotlb_gather;
+
+		if (!gather->pgsize)
+			continue;
+
+		arm_smmu_tlb_inv_range_domain2(gather->start,
+					      gather->end - gather->start + 1,
+					      gather->pgsize, true, smmu_domain, &cmds);
+	}
+
+	if (cmds.num > max) {
+		max = cmds.num;
+		pr_err("%s max=%d\n", __func__, max);
+	}
+
+	arm_smmu_cmdq_batch_submit(smmu, &cmds);
+}
+
 static phys_addr_t
 arm_smmu_iova_to_phys(struct iommu_domain *domain, dma_addr_t iova)
 {
@@ -2840,6 +2951,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.unmap_pages		= arm_smmu_unmap_pages,
 	.flush_iotlb_all	= arm_smmu_flush_iotlb_all,
 	.iotlb_sync		= arm_smmu_iotlb_sync,
+	.iotlb_sync2		= arm_smmu_iotlb_sync2,
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,

@@ -190,6 +190,12 @@ struct iommu_iotlb_gather {
 	bool			queued;
 };
 
+struct iommu_iotlb_gather2 {
+	struct iommu_iotlb_gather iotlb_gather;
+	dma_addr_t dma_addr;
+	size_t size;
+};
+
 /**
  * struct iommu_ops - iommu ops and capabilities
  * @capable: check capability
@@ -263,6 +269,8 @@ struct iommu_ops {
 			       size_t size);
 	void (*iotlb_sync)(struct iommu_domain *domain,
 			   struct iommu_iotlb_gather *iotlb_gather);
+	void (*iotlb_sync2)(struct iommu_domain *domain,
+			   struct iommu_iotlb_gather2 *gather2, int size);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain, dma_addr_t iova);
 	struct iommu_device *(*probe_device)(struct device *dev);
 	void (*release_device)(struct device *dev);
@@ -522,6 +530,15 @@ static inline void iommu_iotlb_sync(struct iommu_domain *domain,
 
 	iommu_iotlb_gather_init(iotlb_gather);
 }
+				  
+static inline void iommu_iotlb_sync2(struct iommu_domain *domain,
+				  struct iommu_iotlb_gather2 *gather2, int size)
+{
+	if (domain->ops->iotlb_sync2)
+		domain->ops->iotlb_sync2(domain, gather2, size);
+
+}
+
 
 /**
  * iommu_iotlb_gather_is_disjoint - Checks whether a new range is disjoint
