@@ -441,6 +441,20 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 {
 	struct blk_mq_hw_ctx *hctx;
 	int i;
+	int count_iter;
+	int iter_max;
+	int iter;
+
+	count_iter = atomic_inc_return(&q->count_iter);
+	iter_max = atomic_read(&q->iter_max);
+	iter = atomic_inc_return(&q->iter);
+	if (iter > iter_max)
+		atomic_cmpxchg(&q->iter_max, iter_max, iter);
+	if ((count_iter % 10000) == 0) {
+		pr_err("%s q=%pS iter_max=%d\n", __func__, q, atomic_read(&q->iter_max));
+		atomic_set(&q->iter_max, 0);
+		atomic_set(&q->count_iter, 0);
+	}
 
 	/*
 	 * __blk_mq_update_nr_hw_queues() updates nr_hw_queues and queue_hw_ctx
@@ -464,6 +478,7 @@ void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 			bt_for_each(hctx, &tags->breserved_tags, fn, priv, true);
 		bt_for_each(hctx, &tags->bitmap_tags, fn, priv, false);
 	}
+	atomic_dec(&q->iter);
 	blk_queue_exit(q);
 }
 

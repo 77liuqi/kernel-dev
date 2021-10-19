@@ -152,6 +152,9 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
 struct request_queue {
 	struct request		*last_merge;
 	struct elevator_queue	*elevator;
+	atomic_t iter_max;
+	atomic_t iter;
+	atomic_t count_iter;
 
 	struct percpu_ref	q_usage_counter;
 
