@@ -2199,7 +2199,6 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_complete_v3_hdr *complete_hdr =
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
-	bool is_internal = slot->is_internal;
 	u32 dw0, dw1, dw3;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
@@ -2322,18 +2321,6 @@ out:
 	task->task_state_flags |= SAS_TASK_STATE_DONE;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 	*done = true;
-
-	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
-		spin_lock_irqsave(&device->done_lock, flags);
-		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
-			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n ",
-				 task);
-			return;
-		}
-		spin_unlock_irqrestore(&device->done_lock, flags);
-	}
-
 }
 
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
@@ -4852,6 +4839,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rc = sas_register_ha(sha);
 	if (rc)
 		goto err_out_register_ha;
+	hisi_hba->sgt = 10;
 
 	rc = hisi_sas_v3_init(hisi_hba);
 	if (rc)
