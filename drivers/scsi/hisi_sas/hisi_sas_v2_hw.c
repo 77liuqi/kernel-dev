@@ -3625,7 +3625,7 @@ static inline ssize_t sgt_store(struct device *dev,
 	return count;
 }
 
-DEVICE_ATTR(sgt,
+static DEVICE_ATTR(sgt,
 	S_IRUGO|S_IWUSR,
 	sgt_show,
 	sgt_store);

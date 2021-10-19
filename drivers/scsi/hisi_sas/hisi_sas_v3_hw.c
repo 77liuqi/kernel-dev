@@ -2344,9 +2344,14 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v3_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point;
 	int queue = cq->id;
-	struct hisi_sas_slot *head = NULL, *prev = NULL;
 	static int max;
 	int count = 0;
+
+	struct hisi_sas_slot *slot_array[HISI_SLOT_ARRAY_SIZE];
+	int index;
+	struct sg_table2 table = {};
+	int sgt = READ_ONCE(hisi_hba->sgt);
+	pr_err_once("%s sgt=%d\n", __func__, sgt);
 
 	complete_queue = hisi_hba->complete_hdr[queue];
 
@@ -2373,32 +2378,51 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
 
 
-
+		
 		if (done) {
-			if (!head) {
-				head = prev = slot;
-			} else {
-				prev->next = slot;
-				prev = slot;
-			}
+			slot_array[count] = slot;
+			count++;
+			BUG_ON(count > HISI_SLOT_ARRAY_SIZE);
+		} else {
+			pr_err("%s1 not done\n", __func__);
 		}
+
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
+		if (count >= sgt)
+			break;
 	}
 
-	if (head) {
-		struct sas_task *task = head->task;
-		count++;
-		if (count > max) {
-			max = count;
-			pr_err("%s max=%d\n", __func__, max);
-		}
-		hisi_sas_slot_task_free(hisi_hba, task, slot);
-		if (task->task_done)
-			task->task_done(task);
+	
+	if (count > max) {
+		max = count;
+		pr_err("%s max=%d\n", __func__, max);
+	}
 
-		head = head->next;
+	//unmap
+	for (index = 0; index < count; index++) {
+		struct hisi_sas_slot *s1;
+		struct sas_task *t1;
+
+		s1 = slot_array[index];
+		t1 = s1->task;
+	
+		hisi_sas_slot_task_unmap(hisi_hba, t1, s1, &table);
+	}
+
+	hisi_sas_slot_task_dma_unmap(hisi_hba, &table);
+
+	for (index = 0; index < count; index++) {
+		struct hisi_sas_slot *s1;
+		struct sas_task *t1;
+
+		s1 = slot_array[index];
+		t1 = s1->task;
+		
+		hisi_sas_slot_task_free(hisi_hba, t1, s1);
+		if (t1->task_done)
+			t1->task_done(t1);
 	}
 
 	/* update rd_point */
@@ -2769,6 +2793,38 @@ static ssize_t intr_coal_count_v3_hw_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(intr_coal_count_v3_hw);
 
+static inline ssize_t sgt_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", hisi_hba->sgt);
+}
+
+static inline ssize_t sgt_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	hisi_hba->sgt = simple_strtol(buf, NULL, 10);
+
+	/* threshold cannot be set too small */
+	if (hisi_hba->sgt > HISI_SLOT_ARRAY_SIZE)
+		hisi_hba->sgt = HISI_SLOT_ARRAY_SIZE;
+	if (hisi_hba->sgt == 0)
+		hisi_hba->sgt = 1;
+
+	return count;
+}
+
+static DEVICE_ATTR(sgt,
+	S_IRUGO|S_IWUSR,
+	sgt_show,
+	sgt_store);
+
 static int slave_configure_v3_hw(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(&sdev->sdev_gendev);
@@ -2801,6 +2857,7 @@ static struct device_attribute *host_attrs_v3_hw[] = {
 	&dev_attr_intr_conv_v3_hw,
 	&dev_attr_intr_coal_ticks_v3_hw,
 	&dev_attr_intr_coal_count_v3_hw,
+	&dev_attr_sgt,
 	NULL
 };
 
