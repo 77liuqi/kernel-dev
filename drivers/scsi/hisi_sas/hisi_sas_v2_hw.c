@@ -2319,7 +2319,8 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 }
 
 static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
-				struct hisi_sas_slot *slot)
+				struct hisi_sas_slot *slot,
+				struct io_comp_batch *iob)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -2334,6 +2335,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	unsigned long flags;
 	bool is_internal = slot->is_internal;
 	u32 dw0;
+	struct request *req = NULL;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
@@ -2418,8 +2420,13 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				hisi_sas_status_buf_addr_mem(slot);
 		struct ssp_response_iu *iu = (struct ssp_response_iu *)
 				&status_buffer->iu[0];
+		struct scsi_cmnd *cmd = task->uldd_task;
 
 		sas_ssp_task_response(dev, task, iu);
+		if (cmd)
+			req = scsi_cmd_to_rq(cmd);
+		WARN_ON_ONCE(!cmd);
+//		pr_err("%s1 req=%pS cmd=%pS\n", __func__, req, cmd);
 		break;
 	}
 	case SAS_PROTOCOL_SMP:
@@ -2476,6 +2483,12 @@ out:
 			return;
 		}
 		spin_unlock_irqrestore(&device->done_lock, flags);
+	}
+
+	if (req) {
+	//	pr_err("%s2 req=%pS iob=%pS\n", __func__, req, iob);
+		if (blk_mq_add_to_batch(req, iob, 0, hisi_sas_batch_complete) == true)
+			return;
 	}
 
 	if (task->task_done)
@@ -3102,7 +3115,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
+static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
@@ -3111,6 +3124,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
+	DEFINE_IO_COMP_BATCH(iob);
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3150,7 +3164,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
-				slot_complete_v2_hw(hisi_hba, slot);
+				slot_complete_v2_hw(hisi_hba, slot, &iob);
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
@@ -3162,7 +3176,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v2_hw(hisi_hba, slot);
+			slot_complete_v2_hw(hisi_hba, slot, &iob);
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
@@ -3172,6 +3186,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	if (!rq_list_empty(iob.req_list))
+		hisi_sas_batch_complete(&iob);
 
 	return IRQ_HANDLED;
 }
