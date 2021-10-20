@@ -2191,7 +2191,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 
@@ -2373,7 +2373,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 
@@ -3246,7 +3246,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 

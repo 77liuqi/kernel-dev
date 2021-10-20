@@ -96,7 +96,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 	task->lldd_task = NULL;
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 
-	task->task_done(task);
+	task->task_done(task, true);
 }
 
 #define for_each_sas_task(num, task) \

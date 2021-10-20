@@ -42,7 +42,7 @@ static void smp_task_timedout(struct timer_list *t)
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 }
 
-static void smp_task_done(struct sas_task *task)
+static void smp_task_done(struct sas_task *task, bool done)
 {
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);

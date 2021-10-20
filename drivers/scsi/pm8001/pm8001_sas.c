@@ -395,7 +395,7 @@ static int pm8001_task_exec(struct sas_task *task,
 		tsm->resp = SAS_TASK_UNDELIVERED;
 		tsm->stat = SAS_PHY_DOWN;
 		if (dev->dev_type != SAS_SATA_DEV)
-			t->task_done(t);
+			t->task_done(t, true);
 		return 0;
 	}
 	pm8001_ha = pm8001_find_ha_by_dev(task->dev);
@@ -403,7 +403,7 @@ static int pm8001_task_exec(struct sas_task *task,
 		struct task_status_struct *ts = &t->task_status;
 
 		ts->resp = SAS_TASK_UNDELIVERED;
-		t->task_done(t);
+		t->task_done(t, true);
 		return 0;
 	}
 	pm8001_dbg(pm8001_ha, IO, "pm8001_task_exec device\n");
@@ -419,14 +419,14 @@ static int pm8001_task_exec(struct sas_task *task,
 				ts->stat = SAS_PHY_DOWN;
 
 				spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-				t->task_done(t);
+				t->task_done(t, true);
 				spin_lock_irqsave(&pm8001_ha->lock, flags);
 				continue;
 			} else {
 				struct task_status_struct *ts = &t->task_status;
 				ts->resp = SAS_TASK_UNDELIVERED;
 				ts->stat = SAS_PHY_DOWN;
-				t->task_done(t);
+				t->task_done(t, true);
 				continue;
 			}
 		}
@@ -682,7 +682,7 @@ int pm8001_dev_found(struct domain_device *dev)
 	return pm8001_dev_found_notify(dev);
 }
 
-void pm8001_task_done(struct sas_task *task)
+void pm8001_task_done(struct sas_task *task, bool done)
 {
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
@@ -975,7 +975,7 @@ void pm8001_open_reject_retry(
 			pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
 			mb();/* in order to force CPU ordering */
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			task->task_done(task);
+			task->task_done(task, true);
 			spin_lock_irqsave(&pm8001_ha->lock, flags);
 		}
 	}

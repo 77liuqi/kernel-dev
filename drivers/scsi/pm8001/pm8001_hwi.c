@@ -1567,7 +1567,7 @@ void pm8001_work_fn(struct work_struct *work)
 			pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 			mb();/* in order to force CPU ordering */
 			spin_unlock_irqrestore(&pm8001_ha->lock, flags);
-			t->task_done(t);
+			t->task_done(t, true);
 		}
 	}	break;
 	case IO_XFER_OPEN_RETRY_TIMEOUT:
@@ -1702,7 +1702,7 @@ void pm8001_work_fn(struct work_struct *work)
 				/*complete sas task and update to top layer */
 				pm8001_ccb_task_free(pm8001_ha, task, ccb, tag);
 				ts->resp = SAS_TASK_COMPLETE;
-				task->task_done(task);
+				task->task_done(task, true);
 			} else if (tag != 0xFFFFFFFF) {
 				/* complete the internal commands/non-sas task */
 				pm8001_dev = ccb->device;
@@ -2109,7 +2109,7 @@ mpi_ssp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 
@@ -2277,7 +2277,7 @@ static void mpi_ssp_event(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 
@@ -3060,7 +3060,7 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* in order to force CPU ordering */
-		t->task_done(t);
+		t->task_done(t, true);
 	}
 }
 
@@ -3735,7 +3735,7 @@ int pm8001_mpi_task_abort_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		/* clear the flag */
 		pm8001_dev->id &= 0xBFFFFFFF;
 	} else
-		t->task_done(t);
+		t->task_done(t, true);
 
 	return 0;
 }

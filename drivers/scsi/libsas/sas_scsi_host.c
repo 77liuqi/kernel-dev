@@ -98,7 +98,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 	sas_free_task(task);
 }
 
-static void sas_scsi_task_done(struct sas_task *task)
+static void sas_scsi_task_done(struct sas_task *task, bool done)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
 	struct domain_device *dev = task->dev;
@@ -125,7 +125,8 @@ static void sas_scsi_task_done(struct sas_task *task)
 	}
 
 	sas_end_task(sc, task);
-	scsi_done(sc);
+	if (done)
+		scsi_done(sc);
 }
 
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
@@ -202,6 +203,20 @@ out_done:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sas_queuecommand);
+
+void sas_batch_complete(struct io_comp_batch *iob)
+{
+	struct request *req;
+
+
+	rq_list_for_each(&iob->req_list, req) {
+		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		scsi_done(cmd);
+	}
+
+	scsi_batch_complete(iob);
+}
+EXPORT_SYMBOL_GPL(sas_batch_complete);
 
 static void sas_eh_finish_cmd(struct scsi_cmnd *cmd)
 {

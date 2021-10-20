@@ -710,7 +710,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 		 * not call task_done for sata
 		 */
 		if (dev->dev_type != SAS_SATA_DEV)
-			task->task_done(task);
+			task->task_done(task, true);
 		return rc;
 	}
 
@@ -734,7 +734,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 			ts->resp = SAS_TASK_COMPLETE;
 			ts->stat = SAS_PHY_DOWN;
 
-			task->task_done(task);
+			task->task_done(task, true);
 
 		} else {
 			struct task_status_struct *ts = &task->task_status;
@@ -742,7 +742,7 @@ static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf
 				"device.\n", dev->port->id);
 			ts->resp = SAS_TASK_UNDELIVERED;
 			ts->stat = SAS_PHY_DOWN;
-			task->task_done(task);
+			task->task_done(task, true);
 		}
 		return rc;
 	}
@@ -1257,7 +1257,7 @@ void mvs_dev_gone(struct domain_device *dev)
 	mvs_dev_gone_notify(dev);
 }
 
-static void mvs_task_done(struct sas_task *task)
+static void mvs_task_done(struct sas_task *task, bool done)
 {
 	if (!del_timer(&task->slow_task->timer))
 		return;
@@ -1815,7 +1815,7 @@ out:
 
 	spin_unlock(&mvi->lock);
 	if (task->task_done)
-		task->task_done(task);
+		task->task_done(task, true);
 
 	spin_lock(&mvi->lock);
 

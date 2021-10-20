@@ -2333,7 +2333,7 @@ out:
 	}
 
 	if (task->task_done)
-		task->task_done(task);
+		task->task_done(task, true);
 }
 
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
