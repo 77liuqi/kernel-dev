@@ -1596,6 +1596,20 @@ void scsi_done(struct scsi_cmnd *cmd)
 }
 EXPORT_SYMBOL(scsi_done);
 
+void scsi_batch_complete(struct io_comp_batch *iob)
+{
+	struct request *req;
+	
+	rq_list_for_each(&iob->req_list, req) {
+		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		struct sas_task *task = TO_SAS_TASK(cmd);
+
+		task->task_done(task);
+	}
+	blk_mq_end_request_batch(iob);
+}
+EXPORT_SYMBOL_GPL(scsi_batch_complete);
+
 static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;

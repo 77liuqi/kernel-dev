@@ -3188,7 +3188,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 
 	if (!rq_list_empty(iob.req_list))
-		hisi_sas_batch_complete(&iob);
+		sas_batch_complete(&iob);
 
 	return IRQ_HANDLED;
 }
