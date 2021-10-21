@@ -50,8 +50,10 @@ void sas_queue_deferred_work(struct sas_ha_struct *ha)
 	list_for_each_entry_safe(sw, _sw, &ha->defer_q, drain_node) {
 		list_del_init(&sw->drain_node);
 		ret = sas_queue_work(ha, sw);
-		if (ret != 1)
+		if (ret != 1) {
+			pm_runtime_put(ha->dev);
 			sas_free_event(to_asd_sas_event(&sw->work));
+		}
 	}
 	spin_unlock_irq(&ha->lock);
 }
@@ -186,8 +188,10 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 		return 0;
 
 	ret = sas_queue_event(event, &ev->work, ha);
-	if (ret != 1)
+	if (ret != 1) {
+		pm_runtime_put(ha->dev);
 		sas_free_event(ev);
+	}
 
 	return ret;
 }
@@ -216,8 +220,10 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 		return 0;
 
 	ret = sas_queue_event(event, &ev->work, ha);
-	if (ret != 1)
+	if (ret != 1) {
+		pm_runtime_put(ha->dev);
 		sas_free_event(ev);
+	}
 
 	return ret;
 }
