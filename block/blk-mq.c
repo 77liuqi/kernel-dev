@@ -829,7 +829,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		rq_qos_done(rq->q, rq);
 
 		if (nr_tags == TAG_COMP_BATCH ||
-		    (last_hctx && last_hctx != rq->mq_hctx)) {
+		    (last_hctx && last_hctx != rq->mq_hctx)) { //fixme for shared tags
 			blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
 			nr_tags = 0;
 		}
