@@ -337,7 +337,7 @@ Again:
 		task->lldd_task = NULL;
 		asd_ascb_free(ascb);
 		mb();
-		task->task_done(task, true);
+		task->task_done(task);
 	}
 }
 

@@ -1312,7 +1312,7 @@ out:
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 
 	if (task->task_done)
-		task->task_done(task, true);
+		task->task_done(task);
 }
 
 /* Interrupts */

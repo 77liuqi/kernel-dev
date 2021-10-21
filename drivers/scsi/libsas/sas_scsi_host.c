@@ -98,7 +98,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 	sas_free_task(task);
 }
 
-static void sas_scsi_task_done(struct sas_task *task, bool done)
+static void sas_scsi_task_done(struct sas_task *task)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
 	struct domain_device *dev = task->dev;
@@ -125,8 +125,7 @@ static void sas_scsi_task_done(struct sas_task *task, bool done)
 	}
 
 	sas_end_task(sc, task);
-	if (done)
-		scsi_done(sc);
+	scsi_done(sc);
 }
 
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,

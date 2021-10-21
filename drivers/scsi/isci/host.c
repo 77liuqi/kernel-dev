@@ -1085,7 +1085,7 @@ void ireq_done(struct isci_host *ihost, struct isci_request *ireq, struct sas_ta
 				"%s: Normal - ireq/task = %p/%p\n",
 				__func__, ireq, task);
 			task->lldd_task = NULL;
-			task->task_done(task, true);
+			task->task_done(task);
 		} else {
 			dev_dbg(&ihost->pdev->dev,
 				"%s: Error - ireq/task = %p/%p\n",

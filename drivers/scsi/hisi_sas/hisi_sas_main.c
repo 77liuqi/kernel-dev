@@ -142,7 +142,7 @@ void hisi_sas_batch_complete(struct io_comp_batch *iob)
 		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 		struct sas_task *task = TO_SAS_TASK(cmd);
 
-		task->task_done(task, true);
+		task->task_done(task);
 	}
 	blk_mq_end_request_batch(iob);
 }
@@ -595,7 +595,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		 * not call task_done for sata
 		 */
 		if (device->dev_type != SAS_SATA_DEV)
-			task->task_done(task, true);
+			task->task_done(task);
 		return -ECOMM;
 	}
 
@@ -1216,7 +1216,7 @@ out:
 	return ret;
 }
 
-static void hisi_sas_task_done(struct sas_task *task, bool done)
+static void hisi_sas_task_done(struct sas_task *task)
 {
 	del_timer_sync(&task->slow_task->timer);
 	complete(&task->slow_task->completion);

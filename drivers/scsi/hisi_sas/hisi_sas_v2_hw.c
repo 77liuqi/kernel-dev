@@ -2492,7 +2492,7 @@ out:
 	}
 
 	if (task->task_done)
-		task->task_done(task, true);
+		task->task_done(task);
 }
 
 static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,

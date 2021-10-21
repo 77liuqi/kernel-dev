@@ -1602,6 +1602,7 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 
 	rq_list_for_each(&iob->req_list, req) {
 		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		pr_err("%s cmd=%pS\n", __func__, cmd);
 	}
 	blk_mq_end_request_batch(iob);
 }

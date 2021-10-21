@@ -72,7 +72,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 	}
 }
 
-static void sas_ata_task_done(struct sas_task *task, bool done)
+static void sas_ata_task_done(struct sas_task *task)
 {
 	struct ata_queued_cmd *qc = task->uldd_task;
 	struct domain_device *dev = task->dev;

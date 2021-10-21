@@ -596,7 +596,7 @@ struct sas_task {
 	u8     data_dir:2;	  /* Use PCI_DMA_... */
 
 	struct task_status_struct task_status;
-	void   (*task_done)(struct sas_task *, bool done);
+	void   (*task_done)(struct sas_task *);
 
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
