@@ -98,7 +98,7 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 	sas_free_task(task);
 }
 
-static void sas_scsi_task_done(struct sas_task *task)
+void sas_scsi_task_done(struct sas_task *task)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
 	struct domain_device *dev = task->dev;
@@ -207,9 +207,10 @@ void sas_batch_complete(struct io_comp_batch *iob)
 {
 	struct request *req;
 
-
 	rq_list_for_each(&iob->req_list, req) {
 		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		struct sas_task *task = TO_SAS_TASK(cmd);
+		BUG_ON(task->task_done != sas_scsi_task_done);
 		scsi_done(cmd);
 	}
 

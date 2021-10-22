@@ -2336,6 +2336,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	bool is_internal = slot->is_internal;
 	u32 dw0;
 	struct request *req = NULL;
+	struct scsi_cmnd *cmd = NULL;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
@@ -2487,8 +2488,10 @@ out:
 
 	if (req) {
 	//	pr_err("%s2 req=%pS iob=%pS\n", __func__, req, iob);
-		if (blk_mq_add_to_batch(req, iob, 0, hisi_sas_batch_complete) == true)
+		if (blk_mq_add_to_batch(req, iob, 0, sas_batch_complete) == true) {
+			cmd->iob = iob;
 			return;
+		}
 	}
 
 	if (task->task_done)
