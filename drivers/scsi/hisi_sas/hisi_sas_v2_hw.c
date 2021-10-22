@@ -2486,16 +2486,19 @@ out:
 		spin_unlock_irqrestore(&device->done_lock, flags);
 	}
 
-	if (req) {
-	//	pr_err("%s2 req=%pS iob=%pS\n", __func__, req, iob);
-		if (blk_mq_add_to_batch(req, iob, 0, sas_batch_complete) == true) {
-			cmd->iob = iob;
-			return;
-		}
-	}
+
+	if (req)
+		cmd->iob = iob;
 
 	if (task->task_done)
 		task->task_done(task);
+
+	if (req) {
+		if (cmd->iob_finished && blk_mq_add_to_batch(req, iob, 0, scsi_batch_complete) == true) {
+			
+			return;
+		}
+	}
 }
 
 static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,

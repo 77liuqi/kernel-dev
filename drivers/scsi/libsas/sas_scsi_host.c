@@ -128,6 +128,36 @@ void sas_scsi_task_done(struct sas_task *task)
 	scsi_done(sc);
 }
 
+bool sas_scsi_task_done2(struct sas_task *task)
+{
+	struct scsi_cmnd *sc = task->uldd_task;
+	struct domain_device *dev = task->dev;
+	struct sas_ha_struct *ha = dev->port->ha;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->done_lock, flags);
+	if (test_bit(SAS_HA_FROZEN, &ha->state))
+		task = NULL;
+	else
+		ASSIGN_SAS_TASK(sc, NULL);
+	spin_unlock_irqrestore(&dev->done_lock, flags);
+
+	if (unlikely(!task)) {
+		/* task will be completed by the error handler */
+		pr_debug("task done but aborted\n");
+		return false;
+	}
+
+	if (unlikely(!sc)) {
+		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		sas_free_task(task);
+		return false;
+	}
+
+	sas_end_task(sc, task);
+	return true;
+}
+
 static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
@@ -210,8 +240,12 @@ void sas_batch_complete(struct io_comp_batch *iob)
 	rq_list_for_each(&iob->req_list, req) {
 		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 		struct sas_task *task = TO_SAS_TASK(cmd);
+		bool res;
 		BUG_ON(task->task_done != sas_scsi_task_done);
-		scsi_done(cmd);
+		res = sas_scsi_task_done2(task);
+		if (res == false) {
+			cmd->iob = NULL;
+		}
 	}
 
 	scsi_batch_complete(iob);

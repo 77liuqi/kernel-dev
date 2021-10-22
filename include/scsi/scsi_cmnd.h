@@ -82,6 +82,7 @@ struct scsi_cmnd {
 
 	int budget_token;
 	struct io_comp_batch *iob;
+	bool iob_finished;
 
 	/*
 	 * This is set to jiffies as it was when the command was first
