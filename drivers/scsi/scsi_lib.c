@@ -1609,6 +1609,8 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 	int count_sdev = 0;
 	int i;
 
+	pr_err("%s iob=%pS\n", __func__, iob);
+
 	rq_list_for_each(&iob->req_list, req) {
 		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 		struct scsi_device *sdev = cmd->device;
@@ -1628,19 +1630,27 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 			sdevs[count_sdev] = sdev;
 			count_sdev++;
 			BUG_ON(count_sdev >= MAX_SDEVS);
+			pr_err("%s1 iob=%pS count_sdev=%d sdev=%pS\n", __func__, iob, count_sdev, sdev);
 		}
 	}
+	
+	pr_err("%s2 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
 
 	blk_mq_end_request_batch(iob);
+
+	pr_err("%s3 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
 
 	for (i = 0; i < count_sdev; i++) {
 		struct scsi_device *sdev = sdevs[i];
 		struct request_queue *q = sdev->request_queue;
+		
+		pr_err("%s4 iob=%pS i=%d sdev=%pS\n", __func__, iob, i, sdev);
 
 		scsi_run_queue_async(sdev);
 
 		percpu_ref_put(&q->q_usage_counter);
 	}
+	pr_err("%s10 exit iob=%pS\n", __func__, iob);
 }
 EXPORT_SYMBOL_GPL(scsi_batch_complete);
 
