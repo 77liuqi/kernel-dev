@@ -3102,6 +3102,9 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static atomic64_t count;
+static atomic64_t total;
+
 static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -3111,6 +3114,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
+
+	u64 myret;
+	u64 _total = 0;
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3151,6 +3157,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
 				slot_complete_v2_hw(hisi_hba, slot);
+				_total++;
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
@@ -3163,11 +3170,18 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
 			slot_complete_v2_hw(hisi_hba, slot);
+			_total++;
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
 	}
+
+
+	myret = atomic64_inc_return(&count);
+	atomic64_add(_total, &total);
+	if ((myret % 1000000) == 0)
+		pr_err("%s total=%llu count=%llu rate=%llu\n", __func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count));
 
 	/* update rd_point */
 	cq->rd_point = rd_point;
