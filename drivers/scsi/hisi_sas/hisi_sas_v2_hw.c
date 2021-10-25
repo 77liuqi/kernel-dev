@@ -3156,7 +3156,10 @@ static atomic64_t total;
 static atomic64_t max_ios;
 
 static atomic64_t max_diff;
+static atomic64_t greater_than_thres;
 
+
+#define THRESHOLD 16
 
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
@@ -3183,12 +3186,17 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 
 	if (wr_point > rd_point) {
 		diff = wr_point - rd_point;
-
-		if (diff > atomic64_read(&max_diff)) {
-			atomic64_set(&max_diff, diff);
-			pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
-		}
+	} else {
+		diff = HISI_SAS_QUEUE_SLOTS - (rd_point - wr_point);
 	}
+
+	if (diff > atomic64_read(&max_diff)) {
+		atomic64_set(&max_diff, diff);
+		pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
+	}
+
+	if (diff > THRESHOLD)
+		atomic64_inc(&greater_than_thres);
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
@@ -3249,7 +3257,8 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);
 	if ((myret % 1000000) == 0)
-		pr_err("%s total=%llu count=%llu rate=%llu\n", __func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count));
+		pr_err("%s total=%llu count=%llu rate=%llu above thres (%d)=%llu\n",
+		__func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count), THRESHOLD, atomic64_read(&greater_than_thres));
 
 	/* update rd_point */
 	cq->rd_point = rd_point;
