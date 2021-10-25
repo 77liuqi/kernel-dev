@@ -2338,6 +2338,7 @@ out:
 
 static atomic64_t count;
 static atomic64_t total;
+static atomic64_t max_ios;
 
 
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
@@ -2384,6 +2385,11 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	if (_total > atomic64_read(&max_ios)) {
+		atomic64_set(&max_ios, _total);
+		pr_err("%s max_ios=%llu\n", __func__, atomic64_read(&max_ios));
+	}
 
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);

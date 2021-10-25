@@ -3105,6 +3105,9 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 static atomic64_t count;
 static atomic64_t total;
 
+static atomic64_t max_ios;
+
+
 static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -3177,6 +3180,10 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			rd_point = 0;
 	}
 
+	if (_total > atomic64_read(&max_ios)) {
+		atomic64_set(&max_ios, _total);
+		pr_err("%s max_ios=%llu\n", __func__, atomic64_read(&max_ios));
+	}
 
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);
