@@ -541,6 +541,7 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		hisi_sas_task_prep_smp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SSP:
+		WARN_ON_ONCE(!scmd);
 		hisi_sas_task_prep_ssp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SATA:
