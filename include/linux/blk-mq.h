@@ -781,6 +781,23 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 				       struct io_comp_batch *iob, int ioerror,
 				       void (*complete)(struct io_comp_batch *))
 {
+	if (!iob) {
+		pr_err("%s req=%pS !iob\n", __func__, req);
+		return false;
+	}
+	if (req->rq_flags & RQF_ELV) {
+		pr_err("%s req=%pS RQF_ELV\n", __func__, req);
+		return false;
+	}
+	if (req->end_io) {
+		pr_err("%s req=%pS req->end_io=%pS\n", __func__, req, req->end_io);
+		return false;
+	}
+	if (ioerror) {
+		pr_err("%s req=%pS ioerror=%d\n", __func__, req, ioerror);
+		return false;
+	}
+
 	if (!iob || (req->rq_flags & RQF_ELV) || req->end_io || ioerror)
 		return false;
 	if (!iob->complete)
