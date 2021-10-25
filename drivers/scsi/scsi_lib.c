@@ -570,6 +570,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 
 	if (cmd->io_comp_batch && error == BLK_STS_OK) {
 		cmd->can_batch_finish = true;
+		pr_err("%s req=%pS can_batch_finish\n", __func__, req);
 		return false;
 	}
 
