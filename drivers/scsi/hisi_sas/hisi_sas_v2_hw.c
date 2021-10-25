@@ -2490,7 +2490,7 @@ out:
 	}
 
 
-	if (req) {
+	if (req && iob) {
 		can_batch = blk_mq_can_add_to_batch(req, iob, 0, scsi_batch_complete);
 		if (can_batch) {
 			cmd->io_comp_batch = iob;
@@ -3150,6 +3150,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+#ifdef ATOMIC_DEBUG
 static atomic64_t count;
 static atomic64_t total;
 
@@ -3157,7 +3158,7 @@ static atomic64_t max_ios;
 
 static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
-
+#endif
 
 #define THRESHOLD 5
 
@@ -3171,10 +3172,14 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
 	DEFINE_IO_COMP_BATCH(iob);
+	struct io_comp_batch *iob_ptr;
 	int diff;
-
+	bool batch;
+	
+	#ifdef ATOMIC_DEBUG
 	u64 myret;
 	u64 _total = 0;
+	#endif
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3189,14 +3194,24 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	} else {
 		diff = HISI_SAS_QUEUE_SLOTS - (rd_point - wr_point);
 	}
-
+	
+	#ifdef ATOMIC_DEBUG
 	if (diff > atomic64_read(&max_diff)) {
 		atomic64_set(&max_diff, diff);
 		pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
 	}
+	#endif
 
+	batch = diff >= THRESHOLD;
+	if (batch)
+		iob_ptr = &iob;
+	else
+		iob_ptr = NULL;
+	
+	#ifdef ATOMIC_DEBUG
 	if (diff >= THRESHOLD)
 		atomic64_inc(&greater_than_thres);
+	#endif
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
@@ -3228,8 +3243,10 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
-				slot_complete_v2_hw(hisi_hba, slot, &iob);
+				slot_complete_v2_hw(hisi_hba, slot, NULL);
+				#ifdef ATOMIC_DEBUG
 				_total++;
+				#endif
 
 				act_tmp &= ~(1 << ncq_tag_count); 
 				ncq_tag_count = ffs(act_tmp);
@@ -3241,13 +3258,17 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v2_hw(hisi_hba, slot, &iob);
+			slot_complete_v2_hw(hisi_hba, slot, iob_ptr);
+			#ifdef ATOMIC_DEBUG
 			_total++;
+			#endif
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
 	}
+	
+	#ifdef ATOMIC_DEBUG
 
 	if (_total > atomic64_read(&max_ios)) {
 		atomic64_set(&max_ios, _total);
@@ -3259,6 +3280,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	if ((myret % 1000000) == 0)
 		pr_err("%s total=%llu count=%llu rate=%llu above thres (%d)=%llu\n",
 		__func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count), THRESHOLD, atomic64_read(&greater_than_thres));
+	#endif
 
 	/* update rd_point */
 	cq->rd_point = rd_point;
