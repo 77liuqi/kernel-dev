@@ -2496,7 +2496,7 @@ out:
 	if (task->task_done)
 		task->task_done(task);
 
-	if (cmd) {
+	if (req) {
 		if (cmd->can_batch_finish) {
 			refcount_dec(&req->ref);
 			blk_mq_add_to_batch(req, iob, 0, scsi_batch_complete);
