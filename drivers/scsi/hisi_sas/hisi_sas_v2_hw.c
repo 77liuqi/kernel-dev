@@ -2426,7 +2426,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		sas_ssp_task_response(dev, task, iu);
 		if (cmd)
 			req = scsi_cmd_to_rq(cmd);
-		WARN_ON_ONCE(!cmd);
+//		WARN_ON_ONCE(!cmd); //tmf would be an example
 //		pr_err("%s1 req=%pS cmd=%pS\n", __func__, req, cmd);
 		break;
 	}
