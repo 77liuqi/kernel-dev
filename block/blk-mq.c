@@ -801,8 +801,8 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
 	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
 }
-atomic64_t count;
-atomic64_t total;
+static atomic64_t count;
+static atomic64_t total;
 void blk_mq_end_request_batch(struct io_comp_batch *iob)
 {
 	int tags[TAG_COMP_BATCH], nr_tags_q = 0, nr_tags_tags = 0;
