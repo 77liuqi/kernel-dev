@@ -2336,6 +2336,10 @@ out:
 		task->task_done(task);
 }
 
+static atomic64_t count;
+static atomic64_t total;
+
+
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -2344,6 +2348,9 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v3_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point;
 	int queue = cq->id;
+
+	u64 myret;
+	u64 _total = 0;
 
 	complete_queue = hisi_hba->complete_hdr[queue];
 
@@ -2367,6 +2374,8 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 			slot_complete_v3_hw(hisi_hba, slot);
 		} else
 			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
+		
+		_total++;
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
@@ -2375,6 +2384,11 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+
+	myret = atomic64_inc_return(&count);
+	atomic64_add(_total, &total);
+	if ((myret % 1000000) == 0)
+		pr_err("%s total=%llu count=%llu rate=%llu\n", __func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count));
 
 	return IRQ_HANDLED;
 }
