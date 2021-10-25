@@ -3159,7 +3159,7 @@ static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
 
 
-#define THRESHOLD 10
+#define THRESHOLD 5
 
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
@@ -3195,7 +3195,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 		pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
 	}
 
-	if (diff > THRESHOLD)
+	if (diff >= THRESHOLD)
 		atomic64_inc(&greater_than_thres);
 
 	while (rd_point != wr_point) {
