@@ -2421,9 +2421,9 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				hisi_sas_status_buf_addr_mem(slot);
 		struct ssp_response_iu *iu = (struct ssp_response_iu *)
 				&status_buffer->iu[0];
-		struct scsi_cmnd *cmd = task->uldd_task;
 
 		sas_ssp_task_response(dev, task, iu);
+		cmd = task->uldd_task;
 		if (cmd)
 			req = scsi_cmd_to_rq(cmd);
 //		WARN_ON_ONCE(!cmd); //tmf would be an example
