@@ -778,19 +778,19 @@ static inline bool blk_mq_can_add_to_batch(struct request *req,
 				       void (*complete)(struct io_comp_batch *))
 {
 	if (!iob) {
-		pr_err("%s req=%pS !iob\n", __func__, req);
+		pr_err_once("%s req=%pS !iob\n", __func__, req);
 		return false;
 	}
 	if (req->rq_flags & RQF_ELV) {
-		pr_err("%s req=%pS RQF_ELV\n", __func__, req);
+		pr_err_once("%s req=%pS RQF_ELV\n", __func__, req);
 		return false;
 	}
 	if (req->end_io) {
-		pr_err("%s req=%pS req->end_io=%pS\n", __func__, req, req->end_io);
+		pr_err_once("%s req=%pS req->end_io=%pS\n", __func__, req, req->end_io);
 		return false;
 	}
 	if (ioerror) {
-		pr_err("%s req=%pS ioerror=%d\n", __func__, req, ioerror);
+		pr_err_once("%s req=%pS ioerror=%d\n", __func__, req, ioerror);
 		return false;
 	}
 

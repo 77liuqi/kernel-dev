@@ -2501,11 +2501,11 @@ out:
 		task->task_done(task);
 
 	if (can_batch) {
-		pr_err("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
+		pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 		if (cmd->can_batch_finish) {
 			refcount_dec(&req->ref);
 			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
-			pr_err("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
+			pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 			return;
 		}
 		refcount_dec(&req->ref);
