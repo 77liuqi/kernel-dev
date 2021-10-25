@@ -816,7 +816,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		prefetch(rq->bio);
 		prefetch(rq->rq_next);
 
-		blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
+		//blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
 		if (iob->need_ts)
 			__blk_mq_end_request_acct(rq, now);
 

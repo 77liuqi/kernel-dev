@@ -568,8 +568,8 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	 */
 	scsi_mq_uninit_cmd(cmd);
 
-	if (cmd->iob) {
-		cmd->iob_finished = true;
+	if (cmd->io_comp_batch && error == BLK_STS_OK) {
+		cmd->can_batch_finish = true;
 		return false;
 	}
 
@@ -1601,9 +1601,46 @@ void scsi_done(struct scsi_cmnd *cmd)
 }
 EXPORT_SYMBOL(scsi_done);
 
+#define MAX_SDEVS 10
 void scsi_batch_complete(struct io_comp_batch *iob)
 {
+	struct scsi_device *sdevs[MAX_SDEVS];
+	struct request *req;
+	int count_sdev = 0;
+	int i;
+
+	rq_list_for_each(&iob->req_list, req) {
+		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		struct scsi_device *sdev = cmd->device;
+		bool found = false;
+
+		for (i = 0; i < count_sdev; i++) {
+			if (sdevs[i] == sdev) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found == false) {
+			struct request_queue *q = sdev->request_queue;
+
+			percpu_ref_get(&q->q_usage_counter);
+			sdevs[count_sdev] = sdev;
+			count_sdev++;
+			BUG_ON(count_sdev >= MAX_SDEVS);
+		}
+	}
+
 	blk_mq_end_request_batch(iob);
+
+	for (i = 0; i < count_sdev; i++) {
+		struct scsi_device *sdev = sdevs[i];
+		struct request_queue *q = sdev->request_queue;
+
+		scsi_run_queue_async(sdev);
+
+		percpu_ref_put(&q->q_usage_counter);
+	}
 }
 EXPORT_SYMBOL_GPL(scsi_batch_complete);
 

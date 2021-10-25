@@ -81,8 +81,8 @@ struct scsi_cmnd {
 	int eh_eflags;		/* Used by error handlr */
 
 	int budget_token;
-	struct io_comp_batch *iob;
-	bool iob_finished;
+	struct io_comp_batch *io_comp_batch;
+	bool can_batch_finish; /* Ready for batch finishing ... */
 
 	/*
 	 * This is set to jiffies as it was when the command was first

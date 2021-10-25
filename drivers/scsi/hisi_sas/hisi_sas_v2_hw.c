@@ -2488,16 +2488,21 @@ out:
 
 
 	if (req)
-		cmd->iob = iob;
+		cmd->io_comp_batch = iob;
+
+	if (req)
+		refcount_inc(&req->ref);
 
 	if (task->task_done)
 		task->task_done(task);
 
 	if (req) {
-		if (cmd->iob_finished && blk_mq_add_to_batch(req, iob, 0, scsi_batch_complete) == true) {
-			
+		if (cmd->can_batch_finish) {
+			refcount_dec(&req->ref);
+			blk_mq_add_to_batch(req, iob, 0, scsi_batch_complete);
 			return;
 		}
+		refcount_dec(&req->ref);
 	}
 }
 

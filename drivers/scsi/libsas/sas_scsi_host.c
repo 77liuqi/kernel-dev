@@ -244,7 +244,7 @@ void sas_batch_complete(struct io_comp_batch *iob)
 		BUG_ON(task->task_done != sas_scsi_task_done);
 		res = sas_scsi_task_done2(task);
 		if (res == false) {
-			cmd->iob = NULL;
+			cmd->io_comp_batch = NULL;
 		}
 	}
 
