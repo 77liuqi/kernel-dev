@@ -3159,7 +3159,7 @@ static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
 
 
-#define THRESHOLD 16
+#define THRESHOLD 10
 
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
@@ -3184,7 +3184,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
 
-	if (wr_point > rd_point) {
+	if (wr_point >= rd_point) {
 		diff = wr_point - rd_point;
 	} else {
 		diff = HISI_SAS_QUEUE_SLOTS - (rd_point - wr_point);
