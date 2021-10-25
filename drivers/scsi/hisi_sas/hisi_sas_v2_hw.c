@@ -2338,6 +2338,7 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	struct request *req = NULL;
 	struct scsi_cmnd *cmd = NULL;
 	bool can_batch = false;
+	bool wanted_batch_finish = false;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
@@ -2490,12 +2491,12 @@ out:
 
 	if (req) {
 		can_batch = blk_mq_can_add_to_batch(req, iob, 0, scsi_batch_complete);
-		if (can_batch)
+		if (can_batch) {
 			cmd->io_comp_batch = iob;
+			refcount_inc(&req->ref);
+			wanted_batch_finish = true;
+		}
 	}
-
-	if (can_batch)
-		refcount_inc(&req->ref);
 
 	if (task->task_done)
 		task->task_done(task);
@@ -2508,7 +2509,19 @@ out:
 			pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 			return;
 		}
-		refcount_dec(&req->ref);
+		smp_mb();
+		if (cmd->can_batch_finish)
+			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
+		if (!refcount_dec_and_test(&req->ref))
+			pr_err("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
+	}
+	smp_mb();
+	if (req) {
+		if (wanted_batch_finish == true && cmd->can_batch_finish == true)
+			pr_err("%s9 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 	}
 }
 
