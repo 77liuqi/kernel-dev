@@ -2339,6 +2339,7 @@ out:
 static atomic64_t count;
 static atomic64_t total;
 static atomic64_t max_ios;
+static atomic64_t max_diff;
 
 
 static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
@@ -2349,7 +2350,7 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v3_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point;
 	int queue = cq->id;
-
+	int diff;
 	u64 myret;
 	u64 _total = 0;
 
@@ -2357,6 +2358,15 @@ static irqreturn_t  cq_thread_v3_hw(int irq_no, void *p)
 
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
+
+	if (wr_point > rd_point) {
+		diff = wr_point - rd_point;
+
+		if (diff > atomic64_read(&max_diff)) {
+			atomic64_set(&max_diff, diff);
+			pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
+		}
+	}
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v3_hdr *complete_hdr;
