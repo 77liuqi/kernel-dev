@@ -804,7 +804,7 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 
 void blk_mq_end_request_batch(struct io_comp_batch *iob)
 {
-	int tags[TAG_COMP_BATCH], nr_tags = 0;
+	int tags[TAG_COMP_BATCH], nr_tags_q = 0, nr_tags_tags = 0;
 	struct blk_mq_hw_ctx *last_hctx = NULL;
 	struct request *rq;
 	u64 now = 0;
@@ -828,17 +828,23 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		blk_pm_mark_last_busy(rq);
 		rq_qos_done(rq->q, rq);
 
-		if (nr_tags == TAG_COMP_BATCH ||
-		    (last_hctx && last_hctx != rq->mq_hctx)) { //fixme for shared tags
-			blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
-			nr_tags = 0;
+		if (last_hctx && last_hctx != rq->mq_hctx) { //fixme for shared tags
+			percpu_ref_put_many(&last_hctx->queue->q_usage_counter, nr_tags_q);
+			nr_tags_q = 0;
 		}
-		tags[nr_tags++] = rq->tag;
+		if (nr_tags_tags == TAG_COMP_BATCH) {
+			blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
+			nr_tags_tags = 0;
+		}
+		tags[nr_tags_tags++] = rq->tag;
 		last_hctx = rq->mq_hctx;
+		nr_tags_q++;
 	}
 
-	if (nr_tags)
-		blk_mq_flush_tag_batch(last_hctx, tags, nr_tags);
+	if (nr_tags_q)
+		percpu_ref_put_many(&last_hctx->queue->q_usage_counter, nr_tags_q);
+	if (nr_tags_tags)
+		blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
 }
 EXPORT_SYMBOL_GPL(blk_mq_end_request_batch);
 
