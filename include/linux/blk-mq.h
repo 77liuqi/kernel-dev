@@ -773,6 +773,51 @@ static inline bool blk_mq_need_time_stamp(struct request *rq)
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_ELV));
 }
 
+static inline bool blk_mq_can_add_to_batch(struct request *req,
+				       struct io_comp_batch *iob, int ioerror,
+				       void (*complete)(struct io_comp_batch *))
+{
+	if (!iob) {
+		pr_err("%s req=%pS !iob\n", __func__, req);
+		return false;
+	}
+	if (req->rq_flags & RQF_ELV) {
+		pr_err("%s req=%pS RQF_ELV\n", __func__, req);
+		return false;
+	}
+	if (req->end_io) {
+		pr_err("%s req=%pS req->end_io=%pS\n", __func__, req, req->end_io);
+		return false;
+	}
+	if (ioerror) {
+		pr_err("%s req=%pS ioerror=%d\n", __func__, req, ioerror);
+		return false;
+	}
+
+	if (!iob || (req->rq_flags & RQF_ELV) || req->end_io || ioerror)
+		return false;
+	if (!iob->complete)
+		iob->complete = complete;
+	else if (iob->complete != complete)
+		return false;
+	
+	return true;
+}
+
+/*
+ * Batched completions only work when there is no I/O error and no special
+ * ->end_io handler.
+ */
+static inline void blk_mq_add_to_batch_force(struct request *req,
+				       struct io_comp_batch *iob,
+				       void (*complete)(struct io_comp_batch *))
+{
+	if (!iob->complete)
+		iob->complete = complete;
+	iob->need_ts |= blk_mq_need_time_stamp(req);
+	rq_list_add(&iob->req_list, req);
+}
+
 /*
  * Batched completions only work when there is no I/O error and no special
  * ->end_io handler.
