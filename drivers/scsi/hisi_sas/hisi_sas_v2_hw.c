@@ -3105,6 +3105,15 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 
 	return IRQ_HANDLED;
 }
+#define ATOMIC_DEBUG
+
+#ifdef ATOMIC_DEBUG
+#define THRESHOLD 10
+static atomic64_t count;
+static atomic64_t total;
+
+static atomic64_t greater_than_thres;
+#endif
 
 static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 {
@@ -3115,6 +3124,14 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
+	#ifdef ATOMIC_DEBUG
+	int diff;
+	#endif
+	
+	#ifdef ATOMIC_DEBUG
+	u64 myret;
+	u64 _total = 0;
+	#endif
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
 		phys_try_accept_stp_links_v2_hw(hisi_hba);
@@ -3123,6 +3140,19 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
+	#ifdef ATOMIC_DEBUG
+	if (wr_point >= rd_point) {
+		diff = wr_point - rd_point;
+	} else {
+		diff = HISI_SAS_QUEUE_SLOTS - (rd_point - wr_point);
+	}
+
+	#endif
+
+	#ifdef ATOMIC_DEBUG
+	if (diff >= THRESHOLD)
+		atomic64_inc(&greater_than_thres);
+	#endif
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
@@ -3155,6 +3185,9 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
 				slot_complete_v2_hw(hisi_hba, slot);
+				#ifdef ATOMIC_DEBUG
+				_total++;
+				#endif
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
@@ -3167,12 +3200,22 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
 			slot_complete_v2_hw(hisi_hba, slot);
+			#ifdef ATOMIC_DEBUG
+			_total++;
+			#endif
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
 	}
+	#ifdef ATOMIC_DEBUG
 
+	myret = atomic64_inc_return(&count);
+	atomic64_add(_total, &total);
+	if ((myret % 1000000) == 0)
+		pr_err("%s total=%llu count=%llu rate=%llu >= thres (%d)=%llu\n",
+		__func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count), THRESHOLD, atomic64_read(&greater_than_thres));
+	#endif
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
