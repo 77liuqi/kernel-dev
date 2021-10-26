@@ -1189,10 +1189,10 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x1);
 	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0xc);
-	#define OQ_INT_COAL_TIME_val 0x60
+	#define OQ_INT_COAL_TIME_val 0x140
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, OQ_INT_COAL_TIME_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_TIME=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_TIME), OQ_INT_COAL_TIME_val);
-	#define OQ_INT_COAL_CNT_val 0x10
+	#define OQ_INT_COAL_CNT_val 0x20
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, OQ_INT_COAL_CNT_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_CNT=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_CNT), OQ_INT_COAL_CNT_val);
 	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME, 0x1);
@@ -3318,6 +3318,104 @@ static int hisi_sas_v2_interrupt_preinit(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+static void config_intr_coal_v2_hw(struct hisi_hba *hisi_hba)
+{
+	/* config those registers between enable and disable PHYs */
+	hisi_sas_stop_phys(hisi_hba);
+
+	if (hisi_hba->intr_coal_ticks == 0 ||
+	    hisi_hba->intr_coal_count == 0) {
+		hisi_sas_write32(hisi_hba, INT_COAL_EN, 0x1);
+		hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, 0x1);
+		hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, 0x1);
+	} else {
+		hisi_sas_write32(hisi_hba, INT_COAL_EN, 0x3);
+		hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME,
+				 hisi_hba->intr_coal_ticks);
+		hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT,
+				 hisi_hba->intr_coal_count);
+	}
+	phys_init_v2_hw(hisi_hba);
+}
+
+static ssize_t intr_coal_ticks_v2_hw_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			 hisi_hba->intr_coal_ticks);
+}
+
+static ssize_t intr_coal_ticks_v2_hw_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	u32 intr_coal_ticks;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &intr_coal_ticks);
+	if (ret) {
+		dev_err(dev, "Input data of interrupt coalesce unmatch\n");
+		return -EINVAL;
+	}
+
+	if (intr_coal_ticks >= BIT(24)) {
+		dev_err(dev, "intr_coal_ticks must be less than 2^24!\n");
+		return -EINVAL;
+	}
+
+	hisi_hba->intr_coal_ticks = intr_coal_ticks;
+
+	config_intr_coal_v2_hw(hisi_hba);
+
+	return count;
+}
+static DEVICE_ATTR_RW(intr_coal_ticks_v2_hw);
+
+static ssize_t intr_coal_count_v2_hw_show(struct device *dev,
+					  struct device_attribute
+					  *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n",
+			 hisi_hba->intr_coal_count);
+}
+
+static ssize_t intr_coal_count_v2_hw_store(struct device *dev,
+		struct device_attribute
+		*attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct hisi_hba *hisi_hba = shost_priv(shost);
+	u32 intr_coal_count;
+	int ret;
+
+	ret = kstrtou32(buf, 10, &intr_coal_count);
+	if (ret) {
+		dev_err(dev, "Input data of interrupt coalesce unmatch\n");
+		return -EINVAL;
+	}
+
+	if (intr_coal_count >= BIT(8)) {
+		dev_err(dev, "intr_coal_count must be less than 2^8!\n");
+		return -EINVAL;
+	}
+
+	hisi_hba->intr_coal_count = intr_coal_count;
+
+	config_intr_coal_v2_hw(hisi_hba);
+
+	return count;
+}
+static DEVICE_ATTR_RW(intr_coal_count_v2_hw);
+
 /*
  * There is a limitation in the hip06 chipset that we need
  * to map in all mbigen interrupts, even if they are not used.
@@ -3537,6 +3635,8 @@ static void wait_cmds_complete_timeout_v2_hw(struct hisi_hba *hisi_hba,
 
 static struct attribute *host_v2_hw_attrs[] = {
 	&dev_attr_phy_event_threshold.attr,
+	&dev_attr_intr_coal_ticks_v2_hw.attr,
+	&dev_attr_intr_coal_count_v2_hw.attr,
 	NULL
 };
 
