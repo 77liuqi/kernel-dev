@@ -3164,8 +3164,6 @@ static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
 #endif
 
-#define THRESHOLD 5
-
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -3177,8 +3175,10 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	int queue = cq->id;
 	DEFINE_IO_COMP_BATCH(iob);
 	struct io_comp_batch *iob_ptr;
+	
+	#ifdef ATOMIC_DEBUG
 	int diff;
-	bool batch;
+	#endif
 	
 	#ifdef ATOMIC_DEBUG
 	u64 myret;
@@ -3193,25 +3193,27 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
 
+	
+	#ifdef ATOMIC_DEBUG
 	if (wr_point >= rd_point) {
 		diff = wr_point - rd_point;
 	} else {
 		diff = HISI_SAS_QUEUE_SLOTS - (rd_point - wr_point);
 	}
-	
-	#ifdef ATOMIC_DEBUG
+
 	if (diff > atomic64_read(&max_diff)) {
 		atomic64_set(&max_diff, diff);
 		pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
 	}
-	#endif
-
 	batch = diff >= THRESHOLD;
 	if (batch)
 		iob_ptr = &iob;
 	else
 		iob_ptr = NULL;
-	
+	#endif
+
+	iob_ptr = &iob;
+
 	#ifdef ATOMIC_DEBUG
 	if (diff >= THRESHOLD)
 		atomic64_inc(&greater_than_thres);
