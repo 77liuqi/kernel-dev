@@ -634,6 +634,10 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 		*per_cpu_ptr(sb->alloc_hint, cpu) = tag;
 }
 
+atomic64_t tags_total;
+atomic64_t tags_clear;
+atomic64_t tags_count;
+
 void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 				int *tags, int nr_tags)
 {
@@ -641,6 +645,15 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	unsigned long *addr = NULL;
 	unsigned long mask = 0;
 	int i;
+	u64 ret;
+
+	ret = atomic64_inc_return(&tags_count);
+
+	if ((ret % 10000) == 0) 
+		pr_err("%s call count=%llu total tags cleared=%llu clear count=%llu ratio=%llu\n", __func__,
+			atomic64_read(&tags_count), atomic64_read(&tags_total), atomic64_read(&tags_clear), atomic64_read(&tags_total) / atomic64_read(&tags_clear));
+	
+	atomic64_add(nr_tags, &tags_total);
 
 	smp_mb__before_atomic();
 	for (i = 0; i < nr_tags; i++) {
@@ -653,14 +666,19 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 			addr = this_addr;
 		} else if (addr != this_addr) {
 			atomic_long_andnot(mask, (atomic_long_t *) addr);
+			WARN_ON_ONCE(!mask);
 			mask = 0;
 			addr = this_addr;
+			atomic64_inc(&tags_clear);
 		}
 		mask |= (1UL << SB_NR_TO_BIT(sb, tag));
 	}
 
-	if (mask)
+	if (mask) {
+		atomic64_inc(&tags_clear);
+		WARN_ON_ONCE(!mask);
 		atomic_long_andnot(mask, (atomic_long_t *) addr);
+	}
 
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq);

@@ -3212,7 +3212,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 		iob_ptr = NULL;
 	#endif
 
-	iob_ptr = NULL;
+	iob_ptr = &iob;
 
 	#ifdef ATOMIC_DEBUG
 	if (diff >= THRESHOLD)
