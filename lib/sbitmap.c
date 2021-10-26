@@ -652,7 +652,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 
 	ret = atomic64_inc_return(&tags_count);
 
-	if ((ret % 10000) == 0) 
+	if ((ret % 100000) == 0) 
 		pr_err("%s call count=%llu total tags cleared=%llu clear count=%llu ratio=%llu\n", __func__,
 			atomic64_read(&tags_count), atomic64_read(&tags_total), atomic64_read(&tags_clear), atomic64_read(&tags_total) / atomic64_read(&tags_clear));
 	
