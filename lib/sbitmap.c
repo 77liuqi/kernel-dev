@@ -649,6 +649,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	int i;
 	u64 ret;
 	int index;
+	int hint = tags[nr_tags - 1];
 
 	ret = atomic64_inc_return(&tags_count);
 
@@ -719,7 +720,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq);
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
-					tags[nr_tags - 1] - offset);
+					hint - offset);
 }
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
