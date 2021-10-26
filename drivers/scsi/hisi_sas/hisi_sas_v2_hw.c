@@ -1192,7 +1192,7 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	#define OQ_INT_COAL_TIME_val 0x140
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, OQ_INT_COAL_TIME_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_TIME=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_TIME), OQ_INT_COAL_TIME_val);
-	#define OQ_INT_COAL_CNT_val 0x20
+	#define OQ_INT_COAL_CNT_val 0x25
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, OQ_INT_COAL_CNT_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_CNT=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_CNT), OQ_INT_COAL_CNT_val);
 	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME, 0x1);
