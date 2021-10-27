@@ -845,6 +845,8 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		nr_tags_q++;
 		_total++;
 	}
+	iob->count = 0;
+	iob->req_list = NULL;
 
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);

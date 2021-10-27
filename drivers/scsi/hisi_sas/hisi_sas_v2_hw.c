@@ -3211,6 +3211,8 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 		atomic64_inc(&greater_than_thres);
 	#endif
 
+	spin_lock(&cq->lock);
+
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
 		int iptt;
@@ -3285,10 +3287,13 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 
-	if (iob_ptr->count >= CQ_BATCH_THRESHOLD || (cqs == 0 && iob_ptr->count))
+	if (iob_ptr->count >= CQ_BATCH_THRESHOLD) {
 		scsi_batch_complete(iob_ptr);
-	else
-		; // start timer
+		del_timer(&cq->timer);
+	} else {
+		mod_timer(&cq->timer, msecs_to_jiffies(5 * HZ));
+	}
+	spin_unlock(&cq->lock);
 
 	return IRQ_HANDLED;
 }

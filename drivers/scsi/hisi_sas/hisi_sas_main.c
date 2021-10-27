@@ -2420,6 +2420,20 @@ void hisi_sas_init_mem(struct hisi_hba *hisi_hba)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 
+
+static void hisi_sas_cq_timer(struct timer_list *t)
+{
+	struct hisi_sas_cq *cq = from_timer(cq, t, timer);
+	struct io_comp_batch *iob_ptr = &cq->iob;
+
+	pr_err_once("%s\n", __func__);
+
+	spin_lock(&cq->lock);
+	if (iob_ptr->count)
+		scsi_batch_complete(iob_ptr);
+	spin_unlock(&cq->lock);
+}
+
 int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
@@ -2452,6 +2466,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);
 		spin_lock_init(&cq->lock);
+		cq->timer.function = hisi_sas_cq_timer;
 		INIT_LIST_HEAD(&dq->list);
 		dq->id = i;
 		dq->hisi_hba = hisi_hba;

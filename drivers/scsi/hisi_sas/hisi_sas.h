@@ -208,6 +208,7 @@ struct hisi_sas_cq {
 	int	id;
 	int	irq_no;
 	spinlock_t lock;
+	struct timer_list timer;
 };
 
 struct hisi_sas_dq {
