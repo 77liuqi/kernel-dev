@@ -2425,13 +2425,14 @@ static void hisi_sas_cq_timer(struct timer_list *t)
 {
 	struct hisi_sas_cq *cq = from_timer(cq, t, timer);
 	struct io_comp_batch *iob_ptr = &cq->iob;
+	unsigned long flags;
 
 	pr_err_once("%s\n", __func__);
 
-	spin_lock(&cq->lock);
+	spin_lock_irqsave(&cq->lock, flags);
 	if (iob_ptr->count)
 		scsi_batch_complete(iob_ptr);
-	spin_unlock(&cq->lock);
+	spin_unlock_irqrestore(&cq->lock, flags);
 }
 
 int hisi_sas_alloc(struct hisi_hba *hisi_hba)

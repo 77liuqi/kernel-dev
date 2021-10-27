@@ -2322,218 +2322,6 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 	}
 }
 
-
-static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
-				struct hisi_sas_slot *slot,
-				struct io_comp_batch *iob)
-{
-	struct sas_task *task = slot->task;
-	struct hisi_sas_device *sas_dev;
-	struct device *dev = hisi_hba->dev;
-	struct task_status_struct *ts;
-	struct domain_device *device;
-	struct sas_ha_struct *ha;
-	struct hisi_sas_complete_v2_hdr *complete_queue =
-			hisi_hba->complete_hdr[slot->cmplt_queue];
-	struct hisi_sas_complete_v2_hdr *complete_hdr =
-			&complete_queue[slot->cmplt_queue_slot];
-	unsigned long flags;
-	bool is_internal = slot->is_internal;
-	u32 dw0;
-	struct request *req = NULL;
-	struct scsi_cmnd *cmd = NULL;
-	bool can_batch = false;
-	bool wanted_batch_finish = false;
-
-	if (unlikely(!task || !task->lldd_task || !task->dev))
-		return;
-
-	ts = &task->task_status;
-	device = task->dev;
-	ha = device->port->ha;
-	sas_dev = device->lldd_dev;
-
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	task->task_state_flags &=
-		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-
-	memset(ts, 0, sizeof(*ts));
-	ts->resp = SAS_TASK_COMPLETE;
-
-	if (unlikely(!sas_dev)) {
-		dev_dbg(dev, "slot complete: port has no device\n");
-		ts->stat = SAS_PHY_DOWN;
-		goto out;
-	}
-
-	/* Use SAS+TMF status codes */
-	dw0 = le32_to_cpu(complete_hdr->dw0);
-	switch ((dw0 & CMPLT_HDR_ABORT_STAT_MSK) >>
-		CMPLT_HDR_ABORT_STAT_OFF) {
-	case STAT_IO_ABORTED:
-		/* this io has been aborted by abort command */
-		ts->stat = SAS_ABORTED_TASK;
-		goto out;
-	case STAT_IO_COMPLETE:
-		/* internal abort command complete */
-		ts->stat = TMF_RESP_FUNC_SUCC;
-		del_timer_sync(&slot->internal_abort_timer);
-		goto out;
-	case STAT_IO_NO_DEVICE:
-		ts->stat = TMF_RESP_FUNC_COMPLETE;
-		del_timer_sync(&slot->internal_abort_timer);
-		goto out;
-	case STAT_IO_NOT_VALID:
-		/* abort single io, controller don't find
-		 * the io need to abort
-		 */
-		ts->stat = TMF_RESP_FUNC_FAILED;
-		del_timer_sync(&slot->internal_abort_timer);
-		goto out;
-	default:
-		break;
-	}
-
-	if ((dw0 & CMPLT_HDR_ERX_MSK) && (!(dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
-		u32 err_phase = (dw0 & CMPLT_HDR_ERR_PHASE_MSK)
-				>> CMPLT_HDR_ERR_PHASE_OFF;
-		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
-
-		/* Analyse error happens on which phase TX or RX */
-		if (ERR_ON_TX_PHASE(err_phase))
-			slot_err_v2_hw(hisi_hba, task, slot, 1);
-		else if (ERR_ON_RX_PHASE(err_phase))
-			slot_err_v2_hw(hisi_hba, task, slot, 2);
-
-		if (ts->stat != SAS_DATA_UNDERRUN)
-			dev_info(dev, "erroneous completion iptt=%d task=%pK dev id=%d CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
-				 slot->idx, task, sas_dev->device_id,
-				 complete_hdr->dw0, complete_hdr->dw1,
-				 complete_hdr->act, complete_hdr->dw3,
-				 error_info[0], error_info[1],
-				 error_info[2], error_info[3]);
-
-		if (unlikely(slot->abort)) {
-			sas_task_abort(task);
-			return;
-		}
-		goto out;
-	}
-
-	switch (task->task_proto) {
-	case SAS_PROTOCOL_SSP:
-	{
-		struct hisi_sas_status_buffer *status_buffer =
-				hisi_sas_status_buf_addr_mem(slot);
-		struct ssp_response_iu *iu = (struct ssp_response_iu *)
-				&status_buffer->iu[0];
-
-		sas_ssp_task_response(dev, task, iu);
-		cmd = task->uldd_task;
-		if (cmd)
-			req = scsi_cmd_to_rq(cmd);
-//		WARN_ON_ONCE(!cmd); //tmf would be an example
-//		pr_err("%s1 req=%pS cmd=%pS\n", __func__, req, cmd);
-		break;
-	}
-	case SAS_PROTOCOL_SMP:
-	{
-		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
-		void *to = page_address(sg_page(sg_resp));
-
-		ts->stat = SAS_SAM_STAT_GOOD;
-
-		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
-			     DMA_TO_DEVICE);
-		memcpy(to + sg_resp->offset,
-		       hisi_sas_status_buf_addr_mem(slot) +
-		       sizeof(struct hisi_sas_err_record),
-		       sg_resp->length);
-		break;
-	}
-	case SAS_PROTOCOL_SATA:
-	case SAS_PROTOCOL_STP:
-	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
-	{
-		ts->stat = SAS_SAM_STAT_GOOD;
-		hisi_sas_sata_done(task, slot);
-		break;
-	}
-	default:
-		ts->stat = SAS_SAM_STAT_CHECK_CONDITION;
-		break;
-	}
-
-	if (!slot->port->port_attached) {
-		dev_warn(dev, "slot complete: port %d has removed\n",
-			slot->port->sas_port.id);
-		ts->stat = SAS_PHY_DOWN;
-	}
-
-out:
-	spin_lock_irqsave(&task->task_state_lock, flags);
-	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
-		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		dev_info(dev, "slot complete: task(%pK) aborted\n", task);
-		return;
-	}
-	task->task_state_flags |= SAS_TASK_STATE_DONE;
-	spin_unlock_irqrestore(&task->task_state_lock, flags);
-	hisi_sas_slot_task_free(hisi_hba, task, slot);
-
-	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
-		spin_lock_irqsave(&device->done_lock, flags);
-		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
-			spin_unlock_irqrestore(&device->done_lock, flags);
-			dev_info(dev, "slot complete: task(%pK) ignored\n",
-				 task);
-			return;
-		}
-		spin_unlock_irqrestore(&device->done_lock, flags);
-	}
-
-
-	if (req && iob) {
-		can_batch = blk_mq_can_add_to_batch(req, iob, 0, scsi_batch_complete);
-		if (can_batch) {
-			cmd->io_comp_batch = iob;
-			refcount_inc(&req->ref);
-			wanted_batch_finish = true;
-		}
-	}
-
-	if (task->task_done)
-		task->task_done(task);
-
-	if (can_batch) {
-	//	pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
-		if (cmd->can_batch_finish) {
-			refcount_dec(&req->ref);
-			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
-	//		pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
-			return;
-		}
-		#ifdef debug_john
-		smp_mb();
-		if (cmd->can_batch_finish)
-			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
-			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-		if (!refcount_dec_and_test(&req->ref))
-			pr_err("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
-			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-		#endif
-	}
-	#ifdef debug_john
-	smp_mb();
-	if (req) {
-		if (wanted_batch_finish == true && cmd->can_batch_finish == true)
-			pr_err("%s9 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
-			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-	}
-	#endif
-}
-
 static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 			  struct hisi_sas_slot *slot)
 {
@@ -3154,6 +2942,217 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
+static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
+				struct hisi_sas_slot *slot,
+				struct io_comp_batch *iob)
+{
+	struct sas_task *task = slot->task;
+	struct hisi_sas_device *sas_dev;
+	struct device *dev = hisi_hba->dev;
+	struct task_status_struct *ts;
+	struct domain_device *device;
+	struct sas_ha_struct *ha;
+	struct hisi_sas_complete_v2_hdr *complete_queue =
+			hisi_hba->complete_hdr[slot->cmplt_queue];
+	struct hisi_sas_complete_v2_hdr *complete_hdr =
+			&complete_queue[slot->cmplt_queue_slot];
+	unsigned long flags;
+	bool is_internal = slot->is_internal;
+	u32 dw0;
+	struct request *req = NULL;
+	struct scsi_cmnd *cmd = NULL;
+	bool can_batch = false;
+	bool wanted_batch_finish = false;
+
+	if (unlikely(!task || !task->lldd_task || !task->dev))
+		return;
+
+	ts = &task->task_status;
+	device = task->dev;
+	ha = device->port->ha;
+	sas_dev = device->lldd_dev;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	task->task_state_flags &=
+		~(SAS_TASK_STATE_PENDING | SAS_TASK_AT_INITIATOR);
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	memset(ts, 0, sizeof(*ts));
+	ts->resp = SAS_TASK_COMPLETE;
+
+	if (unlikely(!sas_dev)) {
+		dev_dbg(dev, "slot complete: port has no device\n");
+		ts->stat = SAS_PHY_DOWN;
+		goto out;
+	}
+
+	/* Use SAS+TMF status codes */
+	dw0 = le32_to_cpu(complete_hdr->dw0);
+	switch ((dw0 & CMPLT_HDR_ABORT_STAT_MSK) >>
+		CMPLT_HDR_ABORT_STAT_OFF) {
+	case STAT_IO_ABORTED:
+		/* this io has been aborted by abort command */
+		ts->stat = SAS_ABORTED_TASK;
+		goto out;
+	case STAT_IO_COMPLETE:
+		/* internal abort command complete */
+		ts->stat = TMF_RESP_FUNC_SUCC;
+		del_timer_sync(&slot->internal_abort_timer);
+		goto out;
+	case STAT_IO_NO_DEVICE:
+		ts->stat = TMF_RESP_FUNC_COMPLETE;
+		del_timer_sync(&slot->internal_abort_timer);
+		goto out;
+	case STAT_IO_NOT_VALID:
+		/* abort single io, controller don't find
+		 * the io need to abort
+		 */
+		ts->stat = TMF_RESP_FUNC_FAILED;
+		del_timer_sync(&slot->internal_abort_timer);
+		goto out;
+	default:
+		break;
+	}
+
+	if ((dw0 & CMPLT_HDR_ERX_MSK) && (!(dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
+		u32 err_phase = (dw0 & CMPLT_HDR_ERR_PHASE_MSK)
+				>> CMPLT_HDR_ERR_PHASE_OFF;
+		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
+
+		/* Analyse error happens on which phase TX or RX */
+		if (ERR_ON_TX_PHASE(err_phase))
+			slot_err_v2_hw(hisi_hba, task, slot, 1);
+		else if (ERR_ON_RX_PHASE(err_phase))
+			slot_err_v2_hw(hisi_hba, task, slot, 2);
+
+		if (ts->stat != SAS_DATA_UNDERRUN)
+			dev_info(dev, "erroneous completion iptt=%d task=%pK dev id=%d CQ hdr: 0x%x 0x%x 0x%x 0x%x Error info: 0x%x 0x%x 0x%x 0x%x\n",
+				 slot->idx, task, sas_dev->device_id,
+				 complete_hdr->dw0, complete_hdr->dw1,
+				 complete_hdr->act, complete_hdr->dw3,
+				 error_info[0], error_info[1],
+				 error_info[2], error_info[3]);
+
+		if (unlikely(slot->abort)) {
+			sas_task_abort(task);
+			return;
+		}
+		goto out;
+	}
+
+	switch (task->task_proto) {
+	case SAS_PROTOCOL_SSP:
+	{
+		struct hisi_sas_status_buffer *status_buffer =
+				hisi_sas_status_buf_addr_mem(slot);
+		struct ssp_response_iu *iu = (struct ssp_response_iu *)
+				&status_buffer->iu[0];
+
+		sas_ssp_task_response(dev, task, iu);
+		cmd = task->uldd_task;
+		if (cmd)
+			req = scsi_cmd_to_rq(cmd);
+//		WARN_ON_ONCE(!cmd); //tmf would be an example
+//		pr_err("%s1 req=%pS cmd=%pS\n", __func__, req, cmd);
+		break;
+	}
+	case SAS_PROTOCOL_SMP:
+	{
+		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
+		void *to = page_address(sg_page(sg_resp));
+
+		ts->stat = SAS_SAM_STAT_GOOD;
+
+		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
+			     DMA_TO_DEVICE);
+		memcpy(to + sg_resp->offset,
+		       hisi_sas_status_buf_addr_mem(slot) +
+		       sizeof(struct hisi_sas_err_record),
+		       sg_resp->length);
+		break;
+	}
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
+	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+	{
+		ts->stat = SAS_SAM_STAT_GOOD;
+		hisi_sas_sata_done(task, slot);
+		break;
+	}
+	default:
+		ts->stat = SAS_SAM_STAT_CHECK_CONDITION;
+		break;
+	}
+
+	if (!slot->port->port_attached) {
+		dev_warn(dev, "slot complete: port %d has removed\n",
+			slot->port->sas_port.id);
+		ts->stat = SAS_PHY_DOWN;
+	}
+
+out:
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
+		spin_unlock_irqrestore(&task->task_state_lock, flags);
+		dev_info(dev, "slot complete: task(%pK) aborted\n", task);
+		return;
+	}
+	task->task_state_flags |= SAS_TASK_STATE_DONE;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+	hisi_sas_slot_task_free(hisi_hba, task, slot);
+
+	if (!is_internal && (task->task_proto != SAS_PROTOCOL_SMP)) {
+		spin_lock_irqsave(&device->done_lock, flags);
+		if (test_bit(SAS_HA_FROZEN, &ha->state)) {
+			spin_unlock_irqrestore(&device->done_lock, flags);
+			dev_info(dev, "slot complete: task(%pK) ignored\n",
+				 task);
+			return;
+		}
+		spin_unlock_irqrestore(&device->done_lock, flags);
+	}
+
+
+	if (req && iob) {
+		can_batch = blk_mq_can_add_to_batch(req, iob, 0, scsi_batch_complete);
+		if (can_batch) {
+			cmd->io_comp_batch = iob;
+			refcount_inc(&req->ref);
+			wanted_batch_finish = true;
+		}
+	}
+
+	if (task->task_done)
+		task->task_done(task);
+
+	if (can_batch) {
+	//	pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
+		if (cmd->can_batch_finish) {
+			refcount_dec(&req->ref);
+			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
+	//		pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
+			return;
+		}
+		#ifdef debug_john
+		smp_mb();
+		if (cmd->can_batch_finish)
+			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
+		if (!refcount_dec_and_test(&req->ref))
+			pr_err("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
+		#endif
+	}
+	#ifdef debug_john
+	smp_mb();
+	if (req) {
+		if (wanted_batch_finish == true && cmd->can_batch_finish == true)
+			pr_err("%s9 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
+	}
+	#endif
+}
+
 #ifdef ATOMIC_DEBUG
 static atomic64_t count;
 static atomic64_t total;
@@ -3175,6 +3174,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	int queue = cq->id;
 	struct io_comp_batch *iob_ptr = &cq->iob;
 	int cqs = 0;
+	unsigned long flags;
 	
 	#ifdef ATOMIC_DEBUG
 	int diff;
@@ -3211,7 +3211,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 		atomic64_inc(&greater_than_thres);
 	#endif
 
-	spin_lock(&cq->lock);
+	spin_lock_irqsave(&cq->lock, flags);
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
@@ -3293,7 +3293,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	} else {
 		mod_timer(&cq->timer, msecs_to_jiffies(5 * HZ));
 	}
-	spin_unlock(&cq->lock);
+	spin_unlock_irqrestore(&cq->lock, flags);
 
 	return IRQ_HANDLED;
 }
