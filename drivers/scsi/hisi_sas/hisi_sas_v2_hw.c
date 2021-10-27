@@ -3118,9 +3118,11 @@ out:
 	if (req && iob) {
 		can_batch = blk_mq_can_add_to_batch(req, iob, 0, scsi_batch_complete);
 		if (can_batch) {
+			cmd->can_batch_finish = 0;
 			cmd->io_comp_batch = iob;
 			refcount_inc(&req->ref);
 			wanted_batch_finish = true;
+			smp_mb();
 		}
 	}
 
@@ -3129,8 +3131,11 @@ out:
 
 	if (can_batch) {
 	//	pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
-		if (cmd->can_batch_finish) {
-			refcount_dec(&req->ref);
+		int val = xchg(&cmd->can_batch_finish, 2);
+		if (val == 1) {
+			if (refcount_dec_and_test(&req->ref))
+				pr_err("%s7 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+					__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
 	//		pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 			return;

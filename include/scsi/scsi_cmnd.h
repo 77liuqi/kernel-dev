@@ -82,7 +82,7 @@ struct scsi_cmnd {
 
 	int budget_token;
 	struct io_comp_batch *io_comp_batch;
-	bool can_batch_finish; /* Ready for batch finishing ... */
+	int can_batch_finish; /* Ready for batch finishing ... */
 
 	/*
 	 * This is set to jiffies as it was when the command was first
