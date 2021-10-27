@@ -2451,6 +2451,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);
+		spin_lock_init(&cq->lock);
 		INIT_LIST_HEAD(&dq->list);
 		dq->id = i;
 		dq->hisi_hba = hisi_hba;

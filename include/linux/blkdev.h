@@ -1286,6 +1286,7 @@ struct io_comp_batch {
 	struct request *req_list;
 	bool need_ts;
 	void (*complete)(struct io_comp_batch *);
+	int count;
 };
 
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }

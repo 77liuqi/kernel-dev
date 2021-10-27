@@ -201,11 +201,13 @@ struct hisi_sas_port {
 };
 
 struct hisi_sas_cq {
+	struct io_comp_batch iob;
 	struct hisi_hba *hisi_hba;
 	const struct cpumask *irq_mask;
 	int	rd_point;
 	int	id;
 	int	irq_no;
+	spinlock_t lock;
 };
 
 struct hisi_sas_dq {

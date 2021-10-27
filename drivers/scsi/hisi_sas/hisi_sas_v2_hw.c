@@ -1189,10 +1189,10 @@ static void init_reg_v2_hw(struct hisi_hba *hisi_hba)
 	hisi_sas_write32(hisi_hba, HGC_ERR_STAT_EN, 0x1);
 	hisi_sas_write32(hisi_hba, HGC_GET_ITV_TIME, 0x1);
 	hisi_sas_write32(hisi_hba, INT_COAL_EN, 0xc);
-	#define OQ_INT_COAL_TIME_val 0x100
+	#define OQ_INT_COAL_TIME_val 0x60
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_TIME, OQ_INT_COAL_TIME_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_TIME=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_TIME), OQ_INT_COAL_TIME_val);
-	#define OQ_INT_COAL_CNT_val 0x20
+	#define OQ_INT_COAL_CNT_val 0x3
 	hisi_sas_write32(hisi_hba, OQ_INT_COAL_CNT, OQ_INT_COAL_CNT_val);
 	dev_err(hisi_hba->dev, "%s OQ_INT_COAL_CNT=0x%x (expected 0x%x)\n", __func__, hisi_sas_read32(hisi_hba, OQ_INT_COAL_CNT), OQ_INT_COAL_CNT_val);
 	hisi_sas_write32(hisi_hba, ENT_INT_COAL_TIME, 0x1);
@@ -3163,7 +3163,7 @@ static atomic64_t max_ios;
 static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
 #endif
-
+#define CQ_BATCH_THRESHOLD 32
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
@@ -3173,8 +3173,8 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_complete_v2_hdr *complete_queue;
 	u32 rd_point = cq->rd_point, wr_point, dev_id;
 	int queue = cq->id;
-	DEFINE_IO_COMP_BATCH(iob);
-	struct io_comp_batch *iob_ptr;
+	struct io_comp_batch *iob_ptr = &cq->iob;
+	int cqs = 0;
 	
 	#ifdef ATOMIC_DEBUG
 	int diff;
@@ -3205,16 +3205,8 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 		atomic64_set(&max_diff, diff);
 		pr_err("%s max_diff=%llu\n", __func__, atomic64_read(&max_diff));
 	}
-	batch = diff >= THRESHOLD;
-	if (batch)
-		iob_ptr = &iob;
-	else
-		iob_ptr = NULL;
-	#endif
+//	batch = diff >= THRESHOLD;
 
-	iob_ptr = &iob;
-
-	#ifdef ATOMIC_DEBUG
 	if (diff >= THRESHOLD)
 		atomic64_inc(&greater_than_thres);
 	#endif
@@ -3253,7 +3245,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 				#ifdef ATOMIC_DEBUG
 				_total++;
 				#endif
-
+				cqs++;
 				act_tmp &= ~(1 << ncq_tag_count); 
 				ncq_tag_count = ffs(act_tmp);
 			}
@@ -3265,6 +3257,7 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
 			slot_complete_v2_hw(hisi_hba, slot, iob_ptr);
+			cqs++;
 			#ifdef ATOMIC_DEBUG
 			_total++;
 			#endif
@@ -3292,8 +3285,10 @@ static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
 
-	if (!rq_list_empty(iob.req_list))
-		scsi_batch_complete(&iob);
+	if (iob_ptr->count >= CQ_BATCH_THRESHOLD || (cqs == 0 && iob_ptr->count))
+		scsi_batch_complete(iob_ptr);
+	else
+		; // start timer
 
 	return IRQ_HANDLED;
 }

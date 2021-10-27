@@ -816,6 +816,7 @@ static inline void blk_mq_add_to_batch_force(struct request *req,
 		iob->complete = complete;
 	iob->need_ts |= blk_mq_need_time_stamp(req);
 	rq_list_add(&iob->req_list, req);
+	iob->count++;
 }
 
 /*
