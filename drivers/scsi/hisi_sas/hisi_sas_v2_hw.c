@@ -3162,7 +3162,7 @@ static atomic64_t max_ios;
 static atomic64_t max_diff;
 static atomic64_t greater_than_thres;
 #endif
-#define CQ_BATCH_THRESHOLD 32
+#define CQ_BATCH_THRESHOLD 128
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
