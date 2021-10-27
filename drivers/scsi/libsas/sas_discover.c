@@ -505,14 +505,14 @@ static void sas_revalidate_domain(struct work_struct *work)
 
 	clear_bit(DISCE_REVALIDATE_DOMAIN, &port->disc.pending);
 
-	pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
-		 task_pid_nr(current));
+	//pr_debug("REVALIDATING DOMAIN on port %d, pid:%d\n", port->id,
+	//	 task_pid_nr(current));
 
 	if (ddev && dev_is_expander(ddev->dev_type))
 		res = sas_ex_revalidate_domain(ddev);
 
-	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
-		 port->id, task_pid_nr(current), res);
+//	pr_debug("done REVALIDATING DOMAIN on port %d, pid:%d, res 0x%x\n",
+//		 port->id, task_pid_nr(current), res);
  out:
 	mutex_unlock(&ha->disco_mutex);
 

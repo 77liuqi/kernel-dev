@@ -280,7 +280,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	prim = phy->sas_prim;
 	spin_unlock_irqrestore(&phy->sas_prim_lock, flags);
 
-	pr_debug("broadcast received: %d\n", prim);
+	//pr_debug("broadcast received: %d\n", prim);
 	sas_discover_event(phy->port, DISCE_REVALIDATE_DOMAIN);
 
 	if (phy->port)
