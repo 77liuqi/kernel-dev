@@ -634,15 +634,64 @@ static inline void sbitmap_update_cpu_hint(struct sbitmap *sb, int cpu, int tag)
 		*per_cpu_ptr(sb->alloc_hint, cpu) = tag;
 }
 
+atomic64_t tags_total;
+atomic64_t tags_clear;
+atomic64_t tags_count;
+
 void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 				int *tags, int nr_tags)
 {
 	struct sbitmap *sb = &sbq->sb;
+	#ifdef dssdds
 	unsigned long *addr = NULL;
-	unsigned long mask = 0;
+	#endif
+	unsigned long mask;
 	int i;
+	u64 ret;
+	int index;
+	int hint = tags[nr_tags - 1];
+
+	ret = atomic64_inc_return(&tags_count);
+
+	if ((ret % 100000) == 0) 
+		pr_err("%s call count=%llu total tags cleared=%llu clear count=%llu ratio=%llu\n", __func__,
+			atomic64_read(&tags_count), atomic64_read(&tags_total), atomic64_read(&tags_clear), atomic64_read(&tags_total) / atomic64_read(&tags_clear));
+	
+	atomic64_add(nr_tags, &tags_total);
 
 	smp_mb__before_atomic();
+	for (index = 0; index < nr_tags; index++) {
+		const int tag = tags[index] - offset;
+		int bindex;
+		unsigned long *this_addr;
+
+		if (tag < 0)
+			continue;
+
+		bindex = SB_NR_TO_INDEX(sb, tag);
+		this_addr = &sb->map[bindex].word;
+		mask = 1UL << SB_NR_TO_BIT(sb, tag);
+
+		this_addr = &sb->map[SB_NR_TO_INDEX(sb, tag)].word;
+		for (i = index + 1; i < nr_tags; i++) {
+			const int tag2 = tags[i] - offset;
+			int bindex2;
+
+			if (tag2 < 0)
+				continue;
+
+			bindex2 = SB_NR_TO_INDEX(sb, tag2);
+
+			if (bindex == bindex2) {
+				tags[i] = -1;
+				mask |= 1UL << SB_NR_TO_BIT(sb, tag2);
+			}
+		}
+		atomic64_inc(&tags_clear);
+		atomic_long_andnot(mask, (atomic_long_t *)this_addr);
+	}
+	
+	#ifdef dssdds
 	for (i = 0; i < nr_tags; i++) {
 		const int tag = tags[i] - offset;
 		unsigned long *this_addr;
@@ -653,19 +702,25 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 			addr = this_addr;
 		} else if (addr != this_addr) {
 			atomic_long_andnot(mask, (atomic_long_t *) addr);
+			WARN_ON_ONCE(!mask);
 			mask = 0;
 			addr = this_addr;
+			atomic64_inc(&tags_clear);
 		}
 		mask |= (1UL << SB_NR_TO_BIT(sb, tag));
 	}
 
-	if (mask)
+	if (mask) {
+		atomic64_inc(&tags_clear);
+		WARN_ON_ONCE(!mask);
 		atomic_long_andnot(mask, (atomic_long_t *) addr);
+	}
+	#endif
 
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq);
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
-					tags[nr_tags - 1] - offset);
+					hint - offset);
 }
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
