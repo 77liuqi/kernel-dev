@@ -938,7 +938,6 @@ static void blk_mq_raise_softirq(struct request *rq)
 bool blk_mq_complete_request_remote(struct request *rq)
 {
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
-
 	/*
 	 * For a polled request, always complete locallly, it's pointless
 	 * to redirect the completion.
@@ -947,6 +946,7 @@ bool blk_mq_complete_request_remote(struct request *rq)
 		return false;
 
 	if (blk_mq_complete_need_ipi(rq)) {
+		pr_err_ratelimited("%s\n", __func__);
 		blk_mq_complete_send_ipi(rq);
 		return true;
 	}

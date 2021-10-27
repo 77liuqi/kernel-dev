@@ -3133,7 +3133,7 @@ out:
 	//		pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 			return;
 		}
-		#ifdef debug_john
+//		#ifdef debug_john
 		smp_mb();
 		if (cmd->can_batch_finish)
 			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
@@ -3141,16 +3141,16 @@ out:
 		if (!refcount_dec_and_test(&req->ref))
 			pr_err("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-		#endif
+//		#endif
 	}
-	#ifdef debug_john
+//	#ifdef debug_john
 	smp_mb();
 	if (req) {
 		if (wanted_batch_finish == true && cmd->can_batch_finish == true)
 			pr_err("%s9 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 	}
-	#endif
+//	#endif
 }
 
 #ifdef ATOMIC_DEBUG
