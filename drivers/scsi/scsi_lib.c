@@ -540,6 +540,8 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	struct scsi_device *sdev = cmd->device;
 	struct request_queue *q = sdev->request_queue;
 
+	WARN_ON_ONCE(cmd->can_batch_finish);
+	
 	if (blk_update_request(req, error, bytes))
 		return true;
 
@@ -572,7 +574,8 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 		cmd->can_batch_finish = true;
 		//pr_err_once("%s req=%pS can_batch_finish\n", __func__, req);
 		return false;
-	}
+	} else if (cmd->io_comp_batch)
+		pr_err("%s req=%pS cannot_batch_finish error=%d\n", __func__, req, error);
 
 	/*
 	 * queue is still alive, so grab the ref for preventing it

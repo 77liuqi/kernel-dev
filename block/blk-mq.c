@@ -803,6 +803,14 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 }
 static atomic64_t count;
 static atomic64_t total;
+
+void preset_tags(int *tags)
+{
+	int i;
+	for (i = 0; i < TAG_COMP_BATCH; i++)
+		tags[i] = -2;
+}
+
 void blk_mq_end_request_batch(struct io_comp_batch *iob)
 {
 	int tags[TAG_COMP_BATCH], nr_tags_q = 0, nr_tags_tags = 0;
@@ -812,6 +820,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 	u64 myret;
 	u64 _total = 0;
 
+	preset_tags(&tags[0]);
 
 	if (iob->need_ts)
 		now = ktime_get_ns();
@@ -825,8 +834,10 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 			__blk_mq_end_request_acct(rq, now);
 
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
-		if (!refcount_dec_and_test(&rq->ref))
+		if (!refcount_dec_and_test(&rq->ref)) {
+			pr_err_once("%s req=%pS refcount none-zero\n", __func__, rq);
 			continue;
+		}
 
 		blk_crypto_free_request(rq);
 		blk_pm_mark_last_busy(rq);
@@ -838,6 +849,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		}
 		if (nr_tags_tags == TAG_COMP_BATCH) {
 			blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
+			preset_tags(&tags[0]);
 			nr_tags_tags = 0;
 		}
 		tags[nr_tags_tags++] = rq->tag;

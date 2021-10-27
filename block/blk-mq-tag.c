@@ -209,6 +209,12 @@ void blk_mq_put_tag(struct blk_mq_tags *tags, struct blk_mq_ctx *ctx,
 
 void blk_mq_put_tags(struct blk_mq_tags *tags, int *tag_array, int nr_tags)
 {
+	int i;
+
+	for (i = 0; i < nr_tags; i++)
+		WARN_ON_ONCE(tag_array[i] == -2);
+	WARN_ON_ONCE(nr_tags > 32);
+
 	sbitmap_queue_clear_batch(&tags->bitmap_tags, tags->nr_reserved_tags,
 					tag_array, nr_tags);
 }
