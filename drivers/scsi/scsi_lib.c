@@ -1610,7 +1610,6 @@ EXPORT_SYMBOL(scsi_done);
 #define MAX_SDEVS 10
 void scsi_batch_complete(struct io_comp_batch *iob)
 {
-#ifdef HACK
 	struct scsi_device *sdevs[MAX_SDEVS];
 	struct request *req;
 	int count_sdev = 0;
@@ -1639,13 +1638,13 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 			//pr_err_once("%s1 iob=%pS count_sdev=%d sdev=%pS\n", __func__, iob, count_sdev, sdev);
 		}
 	}
-#endif	
+
 	//pr_err_once("%s2 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
 
 	blk_mq_end_request_batch(iob);
 
 	//pr_err_once("%s3 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
-#ifdef HACK
+
 
 	for (i = 0; i < count_sdev; i++) {
 		struct scsi_device *sdev = sdevs[i];
@@ -1657,7 +1656,7 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 
 		percpu_ref_put(&q->q_usage_counter);
 	}
-#endif
+
 //	pr_err_once("%s10 exit iob=%pS\n", __func__, iob);
 }
 EXPORT_SYMBOL_GPL(scsi_batch_complete);

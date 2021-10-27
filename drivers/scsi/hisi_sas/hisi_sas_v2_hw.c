@@ -3142,11 +3142,11 @@ out:
 		}
 //		#ifdef debug_john
 		smp_mb();
-		if (cmd->can_batch_finish)
+		if (cmd->can_batch_finish == 1)
 			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-		if (!refcount_dec_and_test(&req->ref))
-			pr_err("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
+		if (refcount_dec_and_test(&req->ref) == 0)
+			pr_err_once("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 //		#endif
 	}
