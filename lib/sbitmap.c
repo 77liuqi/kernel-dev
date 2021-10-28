@@ -642,14 +642,17 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 				int *tags, int nr_tags)
 {
 	struct sbitmap *sb = &sbq->sb;
-	#ifdef dssdds
+	#if !defined(dssdds)
 	unsigned long *addr = NULL;
 	#endif
 	unsigned long mask;
-	int i;
-	u64 ret;
+	#ifdef dssdds
 	int index;
 	int hint = tags[nr_tags - 1];
+	#else
+	int i;
+	#endif
+	u64 ret;
 
 	ret = atomic64_inc_return(&tags_count);
 
@@ -691,7 +694,7 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		atomic64_inc(&tags_clear);
 		atomic_long_andnot(mask, (atomic_long_t *)this_addr);
 	}
-	
+	#else
 	for (i = 0; i < nr_tags; i++) {
 		const int tag = tags[i] - offset;
 		unsigned long *this_addr;
@@ -719,8 +722,13 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq);
+	#ifdef dssdds
 	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
 					hint - offset);
+	#else
+	sbitmap_update_cpu_hint(&sbq->sb, raw_smp_processor_id(),
+					tags[nr_tags - 1] - offset);
+	#endif
 }
 
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
