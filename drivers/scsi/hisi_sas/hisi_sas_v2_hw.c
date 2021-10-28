@@ -3145,7 +3145,7 @@ out:
 
 }
 
-#define CQ_BATCH_THRESHOLD 28
+#define CQ_BATCH_THRESHOLD 60
 static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
