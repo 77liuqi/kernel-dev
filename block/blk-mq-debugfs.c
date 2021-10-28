@@ -549,11 +549,10 @@ static ssize_t hctx_run_write(void *data, const char __user *buf, size_t count,
 static int hctx_active_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
-	struct request_queue *queue = hctx->queue;
+	int active = __blk_mq_active_requests(hctx);
+	bool shared = blk_mq_is_shared_tags(hctx->flags);
 
-	seq_printf(m, "%d hctx\n", atomic_read(&hctx->nr_active));
-	if (blk_mq_is_shared_tags(hctx->flags))
-		seq_printf(m, "%d queue\n", atomic_read(&queue->nr_active_requests_shared_tags));
+	seq_printf(m, "%d %s\n", active, shared  ? "queue" : "hctx");
 
 	return 0;
 }
