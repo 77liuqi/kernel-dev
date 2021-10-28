@@ -1629,7 +1629,15 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 		}
 
 		if (found == false) {
-			struct request_queue *q = sdev->request_queue;
+			struct request_queue *q;
+			if (!sdev) {
+				pr_err("%s cmd=%pS sdev=NULL\n", __func__, cmd);
+				continue;
+			}
+			q = sdev->request_queue;
+			pr_err("%s2 cmd=%pS sdev=%pS q=NULL\n", __func__, cmd, sdev);
+			if (!q)
+				continue;
 
 			percpu_ref_get(&q->q_usage_counter);
 			sdevs[count_sdev] = sdev;
@@ -1649,6 +1657,8 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 	for (i = 0; i < count_sdev; i++) {
 		struct scsi_device *sdev = sdevs[i];
 		struct request_queue *q = sdev->request_queue;
+		if (!q)
+			continue;
 		
 	//	pr_err_once("%s4 iob=%pS i=%d sdev=%pS\n", __func__, iob, i, sdev);
 
