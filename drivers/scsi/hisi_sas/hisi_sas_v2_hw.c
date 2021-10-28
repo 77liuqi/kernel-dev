@@ -3133,7 +3133,7 @@ out:
 	//	pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 		int val = xchg(&cmd->can_batch_finish, 2);
 		if (val == 1) {
-			if (refcount_dec_and_test(&req->ref))
+			if (refcount_dec_and_test(&req->ref) == true)
 				pr_err("%s7 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 					__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
@@ -3145,7 +3145,7 @@ out:
 		if (cmd->can_batch_finish == 1)
 			pr_err("%s8 cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
-		if (refcount_dec_and_test(&req->ref) == 0)
+		if (refcount_dec_and_test(&req->ref) == true)
 			pr_err_once("%s8.1 refcount cmd->can_batch_finish=%d wanted_batch_finish=%d can_batch=%d req=%pS\n",
 			__func__, cmd->can_batch_finish, wanted_batch_finish, can_batch, req);
 //		#endif
