@@ -794,7 +794,7 @@ static inline bool blk_mq_can_add_to_batch(struct request *req,
 		return false;
 	}
 
-	if (!iob || (req->rq_flags & RQF_ELV) || req->end_io || ioerror)
+	if (!iob || (req->rq_flags & RQF_ELV)  || req->end_io || ioerror)
 		return false;
 	if (!iob->complete)
 		iob->complete = complete;

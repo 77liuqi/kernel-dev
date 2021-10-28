@@ -463,7 +463,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		unsigned int dq_index;
 		u32 blk_tag;
 
+		WARN_ON_ONCE(scmd->can_batch_finish);
 		scmd->can_batch_finish = 0;
+		WARN_ON_ONCE(scmd->io_comp_batch);
+		scmd->io_comp_batch = NULL;
 
 		blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
 		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
