@@ -802,6 +802,7 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
 }
 static atomic64_t count;
+static atomic64_t tags_put;
 static atomic64_t total;
 
 void preset_tags(int *tags)
@@ -849,6 +850,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		}
 		if (nr_tags_tags == TAG_COMP_BATCH) {
 			blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
+			atomic64_inc(&tags_put);
 			preset_tags(&tags[0]);
 			nr_tags_tags = 0;
 		}
@@ -863,12 +865,17 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);
 	if ((myret % 200000) == 0)
-		pr_err("%s total=%llu count=%llu rate=%llu\n", __func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count));
+		pr_err("%s total reqs=%llu count of batches=%llu rate=%llu tags_put=%llu rate of reqs per put=%llu\n",
+		__func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count),
+		atomic64_read(&tags_put),
+		atomic64_read(&total) / atomic64_read(&tags_put));
 
 	if (nr_tags_q)
 		percpu_ref_put_many(&last_hctx->queue->q_usage_counter, nr_tags_q);
-	if (nr_tags_tags)
+	if (nr_tags_tags) {
+		atomic64_inc(&tags_put);
 		blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
+	}
 }
 EXPORT_SYMBOL_GPL(blk_mq_end_request_batch);
 
