@@ -862,7 +862,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 
 	myret = atomic64_inc_return(&count);
 	atomic64_add(_total, &total);
-	if ((myret % 1000000) == 0)
+	if ((myret % 200000) == 0)
 		pr_err("%s total=%llu count=%llu rate=%llu\n", __func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count));
 
 	if (nr_tags_q)
