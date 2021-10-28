@@ -532,6 +532,70 @@ static void scsi_run_queue_async(struct scsi_device *sdev)
 	}
 }
 
+#define MAX_SDEVS 10
+void scsi_batch_complete(struct io_comp_batch *iob)
+{
+	struct scsi_device *sdevs[MAX_SDEVS];
+	struct request *req;
+	int count_sdev = 0;
+	int i;
+
+	//pr_err_once("%s iob=%pS\n", __func__, iob);
+	rq_list_for_each(&iob->req_list, req) {
+		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+		struct scsi_device *sdev = cmd->device;
+		bool found = false;
+
+		for (i = 0; i < count_sdev; i++) {
+			if (sdevs[i] == sdev) {
+				found = true;
+				break;
+			}
+		}
+
+		if (found == false) {
+			struct request_queue *q;
+			if (!sdev) {
+				pr_err("%s cmd=%pS sdev=NULL\n", __func__, cmd);
+				continue;
+			}
+			q = sdev->request_queue;
+			pr_err("%s2 cmd=%pS sdev=%pS q=NULL\n", __func__, cmd, sdev);
+			if (!q)
+				continue;
+
+			percpu_ref_get(&q->q_usage_counter);
+			sdevs[count_sdev] = sdev;
+			count_sdev++;
+			BUG_ON(count_sdev >= MAX_SDEVS);
+			//pr_err_once("%s1 iob=%pS count_sdev=%d sdev=%pS\n", __func__, iob, count_sdev, sdev);
+		}
+	}
+
+	//pr_err_once("%s2 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
+
+	blk_mq_end_request_batch(iob);
+
+	//pr_err_once("%s3 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
+
+
+	for (i = 0; i < count_sdev; i++) {
+		struct scsi_device *sdev = sdevs[i];
+		struct request_queue *q = sdev->request_queue;
+		if (!q)
+			continue;
+		
+	//	pr_err_once("%s4 iob=%pS i=%d sdev=%pS\n", __func__, iob, i, sdev);
+
+		scsi_run_queue_async(sdev);
+
+		percpu_ref_put(&q->q_usage_counter);
+	}
+
+//	pr_err_once("%s10 exit iob=%pS\n", __func__, iob);
+}
+EXPORT_SYMBOL_GPL(scsi_batch_complete);
+
 /* Returns false when no more bytes to process, true if there are more */
 static bool scsi_end_request(struct request *req, blk_status_t error,
 		unsigned int bytes)
@@ -1606,70 +1670,6 @@ void scsi_done(struct scsi_cmnd *cmd)
 	blk_mq_complete_request(scsi_cmd_to_rq(cmd));
 }
 EXPORT_SYMBOL(scsi_done);
-
-#define MAX_SDEVS 10
-void scsi_batch_complete(struct io_comp_batch *iob)
-{
-	struct scsi_device *sdevs[MAX_SDEVS];
-	struct request *req;
-	int count_sdev = 0;
-	int i;
-
-	//pr_err_once("%s iob=%pS\n", __func__, iob);
-	rq_list_for_each(&iob->req_list, req) {
-		struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
-		struct scsi_device *sdev = cmd->device;
-		bool found = false;
-
-		for (i = 0; i < count_sdev; i++) {
-			if (sdevs[i] == sdev) {
-				found = true;
-				break;
-			}
-		}
-
-		if (found == false) {
-			struct request_queue *q;
-			if (!sdev) {
-				pr_err("%s cmd=%pS sdev=NULL\n", __func__, cmd);
-				continue;
-			}
-			q = sdev->request_queue;
-			pr_err("%s2 cmd=%pS sdev=%pS q=NULL\n", __func__, cmd, sdev);
-			if (!q)
-				continue;
-
-			percpu_ref_get(&q->q_usage_counter);
-			sdevs[count_sdev] = sdev;
-			count_sdev++;
-			BUG_ON(count_sdev >= MAX_SDEVS);
-			//pr_err_once("%s1 iob=%pS count_sdev=%d sdev=%pS\n", __func__, iob, count_sdev, sdev);
-		}
-	}
-
-	//pr_err_once("%s2 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
-
-	blk_mq_end_request_batch(iob);
-
-	//pr_err_once("%s3 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
-
-
-	for (i = 0; i < count_sdev; i++) {
-		struct scsi_device *sdev = sdevs[i];
-		struct request_queue *q = sdev->request_queue;
-		if (!q)
-			continue;
-		
-	//	pr_err_once("%s4 iob=%pS i=%d sdev=%pS\n", __func__, iob, i, sdev);
-
-		scsi_run_queue_async(sdev);
-
-		percpu_ref_put(&q->q_usage_counter);
-	}
-
-//	pr_err_once("%s10 exit iob=%pS\n", __func__, iob);
-}
-EXPORT_SYMBOL_GPL(scsi_batch_complete);
 
 static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
