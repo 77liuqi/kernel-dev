@@ -823,6 +823,8 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 			__blk_mq_end_request_acct(rq, now);
 
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
+		if (rq->rq_flags & RQF_MQ_INFLIGHT)
+			__blk_mq_dec_active_requests(hctx);
 		if (!refcount_dec_and_test(&rq->ref)) {
 			pr_err_once("%s req=%pS refcount none-zero\n", __func__, rq);
 			continue;
@@ -831,8 +833,6 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		blk_crypto_free_request(rq);
 		blk_pm_mark_last_busy(rq);
 		
-		if (rq->rq_flags & RQF_MQ_INFLIGHT)
-			__blk_mq_dec_active_requests(hctx);
 
 		rq_qos_done(rq->q, rq);
 
