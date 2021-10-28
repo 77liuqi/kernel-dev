@@ -605,8 +605,6 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	struct scsi_device *sdev = cmd->device;
 	struct request_queue *q = sdev->request_queue;
-
-	WARN_ON_ONCE(cmd->can_batch_finish);
 	
 	if (blk_update_request(req, error, bytes))
 		return true;
@@ -637,11 +635,11 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	scsi_mq_uninit_cmd(cmd);
 
 	if (cmd->io_comp_batch && error == BLK_STS_OK) {
-		int val = xchg(&cmd->can_batch_finish, 1);
-		if (val)
-			pr_err_once("%s req=%pS can't batch finish val=%d\n", __func__, req, val);
-		else
+		struct io_comp_batch *b = xchg(&cmd->io_comp_batch, NULL);
+		if (b)
 			return false;
+		else
+			pr_err_once("%s req=%pS can't batch finish b=%pS\n", __func__, req, b);
 	} else if (cmd->io_comp_batch)
 		pr_err("%s req=%pS cannot_batch_finish error=%d\n", __func__, req, error);
 

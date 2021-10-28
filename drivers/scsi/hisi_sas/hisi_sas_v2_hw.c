@@ -3051,7 +3051,6 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 		cmd = task->uldd_task;
 		if (cmd) {
 			req = scsi_cmd_to_rq(cmd);
-			WARN_ON_ONCE(cmd->can_batch_finish);
 		}
 //		WARN_ON_ONCE(!cmd); //tmf would be an example
 //		pr_err("%s1 req=%pS cmd=%pS\n", __func__, req, cmd);
@@ -3127,11 +3126,11 @@ out:
 
 	if (can_batch) {
 	//	pr_err_once("%s req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
-		int val = xchg(&cmd->can_batch_finish, 2);
-		if (val == 1) {
+		struct io_comp_batch *b = xchg(&cmd->io_comp_batch, NULL);
+		if (!b) {
 			if (refcount_dec_and_test(&req->ref) == true)
-				pr_err("%s7 cmd->can_batch_finish=%d can_batch=%d req=%pS\n",
-					__func__, cmd->can_batch_finish, can_batch, req);
+				pr_err("%s7 can_batch=%d req=%pS\n",
+					__func__, can_batch, req);
 			blk_mq_add_to_batch_force(req, iob, scsi_batch_complete);
 	//		pr_err_once("%s2 req=%pS can_batch_finish=%d\n", __func__, req, cmd->can_batch_finish);
 			return;
