@@ -654,12 +654,13 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 	ret = atomic64_inc_return(&tags_count);
 
 	if ((ret % 100000) == 0) 
-		pr_err("%s call count=%llu total tags cleared=%llu clear count=%llu ratio=%llu\n", __func__,
+		pr_err("%s call count=%llu total tags cleared=%llu clear word count=%llu ratio=%llu\n", __func__,
 			atomic64_read(&tags_count), atomic64_read(&tags_total), atomic64_read(&tags_clear), atomic64_read(&tags_total) / atomic64_read(&tags_clear));
 	
 	atomic64_add(nr_tags, &tags_total);
 
 	smp_mb__before_atomic();
+	#ifdef dssdds
 	for (index = 0; index < nr_tags; index++) {
 		const int tag = tags[index] - offset;
 		int bindex;
@@ -691,7 +692,6 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		atomic_long_andnot(mask, (atomic_long_t *)this_addr);
 	}
 	
-	#ifdef dssdds
 	for (i = 0; i < nr_tags; i++) {
 		const int tag = tags[i] - offset;
 		unsigned long *this_addr;
@@ -709,13 +709,13 @@ void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
 		}
 		mask |= (1UL << SB_NR_TO_BIT(sb, tag));
 	}
+	#endif
 
 	if (mask) {
 		atomic64_inc(&tags_clear);
 		WARN_ON_ONCE(!mask);
 		atomic_long_andnot(mask, (atomic_long_t *) addr);
 	}
-	#endif
 
 	smp_mb__after_atomic();
 	sbitmap_queue_wake_up(sbq);
