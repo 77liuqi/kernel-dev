@@ -824,7 +824,7 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
 		if (!refcount_dec_and_test(&rq->ref)) {
-			pr_err("%s req=%pS refcount none-zero\n", __func__, rq);
+			pr_err_once("%s req=%pS refcount none-zero\n", __func__, rq);
 			continue;
 		}
 
