@@ -598,6 +598,10 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 }
 EXPORT_SYMBOL_GPL(scsi_batch_complete);
 
+static atomic64_t count_of_end_request;
+static atomic64_t count_of_end_request_more;
+
+
 /* Returns false when no more bytes to process, true if there are more */
 static bool scsi_end_request(struct request *req, blk_status_t error,
 		unsigned int bytes)
@@ -605,9 +609,15 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
 	struct scsi_device *sdev = cmd->device;
 	struct request_queue *q = sdev->request_queue;
+	u64 ret = atomic64_inc_return(&count_of_end_request);
+
+	if ((ret % 1000000) == 0)
+		pr_err("%s count=%llu more to do=%llu\n", __func__, ret, atomic64_read(&count_of_end_request_more));
 	
-	if (blk_update_request(req, error, bytes))
+	if (blk_update_request(req, error, bytes)) {
+		atomic64_inc(&count_of_end_request_more);
 		return true;
+	}
 
 	if (blk_queue_add_random(q))
 		add_disk_randomness(req->rq_disk);
