@@ -560,9 +560,10 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 				continue;
 			}
 			q = sdev->request_queue;
-			pr_err("%s2 cmd=%pS sdev=%pS q=NULL\n", __func__, cmd, sdev);
-			if (!q)
+			if (!q) {
+				pr_err("%s2 cmd=%pS sdev=%pS q=NULL\n", __func__, cmd, sdev);
 				continue;
+			}
 
 			percpu_ref_get(&q->q_usage_counter);
 			sdevs[count_sdev] = sdev;
