@@ -585,7 +585,7 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 		struct request_queue *q = sdev->request_queue;
 		if (!q)
 			continue;
-		
+
 	//	pr_err_once("%s4 iob=%pS i=%d sdev=%pS\n", __func__, iob, i, sdev);
 
 		scsi_run_queue_async(sdev);
