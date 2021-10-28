@@ -535,6 +535,7 @@ static void scsi_run_queue_async(struct scsi_device *sdev)
 #define MAX_SDEVS 10
 void scsi_batch_complete(struct io_comp_batch *iob)
 {
+#ifdef ddsd
 	struct scsi_device *sdevs[MAX_SDEVS];
 	struct request *req;
 	int count_sdev = 0;
@@ -574,12 +575,12 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 	}
 
 	//pr_err_once("%s2 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
-
+#endif
 	blk_mq_end_request_batch(iob);
 
 	//pr_err_once("%s3 iob=%pS count_sdev=%d\n", __func__, iob, count_sdev);
 
-
+#ifdef ddsd
 	for (i = 0; i < count_sdev; i++) {
 		struct scsi_device *sdev = sdevs[i];
 		struct request_queue *q = sdev->request_queue;
@@ -592,7 +593,7 @@ void scsi_batch_complete(struct io_comp_batch *iob)
 
 		percpu_ref_put(&q->q_usage_counter);
 	}
-
+#endif
 //	pr_err_once("%s10 exit iob=%pS\n", __func__, iob);
 }
 EXPORT_SYMBOL_GPL(scsi_batch_complete);
