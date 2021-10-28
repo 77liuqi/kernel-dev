@@ -801,16 +801,6 @@ static inline void blk_mq_flush_tag_batch(struct blk_mq_hw_ctx *hctx,
 	blk_mq_put_tags(hctx->tags, tag_array, nr_tags);
 	percpu_ref_put_many(&q->q_usage_counter, nr_tags);
 }
-static atomic64_t count;
-static atomic64_t tags_put;
-static atomic64_t total;
-
-void preset_tags(int *tags)
-{
-	int i;
-	for (i = 0; i < TAG_COMP_BATCH; i++)
-		tags[i] = -2;
-}
 
 void blk_mq_end_request_batch(struct io_comp_batch *iob)
 {
@@ -818,10 +808,6 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 	struct blk_mq_hw_ctx *last_hctx = NULL;
 	struct request *rq;
 	u64 now = 0;
-	u64 myret;
-	u64 _total = 0;
-
-	preset_tags(&tags[0]);
 
 	if (iob->need_ts)
 		now = ktime_get_ns();
@@ -850,30 +836,18 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 		}
 		if (nr_tags_tags == TAG_COMP_BATCH) {
 			blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
-			atomic64_inc(&tags_put);
-			preset_tags(&tags[0]);
 			nr_tags_tags = 0;
 		}
 		tags[nr_tags_tags++] = rq->tag;
 		last_hctx = rq->mq_hctx;
 		nr_tags_q++;
-		_total++;
 	}
 	iob->count = 0;
 	iob->req_list = NULL;
 
-	myret = atomic64_inc_return(&count);
-	atomic64_add(_total, &total);
-	if ((myret % 200000) == 0)
-		pr_err("%s total reqs=%llu count of batches=%llu rate=%llu tags_put=%llu rate of reqs per put=%llu\n",
-		__func__, atomic64_read(&total), atomic64_read(&count), atomic64_read(&total) / atomic64_read(&count),
-		atomic64_read(&tags_put),
-		atomic64_read(&total) / atomic64_read(&tags_put));
-
 	if (nr_tags_q)
 		percpu_ref_put_many(&last_hctx->queue->q_usage_counter, nr_tags_q);
 	if (nr_tags_tags) {
-		atomic64_inc(&tags_put);
 		blk_mq_put_tags(last_hctx->tags, &tags[0], nr_tags_tags);
 	}
 }
