@@ -807,12 +807,14 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 	int tags[TAG_COMP_BATCH], nr_tags_q = 0, nr_tags_tags = 0;
 	struct blk_mq_hw_ctx *last_hctx = NULL;
 	struct request *rq;
+	
 	u64 now = 0;
 
 	if (iob->need_ts)
 		now = ktime_get_ns();
 
 	while ((rq = rq_list_pop(&iob->req_list)) != NULL) {
+		struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 		prefetch(rq->bio);
 		prefetch(rq->rq_next);
 
@@ -822,12 +824,16 @@ void blk_mq_end_request_batch(struct io_comp_batch *iob)
 
 		WRITE_ONCE(rq->state, MQ_RQ_IDLE);
 		if (!refcount_dec_and_test(&rq->ref)) {
-			pr_err_once("%s req=%pS refcount none-zero\n", __func__, rq);
+			pr_err("%s req=%pS refcount none-zero\n", __func__, rq);
 			continue;
 		}
 
 		blk_crypto_free_request(rq);
 		blk_pm_mark_last_busy(rq);
+		
+		if (rq->rq_flags & RQF_MQ_INFLIGHT)
+			__blk_mq_dec_active_requests(hctx);
+
 		rq_qos_done(rq->q, rq);
 
 		if (last_hctx && last_hctx != rq->mq_hctx) { //fixme for shared tags

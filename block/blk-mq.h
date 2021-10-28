@@ -331,7 +331,6 @@ static inline void blk_mq_free_requests(struct list_head *list)
 static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 				  struct sbitmap_queue *bt)
 {
-	#ifdef dsdsd
 	unsigned int depth, users;
 
 	if (!hctx || !(hctx->flags & BLK_MQ_F_TAG_QUEUE_SHARED))
@@ -362,10 +361,7 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	 * Allow at least some tags
 	 */
 	depth = max((bt->sb.depth + users - 1) / users, 4U);
-	return __blk_mq_active_requests(hctx) < depth;3
-	#else
-	return true;
-	#endif
+	return __blk_mq_active_requests(hctx) < depth;
 }
 
 
