@@ -3109,8 +3109,8 @@ out:
 		}
 		spin_unlock_irqrestore(&device->done_lock, flags);
 	}
-//	if (req)
-//		cmd->wq = cq->wq;
+	if (req)
+		cmd->wq = cq->wq;
 	if (task->task_done)
 		task->task_done(task);
 }
