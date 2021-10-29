@@ -642,15 +642,27 @@ static inline bool nvme_is_aen_req(u16 qid, __u16 command_id)
 void nvme_complete_rq(struct request *req);
 void nvme_complete_batch_req(struct request *req);
 
+static atomic64_t total_batches;
+static atomic64_t count_of_batched_rqs;
+
+
 static __always_inline void nvme_complete_batch(struct io_comp_batch *iob,
 						void (*fn)(struct request *rq))
 {
 	struct request *req;
+	int count_rqs = 0;
+	u64 ret = atomic64_inc_return(&total_batches);
+	if ((ret % 2000000) == 0) {
+		u64 _count_of_batched_rqs = atomic64_read(&count_of_batched_rqs);
+		pr_err("%s total_batches=%llu count_of_batched_rqs=%llu ratio=%llu\n", __func__, ret, _count_of_batched_rqs, _count_of_batched_rqs / ret);
+	}
 
 	rq_list_for_each(&iob->req_list, req) {
 		fn(req);
 		nvme_complete_batch_req(req);
+		count_rqs++;
 	}
+	atomic64_add(count_rqs, &count_of_batched_rqs);
 	blk_mq_end_request_batch(iob);
 }
 
