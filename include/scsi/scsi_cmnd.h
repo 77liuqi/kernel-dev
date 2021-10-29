@@ -77,6 +77,7 @@ struct scsi_cmnd {
 
 	int budget_token;
 	struct work_struct work;
+	struct workqueue_struct *wq;
 
 	/*
 	 * This is set to jiffies as it was when the command was first

@@ -206,6 +206,7 @@ struct hisi_sas_cq {
 	int	rd_point;
 	int	id;
 	int	irq_no;
+	struct workqueue_struct *wq;
 };
 
 struct hisi_sas_dq {

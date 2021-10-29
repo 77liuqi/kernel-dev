@@ -596,12 +596,12 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	 */
 	destroy_rcu_head(&cmd->rcu);
 
-	if (error)
+	if (error || !cmd->wq)
 		scsi_end_request_work(req, error);
 	else {
 		INIT_WORK(&cmd->work, scsi_end_request_worker);
 		//pr_err("%s req=%pS cmd=%pS func=%pS empty=%d queuing\n", __func__, req, cmd, cmd->work.func, list_empty(&cmd->work.entry));
-		schedule_work(&cmd->work);
+		queue_work(cmd->wq, &cmd->work);
 	}
 
 	return false;

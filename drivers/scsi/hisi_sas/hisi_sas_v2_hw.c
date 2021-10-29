@@ -2945,7 +2945,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 }
 
 static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
-				struct hisi_sas_slot *slot)
+				struct hisi_sas_slot *slot, struct hisi_sas_cq *cq)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
@@ -2960,6 +2960,8 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	unsigned long flags;
 	bool is_internal = slot->is_internal;
 	u32 dw0;
+	struct request *req = NULL;
+	struct scsi_cmnd *cmd = NULL;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return;
@@ -3046,6 +3048,10 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 				&status_buffer->iu[0];
 
 		sas_ssp_task_response(dev, task, iu);
+		cmd = task->uldd_task;
+		if (cmd) {
+			req = scsi_cmd_to_rq(cmd);
+		}
 		break;
 	}
 	case SAS_PROTOCOL_SMP:
@@ -3103,7 +3109,8 @@ out:
 		}
 		spin_unlock_irqrestore(&device->done_lock, flags);
 	}
-
+	if (req)
+		cmd->wq = cq->wq;
 	if (task->task_done)
 		task->task_done(task);
 }
@@ -3156,7 +3163,7 @@ loop:
 				slot = &hisi_hba->slot_info[iptt];
 				slot->cmplt_queue_slot = rd_point;
 				slot->cmplt_queue = queue;
-				slot_complete_v2_hw(hisi_hba, slot);
+				slot_complete_v2_hw(hisi_hba, slot, cq);
 
 				act_tmp &= ~(1 << ncq_tag_count);
 				ncq_tag_count = ffs(act_tmp);
@@ -3168,7 +3175,7 @@ loop:
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
 			slot->cmplt_queue = queue;
-			slot_complete_v2_hw(hisi_hba, slot);
+			slot_complete_v2_hw(hisi_hba, slot, cq);
 		}
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)

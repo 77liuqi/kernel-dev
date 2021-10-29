@@ -2383,6 +2383,7 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 		/* Completion queue structure */
 		cq->id = i;
 		cq->hisi_hba = hisi_hba;
+		cq->wq = create_singlethread_workqueue(dev_name(dev));
 
 		/* Delivery queue structure */
 		spin_lock_init(&dq->lock);
