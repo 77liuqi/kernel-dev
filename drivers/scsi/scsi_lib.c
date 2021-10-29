@@ -599,6 +599,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	if (error)
 		scsi_end_request_work(req, error);
 	else {
+		INIT_WORK(&cmd->work, scsi_end_request_worker);
 		pr_err("%s req=%pS cmd=%pS func=%pS empty=%d queuing\n", __func__, req, cmd, cmd->work.func, list_empty(&cmd->work.entry));
 		schedule_work(&cmd->work);
 	}
@@ -1792,8 +1793,6 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		if (ret < 0)
 			kmem_cache_free(scsi_sense_cache, cmd->sense_buffer);
 	}
-
-	INIT_WORK(&cmd->work, scsi_end_request_worker);
 
 	return ret;
 }
