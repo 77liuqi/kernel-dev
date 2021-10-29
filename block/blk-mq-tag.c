@@ -73,6 +73,9 @@ void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 	blk_mq_tag_wakeup_all(tags, false);
 }
 
+#define BLK_MQ_TAG_C
+atomic64_t hctx_may_queue_pass;
+atomic64_t hctx_may_queue_total;
 static int __blk_mq_get_tag(struct blk_mq_alloc_data *data,
 			    struct sbitmap_queue *bt)
 {

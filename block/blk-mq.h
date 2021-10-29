@@ -329,7 +329,7 @@ static inline void blk_mq_free_requests(struct list_head *list)
  * For shared tag users, we track the number of currently active users
  * and attempt to provide a fair share of the tag depth for each of them.
  */
-static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
+static inline bool __hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 				  struct sbitmap_queue *bt)
 {
 	unsigned int depth, users;
@@ -365,5 +365,26 @@ static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
 	return __blk_mq_active_requests(hctx) < depth;
 }
 
+#ifndef BLK_MQ_TAG_C
+extern atomic64_t hctx_may_queue_pass;
+extern atomic64_t hctx_may_queue_total;
+#endif
+
+
+static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
+				  struct sbitmap_queue *bt)
+{
+	bool res = __hctx_may_queue(hctx, bt);
+	u64 ret1, ret2;
+
+	if (res == true)
+		ret1 = atomic64_inc_return(&hctx_may_queue_pass);
+	ret2 = atomic64_inc_return(&hctx_may_queue_total);
+
+	if ((ret2 % 1000000) == 0)
+		pr_err("%s total=%llu pass=%llu\n", __func__, ret2, ret1);
+
+	return res;
+}
 
 #endif
