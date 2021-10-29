@@ -3108,7 +3108,7 @@ out:
 		task->task_done(task);
 }
 
-static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
+static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
