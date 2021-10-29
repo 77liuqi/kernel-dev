@@ -3115,7 +3115,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 	struct hisi_sas_slot *slot;
 	struct hisi_sas_itct *itct;
 	struct hisi_sas_complete_v2_hdr *complete_queue;
-	u32 rd_point = cq->rd_point, wr_point, dev_id;
+	u32 rd_point = cq->rd_point, wr_point, wr_point2, dev_id;
 	int queue = cq->id;
 
 	if (unlikely(hisi_hba->reject_stp_links_msk))
@@ -3125,7 +3125,7 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
-
+loop:
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v2_hdr *complete_hdr;
 		int iptt;
@@ -3173,6 +3173,13 @@ static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
+	}
+
+	wr_point2 = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
+				   (0x14 * queue));
+	if (wr_point2 != wr_point) {
+		wr_point = wr_point2;
+		goto loop;
 	}
 
 	/* update rd_point */
