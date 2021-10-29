@@ -532,6 +532,43 @@ static void scsi_run_queue_async(struct scsi_device *sdev)
 	}
 }
 
+static void scsi_end_request_work(struct request *req, blk_status_t error)
+{
+	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct scsi_device *sdev = cmd->device;
+	struct request_queue *q = sdev->request_queue;
+
+	/*
+	 * In the MQ case the command gets freed by __blk_mq_end_request,
+	 * so we have to do all cleanup that depends on it earlier.
+	 *
+	 * We also can't kick the queues from irq context, so we
+	 * will have to defer it to a workqueue.
+	 */
+	scsi_mq_uninit_cmd(cmd);
+
+	/*
+	 * queue is still alive, so grab the ref for preventing it
+	 * from being cleaned up during running queue.
+	 */
+	percpu_ref_get(&q->q_usage_counter);
+
+	__blk_mq_end_request(req, error);
+
+	scsi_run_queue_async(sdev);
+
+	percpu_ref_put(&q->q_usage_counter);
+}
+
+static void scsi_end_request_worker(struct work_struct *work)
+{
+	struct scsi_cmnd *cmd = container_of(work, typeof(*cmd), work);
+
+	pr_err_once("%s work=%pS cmd=%pS\n", __func__, work, cmd);
+
+	scsi_end_request_work(blk_mq_rq_from_pdu(cmd), 0);
+}
+
 /* Returns false when no more bytes to process, true if there are more */
 static bool scsi_end_request(struct request *req, blk_status_t error,
 		unsigned int bytes)
@@ -559,26 +596,11 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	 */
 	destroy_rcu_head(&cmd->rcu);
 
-	/*
-	 * In the MQ case the command gets freed by __blk_mq_end_request,
-	 * so we have to do all cleanup that depends on it earlier.
-	 *
-	 * We also can't kick the queues from irq context, so we
-	 * will have to defer it to a workqueue.
-	 */
-	scsi_mq_uninit_cmd(cmd);
+	if (error)
+		scsi_end_request_work(req, error);
+	else
+		schedule_work(&cmd->work);
 
-	/*
-	 * queue is still alive, so grab the ref for preventing it
-	 * from being cleaned up during running queue.
-	 */
-	percpu_ref_get(&q->q_usage_counter);
-
-	__blk_mq_end_request(req, error);
-
-	scsi_run_queue_async(sdev);
-
-	percpu_ref_put(&q->q_usage_counter);
 	return false;
 }
 
@@ -1768,6 +1790,8 @@ static int scsi_mq_init_request(struct blk_mq_tag_set *set, struct request *rq,
 		if (ret < 0)
 			kmem_cache_free(scsi_sense_cache, cmd->sense_buffer);
 	}
+
+	INIT_WORK(&cmd->work, scsi_end_request_worker);
 
 	return ret;
 }
