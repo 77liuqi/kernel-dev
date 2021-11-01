@@ -216,6 +216,7 @@ struct nvme_queue {
 	u32 *dbbuf_sq_ei;
 	u32 *dbbuf_cq_ei;
 	struct completion delete_done;
+	struct timer_list timer;
 };
 
 /*
@@ -1086,8 +1087,12 @@ static irqreturn_t nvme_irq(int irq, void *data)
 
 	spin_lock_irqsave(&nvmeq->cq_lock, flags);
 	if (nvme_poll_cq(nvmeq, iob)) {
-		if (iob->count > THRESHOLD)
+		if (iob->count >= THRESHOLD) {
 			nvme_pci_complete_batch(iob);
+			del_timer(&nvmeq->timer);
+		} else if (iob->count) {
+			mod_timer(&nvmeq->timer, msecs_to_jiffies(5 * HZ));
+		}
 		spin_unlock_irqrestore(&nvmeq->cq_lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -1517,6 +1522,21 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
 	return 0;
 }
 
+
+static void nvme_cq_timer(struct timer_list *t)
+{
+	struct nvme_queue *nvmeq = from_timer(nvmeq, t, timer);
+	struct io_comp_batch *iob = &nvmeq->iob;
+	unsigned long flags;
+
+	pr_err_once("%s\n", __func__);
+
+	spin_lock_irqsave(&nvmeq->cq_lock, flags);
+	if (iob->count)
+		nvme_pci_complete_batch(iob);
+	spin_unlock_irqrestore(&nvmeq->cq_lock, flags);
+}
+
 static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 {
 	struct nvme_queue *nvmeq = &dev->queues[qid];
@@ -1537,6 +1557,7 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 	nvmeq->dev = dev;
 	spin_lock_init(&nvmeq->sq_lock);
 	spin_lock_init(&nvmeq->cq_lock);
+	nvmeq->timer.function = nvme_cq_timer;
 	spin_lock_init(&nvmeq->cq_poll_lock);
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
