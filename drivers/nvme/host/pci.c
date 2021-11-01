@@ -1077,7 +1077,7 @@ static inline int nvme_poll_cq(struct nvme_queue *nvmeq,
 	return found;
 }
 
-#define THRESHOLD 8
+#define THRESHOLD 32
 
 static irqreturn_t nvme_irq(int irq, void *data)
 {
