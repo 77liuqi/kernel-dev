@@ -1079,13 +1079,8 @@ static irqreturn_t nvme_irq(int irq, void *data)
 	DEFINE_IO_COMP_BATCH(iob);
 
 	if (nvme_poll_cq(nvmeq, &iob)) {
-		struct request *list = iob.req_list;
-		if (!rq_list_empty(list)) {
-			if (rq_list_next(list))
-				nvme_pci_complete_batch(&iob);
-			else
-				nvme_pci_complete_rq(list);
-		}
+		if (!rq_list_empty(iob.req_list))
+			nvme_pci_complete_batch(&iob);
 		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
