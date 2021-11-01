@@ -787,6 +787,7 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 		return false;
 	iob->need_ts |= blk_mq_need_time_stamp(req);
 	rq_list_add(&iob->req_list, req);
+	iob->count++;
 	return true;
 }
 

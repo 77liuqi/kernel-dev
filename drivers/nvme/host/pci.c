@@ -188,7 +188,9 @@ static inline struct nvme_dev *to_nvme_dev(struct nvme_ctrl *ctrl)
  */
 struct nvme_queue {
 	struct nvme_dev *dev;
+	struct io_comp_batch iob;
 	spinlock_t sq_lock;
+	spinlock_t cq_lock;
 	void *sq_cmds;
 	 /* only used for poll queues: */
 	spinlock_t cq_poll_lock ____cacheline_aligned_in_smp;
@@ -980,6 +982,7 @@ static void nvme_pci_complete_rq(struct request *req)
 static void nvme_pci_complete_batch(struct io_comp_batch *iob)
 {
 	nvme_complete_batch(iob, nvme_pci_unmap_rq);
+	iob->count = 0;
 }
 
 /* We read the CQE phase first to check if the rest of the entry is valid */
@@ -1073,16 +1076,22 @@ static inline int nvme_poll_cq(struct nvme_queue *nvmeq,
 	return found;
 }
 
+#define THRESHOLD 8
+
 static irqreturn_t nvme_irq(int irq, void *data)
 {
 	struct nvme_queue *nvmeq = data;
-	DEFINE_IO_COMP_BATCH(iob);
+	struct io_comp_batch *iob = &nvmeq->iob;
+	unsigned long flags;
 
-	if (nvme_poll_cq(nvmeq, &iob)) {
-		if (!rq_list_empty(iob.req_list))
-			nvme_pci_complete_batch(&iob);
+	spin_lock_irqsave(&nvmeq->cq_lock, flags);
+	if (nvme_poll_cq(nvmeq, iob)) {
+		if (iob->count > THRESHOLD)
+			nvme_pci_complete_batch(iob);
+		spin_unlock_irqrestore(&nvmeq->cq_lock, flags);
 		return IRQ_HANDLED;
 	}
+	spin_unlock_irqrestore(&nvmeq->cq_lock, flags);
 	return IRQ_NONE;
 }
 
@@ -1527,6 +1536,7 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
 
 	nvmeq->dev = dev;
 	spin_lock_init(&nvmeq->sq_lock);
+	spin_lock_init(&nvmeq->cq_lock);
 	spin_lock_init(&nvmeq->cq_poll_lock);
 	nvmeq->cq_head = 0;
 	nvmeq->cq_phase = 1;
