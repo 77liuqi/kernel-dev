@@ -612,6 +612,7 @@ struct sas_task_slow {
 	struct timer_list     timer;
 	struct completion     completion;
 	struct sas_task       *task;
+	struct request *rq;
 };
 
 #define SAS_TASK_STATE_PENDING      1
@@ -622,6 +623,7 @@ struct sas_task_slow {
 
 extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
