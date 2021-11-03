@@ -47,7 +47,7 @@ static void smp_task_timedout(struct timer_list *t)
 static void smp_task_done(struct sas_task *task)
 {
 	struct request *rq = blk_mq_rq_from_pdu(task);
-	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
+//	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 
@@ -74,7 +74,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 
 		task = sas_alloc_slow_task2(dev->port->ha, GFP_KERNEL);
-		pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
+	//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
 		if (!task) {
 			res = -ENOMEM;
 			break;
@@ -95,7 +95,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
 
-		pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+	//	pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
 		if (blk_status) {
 			del_timer(&task->slow_task->timer);
@@ -115,7 +115,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAS_SAM_STAT_GOOD) {
-			pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		//	pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 			res = 0;
 			break;
 		}
@@ -154,7 +154,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 	//sas_free_task(task);
-	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d\n", __func__, dev, retry, task, res);
+	if (res)
+		pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d\n", __func__, dev, retry, task, res);
 	return res;
 }
 
