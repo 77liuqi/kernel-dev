@@ -148,7 +148,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct sas_internal *i;
 	struct sas_task *task;
 	int res;
-	//pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
+	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
 	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	blk_mq_start_request(bd->rq);
@@ -182,7 +182,7 @@ static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 
 static void sas_complete(struct request *rq)
 {
-	//pr_err("%s rq=%pS\n",__func__, rq);
+	pr_err("%s rq=%pS\n",__func__, rq);
 }
 
 static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)

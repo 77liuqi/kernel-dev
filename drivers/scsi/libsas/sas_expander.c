@@ -122,7 +122,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAS_SAM_STAT_GOOD) {
-		//	pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+			pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 			res = 0;
 			break;
 		}
@@ -160,9 +160,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 
 	BUG_ON(retry == 3 && task != NULL);
+	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d rq=%pS\n", __func__, dev, retry, task, res, blk_mq_rq_from_pdu(task));
 	sas_free_task2(task);
-	if (res)
-		pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d\n", __func__, dev, retry, task, res);
 	return res;
 }
 
