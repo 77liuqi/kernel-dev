@@ -1796,15 +1796,15 @@ static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 	struct expander_device *ex = &dev->ex_dev;
 	int res = 0;
 	int i;
-	pr_err("%s dev=%pS from_phy=%d ex->num_phys=%d\n", __func__, dev, from_phy, ex->num_phys);
+	//pr_err("%s dev=%pS from_phy=%d ex->num_phys=%d\n", __func__, dev, from_phy, ex->num_phys);
 
 	for (i = from_phy; i < ex->num_phys; i++) {
 		int phy_change_count = 0;
 		
-		pr_err("%s1 dev=%pS from_phy=%d i=%d\n", __func__, dev, from_phy, i);
+		//pr_err("%s1 dev=%pS from_phy=%d i=%d\n", __func__, dev, from_phy, i);
 
 		res = sas_get_phy_change_count(dev, i, &phy_change_count);
-		pr_err("%s2 dev=%pS from_phy=%d i=%d res=%d phy_change_count=%d\n", __func__, dev, from_phy, i, res, phy_change_count);
+	//	pr_err("%s2 dev=%pS from_phy=%d i=%d res=%d phy_change_count=%d\n", __func__, dev, from_phy, i, res, phy_change_count);
 		switch (res) {
 		case SMP_RESP_PHY_VACANT:
 		case SMP_RESP_NO_PHY:
@@ -1821,11 +1821,11 @@ static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 					phy_change_count;
 			*phy_id = i;
 			
-			pr_err("%s9 out i=%d\n", __func__, i);
+		//	pr_err("%s9 out i=%d\n", __func__, i);
 			return 0;
 		}
 	}
-	pr_err("%s10 out\n", __func__);
+	//pr_err("%s10 out\n", __func__);
 	return 0;
 }
 
@@ -1847,16 +1847,16 @@ static int sas_get_ex_change_count(struct domain_device *dev, int *ecc)
 
 	rg_req[1] = SMP_REPORT_GENERAL;
 
-	pr_err("%s dev=%pS\n", __func__, dev);
+	//pr_err("%s dev=%pS\n", __func__, dev);
 
 	res = smp_execute_task(dev, rg_req, RG_REQ_SIZE, rg_resp,
 			       RG_RESP_SIZE);
-	pr_err("%s2 dev=%pS res=%d\n", __func__, dev, res);
+//	pr_err("%s2 dev=%pS res=%d\n", __func__, dev, res);
 	if (res)
 		goto out;
 	if (rg_resp->result != SMP_RESP_FUNC_ACC) {
 		res = rg_resp->result;
-		pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
+	//	pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
 		goto out;
 	}
 
@@ -1890,10 +1890,10 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 	int res;
 	struct domain_device *ch;
 
-	pr_err("%s dev=%pS\n", __func__, dev);
+	//pr_err("%s dev=%pS\n", __func__, dev);
 
 	res = sas_get_ex_change_count(dev, &ex_change_count);
-	pr_err("%s1 dev=%pS res=%d ex_change_count=%d\n", __func__, dev, res, ex_change_count);
+	//pr_err("%s1 dev=%pS res=%d ex_change_count=%d\n", __func__, dev, res, ex_change_count);
 	if (res)
 		goto out;
 	if (ex_change_count != -1 && ex_change_count != ex->ex_change_count) {
@@ -1902,7 +1902,7 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 		* and do not update phy change count field in our structure.
 		*/
 		res = sas_find_bcast_phy(dev, &phy_id, 0, false);
-		pr_err("%s2 dev=%pS res=%d phy_id=%d\n", __func__, dev, res, phy_id);
+	//	pr_err("%s2 dev=%pS res=%d phy_id=%d\n", __func__, dev, res, phy_id);
 		if (phy_id != -1) {
 			*src_dev = dev;
 			ex->ex_change_count = ex_change_count;
@@ -1916,7 +1916,7 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 	list_for_each_entry(ch, &ex->children, siblings) {
 		if (dev_is_expander(ch->dev_type)) {
 			res = sas_find_bcast_dev(ch, src_dev);
-			pr_err("%s3 ch=%pS res=%d\n", __func__, ch, res);
+		//	pr_err("%s3 ch=%pS res=%d\n", __func__, ch, res);
 			if (*src_dev)
 				return res;
 		}
