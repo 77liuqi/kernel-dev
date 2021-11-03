@@ -44,6 +44,7 @@ static void smp_task_timedout(struct timer_list *t)
 
 static void smp_task_done(struct sas_task *task)
 {
+	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
