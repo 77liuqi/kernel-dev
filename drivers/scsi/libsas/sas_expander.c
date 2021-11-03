@@ -64,6 +64,13 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	struct sas_task *task = NULL;
 	struct sas_internal *i =
 		to_sas_internal(dev->port->ha->core.shost->transportt);
+	static int count;
+
+	if (mutex_is_locked(&dev->ex_dev.cmd_mutex))
+		pr_err("%s locked\n", __func__);
+
+	count++;
+	pr_err("%s count=%d\n", __func__, count);
 
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
@@ -99,14 +106,14 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		if (blk_status) {
 			del_timer(&task->slow_task->timer);
-			pr_notice("executing SMP task failed:%d\n", res);
+			pr_err("executing SMP task failed:%d\n", res);
 			break;
 		}
 
 		wait_for_completion(&task->slow_task->completion);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-			pr_notice("smp task timed out or aborted\n");
+			pr_err("smp task timed out or aborted\n");
 			i->dft->lldd_abort_task(task);
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 				pr_notice("SMP task aborted and not done\n");
@@ -141,7 +148,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		
 			break;
 		} else {
-			pr_notice("%s: task to dev %016llx response: 0x%x status 0x%x\n",
+			pr_err("%s: task to dev %016llx response: 0x%x status 0x%x\n",
 				  __func__,
 				  SAS_ADDR(dev->sas_addr),
 				  task->task_status.resp,
