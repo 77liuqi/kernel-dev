@@ -625,6 +625,7 @@ extern struct sas_task *sas_alloc_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
+extern void sas_free_task2(struct sas_task *task);
 
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */

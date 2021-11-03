@@ -102,6 +102,17 @@ void sas_free_task(struct sas_task *task)
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
 
+void sas_free_task2(struct sas_task *task)
+{
+	struct request *rq = blk_mq_rq_from_pdu(task);
+
+	if (task) {
+		kfree(task->slow_task);
+	//	kmem_cache_free(sas_task_cache, task);
+	}
+	__blk_mq_end_request(rq, BLK_STS_OK);
+}
+
 /*------------ SAS addr hash -----------*/
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 {
@@ -172,7 +183,6 @@ static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 static void sas_complete(struct request *rq)
 {
 	//pr_err("%s rq=%pS\n",__func__, rq);
-	__blk_mq_end_request(rq, BLK_STS_OK);
 }
 
 static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)
