@@ -208,9 +208,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];
 	int error = 0;
-	struct blk_mq_tag_set *set;
 	struct Scsi_Host *shost = sas_ha->core.shost;
-	int ret;
+	struct blk_mq_tag_set *set = &shost->tag_set;
+//	int ret;
 	struct request_queue *q;
 	struct device *dev = shost->dma_dev;
 
@@ -268,17 +268,17 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	bset->timeout_fn = timeout;
 #endif
 
-	set = &sas_ha->tag_set;
-	set->ops = &sas_mq_ops;
-	set->nr_hw_queues = shost->nr_hw_queues;
-	set->queue_depth = 40;
-	set->numa_node = NUMA_NO_NODE;
-	set->cmd_size = sizeof(struct sas_task) + 0;
-	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING | BLK_MQ_F_TAG_HCTX_SHARED;
-	ret = blk_mq_alloc_tag_set(set);
-	pr_err("%s2 sas_ha=%pS shost=%pS ret=%d hw queues=%d\n", __func__, sas_ha, shost, ret, shost->nr_hw_queues);
-	if (ret)
-		return -ENOMEM;
+//	set = &sas_ha->tag_set;
+//	set->ops = &sas_mq_ops;
+//	set->nr_hw_queues = shost->nr_hw_queues;
+//	set->queue_depth = 40;
+//	set->numa_node = NUMA_NO_NODE;
+//	set->cmd_size = sizeof(struct sas_task) + 0;
+//	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING | BLK_MQ_F_TAG_HCTX_SHARED;
+//	ret = blk_mq_alloc_tag_set(set);
+//	pr_err("%s2 sas_ha=%pS shost=%pS ret=%d hw queues=%d\n", __func__, sas_ha, shost, ret, shost->nr_hw_queues);
+//	if (ret)
+//		return -ENOMEM;
 	
 	q = sas_ha->q = blk_mq_init_queue(set);
 	pr_err("%s3 sas_ha=%pS sas_ha->q=%pS\n", __func__, sas_ha, sas_ha->q);
@@ -294,8 +294,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
 //	mutex_unlock(&q->debugfs_mutex);
 
-	__blk_mq_register_dev(dev, q);
-	blk_mq_debugfs_register(q);
+//	__blk_mq_register_dev(dev, q);
+//	blk_mq_debugfs_register(q);
 
 #ifdef dsddsd
 	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);

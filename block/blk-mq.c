@@ -496,6 +496,9 @@ struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
 	struct request *rq;
 	int ret;
 
+	if (flags & BLK_MQ_REQ_RESERVED)
+		data.rq_flags |= RQF_RESV;
+
 	ret = blk_queue_enter(q, flags);
 	if (ret)
 		return ERR_PTR(ret);
