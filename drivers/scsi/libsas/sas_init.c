@@ -145,7 +145,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
-	if (!res)
+	if (res)
 		return BLK_STS_IOERR;
 	return BLK_STS_OK;
 }
