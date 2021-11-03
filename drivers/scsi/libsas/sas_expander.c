@@ -54,7 +54,7 @@ static void smp_task_done(struct sas_task *task)
 	//blk_mq_complete_request(rq);
 }
 
-static void smp_task_done2(struct request *rq, blk_status_t status)
+static __maybe_unused void smp_task_done2(struct request *rq, blk_status_t status)
 {
 	pr_err("%s rq=%pS status=%d\n", __func__, rq, status);
 }
@@ -106,7 +106,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
-		blk_execute_rq_nowait(NULL, task->slow_task->rq, true, smp_task_done2);
+		blk_execute_rq_nowait(NULL, task->slow_task->rq, true, NULL);
 
 		pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
@@ -1717,7 +1717,7 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	int res;
 	u8 *disc_req;
 
-	pr_err("%s dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
+//	pr_err("%s dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
 
 	disc_req = alloc_smp_req(DISCOVER_REQ_SIZE);
 	if (!disc_req)
@@ -1726,11 +1726,11 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	disc_req[1] = SMP_DISCOVER;
 	disc_req[9] = phy_id;
 
-	pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS\n", __func__, dev, phy_id, disc_resp, disc_req);
+//	pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS\n", __func__, dev, phy_id, disc_resp, disc_req);
 
 	res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
 			       disc_resp, DISCOVER_RESP_SIZE);
-	pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
+//	pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
 	if (res)
 		goto out;
 	else if (disc_resp->result != SMP_RESP_FUNC_ACC) {
@@ -1739,7 +1739,7 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	}
 out:
 	kfree(disc_req);
-	pr_err("%s10 out dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
+	//pr_err("%s10 out dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
 	return res;
 }
 
@@ -1749,16 +1749,16 @@ static int sas_get_phy_change_count(struct domain_device *dev,
 	int res;
 	struct smp_resp *disc_resp;
 
-	pr_err("%s dev=%pS phy_id=%d\n", __func__, dev, phy_id);
+	//pr_err("%s dev=%pS phy_id=%d\n", __func__, dev, phy_id);
 
 	disc_resp = alloc_smp_resp(DISCOVER_RESP_SIZE);
 	if (!disc_resp)
 		return -ENOMEM;
 	
-	pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
+	//pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
 
 	res = sas_get_phy_discover(dev, phy_id, disc_resp);
-	pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS res=%d\n", __func__, dev, phy_id, disc_resp, res);
+	//pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS res=%d\n", __func__, dev, phy_id, disc_resp, res);
 	if (!res)
 		*pcc = disc_resp->disc.change_count;
 
@@ -2181,10 +2181,10 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 	int res;
 	struct domain_device *dev = NULL;
 
-	pr_err("%s port_dev=%pS\n", __func__, port_dev);
+//	pr_err("%s port_dev=%pS\n", __func__, port_dev);
 
 	res = sas_find_bcast_dev(port_dev, &dev);
-	pr_err("%s1 out port_dev=%pS res=%d\n", __func__, port_dev, res);
+//	pr_err("%s1 out port_dev=%pS res=%d\n", __func__, port_dev, res);
 	if (res == 0 && dev) {
 		struct expander_device *ex = &dev->ex_dev;
 		int i = 0, phy_id;
@@ -2193,15 +2193,15 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 			phy_id = -1;
 			res = sas_find_bcast_phy(dev, &phy_id, i, true);
 		
-			pr_err("%s2 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
+		//	pr_err("%s2 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
 			if (phy_id == -1)
 				break;
 			res = sas_rediscover(dev, phy_id);
-			pr_err("%s3 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
+		//	pr_err("%s3 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
 	}
-	pr_err("%s10 out port_dev=%pS res=%d\n", __func__, port_dev, res);
+	//pr_err("%s10 out port_dev=%pS res=%d\n", __func__, port_dev, res);
 	return res;
 }
 
