@@ -1701,6 +1701,8 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	int res;
 	u8 *disc_req;
 
+	pr_err("%s dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
+
 	disc_req = alloc_smp_req(DISCOVER_REQ_SIZE);
 	if (!disc_req)
 		return -ENOMEM;
@@ -1708,8 +1710,11 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	disc_req[1] = SMP_DISCOVER;
 	disc_req[9] = phy_id;
 
+	pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS\n", __func__, dev, phy_id, disc_resp, disc_req);
+
 	res = smp_execute_task(dev, disc_req, DISCOVER_REQ_SIZE,
 			       disc_resp, DISCOVER_RESP_SIZE);
+	pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
 	if (res)
 		goto out;
 	else if (disc_resp->result != SMP_RESP_FUNC_ACC) {
@@ -1718,6 +1723,7 @@ static int sas_get_phy_discover(struct domain_device *dev,
 	}
 out:
 	kfree(disc_req);
+	pr_err("%s10 out dev=%pS phy_id=%d disc_resp=%pS disc_req=%pS res=%d\n", __func__, dev, phy_id, disc_resp, disc_req, res);
 	return res;
 }
 
@@ -1727,11 +1733,16 @@ static int sas_get_phy_change_count(struct domain_device *dev,
 	int res;
 	struct smp_resp *disc_resp;
 
+	pr_err("%s dev=%pS phy_id=%d\n", __func__, dev, phy_id);
+
 	disc_resp = alloc_smp_resp(DISCOVER_RESP_SIZE);
 	if (!disc_resp)
 		return -ENOMEM;
+	
+	pr_err("%s1 dev=%pS phy_id=%d disc_resp=%pS\n", __func__, dev, phy_id, disc_resp);
 
 	res = sas_get_phy_discover(dev, phy_id, disc_resp);
+	pr_err("%s2 dev=%pS phy_id=%d disc_resp=%pS res=%d\n", __func__, dev, phy_id, disc_resp, res);
 	if (!res)
 		*pcc = disc_resp->disc.change_count;
 
@@ -1769,11 +1780,15 @@ static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 	struct expander_device *ex = &dev->ex_dev;
 	int res = 0;
 	int i;
+	pr_err("%s dev=%pS from_phy=%d ex->num_phys=%d\n", __func__, dev, from_phy, ex->num_phys);
 
 	for (i = from_phy; i < ex->num_phys; i++) {
 		int phy_change_count = 0;
+		
+		pr_err("%s1 dev=%pS from_phy=%d i=%d\n", __func__, dev, from_phy, i);
 
 		res = sas_get_phy_change_count(dev, i, &phy_change_count);
+		pr_err("%s2 dev=%pS from_phy=%d i=%d res=%d phy_change_count=%d\n", __func__, dev, from_phy, i, res, phy_change_count);
 		switch (res) {
 		case SMP_RESP_PHY_VACANT:
 		case SMP_RESP_NO_PHY:
@@ -1789,9 +1804,12 @@ static int sas_find_bcast_phy(struct domain_device *dev, int *phy_id,
 				ex->ex_phy[i].phy_change_count =
 					phy_change_count;
 			*phy_id = i;
+			
+			pr_err("%s9 out i=%d\n", __func__, i);
 			return 0;
 		}
 	}
+	pr_err("%s10 out\n", __func__);
 	return 0;
 }
 
@@ -1813,12 +1831,16 @@ static int sas_get_ex_change_count(struct domain_device *dev, int *ecc)
 
 	rg_req[1] = SMP_REPORT_GENERAL;
 
+	pr_err("%s dev=%pS\n", __func__, dev);
+
 	res = smp_execute_task(dev, rg_req, RG_REQ_SIZE, rg_resp,
 			       RG_RESP_SIZE);
+	pr_err("%s2 dev=%pS res=%d\n", __func__, dev, res);
 	if (res)
 		goto out;
 	if (rg_resp->result != SMP_RESP_FUNC_ACC) {
 		res = rg_resp->result;
+		pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
 		goto out;
 	}
 
@@ -1852,7 +1874,10 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 	int res;
 	struct domain_device *ch;
 
+	pr_err("%s dev=%pS\n", __func__, dev);
+
 	res = sas_get_ex_change_count(dev, &ex_change_count);
+	pr_err("%s1 dev=%pS res=%d ex_change_count=%d\n", __func__, dev, res, ex_change_count);
 	if (res)
 		goto out;
 	if (ex_change_count != -1 && ex_change_count != ex->ex_change_count) {
@@ -1861,6 +1886,7 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 		* and do not update phy change count field in our structure.
 		*/
 		res = sas_find_bcast_phy(dev, &phy_id, 0, false);
+		pr_err("%s2 dev=%pS res=%d phy_id=%d\n", __func__, dev, res, phy_id);
 		if (phy_id != -1) {
 			*src_dev = dev;
 			ex->ex_change_count = ex_change_count;
@@ -1874,6 +1900,7 @@ static int sas_find_bcast_dev(struct domain_device *dev,
 	list_for_each_entry(ch, &ex->children, siblings) {
 		if (dev_is_expander(ch->dev_type)) {
 			res = sas_find_bcast_dev(ch, src_dev);
+			pr_err("%s3 ch=%pS res=%d\n", __func__, ch, res);
 			if (*src_dev)
 				return res;
 		}
@@ -2138,7 +2165,10 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 	int res;
 	struct domain_device *dev = NULL;
 
+	pr_err("%s port_dev=%pS\n", __func__, port_dev);
+
 	res = sas_find_bcast_dev(port_dev, &dev);
+	pr_err("%s1 out port_dev=%pS res=%d\n", __func__, port_dev, res);
 	if (res == 0 && dev) {
 		struct expander_device *ex = &dev->ex_dev;
 		int i = 0, phy_id;
@@ -2146,12 +2176,16 @@ int sas_ex_revalidate_domain(struct domain_device *port_dev)
 		do {
 			phy_id = -1;
 			res = sas_find_bcast_phy(dev, &phy_id, i, true);
+		
+			pr_err("%s2 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
 			if (phy_id == -1)
 				break;
 			res = sas_rediscover(dev, phy_id);
+			pr_err("%s3 out port_dev=%pS res=%d i=%d\n", __func__, port_dev, res, i);
 			i = phy_id + 1;
 		} while (i < ex->num_phys);
 	}
+	pr_err("%s10 out port_dev=%pS res=%d\n", __func__, port_dev, res);
 	return res;
 }
 
