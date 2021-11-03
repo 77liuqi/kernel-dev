@@ -73,8 +73,8 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	slow = kmalloc(sizeof(*slow), flags);
 
 	if (!task || !slow) {
-		if (task)
-			kmem_cache_free(sas_task_cache, task);
+	//	if (task)
+	//		kmem_cache_free(sas_task_cache, task);
 		kfree(slow);
 		return NULL;
 	}
