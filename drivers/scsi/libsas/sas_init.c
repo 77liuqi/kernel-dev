@@ -280,14 +280,14 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	if (ret)
 		return -ENOMEM;
 	
-	sas_ha->q = blk_mq_init_queue(set);
+	q = sas_ha->q = blk_mq_init_queue(set);
 	pr_err("%s3 sas_ha=%pS sas_ha->q=%pS\n", __func__, sas_ha, sas_ha->q);
 	if (IS_ERR(sas_ha->q)) {
 	//	ret = PTR_ERR(sas_ha->q);
 		return -ENOMEM;
 	}
 
-	q = sas_ha->q->queuedata = sas_ha;
+	sas_ha->q->queuedata = sas_ha;
 	blk_queue_rq_timeout(sas_ha->q, BLK_DEFAULT_SG_TIMEOUT);
 
 //	mutex_lock(&q->debugfs_mutex);
