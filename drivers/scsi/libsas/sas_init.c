@@ -188,7 +188,7 @@ static __maybe_unused void sas_complete(struct request *rq)
 
 static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)
 {
-	pr_err("%s rq=%pS val=%d\n",__func__, rq, val);
+	pr_err_once("%s rq=%pS val=%d\n",__func__, rq, val);
 	return BLK_EH_DONE;
 }
 
@@ -199,7 +199,9 @@ static const struct blk_mq_ops sas_mq_ops = {
 //	.complete		= sas_complete,
 	.timeout		= sas_timeout,
 };
-
+#include <linux/debugfs.h>
+extern struct dentry *blk_debugfs_root;
+extern void blk_mq_debugfs_register(struct request_queue *q);
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];
@@ -207,6 +209,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	struct blk_mq_tag_set *set;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	int ret;
+	struct request_queue *q;
 
 	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
@@ -281,9 +284,15 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 		return -ENOMEM;
 	}
 
-	sas_ha->q->queuedata = sas_ha;
+	q = sas_ha->q->queuedata = sas_ha;
 	blk_queue_rq_timeout(sas_ha->q, BLK_DEFAULT_SG_TIMEOUT);
-	
+
+//	mutex_lock(&q->debugfs_mutex);
+	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
+//	mutex_unlock(&q->debugfs_mutex);
+
+	blk_mq_debugfs_register(q);
+
 #ifdef dsddsd
 	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
 	if (IS_ERR(bset->bd)) {
