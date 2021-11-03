@@ -110,7 +110,7 @@ void sas_free_task2(struct sas_task *task)
 		kfree(task->slow_task);
 	//	kmem_cache_free(sas_task_cache, task);
 	}
-	pr_err("%s rq=%pS\n", __func__, rq);
+	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	__blk_mq_end_request(rq, BLK_STS_OK);
 }
 
