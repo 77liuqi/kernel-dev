@@ -54,6 +54,11 @@ static void smp_task_done(struct sas_task *task)
 	//blk_mq_complete_request(rq);
 }
 
+static void smp_task_done2(struct request *rq, blk_status_t status)
+{
+	pr_err("%s rq=%pS status=%d\n", __func__, rq, status);
+}
+
 /* Give it some long enough timeout. In seconds. */
 #define SMP_TIMEOUT 10
 
@@ -100,7 +105,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
-		blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+		blk_execute_rq_nowait(NULL, task->slow_task->rq, true, smp_task_done2);
 
 		pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
