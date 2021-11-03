@@ -168,6 +168,7 @@ static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 static void sas_complete(struct request *rq)
 {
 	pr_err("%s rq=%pS\n",__func__, rq);
+	__blk_mq_end_request(rq, BLK_STS_OK);
 }
 
 static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)
