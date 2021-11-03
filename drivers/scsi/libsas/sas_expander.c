@@ -34,6 +34,8 @@ static void smp_task_timedout(struct timer_list *t)
 	struct sas_task *task = slow->task;
 	unsigned long flags;
 
+	pr_err("%s task=%pS\n", __func__, task);
+
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
@@ -89,6 +91,8 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
 		blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+
+		pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
 		if (blk_status) {
 			del_timer(&task->slow_task->timer);
