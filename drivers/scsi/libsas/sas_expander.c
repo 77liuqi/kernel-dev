@@ -154,6 +154,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 	//sas_free_task(task);
+	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d\n", __func__, dev, retry, task, res);
 	return res;
 }
 
