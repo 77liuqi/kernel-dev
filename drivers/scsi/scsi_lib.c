@@ -1658,6 +1658,11 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_status_t ret;
 	int reason;
 
+	if (req->rq_flags & RQF_RESV) {
+		WARN_ON_ONCE(1);
+		return -BLK_STS_IOERR;
+	}
+
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
 	/*
