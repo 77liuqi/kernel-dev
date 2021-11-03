@@ -133,18 +133,18 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct sas_internal *i;
 	struct sas_task *task;
 	int res;
-	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
+	//pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
-	pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
+	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	blk_mq_start_request(bd->rq);
 	// dispatch now
 	i = to_sas_internal(ha->core.shost->transportt);
-	pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
+	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
 	task = blk_mq_rq_to_pdu(rq);
-	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
-		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
+//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
+//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
+//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
 	if (res)
 		return BLK_STS_IOERR;
 	return BLK_STS_OK;
@@ -153,8 +153,8 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 static int sas_init_rq(struct blk_mq_tag_set *set, struct request *req,
 		       unsigned int hctx_idx, unsigned int numa_node)
 {
-	pr_err_once("%s set=%pS req=%pS hctx_idx=%d numa_node=%d\n",
-		__func__, set, req, hctx_idx, numa_node);
+//	pr_err_once("%s set=%pS req=%pS hctx_idx=%d numa_node=%d\n",
+//		__func__, set, req, hctx_idx, numa_node);
 	return 0;
 }
 
@@ -167,7 +167,7 @@ static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 
 static void sas_complete(struct request *rq)
 {
-	pr_err("%s rq=%pS\n",__func__, rq);
+	//pr_err("%s rq=%pS\n",__func__, rq);
 	__blk_mq_end_request(rq, BLK_STS_OK);
 }
 
