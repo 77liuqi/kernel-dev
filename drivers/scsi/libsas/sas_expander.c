@@ -46,8 +46,8 @@ static void smp_task_timedout(struct timer_list *t)
 
 static void smp_task_done(struct sas_task *task)
 {
-	struct request *rq = blk_mq_rq_from_pdu(task);
-	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
+//	struct request *rq = blk_mq_rq_from_pdu(task);
+//	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 
@@ -108,7 +108,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
 		blk_execute_rq_nowait(NULL, task->slow_task->rq, true, NULL);
 
-		pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
 		if (blk_status) {
 			del_timer(&task->slow_task->timer);
@@ -116,11 +116,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 
-		pr_err("%s3.0 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+	//	pr_err("%s3.0 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
 		wait_for_completion(&task->slow_task->completion);
 
-		pr_err("%s3.1 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+	//	pr_err("%s3.1 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_err("smp task timed out or aborted\n");
@@ -132,7 +132,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAS_SAM_STAT_GOOD) {
-			pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		//	pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 			res = 0;
 			break;
 		}
@@ -170,7 +170,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 
 	BUG_ON(retry == 3 && task != NULL);
-	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d rq=%pS\n", __func__, dev, retry, task, res, blk_mq_rq_from_pdu(task));
+//	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d rq=%pS\n", __func__, dev, retry, task, res, blk_mq_rq_from_pdu(task));
 	sas_free_task2(task);
 	return res;
 }

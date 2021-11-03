@@ -110,7 +110,7 @@ void sas_free_task2(struct sas_task *task)
 		kfree(task->slow_task);
 	//	kmem_cache_free(sas_task_cache, task);
 	}
-	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
+//	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	__blk_mq_end_request(rq, BLK_STS_OK);
 }
 
@@ -149,7 +149,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct sas_internal *i;
 	struct sas_task *task;
 	int res;
-	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
+	//pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
 	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	blk_mq_start_request(bd->rq);
@@ -212,7 +212,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	int ret;
 	struct request_queue *q;
-	//struct device *dev = &shost->shost_dev;
+	struct device *dev = shost->dma_dev;
 
 	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
@@ -294,8 +294,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
 //	mutex_unlock(&q->debugfs_mutex);
 
-//	__blk_mq_register_dev(dev, q);
-//	blk_mq_debugfs_register(q);
+	__blk_mq_register_dev(dev, q);
+	blk_mq_debugfs_register(q);
 
 #ifdef dsddsd
 	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
