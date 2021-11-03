@@ -180,7 +180,7 @@ static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
 		__func__, set, req, hctx_idx);
 }
 
-static void sas_complete(struct request *rq)
+static __maybe_unused void sas_complete(struct request *rq)
 {
 	pr_err("%s rq=%pS\n",__func__, rq);
 }
@@ -195,7 +195,7 @@ static const struct blk_mq_ops sas_mq_ops = {
 	.queue_rq		= sas_queue_rq,
 	.init_request		= sas_init_rq,
 	.exit_request		= sas_exit_rq,
-	.complete		= sas_complete,
+//	.complete		= sas_complete,
 	.timeout		= sas_timeout,
 };
 
