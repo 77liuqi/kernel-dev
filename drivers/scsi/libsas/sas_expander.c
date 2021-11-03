@@ -48,8 +48,8 @@ static void smp_task_done(struct sas_task *task)
 {
 	struct request *rq = blk_mq_rq_from_pdu(task);
 	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
-//	del_timer(&task->slow_task->timer);
-//	complete(&task->slow_task->completion);
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
 
 	blk_mq_complete_request(rq);
 }
@@ -115,6 +115,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAS_SAM_STAT_GOOD) {
+			pr_err("%s4 SAS_SAM_STAT_GOOD dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 			res = 0;
 			break;
 		}
@@ -122,18 +123,24 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		    task->task_status.stat == SAS_DATA_UNDERRUN) {
 			/* no error, but return the number of bytes of
 			 * underrun */
+			pr_err("%s5 SAS_DATA_UNDERRUN dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		
 			res = task->task_status.residual;
 			break;
 		}
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		    task->task_status.stat == SAS_DATA_OVERRUN) {
+		    pr_err("%s6 SAS_DATA_OVERRUN dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		
 			res = -EMSGSIZE;
 			break;
 		}
 		if (task->task_status.resp == SAS_TASK_UNDELIVERED &&
-		    task->task_status.stat == SAS_DEVICE_UNKNOWN)
+		    task->task_status.stat == SAS_DEVICE_UNKNOWN) { 
+		    pr_err("%s7 SAS_DATA_OVERRUN dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		
 			break;
-		else {
+		} else {
 			pr_notice("%s: task to dev %016llx response: 0x%x status 0x%x\n",
 				  __func__,
 				  SAS_ADDR(dev->sas_addr),
