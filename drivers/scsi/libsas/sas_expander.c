@@ -153,14 +153,14 @@ static int smp_execute_task_sg(struct domain_device *dev,
 				  SAS_ADDR(dev->sas_addr),
 				  task->task_status.resp,
 				  task->task_status.stat);
-			//sas_free_task(task);
+			sas_free_task2(task);
 			task = NULL;
 		}
 	}
 	mutex_unlock(&dev->ex_dev.cmd_mutex);
 
 	BUG_ON(retry == 3 && task != NULL);
-	//sas_free_task(task);
+	sas_free_task2(task);
 	if (res)
 		pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d\n", __func__, dev, retry, task, res);
 	return res;
