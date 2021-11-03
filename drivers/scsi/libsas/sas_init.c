@@ -127,7 +127,9 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 				 const struct blk_mq_queue_data *bd)
 {
-	pr_err("%s hctx=%pS bd=%pS\n", __func__, hctx, bd);
+	pr_err("%s hctx=%pS bd=%pS rq=%pS\n", __func__, hctx, bd, bd->rq);
+	blk_mq_start_request(bd->rq);
+	// dispatch now
 	return 0;
 }
  
