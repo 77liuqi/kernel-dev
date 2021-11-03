@@ -188,6 +188,7 @@ static __maybe_unused void sas_complete(struct request *rq)
 
 static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)
 {
+	WARN_ON_ONCE(1);
 	pr_err_once("%s rq=%pS val=%d\n",__func__, rq, val);
 	return BLK_EH_DONE;
 }
@@ -201,6 +202,7 @@ static const struct blk_mq_ops sas_mq_ops = {
 };
 #include <linux/debugfs.h>
 extern struct dentry *blk_debugfs_root;
+extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
 extern void blk_mq_debugfs_register(struct request_queue *q);
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
@@ -210,6 +212,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 	int ret;
 	struct request_queue *q;
+	//struct device *dev = &shost->shost_dev;
 
 	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
@@ -291,7 +294,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
 //	mutex_unlock(&q->debugfs_mutex);
 
-	blk_mq_debugfs_register(q);
+//	__blk_mq_register_dev(dev, q);
+//	blk_mq_debugfs_register(q);
 
 #ifdef dsddsd
 	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
