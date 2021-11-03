@@ -259,7 +259,8 @@ int __blk_mq_register_dev(struct device *dev, struct request_queue *q)
 	struct blk_mq_hw_ctx *hctx;
 	int ret, i;
 
-	WARN_ON_ONCE(!q->kobj.parent);
+	if (WARN_ON_ONCE(!q->kobj.parent))
+		return -EIO;
 	lockdep_assert_held(&q->sysfs_dir_lock);
 
 	ret = kobject_add(q->mq_kobj, kobject_get(&dev->kobj), "%s", "mq");
