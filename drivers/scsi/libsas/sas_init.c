@@ -127,9 +127,19 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 				 const struct blk_mq_queue_data *bd)
 {
-	pr_err("%s hctx=%pS bd=%pS rq=%pS\n", __func__, hctx, bd, bd->rq);
+	struct request_queue *q = hctx->queue;
+	struct sas_ha_struct *ha;
+	struct sas_internal *i;
+	//int res;
+	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
+	ha = q->queuedata;
+	pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	blk_mq_start_request(bd->rq);
 	// dispatch now
+	i = to_sas_internal(ha->core.shost->transportt);
+	pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
+	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task);
+	//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	return 0;
 }
  
