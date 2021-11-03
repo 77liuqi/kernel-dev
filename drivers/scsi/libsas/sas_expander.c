@@ -61,6 +61,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		blk_status_t blk_status;
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
@@ -73,8 +74,6 @@ static int smp_execute_task_sg(struct domain_device *dev,
 			break;
 		}
 
-		blk_execute_rq(NULL, task->slow_task->rq, true);
-
 		task->dev = dev;
 		task->task_proto = dev->tproto;
 		task->smp_task.smp_req = *req;
@@ -86,9 +85,11 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
-		if (res) {
+		blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+
+		if (blk_status) {
 			del_timer(&task->slow_task->timer);
 			pr_notice("executing SMP task failed:%d\n", res);
 			break;
