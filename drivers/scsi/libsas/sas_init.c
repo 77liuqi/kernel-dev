@@ -132,7 +132,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct sas_ha_struct *ha;
 	struct sas_internal *i;
 	struct sas_task *task;
-	//int res;
+	int res;
 	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
 	pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
@@ -143,8 +143,11 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	task = blk_mq_rq_to_pdu(rq);
 	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
-	//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	return 0;
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
+	if (!res)
+		return BLK_STS_IOERR;
+	return BLK_STS_OK;
 }
  
 static int sas_init_rq(struct blk_mq_tag_set *set, struct request *req,
