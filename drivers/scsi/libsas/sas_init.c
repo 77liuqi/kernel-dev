@@ -264,7 +264,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	set = &sas_ha->tag_set;
 	set->ops = &sas_mq_ops;
 	set->nr_hw_queues = shost->nr_hw_queues;
-	set->queue_depth = 96;
+	set->queue_depth = 960;
 	set->numa_node = NUMA_NO_NODE;
 	set->cmd_size = sizeof(struct sas_task) + 0;
 	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING | BLK_MQ_F_TAG_HCTX_SHARED;
