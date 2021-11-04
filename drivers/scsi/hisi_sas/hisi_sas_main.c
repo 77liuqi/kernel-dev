@@ -1090,8 +1090,50 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	up(&hisi_hba->sem);
 }
 
+static int
+hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
+				  struct hisi_sas_internal_abort *abort,
+				  struct sas_task *task,
+				  struct hisi_sas_dq *dq);
+
+static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp_t gfp_flags)
+{
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct scsi_cmnd *scmd = NULL;
+	struct hisi_sas_dq *dq = NULL;
+	struct hisi_hba *hisi_hba;
+	struct request *rq = task->rq;
+	int ret;
+
+	hisi_hba = dev_to_hisi_hba(device);
+
+	if (rq) {
+		unsigned int dq_index;
+		u32 blk_tag;
+
+		blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
+		dq = &hisi_hba->dq[dq_index];
+	} else {
+		struct Scsi_Host *shost = hisi_hba->shost;
+		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+		int queue = qmap->mq_map[raw_smp_processor_id()];
+
+		WARN_ON_ONCE(1);
+		dq = &hisi_hba->dq[queue];
+	}
+
+	ret = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
+						task->abort, task, dq);
+
+	return ret;
+}
+
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
+	if (task->abort)
+		return hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
 	return hisi_sas_task_exec(task, gfp_flags, task->tmf);
 }
 
@@ -2068,12 +2110,13 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
 	struct sas_task *task;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
+//	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_internal_abort abort = {
 		.flag = abort_flag,
 		.tag = tag,
 	};
 	struct device *dev = hisi_hba->dev;
+	blk_status_t blk_status;
 	int res;
 	/*
 	 * The interface is not realized means this HW don't support internal
@@ -2093,13 +2136,12 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (!task)
 		return -ENOMEM;
 #else
-	blk_status_t blk_status;
+	
 	
 	task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
 	//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
 	if (!task) {
-		res = -ENOMEM;
-		break;
+		return -ENOMEM;
 	}
 #endif
 
@@ -2121,7 +2163,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		goto exit;
 	}
 #else
-	task->tmf = tmf;
+	task->abort = &abort;
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 	
 		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
@@ -2129,7 +2171,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (blk_status) {
 		del_timer(&task->slow_task->timer);
 		pr_err("executing tmf task failed:%d\n", res);
-		break;
+		return -EIO;
 	}
 #endif
 
