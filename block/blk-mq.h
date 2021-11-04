@@ -190,12 +190,16 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
 static inline void blk_mq_put_dispatch_budget(struct request_queue *q,
 					      int budget_token)
 {
+	if (blk_queue_no_budgetting(q))
+		return;
 	if (q->mq_ops->put_budget)
 		q->mq_ops->put_budget(q, budget_token);
 }
 
 static inline int blk_mq_get_dispatch_budget(struct request_queue *q)
 {
+	if (blk_queue_no_budgetting(q))
+		return 0;
 	if (q->mq_ops->get_budget)
 		return q->mq_ops->get_budget(q);
 	return 0;
@@ -212,6 +216,10 @@ static inline void blk_mq_set_rq_budget_token(struct request *rq, int token)
 
 static inline int blk_mq_get_rq_budget_token(struct request *rq)
 {
+	if (blk_queue_no_budgetting(rq->q)) {
+		WARN_ON_ONCE(1);
+		return -1;
+	}
 	if (rq->q->mq_ops->get_rq_budget_token)
 		return rq->q->mq_ops->get_rq_budget_token(rq);
 	return -1;

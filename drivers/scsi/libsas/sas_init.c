@@ -212,7 +212,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	struct blk_mq_tag_set *set = &shost->tag_set;
 //	int ret;
 	struct request_queue *q;
-	struct device *dev = shost->dma_dev;
+//	struct device *dev = shost->dma_dev;
 
 	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
@@ -289,6 +289,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	sas_ha->q->queuedata = sas_ha;
 	blk_queue_rq_timeout(sas_ha->q, BLK_DEFAULT_SG_TIMEOUT);
+	set_bit(QUEUE_FLAG_NO_BUDGETTING, &q->queue_flags);
 
 //	mutex_lock(&q->debugfs_mutex);
 	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
