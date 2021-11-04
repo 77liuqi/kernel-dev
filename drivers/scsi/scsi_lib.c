@@ -1667,7 +1667,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int reason;
 
 	if (req->cmd_flags & REQ_RESV) {
-		WARN_ON_ONCE(1);
+//		WARN_ON_ONCE(1);
 		return sas_queue_rq(hctx, bd);
 	}
 
