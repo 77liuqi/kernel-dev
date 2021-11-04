@@ -46,8 +46,8 @@ static void smp_task_timedout(struct timer_list *t)
 
 static void smp_task_done(struct sas_task *task)
 {
-//	struct request *rq = blk_mq_rq_from_pdu(task);
-//	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
+	struct request *rq = blk_mq_rq_from_pdu(task);
+	pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 
