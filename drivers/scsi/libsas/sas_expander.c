@@ -46,7 +46,7 @@ static void smp_task_timedout(struct timer_list *t)
 
 static void smp_task_done(struct sas_task *task)
 {
-	struct request *rq = blk_mq_rq_from_pdu(task);
+//	struct request *rq = blk_mq_rq_from_pdu(task);
 	//pr_err("%s task=%pS rq=%pS\n", __func__, task, rq);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
@@ -75,7 +75,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		pr_err("%s locked\n", __func__);
 
 	count++;
-	pr_err("%s count=%d\n", __func__, count);
+	pr_err_once("%s count=%d\n", __func__, count);
 
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
