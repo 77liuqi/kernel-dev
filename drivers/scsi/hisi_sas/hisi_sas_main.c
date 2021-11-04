@@ -2358,7 +2358,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	int i, j, s, max_command_entries = HISI_SAS_MAX_COMMANDS;
+	int i, j, s, max_command_entries = HISI_SAS_UNRESERVED_IPTT;
 	int max_command_entries_ru, sz_slot_buf_ru;
 	int blk_cnt, slots_per_blk;
 
@@ -2713,10 +2713,12 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	if (hisi_hba->hw->slot_index_alloc) {
-		shost->can_queue = HISI_SAS_MAX_COMMANDS;
-		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
+		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
+		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	} else {
 		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
 		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	}
 
