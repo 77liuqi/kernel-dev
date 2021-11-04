@@ -1092,7 +1092,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	return hisi_sas_task_exec(task, gfp_flags, NULL);
+	return hisi_sas_task_exec(task, gfp_flags, task->tmf);
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
@@ -1226,7 +1226,11 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
+// <<<<<<< HEAD
 		res = hisi_sas_task_exec(task, GFP_KERNEL, tmf);
+// =======
+		res = hisi_sas_task_exec(task, GFP_KERNEL, 1, tmf);
+// >>>>>>> 5d572887a0bf... hisi sas tmf
 		if (res) {
 			del_timer(&task->slow_task->timer);
 			dev_err(dev, "abort tmf: executing internal task failed: %d\n",
@@ -1257,15 +1261,16 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->slow_task->timer.function = hisi_sas_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
-		
+		pr_err("%s task=%pS\n", __func__, task);
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+		task->tmf = tmf;
 		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 		
 			//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 		
 		if (blk_status) {
 			del_timer(&task->slow_task->timer);
-			pr_err("executing SMP task failed:%d\n", res);
+			pr_err("executing tmf task failed:%d\n", res);
 			break;
 		}
 #endif
