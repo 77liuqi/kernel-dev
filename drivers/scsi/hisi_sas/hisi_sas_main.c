@@ -488,6 +488,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct device *dev;
+	struct request *rq = task->rq;
 	int rc;
 
 	if (!sas_port) {
@@ -537,7 +538,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		}
 	}
 
-	if (scmd) {
+	if (rq) {
 		unsigned int dq_index;
 		u32 blk_tag;
 
@@ -549,6 +550,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
 		int queue = qmap->mq_map[raw_smp_processor_id()];
 
+		WARN_ON_ONCE(1);
 		dq = &hisi_hba->dq[queue];
 	}
 
