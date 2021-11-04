@@ -2086,10 +2086,22 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
+#ifdef cfdfurrent	
+#error
 
 	task = sas_alloc_slow_task(GFP_KERNEL);
 	if (!task)
 		return -ENOMEM;
+#else
+	blk_status_t blk_status;
+	
+	task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
+	//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
+	if (!task) {
+		res = -ENOMEM;
+		break;
+	}
+#endif
 
 	task->dev = device;
 	task->task_proto = SAS_PROTOCOL_NONE;
@@ -2098,6 +2110,8 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task->slow_task->timer.expires = jiffies + INTERNAL_ABORT_TIMEOUT;
 	add_timer(&task->slow_task->timer);
 
+#ifdef cfdfurrent	
+#error
 	res = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
 						&abort, task, dq);
 	if (res) {
@@ -2106,6 +2120,19 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			res);
 		goto exit;
 	}
+#else
+	task->tmf = tmf;
+	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+	
+		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+	
+	if (blk_status) {
+		del_timer(&task->slow_task->timer);
+		pr_err("executing tmf task failed:%d\n", res);
+		break;
+	}
+#endif
+
 	wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
 
