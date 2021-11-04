@@ -141,7 +141,7 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 	hashed[2] = r & 0xFF;
 }
 
-static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
+blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 				 const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
@@ -150,7 +150,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct sas_internal *i;
 	struct sas_task *task;
 	int res;
-	//pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
+	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
 	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	blk_mq_start_request(bd->rq);
@@ -161,7 +161,7 @@ static blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 //	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 //		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
+	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
 	if (res)
 		return BLK_STS_IOERR;
 	return BLK_STS_OK;
