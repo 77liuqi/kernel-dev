@@ -106,7 +106,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 		//res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
-		blk_execute_rq_nowait(NULL, task->slow_task->rq, true, NULL);
+		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 
 		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 
