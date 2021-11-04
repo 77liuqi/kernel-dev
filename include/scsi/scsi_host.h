@@ -74,6 +74,7 @@ struct scsi_host_template {
 	 * STATUS: REQUIRED
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+	int (* queuecommand_internal)(struct Scsi_Host *, struct request *);
 
 	/*
 	 * The commit_rqs function is used to trigger a hardware
@@ -587,6 +588,7 @@ struct Scsi_Host {
 	int eh_deadline;
 	unsigned long last_reset;
 
+	struct request_queue *q; // reserved
 
 	/*
 	 * These three parameters can be used to allow for wide scsi,
