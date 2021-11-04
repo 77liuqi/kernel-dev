@@ -66,7 +66,6 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
 	rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
-	
 	if (IS_ERR(rq)) {
 		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
 		return NULL;
@@ -99,14 +98,25 @@ EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
+		bool reserved = false;
+		struct request *rq = task->rq;
+
+		if (rq && rq->cmd_flags & REQ_RESV)
+			reserved = true;
+
+		if (reserved)
+			__blk_mq_end_request(rq, BLK_STS_OK);
+		else
+			kmem_cache_free(sas_task_cache, task);
+		
 		kfree(task->slow_task);
-		kmem_cache_free(sas_task_cache, task);
 	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
 
 void sas_free_task2(struct sas_task *task)
 {
+#ifdef usegeneric
 	struct request *rq = blk_mq_rq_from_pdu(task);
 
 	if (task) {
@@ -115,6 +125,9 @@ void sas_free_task2(struct sas_task *task)
 	}
 //	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
 	__blk_mq_end_request(rq, BLK_STS_OK);
+#else
+	sas_free_task(task);
+#endif
 }
 
 /*------------ SAS addr hash -----------*/
