@@ -2358,7 +2358,7 @@ EXPORT_SYMBOL_GPL(hisi_sas_init_mem);
 int hisi_sas_alloc(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	int i, j, s, max_command_entries = HISI_SAS_UNRESERVED_IPTT;
+	int i, j, s, max_command_entries = HISI_SAS_QUEUE_SLOTS;
 	int max_command_entries_ru, sz_slot_buf_ru;
 	int blk_cnt, slots_per_blk;
 
