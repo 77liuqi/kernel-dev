@@ -176,7 +176,16 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
-	task = sas_alloc_task(GFP_ATOMIC);
+	scmd = qc->scsicmd;
+
+	if (scmd) {
+		task = sas_alloc_task(GFP_ATOMIC);
+		task->rq = blk_mq_rq_from_pdu(scmd);
+	} else {
+		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
+		// task->rq assigned inside
+	}
+
 	if (!task)
 		goto out;
 	task->dev = dev;
@@ -194,11 +203,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
-	scmd = qc->scsicmd;
-	if (scmd)
-		task->rq = blk_mq_rq_from_pdu(scmd);
-	else
-		task->rq = NULL;
+
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
