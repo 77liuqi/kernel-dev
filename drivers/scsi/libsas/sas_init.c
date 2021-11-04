@@ -104,12 +104,13 @@ void sas_free_task(struct sas_task *task)
 		if (rq && rq->cmd_flags & REQ_RESV)
 			reserved = true;
 
+		kfree(task->slow_task);
+
 		if (reserved)
 			__blk_mq_end_request(rq, BLK_STS_OK);
 		else
 			kmem_cache_free(sas_task_cache, task);
 		
-		kfree(task->slow_task);
 	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
