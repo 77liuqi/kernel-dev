@@ -1205,6 +1205,8 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
+#ifdef cfdfurrent	
+#error
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
@@ -1231,7 +1233,42 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 				res);
 			goto ex_err;
 		}
+#else
+		blk_status_t blk_status;
 
+		task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
+		//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
+		if (!task) {
+			res = -ENOMEM;
+			break;
+		}
+
+		task->dev = device;
+		task->task_proto = device->tproto;
+
+		if (dev_is_sata(device)) {
+			task->ata_task.device_control_reg_update = 1;
+			memcpy(&task->ata_task.fis, parameter, para_len);
+		} else {
+			memcpy(&task->ssp_task, parameter, para_len);
+		}
+		task->task_done = hisi_sas_task_done;
+
+		task->slow_task->timer.function = hisi_sas_tmf_timedout;
+		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+		add_timer(&task->slow_task->timer);
+		
+		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
+		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+		
+			//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+		
+		if (blk_status) {
+			del_timer(&task->slow_task->timer);
+			pr_err("executing SMP task failed:%d\n", res);
+			break;
+		}
+#endif
 		wait_for_completion(&task->slow_task->completion);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
