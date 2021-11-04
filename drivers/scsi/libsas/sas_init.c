@@ -64,12 +64,13 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 
-	rq = blk_mq_alloc_request(sas_ha->q, REQ_OP_DRV_IN, 0);
+	rq = blk_mq_alloc_request(sas_ha->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
 	
 	if (IS_ERR(rq)) {
 		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
 		return NULL;
 	}
+	rq->cmd_flags |= REQ_RESV;
 	task = blk_mq_rq_to_pdu(rq);
 	
 	slow = kmalloc(sizeof(*slow), flags);
