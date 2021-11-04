@@ -111,11 +111,12 @@ void sas_free_task(struct sas_task *task)
 		else
 			kmem_cache_free(sas_task_cache, task);
 		
-	}
+	} else 
+		WARN_ON_ONCE(1);
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
 
-void sas_free_task2(struct sas_task *task)
+void sas_free_taske2(struct sas_task *task)
 {
 #ifdef usegeneric
 	struct request *rq = blk_mq_rq_from_pdu(task);

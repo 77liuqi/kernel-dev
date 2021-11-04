@@ -1340,13 +1340,13 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 				 task->task_status.resp,
 				 task->task_status.stat);
 		}
-		sas_free_task2(task);
+		sas_free_task(task);
 		task = NULL;
 	}
 ex_err:
 	if (retry == TASK_RETRY)
 		dev_warn(dev, "abort tmf: executing internal task failed!\n");
-	sas_free_task2(task);
+	sas_free_task(task);
 	return res;
 }
 
