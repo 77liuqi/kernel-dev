@@ -163,7 +163,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 				  SAS_ADDR(dev->sas_addr),
 				  task->task_status.resp,
 				  task->task_status.stat);
-			sas_free_task2(task);
+			sas_free_task(task);
 			task = NULL;
 		}
 	}
@@ -171,7 +171,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	BUG_ON(retry == 3 && task != NULL);
 //	pr_err("%s10 out dev=%pS retry=%d task=%pS res=%d rq=%pS\n", __func__, dev, retry, task, res, blk_mq_rq_from_pdu(task));
-	sas_free_task2(task);
+	sas_free_task(task);
 	return res;
 }
 
