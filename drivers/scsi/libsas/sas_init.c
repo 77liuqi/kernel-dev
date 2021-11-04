@@ -73,6 +73,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	}
 	rq->cmd_flags |= REQ_RESV;
 	task = blk_mq_rq_to_pdu(rq);
+	task->rq = rq;
 	
 	slow = kmalloc(sizeof(*slow), flags);
 
@@ -87,7 +88,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 
 	task->slow_task = slow;
 	slow->task = task;
-	slow->rq = rq;
+//	slow->rq = rq;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 //	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
