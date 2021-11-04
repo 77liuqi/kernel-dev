@@ -63,8 +63,9 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
+	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(sas_ha->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
 	
 	if (IS_ERR(rq)) {
 		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
@@ -89,7 +90,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	slow->rq = rq;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
-
+	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
@@ -153,7 +154,7 @@ blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
 	ha = q->queuedata;
 	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
-	blk_mq_start_request(bd->rq);
+
 	// dispatch now
 	i = to_sas_internal(ha->core.shost->transportt);
 	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
@@ -166,7 +167,29 @@ blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_IOERR;
 	return BLK_STS_OK;
 }
- 
+
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i;
+	struct sas_task *task;
+	int res;
+	pr_err("%s rq=%pS shost=%pS ha=%pS\n", __func__, rq, shost, ha);
+
+	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
+	
+	// dispatch now
+	i = to_sas_internal(ha->core.shost->transportt);
+	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
+	task = blk_mq_rq_to_pdu(rq);
+	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
+	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	pr_err("%s4 rq=%pS res=%d\n", __func__, rq, res);
+
+	return 0;
+}
+
 static int sas_init_rq(struct blk_mq_tag_set *set, struct request *req,
 		       unsigned int hctx_idx, unsigned int numa_node)
 {
@@ -281,15 +304,15 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 //	if (ret)
 //		return -ENOMEM;
 	
-	q = sas_ha->q = blk_mq_init_queue(set);
-	pr_err("%s3 sas_ha=%pS sas_ha->q=%pS\n", __func__, sas_ha, sas_ha->q);
-	if (IS_ERR(sas_ha->q)) {
+	q = shost->q = blk_mq_init_queue(set);
+	pr_err("%s3 sas_ha=%pS sas_ha->q=%pS\n", __func__, sas_ha, shost->q);
+	if (IS_ERR(shost->q)) {
 	//	ret = PTR_ERR(sas_ha->q);
 		return -ENOMEM;
 	}
 
-	sas_ha->q->queuedata = sas_ha;
-	blk_queue_rq_timeout(sas_ha->q, BLK_DEFAULT_SG_TIMEOUT);
+	shost->q->queuedata = shost;
+	blk_queue_rq_timeout(shost->q, BLK_DEFAULT_SG_TIMEOUT);
 	set_bit(QUEUE_FLAG_NO_BUDGETTING, &q->queue_flags);
 
 //	mutex_lock(&q->debugfs_mutex);

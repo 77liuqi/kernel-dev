@@ -372,7 +372,7 @@ struct sas_ha_struct {
 
 	struct scsi_core core;
 	struct blk_mq_tag_set	tag_set;
-	struct request_queue *q;
+	
 
 /* public: */
 	char *sas_ha_name;
