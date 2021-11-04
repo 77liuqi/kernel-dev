@@ -1667,6 +1667,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	int reason;
 
 	if (req->cmd_flags & REQ_RESV) {
+		int res;
 //		WARN_ON_ONCE(1);
 		blk_mq_start_request(bd->rq);
 
@@ -1679,7 +1680,10 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 		shost = bd->rq->q->queuedata;
 
-		return shost->hostt->queuecommand_internal(shost, req);
+		res = shost->hostt->queuecommand_internal(shost, req);
+		if (res)
+			return BLK_STS_IOERR;
+		return BLK_STS_OK;
 	}
 
 	sdev = q->queuedata;
