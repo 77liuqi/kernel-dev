@@ -578,6 +578,13 @@ struct sas_ssp_task {
 	struct scsi_cmnd *cmd;
 };
 
+struct hisi_sas_tmf_task {
+	int force_phy;
+	int phy_id;
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
+
 struct sas_task {
 	struct domain_device *dev;
 
@@ -604,6 +611,7 @@ struct sas_task {
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
 	struct request *rq;
+	struct hisi_sas_tmf_task *tmf;
 };
 
 struct sas_task_slow {
