@@ -1425,6 +1425,11 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 
+	if (rq->cmd_flags & REQ_RESV) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
@@ -1647,6 +1652,9 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 	return cmd->budget_token;
 }
 
+extern blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd);
+
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1660,7 +1668,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	if (req->cmd_flags & REQ_RESV) {
 		WARN_ON_ONCE(1);
-		return BLK_STS_IOERR;
+		return sas_queue_rq(hctx, bd);
 	}
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
@@ -1752,6 +1760,7 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
+	pr_err("%s req=%pS reserved=%d\n", __func__, req, reserved);
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);
