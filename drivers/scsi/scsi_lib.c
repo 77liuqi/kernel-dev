@@ -1670,6 +1670,13 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 //		WARN_ON_ONCE(1);
 		blk_mq_start_request(bd->rq);
 
+		if (!bd->rq)
+			pr_err("%s2 rq=%pS\n", __func__, bd->rq);
+		if (!bd->rq->q)
+			pr_err("%s3 q=%pS\n", __func__, bd->rq->q);
+		if (!bd->rq->q->queuedata)
+			pr_err("%s5 queuedata=%pS\n", __func__, bd->rq->q->queuedata);
+
 		shost = bd->rq->q->queuedata;
 
 		return shost->hostt->queuecommand_internal(shost, req);
