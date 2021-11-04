@@ -166,6 +166,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
+//	struct request *rq;
+	struct scsi_cmnd *scmd;
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -192,6 +194,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
+	scmd = qc->scsicmd;
+	if (scmd)
+		task->rq = blk_mq_rq_from_pdu(scmd);
+	else
+		task->rq = NULL;
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;

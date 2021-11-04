@@ -133,12 +133,19 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       gfp_t gfp_flags)
 {
 	struct sas_task *task = sas_alloc_task(gfp_flags);
+//	struct request *rq;
 	struct scsi_lun lun;
 
 	if (!task)
 		return NULL;
 
 	task->uldd_task = cmd;
+	if (cmd)
+		task->rq = blk_mq_rq_from_pdu(cmd);
+	else {
+		task->rq = NULL;
+		WARN_ON_ONCE(1);
+	}
 	ASSIGN_SAS_TASK(cmd, task);
 
 	task->dev = dev;
