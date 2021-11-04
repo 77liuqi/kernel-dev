@@ -1670,6 +1670,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 //		WARN_ON_ONCE(1);
 		blk_mq_start_request(bd->rq);
 
+		shost = bd->rq->q->queuedata;
+
 		return shost->hostt->queuecommand_internal(shost, req);
 	}
 
