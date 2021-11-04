@@ -109,7 +109,7 @@ void hisi_sas_sata_done(struct sas_task *task,
 	struct hisi_sas_status_buffer *status_buf =
 			hisi_sas_status_buf_addr_mem(slot);
 	u8 *iu = &status_buf->iu[0];
-	struct dev_to_host_fis *d2h =  (struct dev_to_host_fis *)iu;
+	struct dev_to_host_fis *d2h = (struct dev_to_host_fis *)iu;
 
 	resp->frame_len = sizeof(struct dev_to_host_fis);
 	memcpy(&resp->ending_fis[0], d2h, sizeof(struct dev_to_host_fis));
