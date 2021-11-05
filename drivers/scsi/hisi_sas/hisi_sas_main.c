@@ -1132,11 +1132,21 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
+	int ret;
 	if (task->abort) {
-		pr_err("%s task=%pS abort=%pS rq=%pS\n", __func__, task, task->abort, task->rq);
-		return hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
+	//	pr_err("%s task=%pS abort=%pS rq=%pS\n", __func__, task, task->abort, task->rq);
+		ret = hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
+		goto out;
 	}
-	return hisi_sas_task_exec(task, gfp_flags, task->tmf);
+//	if (task->tmf)
+//		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
+	ret = hisi_sas_task_exec(task, gfp_flags, task->tmf);
+
+out:
+	if (ret)
+		pr_err("%s3 ret=%d task=%pS tmf=%pS abort=%pS rq=%pS\n", __func__, ret, task, task->tmf, task->abort, task->rq);
+
+	return ret;
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
@@ -1305,9 +1315,9 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		task->slow_task->timer.function = hisi_sas_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
-		pr_err("%s task=%pS\n", __func__, task);
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
 		task->tmf = tmf;
+		pr_err("%s task=%pS tmf=%pS\n", __func__, task, task->tmf);
 		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 		
 			//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
@@ -2172,7 +2182,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 #else
 	task->abort = &abort;
-	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
+	//pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 	
 		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
