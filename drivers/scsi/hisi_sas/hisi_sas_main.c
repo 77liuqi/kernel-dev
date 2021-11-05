@@ -378,6 +378,7 @@ static int hisi_sas_dif_dma_map(struct hisi_hba *hisi_hba,
 		scsi_cmnd = ssp_task->cmd;
 
 		if (scsi_prot_sg_count(scsi_cmnd)) {
+			BUG();
 			*n_elem_dif = dma_map_sg(dev,
 						 scsi_prot_sglist(scsi_cmnd),
 						 scsi_prot_sg_count(scsi_cmnd),
@@ -573,9 +574,10 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		goto prep_out;
 
 	if (!sas_protocol_ata(task->task_proto)) {
-		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
-		if (rc < 0)
-			goto err_out_dma_unmap;
+	//	n_elem_dif = 0;
+//		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
+//		if (rc < 0)
+//			goto err_out_dma_unmap;
 	}
 
 	if (hisi_hba->hw->slot_index_alloc)
