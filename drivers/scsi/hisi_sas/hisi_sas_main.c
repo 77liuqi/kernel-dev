@@ -184,9 +184,9 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 	int index;
 	void *bitmap = hisi_hba->slot_index_tags;
 
-	if (rq)
-		return rq->tag;
-	BUG();
+	//if (rq)
+	//	return rq->tag;
+//	BUG();
 	spin_lock(&hisi_hba->lock);
 	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
 				   hisi_hba->last_slot_index + 1);
