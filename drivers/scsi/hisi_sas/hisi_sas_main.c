@@ -703,6 +703,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 		tmf_task.tmf = TMF_CLEAR_TASK_SET;
 		while (retry-- > 0) {
+			pr_err("%s tmf SAS_END_DEVICE\n", __func__);
 			rc = hisi_sas_debug_issue_ssp_tmf(device, lun.scsi_lun,
 							  &tmf_task);
 			if (rc == TMF_RESP_FUNC_COMPLETE) {
@@ -732,6 +733,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 			unsigned int classes;
 
 			ata_for_each_link(link, ap, EDGE) {
+				pr_err("%s hardreset SAS_SATA_DEV\n", __func__);
 				rc = ops->hardreset(link, &classes,
 						    deadline);
 				if (rc)
@@ -1142,8 +1144,8 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		ret = hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
 		goto out;
 	}
-//	if (task->tmf)
-//		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
+	if (task->tmf)
+		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
 	ret = hisi_sas_task_exec(task, gfp_flags, task->tmf);
 
 out:
@@ -1238,6 +1240,8 @@ static void hisi_sas_tmf_timedout(struct timer_list *t)
 	unsigned long flags;
 	bool is_completed = true;
 
+	pr_err("%s task=%pS\n", __func__, task);
+	
 	spin_lock_irqsave(&task->task_state_lock, flags);
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 		task->task_state_flags |= SAS_TASK_STATE_ABORTED;

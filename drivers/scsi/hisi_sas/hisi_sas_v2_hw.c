@@ -1747,6 +1747,9 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
 
+	if (tmf)
+		pr_err("%s task=%pS slot tmf=%pS task tmf=%pS\n", __func__, task, slot->tmf, task->tmf);
+
 	hdr->dw0 = cpu_to_le32((1 << CMD_HDR_RESP_REPORT_OFF) |
 			       (2 << CMD_HDR_TLR_CTRL_OFF) |
 			       (port->id << CMD_HDR_PORT_OFF) |
@@ -1795,6 +1798,12 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 
 	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot) +
 		sizeof(struct ssp_frame_hdr);
+
+	if (tmf)
+		pr_err("%s1 task=%pS slot tmf=%pS task tmf=%pS buf_cmd=%pS\n", __func__, task, slot->tmf, task->tmf, buf_cmd);
+	if (tmf)
+		pr_err("%s2 task=%pS slot tmf=%pS task tmf=%pS &task->ssp_task.LUN=%pS\n", __func__, task, slot->tmf, task->tmf, &task->ssp_task.LUN);
+
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
 	if (!tmf) {
