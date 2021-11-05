@@ -1099,7 +1099,6 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 {
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct scsi_cmnd *scmd = NULL;
 	struct hisi_sas_dq *dq = NULL;
 	struct hisi_hba *hisi_hba;
 	struct request *rq = task->rq;
@@ -1111,7 +1110,7 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 		unsigned int dq_index;
 		u32 blk_tag;
 
-		blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+		blk_tag = blk_mq_unique_tag(rq);
 		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
 		dq = &hisi_hba->dq[dq_index];
 	} else {
@@ -1131,8 +1130,10 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	if (task->abort)
+	if (task->abort) {
+		pr_err("%s task=%pS abort=%pS rq=%pS\n", __func__, task, task->abort, task->rq);
 		return hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
+	}
 	return hisi_sas_task_exec(task, gfp_flags, task->tmf);
 }
 
@@ -2163,6 +2164,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 #else
 	task->abort = &abort;
+	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 	
 		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
