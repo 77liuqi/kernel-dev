@@ -236,7 +236,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			if (slot->n_elem_dif) {
 				struct sas_ssp_task *ssp_task = &task->ssp_task;
 				struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-
+				BUG();
 				dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
 					     scsi_prot_sg_count(scsi_cmnd),
 					     task->data_dir);
@@ -573,11 +573,10 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	if (rc < 0)
 		goto prep_out;
 
-	if (!sas_protocol_ata(task->task_proto)) {
-	//	n_elem_dif = 0;
-//		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
-//		if (rc < 0)
-//			goto err_out_dma_unmap;
+	if (sas_protocol_ssp(task->task_proto)) {
+		rc = hisi_sas_dif_dma_map(hisi_hba, &n_elem_dif, task);
+		if (rc < 0)
+			goto err_out_dma_unmap;
 	}
 
 	if (hisi_hba->hw->slot_index_alloc)
@@ -602,7 +601,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	return 0;
 
 err_out_dif_dma_unmap:
-	if (!sas_protocol_ata(task->task_proto))
+	if (sas_protocol_ssp(task->task_proto))
 		hisi_sas_dif_dma_unmap(hisi_hba, task, n_elem_dif);
 err_out_dma_unmap:
 	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
