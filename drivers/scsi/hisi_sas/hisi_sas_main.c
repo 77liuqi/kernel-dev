@@ -709,6 +709,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 				hisi_sas_release_task(hisi_hba, device);
 				break;
 			}
+			pr_err("%s SAS_END_DEVICE rc=%d\n", __func__, rc);
 		}
 		break;
 	case SAS_SATA_DEV:
@@ -730,9 +731,12 @@ static int hisi_sas_init_device(struct domain_device *device)
 			struct ata_link *link;
 			unsigned int classes;
 
-			ata_for_each_link(link, ap, EDGE)
+			ata_for_each_link(link, ap, EDGE) {
 				rc = ops->hardreset(link, &classes,
 						    deadline);
+				if (rc)
+					pr_err("%s SAS_SATA_DEV rc=%d\n", __func__, rc);
+			}
 		}
 		sas_put_local_phy(local_phy);
 		if (rc) {
@@ -1726,8 +1730,10 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 
-	if (!sas_dev)
+	if (!sas_dev) {
+		pr_err("%s 1\n", __func__);
 		return TMF_RESP_FUNC_FAILED;
+	}
 
 	hisi_hba = dev_to_hisi_hba(task->dev);
 	dev = hisi_hba->dev;
@@ -1935,14 +1941,18 @@ static int hisi_sas_I_T_nexus_reset(struct domain_device *device)
 
 	if (dev_is_sata(device)) {
 		rc = hisi_sas_softreset_ata_disk(device);
-		if (rc == TMF_RESP_FUNC_FAILED)
+		if (rc == TMF_RESP_FUNC_FAILED) {
+			pr_err("%s 1\n", __func__);
 			return TMF_RESP_FUNC_FAILED;
+		}
 	}
 
 	rc = hisi_sas_debug_I_T_nexus_reset(device);
 
-	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV))
+	if ((rc == TMF_RESP_FUNC_COMPLETE) || (rc == -ENODEV)) {
+		pr_err("%s 2 rc=%d\n", __func__, rc);
 		hisi_sas_release_task(hisi_hba, device);
+	}
 
 	return rc;
 }
