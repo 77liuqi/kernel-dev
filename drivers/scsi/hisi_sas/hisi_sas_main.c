@@ -588,7 +588,6 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	slot->task = task;
 	slot->port = port;
 
-	slot->tmf = tmf;
 	slot->is_internal = tmf;
 
 	/* protect task_prep and start_delivery sequence */
@@ -1437,21 +1436,23 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	int s = sizeof(struct host_to_dev_fis);
 
 	ata_for_each_link(link, ap, EDGE) {
+		struct hisi_sas_tmf_task tmf = {};
 		int pmp = sata_srst_pmp(link);
 
 		hisi_sas_fill_ata_reset_cmd(link->device, 1, pmp, fis);
-		rc = hisi_sas_exec_internal_tmf_task(device, fis, s, NULL);
+		rc = hisi_sas_exec_internal_tmf_task(device, fis, s, &tmf);
 		if (rc != TMF_RESP_FUNC_COMPLETE)
 			break;
 	}
 
 	if (rc == TMF_RESP_FUNC_COMPLETE) {
 		ata_for_each_link(link, ap, EDGE) {
+		struct hisi_sas_tmf_task tmf = {};
 			int pmp = sata_srst_pmp(link);
 
 			hisi_sas_fill_ata_reset_cmd(link->device, 0, pmp, fis);
 			rc = hisi_sas_exec_internal_tmf_task(device, fis,
-							     s, NULL);
+							     s, &tmf);
 			if (rc != TMF_RESP_FUNC_COMPLETE)
 				dev_err(dev, "ata disk %016llx de-reset failed\n",
 					SAS_ADDR(device->sas_addr));

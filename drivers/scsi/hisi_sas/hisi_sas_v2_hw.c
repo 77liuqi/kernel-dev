@@ -1742,13 +1742,13 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct hisi_sas_tmf_task *tmf = task->tmf;
 	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
 
 	if (tmf)
-		pr_err("%s task=%pS slot tmf=%pS task tmf=%pS\n", __func__, task, slot->tmf, task->tmf);
+		pr_err("%s task=%pS task tmf=%pS\n", __func__, task, task->tmf);
 
 	hdr->dw0 = cpu_to_le32((1 << CMD_HDR_RESP_REPORT_OFF) |
 			       (2 << CMD_HDR_TLR_CTRL_OFF) |
@@ -1800,9 +1800,9 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 		sizeof(struct ssp_frame_hdr);
 
 	if (tmf)
-		pr_err("%s1 task=%pS slot tmf=%pS task tmf=%pS buf_cmd=%pS\n", __func__, task, slot->tmf, task->tmf, buf_cmd);
+		pr_err("%s1 task=%pS task tmf=%pS buf_cmd=%pS\n", __func__, task, task->tmf, buf_cmd);
 	if (tmf)
-		pr_err("%s2 task=%pS slot tmf=%pS task tmf=%pS &task->ssp_task.LUN=%pS\n", __func__, task, slot->tmf, task->tmf, &task->ssp_task.LUN);
+		pr_err("%s2 task=%pS ask tmf=%pS &task->ssp_task.LUN=%pS\n", __func__, task, task->tmf, &task->ssp_task.LUN);
 
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
@@ -2501,7 +2501,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct hisi_sas_tmf_task *tmf = task->tmf;
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
