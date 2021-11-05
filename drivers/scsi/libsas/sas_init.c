@@ -72,6 +72,11 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	}
 	rq->cmd_flags |= REQ_RESV;
 	task = blk_mq_rq_to_pdu(rq);
+	memset(task, 0, sizeof(*task));
+
+	spin_lock_init(&task->task_state_lock);
+	task->task_state_flags = SAS_TASK_STATE_PENDING;
+
 	task->rq = rq;
 	
 	slow = kmalloc(sizeof(*slow), flags);
