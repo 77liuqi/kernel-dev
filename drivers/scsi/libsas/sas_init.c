@@ -419,6 +419,8 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 		sas_ata_wait_eh(dev);
 		return 0;
 	}
+	
+	pr_err("%s fweewedf\n", __func__);
 
 	return -ENODEV;
 }
@@ -500,8 +502,10 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	int ret;
 	enum phy_func reset_type;
 
-	if (!phy->enabled)
+	if (!phy->enabled) {
+		pr_err("%s fdwewe\n", __func__);
 		return -ENODEV;
+	}
 
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;

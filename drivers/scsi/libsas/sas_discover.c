@@ -62,6 +62,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	if (list_empty(&port->phy_list)) {
 		spin_unlock_irq(&port->phy_list_lock);
 		sas_put_device(dev);
+		pr_err("%s fdfwevdf\n", __func__);
 		return -ENODEV;
 	}
 	phy = container_of(port->phy_list.next, struct asd_sas_phy, port_phy_el);

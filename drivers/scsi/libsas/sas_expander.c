@@ -1383,6 +1383,7 @@ static int sas_check_parent_topology(struct domain_device *child)
 				if (parent_phy->routing_attr != SUBTRACTIVE_ROUTING ||
 				    child_phy->routing_attr != TABLE_ROUTING) {
 					sas_print_parent_topology_bug(child, parent_phy, child_phy);
+					pr_err("%s fdferrdf\n", __func__);
 					res = -ENODEV;
 				}
 			} else if (parent_phy->routing_attr == SUBTRACTIVE_ROUTING) {
@@ -1390,6 +1391,7 @@ static int sas_check_parent_topology(struct domain_device *child)
 					res = sas_check_eeds(child, parent_phy, child_phy);
 				} else if (child_phy->routing_attr != TABLE_ROUTING) {
 					sas_print_parent_topology_bug(child, parent_phy, child_phy);
+					pr_err("%s fdfdfdfdf\n", __func__);
 					res = -ENODEV;
 				}
 			} else if (parent_phy->routing_attr == TABLE_ROUTING) {
@@ -1399,6 +1401,7 @@ static int sas_check_parent_topology(struct domain_device *child)
 					/* All good */;
 				} else {
 					sas_print_parent_topology_bug(child, parent_phy, child_phy);
+					pr_err("%s fdffdfddf\n", __func__);
 					res = -ENODEV;
 				}
 			}
@@ -1407,6 +1410,7 @@ static int sas_check_parent_topology(struct domain_device *child)
 			if (parent_phy->routing_attr != TABLE_ROUTING ||
 			    child_phy->routing_attr != SUBTRACTIVE_ROUTING) {
 				sas_print_parent_topology_bug(child, parent_phy, child_phy);
+				pr_err("%s fdfdsdddf\n", __func__);
 				res = -ENODEV;
 			}
 			break;

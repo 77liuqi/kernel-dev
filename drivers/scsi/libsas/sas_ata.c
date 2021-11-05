@@ -335,6 +335,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 			return sas_ata_clear_pending(dev, ex_phy);
 		fallthrough;
 	default:
+		pr_err("%s fdfdf\n", __func__);
 		return -ENODEV;
 	}
 }
@@ -389,8 +390,10 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	struct sas_internal *i = dev_to_sas_internal(dev);
 
 	res = i->dft->lldd_I_T_nexus_reset(dev);
-	if (res == -ENODEV)
+	if (res == -ENODEV) {
+		pr_err("%s fwwdfdf\n", __func__);
 		return res;
+	}
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
 		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
@@ -656,8 +659,10 @@ void sas_probe_sata(struct asd_sas_port *port)
 		/* if libata could not bring the link up, don't surface
 		 * the device
 		 */
-		if (!ata_dev_enabled(sas_to_ata_dev(dev)))
+		if (!ata_dev_enabled(sas_to_ata_dev(dev))) {
+			pr_err("%s fdfde23\n", __func__);
 			sas_fail_probe(dev, __func__, -ENODEV);
+		}
 	}
 
 }
@@ -673,8 +678,10 @@ static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 		sas_ata_wait_eh(dev);
 
 		/* if libata failed to power manage the device, tear it down */
-		if (ata_dev_disabled(sas_to_ata_dev(dev)))
+		if (ata_dev_disabled(sas_to_ata_dev(dev))) {
+			pr_err("%s fdfd34f\n", __func__);
 			sas_fail_probe(dev, func, -ENODEV);
+		}
 	}
 }
 
@@ -732,8 +739,10 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
-	if (dev->dev_type == SAS_SATA_PM)
+	if (dev->dev_type == SAS_SATA_PM) {
+		pr_err("%s f4hddf\n", __func__);
 		return -ENODEV;
+	}
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);

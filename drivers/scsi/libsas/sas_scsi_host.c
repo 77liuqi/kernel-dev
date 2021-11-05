@@ -832,8 +832,10 @@ int sas_target_alloc(struct scsi_target *starget)
 	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
 	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
 
-	if (!found_dev)
+	if (!found_dev) {
+		pr_err("%s f1dwefgf\n", __func__);
 		return -ENODEV;
+	}
 
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
@@ -950,6 +952,7 @@ int sas_request_addr(struct Scsi_Host *shost, u8 *addr)
 
 	if (fw->size < SAS_STRING_ADDR_SIZE) {
 		res = -ENODEV;
+		pr_err("%s fdf595\n", __func__);
 		goto out;
 	}
 

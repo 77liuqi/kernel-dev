@@ -1093,7 +1093,8 @@ static int
 hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 				  struct hisi_sas_internal_abort *abort,
 				  struct sas_task *task,
-				  struct hisi_sas_dq *dq);
+				  struct hisi_sas_dq *dq,
+				  struct request *rq);
 
 static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp_t gfp_flags)
 {
@@ -1123,8 +1124,9 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 	}
 
 	ret = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
-						task->abort, task, dq);
-
+						task->abort, task, dq, rq);
+	if (ret)
+		pr_err("%s10 out task=%pS ret=%d\n", __func__, task, ret);
 	return ret;
 }
 
@@ -1859,6 +1861,7 @@ static int hisi_sas_debug_I_T_nexus_reset(struct domain_device *device)
 
 	if (!local_phy->enabled) {
 		sas_put_local_phy(local_phy);
+		pr_err("%s dsd\n", __func__);
 		return -ENODEV;
 	}
 
@@ -2054,7 +2057,8 @@ static int
 hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 				  struct hisi_sas_internal_abort *abort,
 				  struct sas_task *task,
-				  struct hisi_sas_dq *dq)
+				  struct hisi_sas_dq *dq,
+				  struct request *rq)
 {
 	struct domain_device *device = task->dev;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
@@ -2067,15 +2071,19 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
 		return -EINVAL;
 
-	if (!device->port)
+	if (!device->port) {
+		pr_err("%s1 task=%pS\n", __func__, task);
 		return -1;
+	}
 
 	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
-	slot_idx = hisi_sas_slot_index_alloc(hisi_hba, NULL);
-	if (slot_idx < 0)
+	slot_idx = hisi_sas_slot_index_alloc(hisi_hba, rq);
+	if (slot_idx < 0) {
+		pr_err("%s2 task=%pS slot_idx=%d\n", __func__, task, slot_idx);
 		goto err_out;
+	}
 
 	slot = &hisi_hba->slot_info[slot_idx];
 	slot->n_elem = 0;
