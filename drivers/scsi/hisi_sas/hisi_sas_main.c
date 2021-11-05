@@ -1265,7 +1265,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 					   void *parameter, u32 para_len,
 					   struct hisi_sas_tmf_task *tmf)
 {
-	#if 1 // stub
+	#if 0 // stub
 		return 0;
 	#else
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
