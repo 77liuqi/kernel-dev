@@ -442,14 +442,17 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SMP:
+		BUG_ON(abort);
 		hisi_sas_task_prep_smp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SSP:
+		BUG_ON(abort);
 		hisi_sas_task_prep_ssp(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_SATA:
 	case SAS_PROTOCOL_STP:
 	case SAS_PROTOCOL_SATA | SAS_PROTOCOL_STP:
+		BUG_ON(abort);
 		hisi_sas_task_prep_ata(hisi_hba, slot);
 		break;
 	case SAS_PROTOCOL_NONE:
@@ -2110,9 +2113,10 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	port = to_hisi_sas_port(sas_port);
 
 	/* simply get a slot and send abort command */
-	slot_idx = hisi_sas_slot_index_alloc(hisi_hba, rq);
+	slot_idx = hisi_sas_slot_index_alloc(hisi_hba, NULL);
 	if (slot_idx < 0) {
 		pr_err("%s2 task=%pS slot_idx=%d\n", __func__, task, slot_idx);
+		BUG();
 		goto err_out;
 	}
 
@@ -2206,10 +2210,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 #else
 	task->abort = &abort;
-	//pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
+	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 	
-		//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
+	pr_err("%s2 dev=%pS task=%pS blk_status=%d\n", __func__, dev, task, blk_status);
 	
 	if (blk_status) {
 		del_timer(&task->slow_task->timer);
@@ -2268,7 +2272,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 
 exit:
-	dev_dbg(dev, "internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x\n",
+	dev_err(dev, "internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x\n",
 		SAS_ADDR(device->sas_addr), task,
 		task->task_status.resp, /* 0 is complete, -1 is undelivered */
 		task->task_status.stat);
