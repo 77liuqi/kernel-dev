@@ -337,7 +337,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 			return sas_ata_clear_pending(dev, ex_phy);
 		fallthrough;
 	default:
-		pr_err("%s fdfdf ex_phy->attached_dev_type=%d\n", __func__, ex_phy->attached_dev_type);
+		pr_err("%s fdfdf ex_phy->attached_dev_type=%d phy_id=%d number=%d\n", __func__, ex_phy->attached_dev_type, ex_phy->phy_id, phy->number);
 		return -ENODEV;
 	}
 }

@@ -186,7 +186,7 @@ static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
 
 	if (rq)
 		return rq->tag;
-
+	BUG();
 	spin_lock(&hisi_hba->lock);
 	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
 				   hisi_hba->last_slot_index + 1);
@@ -550,6 +550,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 		int queue = qmap->mq_map[raw_smp_processor_id()];
 
 		WARN_ON_ONCE(1);
+		BUG();
 		dq = &hisi_hba->dq[queue];
 	}
 
@@ -589,9 +590,9 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	slot->port = port;
 
 	slot->is_internal = tmf;
-
+	WARN_ON_ONCE(task->abort);
 	/* protect task_prep and start_delivery sequence */
-	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, NULL);
+	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, task->abort);
 
 	return 0;
 
@@ -1125,6 +1126,7 @@ static int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp
 		int queue = qmap->mq_map[raw_smp_processor_id()];
 
 		WARN_ON_ONCE(1);
+		BUG();
 		dq = &hisi_hba->dq[queue];
 	}
 
@@ -2114,7 +2116,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	slot->n_elem = 0;
 	slot->task = task;
 	slot->port = port;
-
+	slot->is_internal = abort;
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, abort);
 
 	return 0;
