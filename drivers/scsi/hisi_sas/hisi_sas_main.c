@@ -2272,10 +2272,11 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	}
 
 exit:
-	dev_err(dev, "internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x\n",
+	if (res < 0)
+	dev_err(dev, "internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
 		SAS_ADDR(device->sas_addr), task,
 		task->task_status.resp, /* 0 is complete, -1 is undelivered */
-		task->task_status.stat);
+		task->task_status.stat, res);
 	sas_free_task(task);
 
 	return res;
