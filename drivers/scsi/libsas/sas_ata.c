@@ -322,8 +322,10 @@ static int smp_ata_check_ready(struct ata_link *link)
 	/* break the wait early if the expander is unreachable,
 	 * otherwise keep polling
 	 */
-	if (res == -ECOMM)
+	if (res == -ECOMM) {
+		pr_err("%s1\n", __func__);
 		return res;
+	}
 	if (res != SMP_RESP_FUNC_ACC)
 		return 0;
 
@@ -335,7 +337,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 			return sas_ata_clear_pending(dev, ex_phy);
 		fallthrough;
 	default:
-		pr_err("%s fdfdf\n", __func__);
+		pr_err("%s fdfdf ex_phy->attached_dev_type=%d\n", __func__, ex_phy->attached_dev_type);
 		return -ENODEV;
 	}
 }
