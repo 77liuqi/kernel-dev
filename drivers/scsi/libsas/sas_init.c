@@ -91,6 +91,8 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
 //	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
+	task->tmf = NULL;
+	task->abort = NULL;
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
