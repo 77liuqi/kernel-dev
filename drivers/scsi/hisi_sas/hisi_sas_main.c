@@ -1261,12 +1261,15 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 					   void *parameter, u32 para_len,
 					   struct hisi_sas_tmf_task *tmf)
 {
+	#if 1 // stub
+		return 0;
+	#else
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
-
+	
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 #ifdef cfdfurrent	
 #error
@@ -1411,6 +1414,7 @@ ex_err:
 		dev_warn(dev, "abort tmf: executing internal task failed!\n");
 	sas_free_task(task);
 	return res;
+	#endif //stub
 }
 
 static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
@@ -2144,6 +2148,9 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device, int abort_flag,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
+	#if 1 // stub
+	return 0;
+	#else
 	struct sas_task *task;
 //	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_internal_abort abort = {
@@ -2268,6 +2275,7 @@ exit:
 	sas_free_task(task);
 
 	return res;
+	#endif //stub
 }
 
 static int
