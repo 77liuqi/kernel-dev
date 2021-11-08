@@ -905,8 +905,23 @@ static void sas_execute_internal_abort_done(struct sas_task *task)
 static void sas_execute_internal_abort_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
-	struct sas_task *task = slow->task;
+	struct sas_task *task = slow->task;	
+
+	unsigned long flags;
+	bool is_completed = true;
+
 	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+
+	
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
 }
 
 int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
@@ -918,7 +933,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, abort, tag);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, abort, tag);
 	if (!task)
 		return -ENOMEM;
 
@@ -927,9 +942,8 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	task->task_done = sas_execute_internal_abort_done;
 	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
 	task->slow_task->timer.expires = jiffies + (6 * HZ);
-	task->abort_task.tag = tag;
 	task->abort_task.type = abort;
-
+	task->abort_task.tag = tag;
 	add_timer(&task->slow_task->timer);
 
 //	pr_err("%s1 task=%pS\n", __func__, task);
@@ -996,7 +1010,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	}
 	
 exit:
-	if (res < 0)
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
 		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
 			SAS_ADDR(device->sas_addr), task,
 			task->task_status.resp, /* 0 is complete, -1 is undelivered */
