@@ -899,11 +899,14 @@ static void sas_execute_internal_abort_done(struct sas_task *task)
 {
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
 }
 
 static void sas_execute_internal_abort_timedout(struct timer_list *t)
 {
-
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
 }
 
 int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
@@ -913,7 +916,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	int res;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	pr_err("%s task=%pS\n", __func__, task);
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, abort, tag);
 	if (!task)
 		return -ENOMEM;
 
@@ -927,7 +930,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 
 	add_timer(&task->slow_task->timer);
 
-	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
+	pr_err("%s task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 
 	pr_err("%s2 task=%pS blk_status=%d\n", __func__, task, blk_status);
