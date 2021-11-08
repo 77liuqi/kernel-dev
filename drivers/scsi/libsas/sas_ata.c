@@ -168,7 +168,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 //	struct request *rq;
 	struct scsi_cmnd *scmd;
-	WARN_ON_ONCE(1);
+//	WARN_ON_ONCE(1);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);

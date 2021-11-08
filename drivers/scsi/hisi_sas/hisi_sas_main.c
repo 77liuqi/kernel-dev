@@ -1151,6 +1151,9 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
 	ret = hisi_sas_task_exec(task, gfp_flags, task->tmf);
 
+	if (task->tmf)
+		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
+
 	if (ret)
 		pr_err("%s3 ret=%d task=%pS tmf=%pS rq=%pS\n", __func__, ret, task, task->tmf, task->rq);
 
@@ -2226,7 +2229,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -EIO;
 	}
 #else
-	res = sas_execute_internal_abort(sha, device, true, tag);
+	res = sas_execute_internal_abort(sha, device, abort_flag, tag);
 	pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
 	return res;
 #endif
