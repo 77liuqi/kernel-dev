@@ -1253,7 +1253,6 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	struct sas_task *task;
 	int res, retry;
 
-	WARN_ON(pm_runtime_status_suspended(dev));
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		task = sas_alloc_slow_task(GFP_KERNEL);
 		if (!task)
@@ -2211,7 +2210,6 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	struct hisi_sas_dq *dq;
 	int i, rc;
 
-	WARN_ON(pm_runtime_status_suspended(dev));
 	switch (abort_flag) {
 	case HISI_SAS_INT_ABT_CMD:
 		slot = &hisi_hba->slot_info[tag];
