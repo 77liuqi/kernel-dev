@@ -899,7 +899,7 @@ static void sas_execute_internal_abort_done(struct sas_task *task)
 {
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
-	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
 }
 
 static void sas_execute_internal_abort_timedout(struct timer_list *t)
@@ -932,10 +932,10 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 
 	add_timer(&task->slow_task->timer);
 
-	pr_err("%s1 task=%pS\n", __func__, task);
+//	pr_err("%s1 task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 
-	pr_err("%s2 task=%pS\n", __func__, task);
+//	pr_err("%s2 task=%pS\n", __func__, task);
 
 //	if (blk_status) {
 //		del_timer(&task->slow_task->timer);
@@ -945,7 +945,8 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	
 	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
 
-	pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
+	if (xxx == 0)
+		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
 	res = TMF_RESP_FUNC_FAILED;
 	
 	/* Internal abort timed out */
@@ -996,13 +997,13 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	
 exit:
 	if (res < 0)
-	pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
-		SAS_ADDR(device->sas_addr), task,
-		task->task_status.resp, /* 0 is complete, -1 is undelivered */
-		task->task_status.stat, res);
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(device->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
 	sas_free_task(task);
 	
-	pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
 	return res;
 }
 

@@ -1147,12 +1147,12 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 //		ret = hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
 //		goto out;
 //	}
-	if (task->tmf)
-		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
+//	if (task->tmf)
+//		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
 	ret = hisi_sas_task_exec(task, gfp_flags, task->tmf);
 
-	if (task->tmf)
-		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS ret=%d\n", __func__, task, task->tmf, task->rq, ret);
+//	if (task->tmf)
+//		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS ret=%d\n", __func__, task, task->tmf, task->rq, ret);
 
 	if (ret)
 		pr_err("%s3 ret=%d task=%pS tmf=%pS rq=%pS\n", __func__, ret, task, task->tmf, task->rq);
@@ -1234,7 +1234,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 
 static void hisi_sas_task_done(struct sas_task *task)
 {
-	pr_err("%s task=%pS\n", __func__, task);
+//	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
@@ -1335,9 +1335,9 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 		add_timer(&task->slow_task->timer);
 		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
 		task->tmf = tmf;
-		pr_err("%s task=%pS tmf=%pS\n", __func__, task, task->tmf);
+//		pr_err("%s task=%pS tmf=%pS\n", __func__, task, task->tmf);
 		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
-		pr_err("%s1 task=%pS tmf=%pS\n", __func__, task, task->tmf);
+//		pr_err("%s1 task=%pS tmf=%pS\n", __func__, task, task->tmf);
 		
 			//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
 		
@@ -1348,7 +1348,8 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	//	}
 #endif
 		xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
-		pr_err("%s2 task=%pS tmf=%pS xxx=%d\n", __func__, task, task->tmf, xxx);
+		if (xxx == 0)
+			pr_err("%s2 task=%pS tmf=%pS xxx=%d\n", __func__, task, task->tmf, xxx);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -1421,7 +1422,8 @@ ex_err:
 	if (retry == TASK_RETRY)
 		dev_warn(dev, "abort tmf: executing internal task failed!\n");
 	sas_free_task(task);
-	pr_err("%s10 out\n", __func__);
+	if (res)
+		pr_err("%s10 out\n", __func__);
 	return res;
 	#endif //stub
 }
@@ -2196,11 +2198,12 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
 	//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
 	if (!task) {
+		pr_err("%s2 bad dev=%pS task=%pS\n", __func__, dev, task);
 		return -ENOMEM;
 	}
 #endif
 
-	pr_err("%s task=%pS\n", __func__, task);
+//	pr_err("%s task=%pS\n", __func__, task);
 #ifdef blkmq
 	task->dev = device;
 	task->task_proto = SAS_PROTOCOL_NONE;
@@ -2234,9 +2237,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -EIO;
 	}
 #else
-	pr_err("%s3.1 dev=%pS res=%d abort_flag=%d tag=%d\n", __func__, dev, res, abort_flag, tag);
+	//pr_err("%s3.1 dev=%pS res=%d abort_flag=%d tag=%d\n", __func__, dev, res, abort_flag, tag);
 	res = sas_execute_internal_abort(sha, device, abort_flag, tag);
-	pr_err("%s3.2 dev=%pS res=%d\n", __func__, dev, res);
+	if (res)
+		pr_err("%s3.2 dev=%pS res=%d\n", __func__, dev, res);
 	return res;
 #endif
 	BUG();
