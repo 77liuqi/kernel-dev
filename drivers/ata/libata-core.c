@@ -1506,15 +1506,17 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
 	DECLARE_COMPLETION_ONSTACK(wait);
-	unsigned long flags;
+//	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
 
-	spin_lock_irqsave(ap->lock, flags);
+//	spin_lock_irqsave(ap->lock, flags);
+	spin_lock(ap->lock);
 
 	/* no internal command while frozen */
 	if (ap->pflags & ATA_PFLAG_FROZEN) {
-		spin_unlock_irqrestore(ap->lock, flags);
+	//	spin_unlock_irqrestore(ap->lock, flags);
+		spin_unlock(ap->lock);
 		return AC_ERR_SYSTEM;
 	}
 
@@ -1565,7 +1567,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	ata_qc_issue(qc);
 
-	spin_unlock_irqrestore(ap->lock, flags);
+	//spin_unlock_irqrestore(ap->lock, flags);
+	spin_unlock(ap->lock);
 
 	if (!timeout) {
 		if (ata_probe_timeout)
@@ -1587,7 +1590,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ata_sff_flush_pio_task(ap);
 
 	if (!rc) {
-		spin_lock_irqsave(ap->lock, flags);
+	//	spin_lock_irqsave(ap->lock, flags);
+		spin_lock(ap->lock);
 
 		/* We're racing with irq here.  If we lose, the
 		 * following test prevents us from completing the qc
@@ -1607,7 +1611,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 					     command);
 		}
 
-		spin_unlock_irqrestore(ap->lock, flags);
+	//	spin_unlock_irqrestore(ap->lock, flags);
+		spin_unlock(ap->lock);
 	}
 
 	/* do post_internal_cmd */
@@ -1629,7 +1634,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	}
 
 	/* finish up */
-	spin_lock_irqsave(ap->lock, flags);
+//	spin_lock_irqsave(ap->lock, flags);
+	spin_lock(ap->lock);
+
 
 	*tf = qc->result_tf;
 	err_mask = qc->err_mask;
@@ -1640,7 +1647,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	ap->qc_active = preempted_qc_active;
 	ap->nr_active_links = preempted_nr_active_links;
 
-	spin_unlock_irqrestore(ap->lock, flags);
+//	spin_unlock_irqrestore(ap->lock, flags);
+	spin_unlock(ap->lock);
+
 
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
