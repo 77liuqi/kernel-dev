@@ -913,6 +913,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 {
 	blk_status_t blk_status;
 	struct sas_task *task;
+	bool rst_to_recover = false;
 	int res;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
@@ -930,7 +931,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 
 	add_timer(&task->slow_task->timer);
 
-	pr_err("%s task=%pS\n", __func__, task);
+	pr_err("%s1 task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 
 	pr_err("%s2 task=%pS blk_status=%d\n", __func__, task, blk_status);
@@ -940,8 +941,65 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 		pr_err("executing tmf task failed:%d\n", res);
 		return -EIO;
 	}
-
-	return 0;
+	
+	wait_for_completion(&task->slow_task->completion);
+	res = TMF_RESP_FUNC_FAILED;
+	
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			#ifdef ffdffdf
+			struct hisi_sas_slot *slot = task->lldd_task;
+	
+			set_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
+	
+			if (slot) {
+				struct hisi_sas_cq *cq =
+					&hisi_hba->cq[slot->dlvry_queue];
+					/*
+					 * sync irq to avoid free'ing task
+					 * before using task in IO completion
+					 */
+				synchronize_irq(cq->irq_no);
+				slot->task = NULL;
+			}
+			#endif
+			if (rst_to_recover) {
+				pr_err("internal task abort: timeout and not done. Queuing reset.\n");
+			//	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			} else {
+				pr_err("internal task abort: timeout and not done.\n");
+			}
+	
+			res = -EIO;
+			goto exit;
+			
+			pr_err("internal task abort: timeout.\n");
+		}
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+	
+exit:
+	if (res < 0)
+	pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+		SAS_ADDR(device->sas_addr), task,
+		task->task_status.resp, /* 0 is complete, -1 is undelivered */
+		task->task_status.stat, res);
+	sas_free_task(task);
+	
+	pr_err("%s10 out res=%d task=%pS blk_status=%d\n", __func__, res, task, blk_status);
+	return res;
 }
 
 /*

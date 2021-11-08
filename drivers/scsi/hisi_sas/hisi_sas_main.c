@@ -2193,13 +2193,15 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 #endif
 
 	pr_err("%s task=%pS\n", __func__, task);
-
+#ifdef blkmq
 	task->dev = device;
 	task->task_proto = SAS_PROTOCOL_NONE;
 	task->task_done = hisi_sas_task_done;
 	task->slow_task->timer.function = hisi_sas_tmf_timedout;
 	task->slow_task->timer.expires = jiffies + INTERNAL_ABORT_TIMEOUT;
 	add_timer(&task->slow_task->timer);
+#endif
+
 
 #ifdef cfdfurrent	
 #error
@@ -2228,7 +2230,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
 	return res;
 #endif
-
+	BUG();
 
 	wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
