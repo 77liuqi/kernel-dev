@@ -168,7 +168,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 //	struct request *rq;
 	struct scsi_cmnd *scmd;
-//	WARN_ON_ONCE(1);
+	WARN_ON_ONCE(1);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -182,6 +182,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC);
 		task->rq = blk_mq_rq_from_pdu(scmd);
+		WARN_ON_ONCE(1);
 	} else {
 		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
 		// task->rq assigned inside
