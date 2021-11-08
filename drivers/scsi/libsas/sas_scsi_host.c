@@ -181,6 +181,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	if (dev_is_sata(dev)) {
+		WARN_ON_ONCE(1);
 		spin_lock_irq(dev->sata_dev.ap->lock);
 		res = ata_sas_queuecmd(cmd, dev->sata_dev.ap);
 		spin_unlock_irq(dev->sata_dev.ap->lock);
@@ -890,6 +891,52 @@ int sas_bios_param(struct scsi_device *scsi_dev,
 	hsc[1] = 63;
 	sector_div(capacity, 255*63);
 	hsc[2] = capacity;
+
+	return 0;
+}
+
+static void sas_execute_internal_abort_done(struct sas_task *task)
+{
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
+}
+
+static void sas_execute_internal_abort_timedout(struct timer_list *t)
+{
+
+}
+
+int sas_execute_internal_abort(struct sas_ha_struct *sha, enum sas_abort abort, unsigned int tag)
+{
+	blk_status_t blk_status;
+	struct sas_task *task;
+	int res;
+
+	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+	pr_err("%s task=%pS\n", __func__, task);
+	if (!task)
+		return -ENOMEM;
+
+//	task->dev = device;
+	task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
+	task->task_done = sas_execute_internal_abort_done;
+	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
+	task->slow_task->timer.expires = jiffies + 10;//INTERNAL_ABORT_TIMEOUT;
+	task->abort_task.tag = tag;
+	task->abort_task.type = abort;
+
+	add_timer(&task->slow_task->timer);
+
+	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
+	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+
+	pr_err("%s2 task=%pS blk_status=%d\n", __func__, task, blk_status);
+
+	if (blk_status) {
+		del_timer(&task->slow_task->timer);
+		pr_err("executing tmf task failed:%d\n", res);
+		return -EIO;
+	}
 
 	return 0;
 }

@@ -2153,17 +2153,20 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device, int abort_flag,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
-	#if 0 // stub
+	#if 1 // stub
 	return 0;
 	#else
 	struct sas_task *task;
 //	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct device *dev = hisi_hba->dev;
+	#if defined(new_exp)
+	blk_status_t blk_status;
 	struct hisi_sas_internal_abort abort = {
 		.flag = abort_flag,
 		.tag = tag,
 	};
-	struct device *dev = hisi_hba->dev;
-	blk_status_t blk_status;
+	#endif
+	struct sas_ha_struct *sha = &hisi_hba->sha;
 	int res;
 	/*
 	 * The interface is not realized means this HW don't support internal
@@ -2209,7 +2212,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			res);
 		goto exit;
 	}
-#else
+#elif defined(new_exp)
 	task->abort = &abort;
 	pr_err("%s task=%pS ->abort=%pS\n", __func__, task, task->abort);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
@@ -2221,7 +2224,10 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		pr_err("executing tmf task failed:%d\n", res);
 		return -EIO;
 	}
+#else
+	sas_execute_internal_abort(sha, true, tag);
 #endif
+
 
 	wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
