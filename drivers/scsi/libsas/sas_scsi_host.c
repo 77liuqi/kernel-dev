@@ -906,7 +906,7 @@ static void sas_execute_internal_abort_timedout(struct timer_list *t)
 
 }
 
-int sas_execute_internal_abort(struct sas_ha_struct *sha, enum sas_abort abort, unsigned int tag)
+int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
 {
 	blk_status_t blk_status;
 	struct sas_task *task;
@@ -917,7 +917,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, enum sas_abort abort, 
 	if (!task)
 		return -ENOMEM;
 
-//	task->dev = device;
+	task->dev = device;
 	task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
 	task->task_done = sas_execute_internal_abort_done;
 	task->slow_task->timer.function = sas_execute_internal_abort_timedout;

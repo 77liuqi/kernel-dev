@@ -2225,7 +2225,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -EIO;
 	}
 #else
-	sas_execute_internal_abort(sha, true, tag);
+	sas_execute_internal_abort(sha, device, true, tag);
 #endif
 
 
