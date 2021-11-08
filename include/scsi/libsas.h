@@ -627,6 +627,7 @@ struct sas_task {
 	struct sas_task_slow *slow_task;
 	struct request *rq;
 	//struct hisi_sas_tmf_task *tmf;
+	bool ata_internal;
 	bool is_tmf;
 };
 

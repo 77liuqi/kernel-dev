@@ -98,6 +98,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 //	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
 	task->is_tmf = false;
 	//task->abort = NULL;
+	task->ata_internal = false;
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
@@ -197,7 +198,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_internal *i;
 	struct sas_task *task;
 	int res;
-	//pr_err("%s rq=%pS shost=%pS ha=%pS\n", __func__, rq, shost, ha);
+
 
 	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
 	
@@ -207,6 +208,9 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	task = blk_mq_rq_to_pdu(rq);
 	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
+	if (task->ata_internal)
+		pr_err("%s rq=%pS shost=%pS ha=%pS ata_internal task=%pS req->cmd_flags & REQ_RESV=0x%llx REQ_RESV=0x%llx\n",
+			__func__, rq, shost, ha, task, task->rq->cmd_flags & REQ_RESV, REQ_RESV);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 	if (res)
 		pr_err("%s4 rq=%pS res=%d\n", __func__, rq, res);
