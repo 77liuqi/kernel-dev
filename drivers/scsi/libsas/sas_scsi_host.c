@@ -911,7 +911,7 @@ static void sas_execute_internal_abort_timedout(struct timer_list *t)
 
 int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
 {
-	blk_status_t blk_status;
+//	blk_status_t blk_status;
 	struct sas_task *task;
 	bool rst_to_recover = false;
 	int res;
@@ -925,7 +925,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
 	task->task_done = sas_execute_internal_abort_done;
 	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
-	task->slow_task->timer.expires = jiffies + 10;//INTERNAL_ABORT_TIMEOUT;
+	task->slow_task->timer.expires = jiffies + (6 * HZ);
 	task->abort_task.tag = tag;
 	task->abort_task.type = abort;
 
@@ -934,13 +934,13 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	pr_err("%s1 task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
 
-	pr_err("%s2 task=%pS blk_status=%d\n", __func__, task, blk_status);
+	pr_err("%s2 task=%pS\n", __func__, task);
 
-	if (blk_status) {
-		del_timer(&task->slow_task->timer);
-		pr_err("executing tmf task failed:%d\n", res);
-		return -EIO;
-	}
+//	if (blk_status) {
+//		del_timer(&task->slow_task->timer);
+//		pr_err("executing tmf task failed:%d\n", res);
+//		return -EIO;
+//	}
 	
 	wait_for_completion(&task->slow_task->completion);
 	res = TMF_RESP_FUNC_FAILED;
@@ -948,6 +948,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	/* Internal abort timed out */
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal task fdffdffdf: timeout.\n");
 			#ifdef ffdffdf
 			struct hisi_sas_slot *slot = task->lldd_task;
 	
@@ -998,7 +999,7 @@ exit:
 		task->task_status.stat, res);
 	sas_free_task(task);
 	
-	pr_err("%s10 out res=%d task=%pS blk_status=%d\n", __func__, res, task, blk_status);
+	pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
 	return res;
 }
 

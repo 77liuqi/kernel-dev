@@ -577,7 +577,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 			goto err_out_dma_unmap;
 	}
 
-	if (hisi_hba->hw->slot_index_alloc)
+	if (hisi_hba->hw->slot_index_alloc && (task->task_proto != SAS_PROTOCOL_INTERNAL_ABORT))
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, rq);
@@ -1309,7 +1309,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 			goto ex_err;
 		}
 #else
-		blk_status_t blk_status;
+//		blk_status_t blk_status;
 
 		task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
 		//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
@@ -2157,7 +2157,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device, int abort_flag,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
-	#if 1 // stub
+	#if 0 // stub
 	return 0;
 	#else
 	struct sas_task *task;
@@ -2233,8 +2233,9 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -EIO;
 	}
 #else
+	pr_err("%s3.1 dev=%pS res=%d abort_flag=%d tag=%d\n", __func__, dev, res, abort_flag, tag);
 	res = sas_execute_internal_abort(sha, device, abort_flag, tag);
-	pr_err("%s3 dev=%pS res=%d\n", __func__, dev, res);
+	pr_err("%s3.2 dev=%pS res=%d\n", __func__, dev, res);
 	return res;
 #endif
 	BUG();
