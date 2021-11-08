@@ -2153,7 +2153,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      struct domain_device *device, int abort_flag,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
-	#if 1 // stub
+	#if 0 // stub
 	return 0;
 	#else
 	struct sas_task *task;
