@@ -154,6 +154,12 @@ qc_already_gone:
 	sas_free_task(task);
 }
 
+static void sas_ata_task_done_rq_alloc(struct sas_task *task)
+{
+	pr_err("%s task=%pS\n", __func__, task);
+	sas_ata_task_done(task);
+}
+
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	__must_hold(ap->lock)
 {
@@ -168,6 +174,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 //	struct request *rq;
 	struct scsi_cmnd *scmd;
+	int ata_internal = false;
+
 	WARN_ON_ONCE(1);
 
 	/* TODO: we should try to remove that unlock */
@@ -185,6 +193,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		WARN_ON_ONCE(1);
 	} else {
 		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
+		ata_internal = true;
 		// task->rq assigned inside
 	}
 
@@ -192,7 +201,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		goto out;
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
-	task->task_done = sas_ata_task_done;
+	if (ata_internal)
+		task->task_done = sas_ata_task_done_rq_alloc;
+	else
+		task->task_done = sas_ata_task_done;
 
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
 	    qc->tf.command == ATA_CMD_FPDMA_READ ||
@@ -232,17 +244,22 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
-	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
-	if (ret) {
-		pr_err("lldd_execute_task returned: %d\n", ret);
+	if (ata_internal == false) {
+		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
+		if (ret) {
+			pr_err("lldd_execute_task returned: %d\n", ret);
 
-		if (qc->scsicmd)
-			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
-		sas_free_task(task);
-		qc->lldd_task = NULL;
-		ret = AC_ERR_SYSTEM;
+			if (qc->scsicmd)
+				ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+			sas_free_task(task);
+			qc->lldd_task = NULL;
+			ret = AC_ERR_SYSTEM;
+		}
+	} else {
+		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
+		//	   int at_head, rq_end_io_fn *done)		
+		blk_execute_rq_nowait(NULL, task->rq, true, NULL);
 	}
-
  out:
 	spin_lock(ap->lock);
 	return ret;
