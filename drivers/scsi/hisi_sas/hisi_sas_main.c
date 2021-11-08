@@ -477,8 +477,7 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 	spin_unlock(&dq->lock);
 }
 
-static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
-			      struct hisi_sas_tmf_task *tmf)
+static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 {
 	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
 	struct domain_device *device = task->dev;
@@ -591,7 +590,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	slot->task = task;
 	slot->port = port;
 
-	slot->is_internal = tmf;
+//	slot->is_internal = tmf;
 //	WARN_ON_ONCE(task->abort);
 	/* protect task_prep and start_delivery sequence */
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev);
@@ -1149,13 +1148,13 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 //	}
 //	if (task->tmf)
 //		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
-	ret = hisi_sas_task_exec(task, gfp_flags, task->tmf);
+	ret = hisi_sas_task_exec(task, gfp_flags);
 
 //	if (task->tmf)
 //		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS ret=%d\n", __func__, task, task->tmf, task->rq, ret);
 
 	if (ret)
-		pr_err("%s3 ret=%d task=%pS tmf=%pS rq=%pS\n", __func__, ret, task, task->tmf, task->rq);
+		pr_err("%s3 ret=%d task=%pS rq=%pS\n", __func__, ret, task,  task->rq);
 
 	return ret;
 }
@@ -1271,6 +1270,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	#else
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
@@ -1309,7 +1309,8 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 				res);
 			goto ex_err;
 		}
-#else
+#elif defined (newest_way)
+
 //		blk_status_t blk_status;
 
 		task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
@@ -1346,10 +1347,17 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	//		pr_err("executing tmf task failed:%d\n", res);
 	//		break;222
 	//	}
+#else
+		res = sas_execute_tmf(sha, device, parameter, para_len, tmf->tmf, tmf->tag_of_task_to_be_managed);
+		if (res)
+			pr_err("%s3.2 dev=%pS res=%d\n", __func__, dev, res);
+		return res;
+
 #endif
+		BUG();
 		xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
 		if (xxx == 0)
-			pr_err("%s2 task=%pS tmf=%pS xxx=%d\n", __func__, task, task->tmf, xxx);
+			pr_err("%s2 task=%pS xxx=%d\n", __func__, task, xxx);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {

@@ -1021,6 +1021,144 @@ exit:
 	return res;
 }
 
+static void sas_execute_tmf_done(struct sas_task *task)
+{
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+}
+
+static void sas_execute_tmf_timedout(struct timer_list *t)
+{
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;	
+
+	unsigned long flags;
+	bool is_completed = true;
+
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+
+	
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+}
+#define TASK_TIMEOUT			(20 * HZ)
+
+int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed)
+{
+//	blk_status_t blk_status;
+	struct sas_task *task;
+	bool rst_to_recover = false;
+	int res;
+	int xxx;
+
+	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, abort, tag);
+	if (!task)
+		return -ENOMEM;
+
+	task->dev = dev;
+	task->task_proto = dev->tproto;
+
+	if (dev_is_sata(dev)) {
+		task->ata_task.device_control_reg_update = 1;
+		memcpy(&task->ata_task.fis, parameter, para_len);
+		task->is_tmf = true;
+	} else {
+		memcpy(&task->ssp_task, parameter, para_len);
+		task->is_tmf = true;
+		task->ssp_task.tmf = tmf;
+		task->ssp_task.tag_of_task_to_be_managed = tag_of_task_to_be_managed;
+
+	}
+	task->task_done = sas_execute_tmf_done;
+
+	task->slow_task->timer.function = sas_execute_tmf_timedout;
+	task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+	add_timer(&task->slow_task->timer);
+
+//	pr_err("%s1 task=%pS\n", __func__, task);
+	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+
+//	pr_err("%s2 task=%pS\n", __func__, task);
+
+//	if (blk_status) {
+//		del_timer(&task->slow_task->timer);
+//		pr_err("executing tmf task failed:%d\n", res);
+//		return -EIO;
+//	}
+	
+	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+
+	if (xxx == 0)
+		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
+	res = TMF_RESP_FUNC_FAILED;
+	
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal task fdffdffdf: timeout.\n");
+			#ifdef ffdffdf
+			struct hisi_sas_slot *slot = task->lldd_task;
+	
+			set_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
+	
+			if (slot) {
+				struct hisi_sas_cq *cq =
+					&hisi_hba->cq[slot->dlvry_queue];
+					/*
+					 * sync irq to avoid free'ing task
+					 * before using task in IO completion
+					 */
+				synchronize_irq(cq->irq_no);
+				slot->task = NULL;
+			}
+			#endif
+			if (rst_to_recover) {
+				pr_err("internal task abort: timeout and not done. Queuing reset.\n");
+			//	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			} else {
+				pr_err("internal task abort: timeout and not done.\n");
+			}
+	
+			res = -EIO;
+			goto exit;
+			
+			pr_err("internal task abort: timeout.\n");
+		}
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+	
+exit:
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(dev->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
+	sas_free_task(task);
+	
+	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+	return res;
+}
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.
