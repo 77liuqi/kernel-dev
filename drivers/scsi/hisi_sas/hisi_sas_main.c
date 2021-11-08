@@ -1274,6 +1274,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
+	int xxx;
 	
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 #ifdef cfdfurrent	
@@ -1343,11 +1344,11 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	//	if (blk_status) {
 	//		del_timer(&task->slow_task->timer);
 	//		pr_err("executing tmf task failed:%d\n", res);
-	//		break;
+	//		break;222
 	//	}
 #endif
-		wait_for_completion(&task->slow_task->completion);
-		pr_err("%s2 task=%pS tmf=%pS\n", __func__, task, task->tmf);
+		xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+		pr_err("%s2 task=%pS tmf=%pS xxx=%d\n", __func__, task, task->tmf, xxx);
 		res = TMF_RESP_FUNC_FAILED;
 		/* Even TMF timed out, return direct. */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
@@ -2240,7 +2241,8 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 #endif
 	BUG();
 
-	wait_for_completion(&task->slow_task->completion);
+	//wait_for_completion(&task->slow_task->completion, msecs_to_jiffies(2000));
+	BUG();
 	res = TMF_RESP_FUNC_FAILED;
 
 	/* Internal abort timed out */

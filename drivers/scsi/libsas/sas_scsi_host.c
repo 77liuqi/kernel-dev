@@ -915,6 +915,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	struct sas_task *task;
 	bool rst_to_recover = false;
 	int res;
+	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
 	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, abort, tag);
@@ -942,7 +943,9 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 //		return -EIO;
 //	}
 	
-	wait_for_completion(&task->slow_task->completion);
+	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+
+	pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
 	res = TMF_RESP_FUNC_FAILED;
 	
 	/* Internal abort timed out */
