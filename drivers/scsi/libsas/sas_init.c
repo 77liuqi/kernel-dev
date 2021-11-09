@@ -79,7 +79,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 		return NULL;
 	}
 	rq->cmd_flags |= REQ_RESV;
-	task = blk_mq_rq_to_pdu(rq);
+	task = sas_rq_to_task(rq);
 	memset(task, 0, sizeof(*task));
 
 	spin_lock_init(&task->task_state_lock);
@@ -194,7 +194,7 @@ blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
 	// dispatch now
 	i = to_sas_internal(ha->core.shost->transportt);
 	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
-	task = blk_mq_rq_to_pdu(rq);
+	task = sas_rq_to_task(rq);
 //	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 //		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	res = i->dft->lldd_execute_task(task, GFP_KERNEL);

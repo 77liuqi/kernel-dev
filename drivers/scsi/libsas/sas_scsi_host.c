@@ -954,7 +954,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	add_timer(&task->slow_task->timer);
 
 //	pr_err("%s1 task=%pS\n", __func__, task);
-	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
 //	pr_err("%s2 task=%pS\n", __func__, task);
 
@@ -1092,7 +1092,7 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	add_timer(&task->slow_task->timer);
 
 //	pr_err("%s1 task=%pS\n", __func__, task);
-	blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
 //	pr_err("%s2 task=%pS\n", __func__, task);
 
