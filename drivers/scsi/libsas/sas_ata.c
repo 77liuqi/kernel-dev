@@ -167,6 +167,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
+	bool ata_internal = false;
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -181,6 +182,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
+		ata_internal = true;
 	}
 
 	if (!task)
@@ -226,6 +228,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
+	if (ata_internal == true) {
+		// We don't sent this through the block layer
+		blk_mq_start_request(sas_rq_from_task(task));
+	}
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
@@ -236,7 +242,6 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->lldd_task = NULL;
 		ret = AC_ERR_SYSTEM;
 	}
-
  out:
 	spin_lock(ap->lock);
 	return ret;
