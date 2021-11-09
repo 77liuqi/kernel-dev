@@ -1236,12 +1236,13 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 {
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
 	struct sas_task *task;
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(GFP_KERNEL);
+		task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -2079,6 +2080,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
 	struct sas_task *task;
+	struct sas_ha_struct *sas_ha = &hisi_hba->sha;
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_internal_abort abort = {
 		.flag = abort_flag,
@@ -2098,7 +2100,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	task = sas_alloc_slow_task(GFP_KERNEL);
+	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 	if (!task)
 		return -ENOMEM;
 
@@ -2728,10 +2730,12 @@ int hisi_sas_probe(struct platform_device *pdev,
 	shost->max_channel = 1;
 	shost->max_cmd_len = 16;
 	if (hisi_hba->hw->slot_index_alloc) {
-		shost->can_queue = HISI_SAS_MAX_COMMANDS;
-		shost->cmd_per_lun = HISI_SAS_MAX_COMMANDS;
+		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
+		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	} else {
 		shost->can_queue = HISI_SAS_UNRESERVED_IPTT;
+		shost->nr_reserved_cmds = HISI_SAS_RESERVED_IPTT;
 		shost->cmd_per_lun = HISI_SAS_UNRESERVED_IPTT;
 	}
 
