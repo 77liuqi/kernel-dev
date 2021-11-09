@@ -1669,11 +1669,25 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *req = bd->rq;
 	struct request_queue *q = req->q;
-	struct scsi_device *sdev = q->queuedata;
-	struct Scsi_Host *shost = sdev->host;
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct blk_mq_tag_set *tag_set = q->tag_set;
+	struct Scsi_Host *shost = container_of(tag_set, struct Scsi_Host, tag_set);
+	struct scsi_device *sdev;
+	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
+
+	if (req->cmd_flags & REQ_RESV) {
+		int res;
+
+		blk_mq_start_request(bd->rq);
+
+		res = shost->hostt->queuecommand_internal(shost, req);
+		if (res)
+			return BLK_STS_IOERR;
+		return BLK_STS_OK;
+	}
+	sdev = q->queuedata;
+	cmd = blk_mq_rq_to_pdu(req);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
