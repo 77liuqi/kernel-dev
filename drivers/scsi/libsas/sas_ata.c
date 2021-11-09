@@ -228,6 +228,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
+	sas_set_unique_hw_tag(task);
+
 	if (ata_internal == false) {
 		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
