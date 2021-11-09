@@ -1171,7 +1171,9 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		res = sas_execute_tmf(sha, device, parameter, para_len,
 						tmf->tmf, tmf->tag_of_task_to_be_managed);
-		if (res == 0)
+		if (res == TMF_RESP_FUNC_COMPLETE)
+			break;
+		if (res == TMF_RESP_FUNC_SUCC)
 			break;
 	}
 

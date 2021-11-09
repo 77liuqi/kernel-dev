@@ -1060,16 +1060,14 @@ static void sas_execute_tmf_timedout(struct timer_list *t)
 }
 #define TASK_TIMEOUT			(20 * HZ)
 
-int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed)
+int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *parameter,
+				u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed)
 {
-//	blk_status_t blk_status;
 	struct sas_task *task;
 	bool rst_to_recover = false;
 	int res;
-	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, tmf, tag_of_task_to_be_managed, task->rq);
 	if (!task)
 		return -ENOMEM;
 
@@ -1093,21 +1091,10 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 	add_timer(&task->slow_task->timer);
 
-//	pr_err("%s1 task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
-
-//	pr_err("%s2 task=%pS\n", __func__, task);
-
-//	if (blk_status) {
-//		del_timer(&task->slow_task->timer);
-//		pr_err("executing tmf task failed:%d\n", res);
-//		return -EIO;
-//	}
 	
-	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+	wait_for_completion(&task->slow_task->completion);
 
-	if (xxx == 0)
-		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
 	res = TMF_RESP_FUNC_FAILED;
 	
 	/* Internal abort timed out */
@@ -1163,8 +1150,7 @@ exit:
 			task->task_status.resp, /* 0 is complete, -1 is undelivered */
 			task->task_status.stat, res);
 	sas_free_task(task);
-	
-	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+
 	return res;
 }
 
