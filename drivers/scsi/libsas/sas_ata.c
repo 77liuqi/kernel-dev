@@ -83,6 +83,11 @@ static void sas_ata_task_done(struct sas_task *task)
 	unsigned long flags;
 	struct ata_link *link;
 	struct ata_port *ap;
+//	if (task->ata_internal)
+//		pr_err("%s task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+
+//	if (qc->err_mask)
+//		pr_err("%s01 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
@@ -91,12 +96,27 @@ static void sas_ata_task_done(struct sas_task *task)
 		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
-	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
-		return;
+//	if (qc->err_mask)
+//		pr_err("%s03 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
-	if (!qc)
+	/* check if libsas-eh got to the task before us */
+	if (unlikely(!task)) {
+		pr_err("%s2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
+		BUG();
+		return;
+	}
+
+//	if (task->ata_internal)
+//		pr_err("%s2.1 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+
+	if (!qc) {
+		pr_err("%s2.2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
+		BUG();
 		goto qc_already_gone;
+	}
+
+	if (qc->err_mask)
+		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, sas_rq_from_task(task), qc->err_mask);
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -112,9 +132,16 @@ static void sas_ata_task_done(struct sas_task *task)
 			 * ata internal abort process has taken responsibility
 			 * for this sas_task
 			 */
+			BUG();
 			return;
 		}
 	}
+
+//	if (qc->err_mask)
+//		pr_err("%s07 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+
+//	if (task->ata_internal)
+//		pr_err("%s3 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	if (stat->stat == SAS_PROTO_RESPONSE ||
 	    stat->stat == SAS_SAM_STAT_GOOD ||
@@ -126,10 +153,14 @@ static void sas_ata_task_done(struct sas_task *task)
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
-			if (unlikely(link->eh_info.err_mask))
+			if (unlikely(link->eh_info.err_mask)) {
+				pr_err("%s3.1 ATA_QCFLAG_FAILED task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
 				qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	} else {
+	
+		BUG();
 		ac = sas_to_ata_err(stat);
 		if (ac) {
 			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
@@ -146,12 +177,27 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
+//	if (qc->err_mask)
+//		pr_err("%s08 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+
+//	if (task->ata_internal)
+//		pr_err("%s4 task=%pS rq=%pS ata_internal qc=%pS err_mask=%d\n", __func__, task, task->rq, qc, qc->err_mask);
+
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
+//	if (qc->err_mask)
+//		pr_err("%s09 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+//	pr_err("%s7 task=%pS qc_already_gone rq=%pS ata_internal qc=%pS task->rq=%pS\n", __func__, task, task->rq, qc, task->rq);
 	sas_free_task(task);
+}
+
+static void sas_ata_task_done_rq_alloc(struct sas_task *task)
+{
+//	pr_err("%s task=%pS rq=%pS\n", __func__, task, task->rq);
+	sas_ata_task_done(task);
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
@@ -166,6 +212,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_ha_struct *sas_ha = dev->port->ha;
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
+//	struct request *rq;
+	struct scsi_cmnd *scmd;
+	bool ata_internal = false;
+
+	WARN_ON_ONCE(1);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -174,12 +225,35 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (test_bit(SAS_DEV_GONE, &dev->state))
 		goto out;
 
-	task = sas_alloc_task(GFP_ATOMIC);
-	if (!task)
+	scmd = qc->scsicmd;
+
+	if (scmd) {
+		task = sas_alloc_task(GFP_ATOMIC, scmd);
+	//	task->rq = blk_mq_rq_from_pdu(scmd);
+//		WARN_ON_ONCE(1);
+	} else {
+		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
+		//pr_err("%s task=%pS rq=%pS qc errmask=%d qc=%pS\n", __func__, task, task->rq, qc->err_mask, qc);
+		task->ata_internal = ata_internal = true;
+		// task->rq assigned inside
+	}
+
+//	if (qc->err_mask)
+//		pr_err("%s0 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+
+	if (!task) {
+		pr_err("%s01 task=%pS rq=%pS qc errmask=%d\n", __func__, task, sas_rq_from_task(task), qc->err_mask);
 		goto out;
+	}
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
-	task->task_done = sas_ata_task_done;
+	if (ata_internal)
+		task->task_done = sas_ata_task_done_rq_alloc;
+	else
+		task->task_done = sas_ata_task_done;
+	
+//	if (qc->err_mask)
+	//	pr_err("%s02 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
 	    qc->tf.command == ATA_CMD_FPDMA_READ ||
@@ -192,6 +266,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
+
+//	if (qc->err_mask)
+//		pr_err("%s03 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
@@ -215,21 +293,38 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
 
+	//if (qc->err_mask)
+	//	pr_err("%s04 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
-	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
-	if (ret) {
-		pr_debug("lldd_execute_task returned: %d\n", ret);
+	sas_set_unique_hw_tag(task);
 
-		if (qc->scsicmd)
-			ASSIGN_SAS_TASK(qc->scsicmd, NULL);
-		sas_free_task(task);
-		qc->lldd_task = NULL;
-		ret = AC_ERR_SYSTEM;
+	if (ata_internal == false) {
+		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
+		if (ret) {
+			pr_err("lldd_execute_task returned: %d\n", ret);
+
+			if (qc->scsicmd)
+				ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+			sas_free_task(task);
+			qc->lldd_task = NULL;
+			ret = AC_ERR_SYSTEM;
+		}
+	} else {
+	//	pr_err("%s ata_internal task=%pS rq=%pS ret=%d qc=%pS\n", __func__, task, task->rq, ret, qc);
+		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
+		//	   int at_head, rq_end_io_fn *done)
+	//	blk_execute_rq(NULL, task->rq, true);
+		blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+		ret = 0;
 	}
-
+//	if (qc->err_mask)
+//		pr_err("%s05 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
  out:
+//	if (qc->err_mask)
+//		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 	spin_lock(ap->lock);
 	return ret;
 }
@@ -265,7 +360,7 @@ int sas_get_ata_info(struct domain_device *dev, struct ex_phy *phy)
 		res = sas_get_report_phy_sata(dev->parent, phy->phy_id,
 					      &dev->sata_dev.rps_resp);
 		if (res) {
-			pr_debug("report phy sata to %016llx:%02d returned 0x%x\n",
+			pr_err("report phy sata to %016llx:%02d returned 0x%x\n",
 				 SAS_ADDR(dev->parent->sas_addr),
 				 phy->phy_id, res);
 			return res;
@@ -310,8 +405,10 @@ static int smp_ata_check_ready(struct ata_link *link)
 	/* break the wait early if the expander is unreachable,
 	 * otherwise keep polling
 	 */
-	if (res == -ECOMM)
+	if (res == -ECOMM) {
+		pr_err("%s1\n", __func__);
 		return res;
+	}
 	if (res != SMP_RESP_FUNC_ACC)
 		return 0;
 
@@ -323,6 +420,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 			return sas_ata_clear_pending(dev, ex_phy);
 		fallthrough;
 	default:
+		pr_err("%s fdfdf ex_phy->attached_dev_type=%d phy_id=%d number=%d\n", __func__, ex_phy->attached_dev_type, ex_phy->phy_id, phy->number);
 		return -ENODEV;
 	}
 }
@@ -377,8 +475,10 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	struct sas_internal *i = dev_to_sas_internal(dev);
 
 	res = i->dft->lldd_I_T_nexus_reset(dev);
-	if (res == -ENODEV)
+	if (res == -ENODEV) {
+		pr_err("%s fwwdfdf\n", __func__);
 		return res;
+	}
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
 		sas_ata_printk(KERN_DEBUG, dev, "Unable to reset ata device?\n");
@@ -414,7 +514,7 @@ static void sas_ata_internal_abort(struct sas_task *task)
 	if (task->task_state_flags & SAS_TASK_STATE_ABORTED ||
 	    task->task_state_flags & SAS_TASK_STATE_DONE) {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
-		pr_debug("%s: Task %p already finished.\n", __func__, task);
+		pr_err("%s: Task %p already finished.\n", __func__, task);
 		goto out;
 	}
 	task->task_state_flags |= SAS_TASK_STATE_ABORTED;
@@ -644,8 +744,10 @@ void sas_probe_sata(struct asd_sas_port *port)
 		/* if libata could not bring the link up, don't surface
 		 * the device
 		 */
-		if (!ata_dev_enabled(sas_to_ata_dev(dev)))
+		if (!ata_dev_enabled(sas_to_ata_dev(dev))) {
+			pr_err("%s fdfde23\n", __func__);
 			sas_fail_probe(dev, __func__, -ENODEV);
+		}
 	}
 
 }
@@ -661,8 +763,10 @@ static void sas_ata_flush_pm_eh(struct asd_sas_port *port, const char *func)
 		sas_ata_wait_eh(dev);
 
 		/* if libata failed to power manage the device, tear it down */
-		if (ata_dev_disabled(sas_to_ata_dev(dev)))
+		if (ata_dev_disabled(sas_to_ata_dev(dev))) {
+			pr_err("%s fdfd34f\n", __func__);
 			sas_fail_probe(dev, func, -ENODEV);
+		}
 	}
 }
 
@@ -720,8 +824,10 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
-	if (dev->dev_type == SAS_SATA_PM)
+	if (dev->dev_type == SAS_SATA_PM) {
+		pr_err("%s f4hddf\n", __func__);
 		return -ENODEV;
+	}
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);

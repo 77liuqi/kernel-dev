@@ -114,12 +114,12 @@ static void sas_scsi_task_done(struct sas_task *task)
 
 	if (unlikely(!task)) {
 		/* task will be completed by the error handler */
-		pr_debug("task done but aborted\n");
+		pr_err("task done but aborted\n");
 		return;
 	}
 
 	if (unlikely(!sc)) {
-		pr_debug("task_done called with non existing SCSI cmnd!\n");
+		pr_err("task_done called with non existing SCSI cmnd!\n");
 		sas_free_task(task);
 		return;
 	}
@@ -132,13 +132,20 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
 {
-	struct sas_task *task = sas_alloc_task(gfp_flags);
+	struct sas_task *task = sas_alloc_task(gfp_flags, cmd);
+//	struct request *rq;
 	struct scsi_lun lun;
 
 	if (!task)
 		return NULL;
 
 	task->uldd_task = cmd;
+	if (cmd) {
+	//	task->rq = blk_mq_rq_from_pdu(cmd);
+	} else {
+	//	task->rq = NULL;
+		WARN_ON_ONCE(1);
+	}
 	ASSIGN_SAS_TASK(cmd, task);
 
 	task->dev = dev;
@@ -157,6 +164,8 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 
 	task->task_done = sas_scsi_task_done;
 
+	sas_set_unique_hw_tag(task);
+
 	return task;
 }
 
@@ -174,6 +183,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	}
 
 	if (dev_is_sata(dev)) {
+//		WARN_ON_ONCE(1);
 		spin_lock_irq(dev->sata_dev.ap->lock);
 		res = ata_sas_queuecmd(cmd, dev->sata_dev.ap);
 		spin_unlock_irq(dev->sata_dev.ap->lock);
@@ -190,7 +200,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	return 0;
 
 out_free_task:
-	pr_debug("lldd_execute_task returned: %d\n", res);
+	pr_err("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
 	if (res == -SAS_QUEUE_FULL)
@@ -289,7 +299,7 @@ static enum task_disposition sas_scsi_find_task(struct sas_task *task)
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		if (task->task_state_flags & SAS_TASK_STATE_DONE) {
 			spin_unlock_irqrestore(&task->task_state_lock, flags);
-			pr_debug("%s: task 0x%p is done\n", __func__, task);
+			pr_err("%s: task 0x%p is done\n", __func__, task);
 			return TASK_IS_DONE;
 		}
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
@@ -596,7 +606,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			goto reset;
 		}
 
-		pr_debug("trying to find task 0x%p\n", task);
+		pr_err("trying to find task 0x%p\n", task);
 		res = sas_scsi_find_task(task);
 
 		switch (res) {
@@ -641,7 +651,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 			try_to_reset_cmd_device(cmd);
 			if (i->dft->lldd_clear_nexus_port) {
 				struct asd_sas_port *port = task->dev->port;
-				pr_debug("clearing nexus for port:%d\n",
+				pr_err("clearing nexus for port:%d\n",
 					  port->id);
 				res = i->dft->lldd_clear_nexus_port(port);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
@@ -654,7 +664,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 				}
 			}
 			if (i->dft->lldd_clear_nexus_ha) {
-				pr_debug("clear nexus ha\n");
+				pr_err("clear nexus ha\n");
 				res = i->dft->lldd_clear_nexus_ha(ha);
 				if (res == TMF_RESP_FUNC_COMPLETE) {
 					pr_notice("clear nexus ha succeeded\n");
@@ -680,7 +690,7 @@ static void sas_eh_handle_sas_errors(struct Scsi_Host *shost, struct list_head *
 	return;
 
  clear_q:
-	pr_debug("--- Exit %s -- clear_q\n", __func__);
+	pr_err("--- Exit %s -- clear_q\n", __func__);
 	list_for_each_entry_safe(cmd, n, work_q, eh_entry)
 		sas_eh_finish_cmd(cmd);
 	goto out;
@@ -822,11 +832,20 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy)
 
 int sas_target_alloc(struct scsi_target *starget)
 {
-	struct sas_rphy *rphy = dev_to_rphy(starget->dev.parent);
-	struct domain_device *found_dev = sas_find_dev_by_rphy(rphy);
+	struct device *parent = starget->dev.parent;
+	struct sas_rphy *rphy;
+	struct domain_device *found_dev;
 
-	if (!found_dev)
+	if (scsi_is_host_device(parent))
+		return 0;
+
+	rphy = dev_to_rphy(parent);
+	found_dev = sas_find_dev_by_rphy(rphy);
+
+	if (!found_dev) {
+		pr_err("%s f1dwefgf\n", __func__);
 		return -ENODEV;
+	}
 
 	kref_get(&found_dev->kref);
 	starget->hostdata = found_dev;
@@ -885,6 +904,270 @@ int sas_bios_param(struct scsi_device *scsi_dev,
 	return 0;
 }
 
+static void sas_execute_internal_abort_done(struct sas_task *task)
+{
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+}
+
+static void sas_execute_internal_abort_timedout(struct timer_list *t)
+{
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;	
+
+	unsigned long flags;
+	bool is_completed = true;
+
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+
+	
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+}
+
+int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
+{
+//	blk_status_t blk_status;
+	struct sas_task *task;
+	bool rst_to_recover = false;
+	int res;
+	int xxx;
+
+	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, abort, tag, task->rq);
+	if (!task)
+		return -ENOMEM;
+
+	task->dev = device;
+	task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
+	task->task_done = sas_execute_internal_abort_done;
+	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
+	task->slow_task->timer.expires = jiffies + (6 * HZ);
+	task->abort_task.type = abort;
+	task->abort_task.tag = tag;
+	add_timer(&task->slow_task->timer);
+
+//	pr_err("%s1 task=%pS\n", __func__, task);
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+
+//	pr_err("%s2 task=%pS\n", __func__, task);
+
+//	if (blk_status) {
+//		del_timer(&task->slow_task->timer);
+//		pr_err("executing tmf task failed:%d\n", res);
+//		return -EIO;
+//	}
+	
+	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+
+	if (xxx == 0)
+		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
+	res = TMF_RESP_FUNC_FAILED;
+	
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal task fdffdffdf: timeout.\n");
+			#ifdef ffdffdf
+			struct hisi_sas_slot *slot = task->lldd_task;
+	
+			set_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
+	
+			if (slot) {
+				struct hisi_sas_cq *cq =
+					&hisi_hba->cq[slot->dlvry_queue];
+					/*
+					 * sync irq to avoid free'ing task
+					 * before using task in IO completion
+					 */
+				synchronize_irq(cq->irq_no);
+				slot->task = NULL;
+			}
+			#endif
+			if (rst_to_recover) {
+				pr_err("internal task abort: timeout and not done. Queuing reset.\n");
+			//	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			} else {
+				pr_err("internal task abort: timeout and not done.\n");
+			}
+	
+			res = -EIO;
+			goto exit;
+			
+			pr_err("internal task abort: timeout.\n");
+		}
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+	
+exit:
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(device->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
+	sas_free_task(task);
+	
+	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+	return res;
+}
+
+static void sas_execute_tmf_done(struct sas_task *task)
+{
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
+	//pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+}
+
+static void sas_execute_tmf_timedout(struct timer_list *t)
+{
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;	
+
+	unsigned long flags;
+	bool is_completed = true;
+
+	pr_err("%s task=%pS abort=%d tag=%d\n", __func__, task, task->abort_task.type, task->abort_task.tag);
+
+	
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+}
+#define TASK_TIMEOUT			(20 * HZ)
+
+int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed)
+{
+//	blk_status_t blk_status;
+	struct sas_task *task;
+	bool rst_to_recover = false;
+	int res;
+	int xxx;
+
+	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, tmf, tag_of_task_to_be_managed, task->rq);
+	if (!task)
+		return -ENOMEM;
+
+	task->dev = dev;
+	task->task_proto = dev->tproto;
+
+	if (dev_is_sata(dev)) {
+		task->ata_task.device_control_reg_update = 1;
+		memcpy(&task->ata_task.fis, parameter, para_len);
+		task->is_tmf = true;
+	} else {
+		memcpy(&task->ssp_task, parameter, para_len);
+		task->is_tmf = true;
+		task->ssp_task.tmf = tmf;
+		task->ssp_task.tag_of_task_to_be_managed = tag_of_task_to_be_managed;
+
+	}
+	task->task_done = sas_execute_tmf_done;
+
+	task->slow_task->timer.function = sas_execute_tmf_timedout;
+	task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+	add_timer(&task->slow_task->timer);
+
+//	pr_err("%s1 task=%pS\n", __func__, task);
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+
+//	pr_err("%s2 task=%pS\n", __func__, task);
+
+//	if (blk_status) {
+//		del_timer(&task->slow_task->timer);
+//		pr_err("executing tmf task failed:%d\n", res);
+//		return -EIO;
+//	}
+	
+	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
+
+	if (xxx == 0)
+		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
+	res = TMF_RESP_FUNC_FAILED;
+	
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal task fdffdffdf: timeout.\n");
+			#ifdef ffdffdf
+			struct hisi_sas_slot *slot = task->lldd_task;
+	
+			set_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
+	
+			if (slot) {
+				struct hisi_sas_cq *cq =
+					&hisi_hba->cq[slot->dlvry_queue];
+					/*
+					 * sync irq to avoid free'ing task
+					 * before using task in IO completion
+					 */
+				synchronize_irq(cq->irq_no);
+				slot->task = NULL;
+			}
+			#endif
+			if (rst_to_recover) {
+				pr_err("internal task abort: timeout and not done. Queuing reset.\n");
+			//	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+			} else {
+				pr_err("internal task abort: timeout and not done.\n");
+			}
+	
+			res = -EIO;
+			goto exit;
+			
+			pr_err("internal task abort: timeout.\n");
+		}
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+	
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+	
+exit:
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(dev->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
+	sas_free_task(task);
+	
+	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+	return res;
+}
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.
@@ -913,8 +1196,32 @@ void sas_task_abort(struct sas_task *task)
 
 int sas_slave_alloc(struct scsi_device *sdev)
 {
+	struct scsi_target *starget = sdev->sdev_target;
+	struct device *parent = starget->dev.parent;
+	struct sas_rphy *rphy;
+	struct domain_device *found_dev;
+
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+	pr_err("%s2 sdev_to_domain_dev(sdev)=%pS scsi_is_host_device=%d\n",
+		__func__, sdev_to_domain_dev(sdev), scsi_is_host_device(parent));
+
+	if (scsi_is_host_device(parent))
+		return 0;
+
+	rphy = dev_to_rphy(parent);
+	found_dev = sas_find_dev_by_rphy(rphy);
+
+	if (!found_dev) {
+		pr_err("%s f1dwefgf\n", __func__);
+		return -ENXIO;
+	}
+
+	pr_err("%s3 sdev=%pS\n", __func__, sdev);
+
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
+
+	pr_err("%s4 sdev=%pS\n", __func__, sdev);
 
 	return 0;
 }
@@ -943,6 +1250,7 @@ int sas_request_addr(struct Scsi_Host *shost, u8 *addr)
 
 	if (fw->size < SAS_STRING_ADDR_SIZE) {
 		res = -ENODEV;
+		pr_err("%s fdf595\n", __func__);
 		goto out;
 	}
 

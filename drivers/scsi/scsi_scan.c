@@ -1923,14 +1923,18 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 	struct scsi_device *sdev = NULL;
 	struct scsi_target *starget;
 
+	pr_err("%s shost=%pS\n", __func__, shost);
 	mutex_lock(&shost->scan_mutex);
 	if (!scsi_host_scan_allowed(shost))
 		goto out;
+	pr_err("%s2 shost=%pS\n", __func__, shost);
 	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
+	pr_err("%s3 shost=%pS starget=%pS\n", __func__, shost, starget);
 	if (!starget)
 		goto out;
 
-	sdev = scsi_alloc_sdev(starget, 0, NULL);
+	sdev = scsi_alloc_sdev(starget, 0, sdev);
+	pr_err("%s4 shost=%pS sdev=%pS\n", __func__, shost, sdev);
 	if (sdev)
 		sdev->borken = 0;
 	else

@@ -1742,10 +1742,13 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
-	int has_data = 0, priority = !!tmf;
+	bool is_tmf = task->is_tmf;
+	int has_data = 0, priority = !!is_tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
+
+	if (task->is_tmf)
+		pr_err("%s task=%pS task tmf=%d\n", __func__, task, task->is_tmf);
 
 	hdr->dw0 = cpu_to_le32((1 << CMD_HDR_RESP_REPORT_OFF) |
 			       (2 << CMD_HDR_TLR_CTRL_OFF) |
@@ -1754,7 +1757,7 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 			       (1 << CMD_HDR_CMD_OFF)); /* ssp */
 
 	dw1 = 1 << CMD_HDR_VDTL_OFF;
-	if (tmf) {
+	if (is_tmf) {
 		dw1 |= 2 << CMD_HDR_FRAME_TYPE_OFF;
 		dw1 |= DIR_NO_DATA << CMD_HDR_DIR_OFF;
 	} else {
@@ -1796,21 +1799,27 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	buf_cmd = hisi_sas_cmd_hdr_addr_mem(slot) +
 		sizeof(struct ssp_frame_hdr);
 
+//	if (tmf)
+//		pr_err("%s1 task=%pS task tmf=%pS buf_cmd=%pS\n", __func__, task, task->tmf, buf_cmd);
+//	if (tmf)
+//		pr_err("%s2 task=%pS ask tmf=%pS &task->ssp_task.LUN=%pS\n", __func__, task, task->tmf, &task->ssp_task.LUN);
+
+
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
-	if (!tmf) {
+	if (!is_tmf) {
 		buf_cmd[9] = task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
 		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
 				task->ssp_task.cmd->cmd_len);
 	} else {
-		buf_cmd[10] = tmf->tmf;
-		switch (tmf->tmf) {
+		buf_cmd[10] = ssp_task->tmf;
+		switch (ssp_task->tmf) {
 		case TMF_ABORT_TASK:
 		case TMF_QUERY_TASK:
 			buf_cmd[12] =
-				(tmf->tag_of_task_to_be_managed >> 8) & 0xff;
+				(ssp_task->tag_of_task_to_be_managed >> 8) & 0xff;
 			buf_cmd[13] =
-				tmf->tag_of_task_to_be_managed & 0xff;
+				ssp_task->tag_of_task_to_be_managed & 0xff;
 			break;
 		default:
 			break;
@@ -2492,7 +2501,9 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_cmd_hdr *hdr = slot->cmd_hdr;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+//	struct hisi_sas_tmf_task *tmf = task->tmf;
+//	struct sas_ata_task *ata_task = &task->ata_task;
+
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
@@ -2505,10 +2516,10 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	else
 		dw0 |= 4 << CMD_HDR_CMD_OFF;
 
-	if (tmf && tmf->force_phy) {
-		dw0 |= CMD_HDR_FORCE_PHY_MSK;
-		dw0 |= (1 << tmf->phy_id) << CMD_HDR_PHY_ID_OFF;
-	}
+//	if (tmf && tmf->force_phy) {
+//		dw0 |= CMD_HDR_FORCE_PHY_MSK;
+//		dw0 |= (1 << tmf->phy_id) << CMD_HDR_PHY_ID_OFF;
+//	}
 
 	hdr->dw0 = cpu_to_le32(dw0);
 
@@ -3572,6 +3583,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
+	.queuecommand_internal = sas_queuecommand_internal,
 	.dma_need_drain		= ata_scsi_dma_need_drain,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= hisi_sas_slave_configure,
@@ -3594,6 +3606,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
+	.cmd_size = sizeof(struct sas_task),
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

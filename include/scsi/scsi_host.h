@@ -74,6 +74,7 @@ struct scsi_host_template {
 	 * STATUS: REQUIRED
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+	int (* queuecommand_internal)(struct Scsi_Host *, struct request *);
 
 	/*
 	 * The commit_rqs function is used to trigger a hardware
@@ -372,6 +373,14 @@ struct scsi_host_template {
 	int can_queue;
 
 	/*
+	 * This determines how many commands the HBA will set aside
+	 * for internal commands. This number will be added to
+	 * @can_queue to calcumate the maximum number of simultaneous
+	 * commands sent to the host.
+	 */
+	int nr_reserved_cmds;
+
+	/*
 	 * In many instances, especially where disconnect / reconnect are
 	 * supported, our host also has an ID on the SCSI bus.  If this is
 	 * the case, then it must be reserved.  Please set this_id to -1 if
@@ -579,6 +588,7 @@ struct Scsi_Host {
 	int eh_deadline;
 	unsigned long last_reset;
 
+//	struct request_queue *q; // reserved
 
 	/*
 	 * These three parameters can be used to allow for wide scsi,
@@ -627,6 +637,11 @@ struct Scsi_Host {
 	 */
 	unsigned nr_hw_queues;
 	unsigned nr_maps;
+	/*
+	 * Number of reserved commands to allocate, if any.
+	 */
+	unsigned nr_reserved_cmds;
+
 	unsigned active_mode:2;
 
 	/*
@@ -707,6 +722,8 @@ struct Scsi_Host {
 	 * Needed just in case we have virtual hosts.
 	 */
 	struct device *dma_dev;
+
+	struct scsi_device *sdev;
 
 	/*
 	 * We should ensure that this is aligned, both for better performance

@@ -134,10 +134,6 @@ struct hisi_sas_rst {
 	bool done;
 };
 
-struct hisi_sas_internal_abort {
-	int flag;
-	int tag;
-};
 
 #define HISI_SAS_RST_WORK_INIT(r, c) \
 	{	.hisi_hba = hisi_hba, \
@@ -234,12 +230,7 @@ struct hisi_sas_device {
 	spinlock_t lock; /* For protecting slots */
 };
 
-struct hisi_sas_tmf_task {
-	int force_phy;
-	int phy_id;
-	u8 tmf;
-	u16 tag_of_task_to_be_managed;
-};
+
 
 struct hisi_sas_slot {
 	struct list_head entry;
@@ -259,7 +250,6 @@ struct hisi_sas_slot {
 	dma_addr_t cmd_hdr_dma;
 	struct timer_list internal_abort_timer;
 	bool is_internal;
-	struct hisi_sas_tmf_task *tmf;
 	/* Do not reorder/change members after here */
 	void	*buf;
 	dma_addr_t buf_dma;

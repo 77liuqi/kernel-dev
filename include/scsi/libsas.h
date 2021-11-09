@@ -371,6 +371,8 @@ struct sas_ha_struct {
 	struct mutex disco_mutex;
 
 	struct scsi_core core;
+	struct blk_mq_tag_set	tag_set;
+	
 
 /* public: */
 	char *sas_ha_name;
@@ -552,6 +554,18 @@ struct sas_ata_task {
 	u8     stp_affil_pol:1;
 
 	u8     device_control_reg_update:1;
+
+	
+};
+
+enum sas_abort {
+	SINGLE,
+	DEVICE,
+};
+
+struct sas_abort_task {
+	enum sas_abort type;
+	unsigned int tag;
 };
 
 struct sas_smp_task {
@@ -574,6 +588,15 @@ struct sas_ssp_task {
 	enum   task_attribute task_attr;
 	u8     task_prio;
 	struct scsi_cmnd *cmd;
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
+
+struct hisi_sas_tmf_task {
+	int force_phy;
+	int phy_id;
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
 };
 
 struct sas_task {
@@ -588,6 +611,7 @@ struct sas_task {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
+		struct sas_abort_task abort_task;
 	};
 
 	struct scatterlist *scatter;
@@ -601,6 +625,10 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
+	//struct hisi_sas_tmf_task *tmf;
+	bool ata_internal;
+	bool is_tmf;
+	u32 hw_unique_tag;
 };
 
 struct sas_task_slow {
@@ -618,9 +646,15 @@ struct sas_task_slow {
 #define SAS_TASK_NEED_DEV_RESET     8
 #define SAS_TASK_AT_INITIATOR       16
 
-extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
+
+struct hisi_sas_internal_abort {
+	int flag;
+	int tag;
+};
 
 struct sas_domain_function_template {
 	/* The class calls these to notify the LLDD of an event. */
@@ -670,6 +704,8 @@ extern int sas_slave_configure(struct scsi_device *);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
+extern int sas_execute_internal_abort(struct sas_ha_struct *, struct domain_device *dev, enum sas_abort, unsigned int tag);
+extern int sas_execute_tmf(struct sas_ha_struct *, struct domain_device *dev, void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
@@ -688,6 +724,7 @@ int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
 
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq);
 
 void sas_init_dev(struct domain_device *);
 
@@ -712,5 +749,19 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			  gfp_t gfp_flags);
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
+
+static inline struct sas_task *sas_rq_to_task(struct request *rq)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return (struct sas_task *)(scmd + 1);
+}
+
+static inline struct request *sas_rq_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return blk_mq_rq_from_pdu(scmd);
+}
 
 #endif /* _SASLIB_H_ */

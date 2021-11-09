@@ -21,14 +21,19 @@
 
 #include "scsi_sas_internal.h"
 
+#ifdef fdfdf
 static struct kmem_cache *sas_task_cache;
+#endif
 static struct kmem_cache *sas_event_cache;
 
-struct sas_task *sas_alloc_task(gfp_t flags)
+
+struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 {
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
+	struct request *rq = blk_mq_rq_from_pdu(cmnd);
+	struct sas_task *task = sas_rq_to_task(rq);
 
 	if (task) {
+		memset(task, 0, sizeof(*task));
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
 	}
@@ -36,6 +41,8 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
+
+#ifdef fdfdf
 
 struct sas_task *sas_alloc_slow_task(gfp_t flags)
 {
@@ -57,15 +64,93 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
+#endif
+
+struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
+{
+	struct request *rq;
+	struct sas_task *task;
+	struct sas_task_slow *slow;
+	struct Scsi_Host *shost = sas_ha->core.shost;
+
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq)) {
+		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
+		return NULL;
+	}
+	rq->cmd_flags |= REQ_RESV;
+	task = sas_rq_to_task(rq);
+	memset(task, 0, sizeof(*task));
+
+	spin_lock_init(&task->task_state_lock);
+	task->task_state_flags = SAS_TASK_STATE_PENDING;
+	
+	slow = kmalloc(sizeof(*slow), flags);
+
+	if (!task || !slow) {
+		pr_err("%s2 sas_ha=%pS flags=%d rq=%pS task=%pS slow=%pS\n",
+			__func__, sas_ha, flags, rq, task, slow);
+	//	if (task)
+	//		kmem_cache_free(sas_task_cache, task);
+		kfree(slow);
+		return NULL;
+	}
+
+	task->slow_task = slow;
+	slow->task = task;
+//	slow->rq = rq;
+	timer_setup(&slow->timer, NULL, 0);
+	init_completion(&slow->completion);
+//	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
+	task->is_tmf = false;
+	//task->abort = NULL;
+	task->ata_internal = false;
+	return task;
+}
+EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
 
 void sas_free_task(struct sas_task *task)
 {
 	if (task) {
+		bool reserved = false;
+		struct request *rq = sas_rq_from_task(task);
+
+		if (rq && rq->cmd_flags & REQ_RESV)
+			reserved = true;
+
 		kfree(task->slow_task);
-		kmem_cache_free(sas_task_cache, task);
-	}
+
+		if (reserved) {
+			if (task->ata_internal)
+				pr_err("%s ata_internal rq=%pS task=%pS\n", __func__, rq, task);
+			__blk_mq_end_request(rq, BLK_STS_OK);
+		}
+
+		#ifdef fdfdf
+		else
+			kmem_cache_free(sas_task_cache, task);
+		#endif
+		
+	} else 
+		WARN_ON_ONCE(1);
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
+
+void sas_free_taske2(struct sas_task *task)
+{
+#ifdef usegeneric
+	struct request *rq = blk_mq_rq_from_pdu(task);
+
+	if (task) {
+		kfree(task->slow_task);
+	//	kmem_cache_free(sas_task_cache, task);
+	}
+//	pr_err("%s rq=%pS rq->end_io=%pS\n", __func__, rq, rq->end_io);
+	__blk_mq_end_request(rq, BLK_STS_OK);
+#else
+	sas_free_task(task);
+#endif
+}
 
 /*------------ SAS addr hash -----------*/
 void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
@@ -93,10 +178,61 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 	hashed[2] = r & 0xFF;
 }
 
+void sas_set_unique_hw_tag(struct sas_task *task)
+{
+	struct request *rq = sas_rq_from_task(task);
+
+	task->hw_unique_tag = rq->tag;
+}
+
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
+{
+	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
+	struct sas_internal *i;
+	struct sas_task *task;
+	int res;
+
+
+	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
+	
+	// dispatch now
+	i = to_sas_internal(ha->core.shost->transportt);
+	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
+	task = sas_rq_to_task(rq);
+	sas_set_unique_hw_tag(task);
+	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
+	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
+	//if (task->ata_internal)
+	//	pr_err("%s rq=%pS shost=%pS ha=%pS ata_internal task=%pS req->cmd_flags & REQ_RESV=0x%llx REQ_RESV=0x%llx\n",
+	//		__func__, rq, shost, ha, task, task->rq->cmd_flags & REQ_RESV, REQ_RESV);
+	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+	if (res)
+		pr_err("%s4 rq=%pS res=%d\n", __func__, rq, res);
+
+	return res;
+}
+
+static __maybe_unused void sas_complete(struct request *rq)
+{
+	pr_err("%s rq=%pS\n",__func__, rq);
+}
+
+
+#include <linux/debugfs.h>
+extern struct dentry *blk_debugfs_root;
+extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
+extern void blk_mq_debugfs_register(struct request_queue *q);
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];
 	int error = 0;
+	struct Scsi_Host *shost = sas_ha->core.shost;
+//	struct blk_mq_tag_set *set = &shost->tag_set;
+//	int ret;
+	struct request_queue *q;
+//	struct device *dev = shost->dma_dev;
+
+	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
 	mutex_init(&sas_ha->disco_mutex);
 	spin_lock_init(&sas_ha->phy_port_lock);
@@ -136,6 +272,50 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
+
+#ifdef dsddsd
+	struct bsg_set *bset;
+	struct blk_mq_tag_set *set;
+	struct request_queue *q;
+	int ret = -ENOMEM;
+	
+	bset = kzalloc(sizeof(*bset), GFP_KERNEL);
+	if (!bset)
+		return ERR_PTR(-ENOMEM);
+	bset->job_fn = job_fn;
+	bset->timeout_fn = timeout;
+#endif
+
+//	set = &sas_ha->tag_set;
+//	set->ops = &sas_mq_ops;
+//	set->nr_hw_queues = shost->nr_hw_queues;
+//	set->queue_depth = 40;
+//	set->numa_node = NUMA_NO_NODE;
+//	set->cmd_size = sizeof(struct sas_task) + 0;
+//	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING | BLK_MQ_F_TAG_HCTX_SHARED;
+//	ret = blk_mq_alloc_tag_set(set);
+//	pr_err("%s2 sas_ha=%pS shost=%pS ret=%d hw queues=%d\n", __func__, sas_ha, shost, ret, shost->nr_hw_queues);
+//	if (ret)
+//		return -ENOMEM;
+	
+	q = shost->sdev->request_queue;
+
+	blk_queue_rq_timeout(shost->sdev->request_queue, BLK_DEFAULT_SG_TIMEOUT);
+
+//	mutex_lock(&q->debugfs_mutex);
+	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
+//	mutex_unlock(&q->debugfs_mutex);
+
+//	__blk_mq_register_dev(dev, q);
+//	blk_mq_debugfs_register(q);
+
+#ifdef dsddsd
+	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
+	if (IS_ERR(bset->bd)) {
+		ret = PTR_ERR(bset->bd);
+		goto out_cleanup_queue;
+	}
+#endif
 
 	return 0;
 
@@ -209,6 +389,8 @@ int sas_try_ata_reset(struct asd_sas_phy *asd_phy)
 		sas_ata_wait_eh(dev);
 		return 0;
 	}
+	
+	pr_err("%s fweewedf\n", __func__);
 
 	return -ENODEV;
 }
@@ -290,8 +472,10 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	int ret;
 	enum phy_func reset_type;
 
-	if (!phy->enabled)
+	if (!phy->enabled) {
+		pr_err("%s fdwewe\n", __func__);
 		return -ENODEV;
+	}
 
 	if (hard_reset)
 		reset_type = PHY_FUNC_HARD_RESET;
@@ -631,24 +815,30 @@ void sas_free_event(struct asd_sas_event *event)
 
 static int __init sas_class_init(void)
 {
+#ifdef fdfdf
+
 	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
 	if (!sas_task_cache)
 		goto out;
-
+#endif
 	sas_event_cache = KMEM_CACHE(asd_sas_event, SLAB_HWCACHE_ALIGN);
 	if (!sas_event_cache)
 		goto free_task_kmem;
 
 	return 0;
 free_task_kmem:
+#ifdef fdfdf
 	kmem_cache_destroy(sas_task_cache);
-out:
+out:		
+#endif
 	return -ENOMEM;
 }
 
 static void __exit sas_class_exit(void)
 {
+#ifdef fdfdf
 	kmem_cache_destroy(sas_task_cache);
+#endif
 	kmem_cache_destroy(sas_event_cache);
 }
 

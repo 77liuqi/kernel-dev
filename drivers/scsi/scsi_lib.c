@@ -1425,6 +1425,11 @@ static void scsi_complete(struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	enum scsi_disposition disposition;
 
+	if (rq->cmd_flags & REQ_RESV) {
+		WARN_ON_ONCE(1);
+		return;
+	}
+
 	INIT_LIST_HEAD(&cmd->eh_entry);
 
 	atomic_inc(&cmd->device->iodone_cnt);
@@ -1598,6 +1603,10 @@ static void scsi_mq_done(struct scsi_cmnd *cmd)
 static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;
+	struct Scsi_Host *shost = sdev->host;
+
+	if (q == shost->sdev->request_queue)
+		return;
 
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
@@ -1605,7 +1614,13 @@ static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 static int scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
-	int token = scsi_dev_queue_ready(q, sdev);
+	struct Scsi_Host *shost = sdev->host;
+	int token;
+
+	if (q == shost->sdev->request_queue)
+		return 0;
+
+	token = scsi_dev_queue_ready(q, sdev);
 
 	if (token >= 0)
 		return token;
@@ -1647,6 +1662,9 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 	return cmd->budget_token;
 }
 
+extern blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
+				 const struct blk_mq_queue_data *bd);
+
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1654,9 +1672,33 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct request_queue *q = req->q;
 	struct scsi_device *sdev = q->queuedata;
 	struct Scsi_Host *shost = sdev->host;
-	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(req);
+	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
+
+	if (req->cmd_flags & REQ_RESV) {
+		int res;
+//		WARN_ON_ONCE(1);
+		blk_mq_start_request(bd->rq);
+
+		if (!bd->rq)
+			pr_err("%s2 rq=%pS\n", __func__, bd->rq);
+		if (!bd->rq->q)
+			pr_err("%s3 q=%pS\n", __func__, bd->rq->q);
+		if (!bd->rq->q->queuedata)
+			pr_err("%s5 queuedata=%pS\n", __func__, bd->rq->q->queuedata);
+
+		//sdev = bd->rq->q->queuedata;
+
+		res = shost->hostt->queuecommand_internal(shost, req);
+		if (res)
+			return BLK_STS_IOERR;
+		return BLK_STS_OK;
+	}
+
+	
+	
+	cmd = blk_mq_rq_to_pdu(req);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
 
@@ -1747,6 +1789,7 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
+	pr_err("%s req=%pS reserved=%d\n", __func__, req, reserved);
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);
@@ -1930,7 +1973,11 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 		tag_set->ops = &scsi_mq_ops_no_commit;
 	tag_set->nr_hw_queues = shost->nr_hw_queues ? : 1;
 	tag_set->nr_maps = shost->nr_maps ? : 1;
-	tag_set->queue_depth = shost->can_queue;
+
+	tag_set->queue_depth =
+		shost->can_queue + shost->nr_reserved_cmds;
+	tag_set->reserved_tags = shost->nr_reserved_cmds;
+
 	tag_set->cmd_size = cmd_size;
 	tag_set->numa_node = NUMA_NO_NODE;
 	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;

@@ -27,6 +27,10 @@ static inline int sas_protocol_ata(enum sas_protocol proto)
 		(proto & SAS_PROTOCOL_STP))? 1 : 0;
 }
 
+static inline bool sas_protocol_ssp(enum sas_protocol proto)
+{
+	return proto & SAS_PROTOCOL_SSP;
+}
 enum sas_linkrate {
 	/* These Values are defined in the SAS standard */
 	SAS_LINK_RATE_UNKNOWN = 0,
