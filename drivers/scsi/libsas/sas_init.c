@@ -263,7 +263,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	char name[64];
 	int error = 0;
 	struct Scsi_Host *shost = sas_ha->core.shost;
-	struct blk_mq_tag_set *set = &shost->tag_set;
+//	struct blk_mq_tag_set *set = &shost->tag_set;
 //	int ret;
 	struct request_queue *q;
 //	struct device *dev = shost->dma_dev;
@@ -334,14 +334,8 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 //	if (ret)
 //		return -ENOMEM;
 	
-	q = shost->q = blk_mq_init_queue(set);
-	pr_err("%s3 sas_ha=%pS sas_ha->q=%pS\n", __func__, sas_ha, shost->q);
-	if (IS_ERR(shost->q)) {
-	//	ret = PTR_ERR(sas_ha->q);
-		return -ENOMEM;
-	}
+	q = shost->q;
 
-	shost->q->queuedata = shost;
 	blk_queue_rq_timeout(shost->q, BLK_DEFAULT_SG_TIMEOUT);
 	set_bit(QUEUE_FLAG_NO_BUDGETTING, &q->queue_flags);
 

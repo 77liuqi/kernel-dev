@@ -101,7 +101,7 @@ struct scsi_vpd {
 };
 
 struct scsi_device {
-	struct Scsi_Host *host;
+	struct Scsi_Host *host; // must be first
 	struct request_queue *request_queue;
 
 	/* the next two are protected by the host->host_lock */
