@@ -1165,21 +1165,9 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
 	struct sas_ha_struct *sha = &hisi_hba->sha;
-	struct device *dev = hisi_hba->dev;
-	int res, retry;
-	
-	for (retry = 0; retry < TASK_RETRY; retry++) {
-		res = sas_execute_tmf(sha, device, parameter, para_len,
-						tmf->tmf, tmf->tag_of_task_to_be_managed);
-		if (res == TMF_RESP_FUNC_COMPLETE)
-			break;
-		if (res == TMF_RESP_FUNC_SUCC)
-			break;
-	}
 
-	if (retry == TASK_RETRY)
-		dev_warn(dev, "abort tmf: executing internal task failed!\n");
-	return res;
+	return sas_execute_tmf(sha, device, parameter, para_len,
+				tmf->tmf, tmf->tag_of_task_to_be_managed);;
 }
 
 static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,
