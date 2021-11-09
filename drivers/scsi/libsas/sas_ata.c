@@ -94,14 +94,18 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
+	if (unlikely(!task)) {
+		pr_err("%s2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 		return;
+	}
 
 	if (task->ata_internal)
-		pr_err("%s2 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		pr_err("%s2.1 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
-	if (!qc)
+	if (!qc) {
+		pr_err("%s2.2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 		goto qc_already_gone;
+	}
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -205,6 +209,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		WARN_ON_ONCE(1);
 	} else {
 		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
+		pr_err("%s task=%pS rq=%pS\n", __func__, task, task->rq);
 		task->ata_internal = ata_internal = true;
 		// task->rq assigned inside
 	}

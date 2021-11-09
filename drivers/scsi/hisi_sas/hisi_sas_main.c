@@ -1320,7 +1320,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 #elif defined (newest_way)
 
 //		blk_status_t blk_status;
-
+#error
 		task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
 		//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
 		if (!task) {
@@ -2210,7 +2210,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 		return -ENOMEM;
 #else
 	
-	
+	#error
 	task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
 	//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
 	if (!task) {
