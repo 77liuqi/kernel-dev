@@ -1930,7 +1930,7 @@ struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
 	if (!starget)
 		goto out;
 
-	sdev = scsi_alloc_sdev(starget, 0, NULL);
+	sdev = scsi_alloc_sdev(starget, 0, sdev);
 	if (sdev)
 		sdev->borken = 0;
 	else
