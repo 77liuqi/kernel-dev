@@ -84,7 +84,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 	if (task->ata_internal)
-		pr_err("%s task=%pS  ata_internal\n", __func__, task);
+		pr_err("%s task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
@@ -98,7 +98,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		return;
 
 	if (task->ata_internal)
-		pr_err("%s2 task=%pS  ata_internal\n", __func__, task);
+		pr_err("%s2 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
 
 	if (!qc)
 		goto qc_already_gone;
@@ -122,7 +122,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (task->ata_internal)
-		pr_err("%s3 task=%pS  ata_internal\n", __func__, task);
+		pr_err("%s3 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
 
 	if (stat->stat == SAS_PROTO_RESPONSE ||
 	    stat->stat == SAS_SAM_STAT_GOOD ||
@@ -155,7 +155,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (task->ata_internal)
-		pr_err("%s4 task=%pS  ata_internal\n", __func__, task);
+		pr_err("%s4 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
 
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
