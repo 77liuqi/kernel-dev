@@ -1194,8 +1194,32 @@ void sas_task_abort(struct sas_task *task)
 
 int sas_slave_alloc(struct scsi_device *sdev)
 {
+	struct scsi_target *starget = sdev->sdev_target;
+	struct device *parent = starget->dev.parent;
+	struct sas_rphy *rphy;
+	struct domain_device *found_dev;
+
+	pr_err("%s sdev=%pS\n", __func__, sdev);
+	pr_err("%s2 sdev_to_domain_dev(sdev)=%pS scsi_is_host_device=%d\n",
+		__func__, sdev_to_domain_dev(sdev), scsi_is_host_device(parent));
+
+	if (scsi_is_host_device(parent))
+		return -ENXIO;
+
+	rphy = dev_to_rphy(parent);
+	found_dev = sas_find_dev_by_rphy(rphy);
+
+	if (!found_dev) {
+		pr_err("%s f1dwefgf\n", __func__);
+		return -ENXIO;
+	}
+
+	pr_err("%s3 sdev=%pS\n", __func__, sdev);
+
 	if (dev_is_sata(sdev_to_domain_dev(sdev)) && sdev->lun)
 		return -ENXIO;
+
+	pr_err("%s4 sdev=%pS\n", __func__, sdev);
 
 	return 0;
 }
