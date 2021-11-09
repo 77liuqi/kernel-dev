@@ -232,11 +232,6 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	if (error)
 		goto fail;
 
-	shost->sdev = scsi_get_host_dev(shost);
-	pr_err("%s sdev=%pS\n", __func__, shost->sdev);
-	if (!shost->sdev)
-		goto fail;
-
 	if (!shost->shost_gendev.parent)
 		shost->shost_gendev.parent = dev ? dev : &platform_bus;
 	if (!dma_dev)
@@ -296,6 +291,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
+	shost->sdev = scsi_get_host_dev(shost);
+	pr_err("%s sdev=%pS\n", __func__, shost->sdev);
+	if (!shost->sdev)
+		goto fail;
 	return error;
 
 	/*
