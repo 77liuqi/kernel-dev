@@ -1204,7 +1204,7 @@ int sas_slave_alloc(struct scsi_device *sdev)
 		__func__, sdev_to_domain_dev(sdev), scsi_is_host_device(parent));
 
 	if (scsi_is_host_device(parent))
-		return -ENXIO;
+		return 0;
 
 	rphy = dev_to_rphy(parent);
 	found_dev = sas_find_dev_by_rphy(rphy);

@@ -65,7 +65,7 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq)) {
 		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
 		return NULL;
@@ -334,9 +334,9 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 //	if (ret)
 //		return -ENOMEM;
 	
-	q = shost->q;
+	q = shost->sdev->request_queue;
 
-	blk_queue_rq_timeout(shost->q, BLK_DEFAULT_SG_TIMEOUT);
+	blk_queue_rq_timeout(shost->sdev->request_queue, BLK_DEFAULT_SG_TIMEOUT);
 	set_bit(QUEUE_FLAG_NO_BUDGETTING, &q->queue_flags);
 
 //	mutex_lock(&q->debugfs_mutex);

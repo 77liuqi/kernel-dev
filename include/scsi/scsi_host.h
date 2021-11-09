@@ -588,7 +588,7 @@ struct Scsi_Host {
 	int eh_deadline;
 	unsigned long last_reset;
 
-	struct request_queue *q; // reserved
+//	struct request_queue *q; // reserved
 
 	/*
 	 * These three parameters can be used to allow for wide scsi,
