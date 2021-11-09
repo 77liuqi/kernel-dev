@@ -626,8 +626,8 @@ struct sas_task {
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
 	//struct hisi_sas_tmf_task *tmf;
-	bool ata_internal;
 	bool is_tmf;
+//	bool ata_internal;
 	u32 hw_unique_tag;
 };
 
@@ -647,8 +647,7 @@ struct sas_task_slow {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
-extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
-extern struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *, gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct hisi_sas_internal_abort {

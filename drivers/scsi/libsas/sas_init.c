@@ -42,42 +42,18 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-#ifdef fdfdf
-
-struct sas_task *sas_alloc_slow_task(gfp_t flags)
-{
-	struct sas_task *task = sas_alloc_task(flags);
-	struct sas_task_slow *slow = kmalloc(sizeof(*slow), flags);
-
-	if (!task || !slow) {
-		if (task)
-			kmem_cache_free(sas_task_cache, task);
-		kfree(slow);
-		return NULL;
-	}
-
-	task->slow_task = slow;
-	slow->task = task;
-	timer_setup(&slow->timer, NULL, 0);
-	init_completion(&slow->completion);
-
-	return task;
-}
-EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
-#endif
-
-struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
-	if (IS_ERR(rq)) {
-		pr_err("%s sas_ha=%pS flags=%d rq=%pS\n", __func__, sas_ha, flags, rq);
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
+					BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq))
 		return NULL;
-	}
+
 	rq->cmd_flags |= REQ_RESV;
 	task = sas_rq_to_task(rq);
 	memset(task, 0, sizeof(*task));
@@ -90,24 +66,18 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 	if (!task || !slow) {
 		pr_err("%s2 sas_ha=%pS flags=%d rq=%pS task=%pS slow=%pS\n",
 			__func__, sas_ha, flags, rq, task, slow);
-	//	if (task)
-	//		kmem_cache_free(sas_task_cache, task);
 		kfree(slow);
 		return NULL;
 	}
 
 	task->slow_task = slow;
 	slow->task = task;
-//	slow->rq = rq;
 	timer_setup(&slow->timer, NULL, 0);
 	init_completion(&slow->completion);
-//	pr_err("%s task=%pS slow=%pS rq=%pS\n", __func__, task, slow, rq);
 	task->is_tmf = false;
-	//task->abort = NULL;
-	task->ata_internal = false;
 	return task;
 }
-EXPORT_SYMBOL_GPL(sas_alloc_slow_task2);
+EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
 
 void sas_free_task(struct sas_task *task)
 {
@@ -120,19 +90,9 @@ void sas_free_task(struct sas_task *task)
 
 		kfree(task->slow_task);
 
-		if (reserved) {
-			if (task->ata_internal)
-				pr_err("%s ata_internal rq=%pS task=%pS\n", __func__, rq, task);
+		if (reserved)
 			__blk_mq_end_request(rq, BLK_STS_OK);
-		}
-
-		#ifdef fdfdf
-		else
-			kmem_cache_free(sas_task_cache, task);
-		#endif
-		
-	} else 
-		WARN_ON_ONCE(1);
+	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
 

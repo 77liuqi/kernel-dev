@@ -194,12 +194,6 @@ qc_already_gone:
 	sas_free_task(task);
 }
 
-static void sas_ata_task_done_rq_alloc(struct sas_task *task)
-{
-//	pr_err("%s task=%pS rq=%pS\n", __func__, task, task->rq);
-	sas_ata_task_done(task);
-}
-
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	__must_hold(ap->lock)
 {
@@ -232,10 +226,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	//	task->rq = blk_mq_rq_from_pdu(scmd);
 //		WARN_ON_ONCE(1);
 	} else {
-		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
-		//pr_err("%s task=%pS rq=%pS qc errmask=%d qc=%pS\n", __func__, task, task->rq, qc->err_mask, qc);
-		task->ata_internal = ata_internal = true;
-		// task->rq assigned inside
+		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
 	}
 
 //	if (qc->err_mask)
@@ -247,10 +238,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	}
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
-	if (ata_internal)
-		task->task_done = sas_ata_task_done_rq_alloc;
-	else
-		task->task_done = sas_ata_task_done;
+	task->task_done = sas_ata_task_done;
 	
 //	if (qc->err_mask)
 	//	pr_err("%s02 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);

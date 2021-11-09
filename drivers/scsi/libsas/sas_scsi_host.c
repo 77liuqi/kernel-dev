@@ -939,7 +939,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	struct sas_task *task;
 	int res;
 
-	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+	task = sas_alloc_slow_task(sha, GFP_KERNEL);
 	if (!task)
 		return -ENOMEM;
 
@@ -1029,7 +1029,7 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task2(sha, GFP_KERNEL);
+		task = sas_alloc_slow_task(sha, GFP_KERNEL);
 		if (!task)
 			return -ENOMEM;
 
@@ -1039,14 +1039,15 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 		if (dev_is_sata(dev)) {
 			task->ata_task.device_control_reg_update = 1;
 			memcpy(&task->ata_task.fis, parameter, para_len);
-			task->is_tmf = true;
 		} else {
 			memcpy(&task->ssp_task, parameter, para_len);
-			task->is_tmf = true;
 			task->ssp_task.tmf = tmf;
 			task->ssp_task.tag_of_task_to_be_managed = tag_of_task_to_be_managed;
 
 		}
+
+		task->is_tmf = true;
+
 		task->task_done = sas_execute_tmf_done;
 
 		task->slow_task->timer.function = sas_execute_tmf_timedout;
