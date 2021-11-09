@@ -230,7 +230,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC);
 		task->rq = blk_mq_rq_from_pdu(scmd);
-		WARN_ON_ONCE(1);
+//		WARN_ON_ONCE(1);
 	} else {
 		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
 		//pr_err("%s task=%pS rq=%pS qc errmask=%d qc=%pS\n", __func__, task, task->rq, qc->err_mask, qc);
@@ -238,8 +238,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		// task->rq assigned inside
 	}
 
-	if (qc->err_mask)
-		pr_err("%s0 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+//	if (qc->err_mask)
+//		pr_err("%s0 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (!task) {
 		pr_err("%s01 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
@@ -251,9 +251,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->task_done = sas_ata_task_done_rq_alloc;
 	else
 		task->task_done = sas_ata_task_done;
-
-	if (qc->err_mask)
-		pr_err("%s02 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+	
+//	if (qc->err_mask)
+	//	pr_err("%s02 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
 	    qc->tf.command == ATA_CMD_FPDMA_READ ||
@@ -267,8 +267,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
 
-	if (qc->err_mask)
-		pr_err("%s03 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+//	if (qc->err_mask)
+//		pr_err("%s03 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
@@ -293,8 +293,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
 
-	if (qc->err_mask)
-		pr_err("%s04 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+	//if (qc->err_mask)
+	//	pr_err("%s04 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
@@ -312,18 +312,18 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 			ret = AC_ERR_SYSTEM;
 		}
 	} else {
-		pr_err("%s ata_internal task=%pS rq=%pS ret=%d qc=%pS\n", __func__, task, task->rq, ret, qc);
+	//	pr_err("%s ata_internal task=%pS rq=%pS ret=%d qc=%pS\n", __func__, task, task->rq, ret, qc);
 		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 		//	   int at_head, rq_end_io_fn *done)
 	//	blk_execute_rq(NULL, task->rq, true);
 		blk_execute_rq_nowait(NULL, task->rq, true, NULL);
 		ret = 0;
 	}
-	if (qc->err_mask)
-		pr_err("%s05 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+//	if (qc->err_mask)
+//		pr_err("%s05 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
  out:
-	if (qc->err_mask)
-		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+//	if (qc->err_mask)
+//		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 	spin_lock(ap->lock);
 	return ret;
 }
