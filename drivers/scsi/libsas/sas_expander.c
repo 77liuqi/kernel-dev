@@ -44,8 +44,7 @@ static void smp_task_timedout(struct timer_list *t)
 
 static void smp_task_done(struct sas_task *task)
 {
-	del_timer(&task->slow_task->timer);
-	complete(&task->slow_task->completion);
+	__blk_mq_end_request(sas_rq_from_task(task), BLK_STS_OK);
 }
 
 /* Give it some long enough timeout. In seconds. */
@@ -61,6 +60,7 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 	mutex_lock(&dev->ex_dev.cmd_mutex);
 	for (retry = 0; retry < 3; retry++) {
+		blk_status_t sts;
 		if (test_bit(SAS_DEV_GONE, &dev->state)) {
 			res = -ECOMM;
 			break;
@@ -80,17 +80,9 @@ static int smp_execute_task_sg(struct domain_device *dev,
 
 		task->slow_task->timer.function = smp_task_timedout;
 		task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		sts = blk_execute_rq(NULL, sas_rq_from_task(task), true);
 
-		if (res) {
-			del_timer(&task->slow_task->timer);
-			pr_notice("executing SMP task failed:%d\n", res);
-			break;
-		}
-
-		wait_for_completion(&task->slow_task->completion);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			pr_notice("smp task timed out or aborted\n");
