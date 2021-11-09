@@ -2074,6 +2074,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	slot->n_elem = 0;
 	slot->task = task;
 	slot->port = port;
+	slot->is_internal = true;
 
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, abort);
 
