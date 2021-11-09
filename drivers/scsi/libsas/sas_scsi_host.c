@@ -132,7 +132,7 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 					       struct domain_device *dev,
 					       gfp_t gfp_flags)
 {
-	struct sas_task *task = sas_alloc_task(gfp_flags);
+	struct sas_task *task = sas_alloc_task(gfp_flags, cmd);
 	struct scsi_lun lun;
 
 	if (!task)
