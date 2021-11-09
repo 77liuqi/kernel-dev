@@ -933,7 +933,7 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, abort, tag, task->rq);
+	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, abort, tag, task->rq);
 	if (!task)
 		return -ENOMEM;
 
@@ -1060,7 +1060,7 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, tmf, tag_of_task_to_be_managed, task->rq);
+	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, tmf, tag_of_task_to_be_managed, task->rq);
 	if (!task)
 		return -ENOMEM;
 
