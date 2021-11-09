@@ -201,7 +201,7 @@ void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba, struct sas_task *task,
 			if (slot->n_elem_dif) {
 				struct sas_ssp_task *ssp_task = &task->ssp_task;
 				struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-				BUG();
+
 				dma_unmap_sg(dev, scsi_prot_sglist(scsi_cmnd),
 					     scsi_prot_sg_count(scsi_cmnd),
 					     task->data_dir);
@@ -347,7 +347,6 @@ static int hisi_sas_dif_dma_map(struct hisi_hba *hisi_hba,
 		scsi_cmnd = ssp_task->cmd;
 
 		if (scsi_prot_sg_count(scsi_cmnd)) {
-			BUG();
 			*n_elem_dif = dma_map_sg(dev,
 						 scsi_prot_sglist(scsi_cmnd),
 						 scsi_prot_sg_count(scsi_cmnd),
@@ -642,14 +641,12 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 		tmf_task.tmf = TMF_CLEAR_TASK_SET;
 		while (retry-- > 0) {
-			pr_err("%s tmf SAS_END_DEVICE\n", __func__);
 			rc = hisi_sas_debug_issue_ssp_tmf(device, lun.scsi_lun,
 							  &tmf_task);
 			if (rc == TMF_RESP_FUNC_COMPLETE) {
 				hisi_sas_release_task(hisi_hba, device);
 				break;
 			}
-			pr_err("%s SAS_END_DEVICE rc=%d\n", __func__, rc);
 		}
 		break;
 	case SAS_SATA_DEV:
@@ -671,13 +668,9 @@ static int hisi_sas_init_device(struct domain_device *device)
 			struct ata_link *link;
 			unsigned int classes;
 
-			ata_for_each_link(link, ap, EDGE) {
-				pr_err("%s hardreset SAS_SATA_DEV\n", __func__);
+			ata_for_each_link(link, ap, EDGE)
 				rc = ops->hardreset(link, &classes,
 						    deadline);
-				if (rc)
-					pr_err("%s SAS_SATA_DEV rc=%d\n", __func__, rc);
-			}
 		}
 		sas_put_local_phy(local_phy);
 		if (rc) {
@@ -1037,23 +1030,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	int ret;
-//	if (task->abort) {
-	//	pr_err("%s task=%pS abort=%pS rq=%pS\n", __func__, task, task->abort, task->rq);
-//		ret = hisi_sas_internal_abort_task_exe2c_wrapper(task, gfp_flags);
-//		goto out;
-//	}
-//	if (task->tmf)
-//		pr_err("%s2 task=%pS tmf=%pS rq=%pS\n", __func__, task, task->tmf, task->rq);
-	ret = hisi_sas_task_exec(task, gfp_flags);
-
-//	if (task->tmf)
-//		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS ret=%d\n", __func__, task, task->tmf, task->rq, ret);
-
-	if (ret)
-		pr_err("%s3 ret=%d task=%pS rq=%pS\n", __func__, ret, task, sas_rq_from_task(task));
-
-	return ret;
+	return hisi_sas_task_exec(task, gfp_flags);
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,

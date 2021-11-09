@@ -178,10 +178,12 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	scmd = qc->scsicmd;
 
-	if (scmd)
+	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
-	else
+	} else {
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
+		ata_internal = true;
+	}
 
 	if (!task)
 		goto out;
