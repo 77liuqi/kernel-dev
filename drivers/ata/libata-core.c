@@ -1587,7 +1587,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	pr_err("%s qc=%pS got completion\n", __func__, qc);
+	pr_err("%s qc=%pS got completion rc=%d\n", __func__, qc, rc);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1658,6 +1658,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
+
+	pr_err("%s10 qc=%pS exit err_mask=%d\n", __func__, qc, err_mask);
 
 	return err_mask;
 }

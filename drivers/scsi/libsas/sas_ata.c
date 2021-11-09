@@ -84,7 +84,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 	if (task->ata_internal)
-		pr_err("%s task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
+		pr_err("%s task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
@@ -98,7 +98,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		return;
 
 	if (task->ata_internal)
-		pr_err("%s2 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
+		pr_err("%s2 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	if (!qc)
 		goto qc_already_gone;
@@ -122,7 +122,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (task->ata_internal)
-		pr_err("%s3 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
+		pr_err("%s3 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	if (stat->stat == SAS_PROTO_RESPONSE ||
 	    stat->stat == SAS_SAM_STAT_GOOD ||
@@ -155,20 +155,20 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (task->ata_internal)
-		pr_err("%s4 task=%pS  ata_internal qc=%pS\n", __func__, task, qc);
+		pr_err("%s4 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
-	pr_err("%s7 task=%pS qc_already_gone\n", __func__, task);
+	pr_err("%s7 task=%pS qc_already_gone rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 	sas_free_task(task);
 }
 
 static void sas_ata_task_done_rq_alloc(struct sas_task *task)
 {
-	pr_err("%s task=%pS\n", __func__, task);
+	pr_err("%s task=%pS rq=%pS\n", __func__, task, task->rq);
 	sas_ata_task_done(task);
 }
 
@@ -268,7 +268,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 			ret = AC_ERR_SYSTEM;
 		}
 	} else {
-		pr_err("%s ata_internal task=%pS rq=%pS ret=%d\n", __func__, task, task->rq, ret);
+		pr_err("%s ata_internal task=%pS rq=%pS ret=%d qc=%pS\n", __func__, task, task->rq, ret, qc);
 		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 		//	   int at_head, rq_end_io_fn *done)
 		blk_execute_rq(NULL, task->rq, true);
