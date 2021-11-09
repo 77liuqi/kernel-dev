@@ -116,7 +116,7 @@ void sas_free_task(struct sas_task *task)
 
 		if (reserved) {
 			if (task->ata_internal)
-				pr_err("%s ata_internal rq=%pS tasj=%pS\n", __func__, rq, task);
+				pr_err("%s ata_internal rq=%pS task=%pS\n", __func__, rq, task);
 			__blk_mq_end_request(rq, BLK_STS_OK);
 		} else
 			kmem_cache_free(sas_task_cache, task);
