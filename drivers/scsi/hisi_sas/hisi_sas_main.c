@@ -488,7 +488,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct device *dev;
-	struct request *rq = task->rq;
+	struct request *rq = sas_rq_from_task(task);
 	int rc;
 
 	if (!sas_port) {
@@ -1117,7 +1117,7 @@ static __maybe_unused int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_sas_dq *dq = NULL;
 	struct hisi_hba *hisi_hba;
-	struct request *rq = task->rq;
+	struct request *rq = sas_rq_from_task(task);
 	int ret;
 
 	hisi_hba = dev_to_hisi_hba(device);
@@ -1162,7 +1162,7 @@ static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 //		pr_err("%s2.1 task=%pS tmf=%pS rq=%pS ret=%d\n", __func__, task, task->tmf, task->rq, ret);
 
 	if (ret)
-		pr_err("%s3 ret=%d task=%pS rq=%pS\n", __func__, ret, task,  task->rq);
+		pr_err("%s3 ret=%d task=%pS rq=%pS\n", __func__, ret, task, sas_rq_from_task(task));
 
 	return ret;
 }

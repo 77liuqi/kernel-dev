@@ -625,7 +625,6 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
-	struct request *rq;
 	//struct hisi_sas_tmf_task *tmf;
 	bool ata_internal;
 	bool is_tmf;
@@ -646,7 +645,7 @@ struct sas_task_slow {
 #define SAS_TASK_NEED_DEV_RESET     8
 #define SAS_TASK_AT_INITIATOR       16
 
-extern struct sas_task *sas_alloc_task(gfp_t flags);
+extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
 extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
 extern struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
@@ -749,5 +748,19 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			  gfp_t gfp_flags);
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
+
+static inline struct sas_task *sas_rq_to_task(struct request *rq)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return (struct sas_task *)(scmd + 1);
+}
+
+static inline struct request *sas_rq_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return blk_mq_rq_from_pdu(scmd);
+}
 
 #endif /* _SASLIB_H_ */

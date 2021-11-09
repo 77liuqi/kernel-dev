@@ -101,7 +101,7 @@ static void sas_ata_task_done(struct sas_task *task)
 
 	/* check if libsas-eh got to the task before us */
 	if (unlikely(!task)) {
-		pr_err("%s2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		pr_err("%s2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
 		BUG();
 		return;
 	}
@@ -110,13 +110,13 @@ static void sas_ata_task_done(struct sas_task *task)
 //		pr_err("%s2.1 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 
 	if (!qc) {
-		pr_err("%s2.2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		pr_err("%s2.2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
 		BUG();
 		goto qc_already_gone;
 	}
 
 	if (qc->err_mask)
-		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+		pr_err("%s06 task=%pS rq=%pS qc errmask=%d\n", __func__, task, sas_rq_from_task(task), qc->err_mask);
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -154,7 +154,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask)) {
-				pr_err("%s3.1 ATA_QCFLAG_FAILED task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+				pr_err("%s3.1 ATA_QCFLAG_FAILED task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, sas_rq_from_task(task), qc);
 				qc->flags |= ATA_QCFLAG_FAILED;
 			}
 		}
@@ -228,8 +228,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	scmd = qc->scsicmd;
 
 	if (scmd) {
-		task = sas_alloc_task(GFP_ATOMIC);
-		task->rq = blk_mq_rq_from_pdu(scmd);
+		task = sas_alloc_task(GFP_ATOMIC, scmd);
+	//	task->rq = blk_mq_rq_from_pdu(scmd);
 //		WARN_ON_ONCE(1);
 	} else {
 		task = sas_alloc_slow_task2(sas_ha, GFP_ATOMIC);
@@ -242,7 +242,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 //		pr_err("%s0 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
 
 	if (!task) {
-		pr_err("%s01 task=%pS rq=%pS qc errmask=%d\n", __func__, task, task->rq, qc->err_mask);
+		pr_err("%s01 task=%pS rq=%pS qc errmask=%d\n", __func__, task, sas_rq_from_task(task), qc->err_mask);
 		goto out;
 	}
 	task->dev = dev;
@@ -316,7 +316,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 		//	   int at_head, rq_end_io_fn *done)
 	//	blk_execute_rq(NULL, task->rq, true);
-		blk_execute_rq_nowait(NULL, task->rq, true, NULL);
+		blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 		ret = 0;
 	}
 //	if (qc->err_mask)

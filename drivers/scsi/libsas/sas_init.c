@@ -21,14 +21,19 @@
 
 #include "scsi_sas_internal.h"
 
+#ifdef fdfdf
 static struct kmem_cache *sas_task_cache;
+#endif
 static struct kmem_cache *sas_event_cache;
 
-struct sas_task *sas_alloc_task(gfp_t flags)
+
+struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 {
-	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
+	struct request *rq = blk_mq_rq_from_pdu(cmnd);
+	struct sas_task *task = sas_rq_to_task(rq);
 
 	if (task) {
+		memset(task, 0, sizeof(*task));
 		spin_lock_init(&task->task_state_lock);
 		task->task_state_flags = SAS_TASK_STATE_PENDING;
 	}
@@ -36,6 +41,8 @@ struct sas_task *sas_alloc_task(gfp_t flags)
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
+
+#ifdef fdfdf
 
 struct sas_task *sas_alloc_slow_task(gfp_t flags)
 {
@@ -57,6 +64,7 @@ struct sas_task *sas_alloc_slow_task(gfp_t flags)
 	return task;
 }
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
+#endif
 
 struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 {
@@ -76,8 +84,6 @@ struct sas_task *sas_alloc_slow_task2(struct sas_ha_struct *sas_ha, gfp_t flags)
 
 	spin_lock_init(&task->task_state_lock);
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
-
-	task->rq = rq;
 	
 	slow = kmalloc(sizeof(*slow), flags);
 
@@ -107,7 +113,7 @@ void sas_free_task(struct sas_task *task)
 {
 	if (task) {
 		bool reserved = false;
-		struct request *rq = task->rq;
+		struct request *rq = sas_rq_from_task(task);
 
 		if (rq && rq->cmd_flags & REQ_RESV)
 			reserved = true;
@@ -118,8 +124,12 @@ void sas_free_task(struct sas_task *task)
 			if (task->ata_internal)
 				pr_err("%s ata_internal rq=%pS task=%pS\n", __func__, rq, task);
 			__blk_mq_end_request(rq, BLK_STS_OK);
-		} else
+		}
+
+		#ifdef fdfdf
+		else
 			kmem_cache_free(sas_task_cache, task);
+		#endif
 		
 	} else 
 		WARN_ON_ONCE(1);
@@ -207,7 +217,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	// dispatch now
 	i = to_sas_internal(ha->core.shost->transportt);
 	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
-	task = blk_mq_rq_to_pdu(rq);
+	task = sas_rq_to_task(rq);
 	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	//if (task->ata_internal)
@@ -852,24 +862,30 @@ void sas_free_event(struct asd_sas_event *event)
 
 static int __init sas_class_init(void)
 {
+#ifdef fdfdf
+
 	sas_task_cache = KMEM_CACHE(sas_task, SLAB_HWCACHE_ALIGN);
 	if (!sas_task_cache)
 		goto out;
-
+#endif
 	sas_event_cache = KMEM_CACHE(asd_sas_event, SLAB_HWCACHE_ALIGN);
 	if (!sas_event_cache)
 		goto free_task_kmem;
 
 	return 0;
 free_task_kmem:
+#ifdef fdfdf
 	kmem_cache_destroy(sas_task_cache);
-out:
+out:		
+#endif
 	return -ENOMEM;
 }
 
 static void __exit sas_class_exit(void)
 {
+#ifdef fdfdf
 	kmem_cache_destroy(sas_task_cache);
+#endif
 	kmem_cache_destroy(sas_event_cache);
 }
 
