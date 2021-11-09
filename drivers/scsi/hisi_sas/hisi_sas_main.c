@@ -555,6 +555,10 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 		dq = &hisi_hba->dq[queue];
 	}
 
+	if (task->ata_internal)
+		pr_err("%s rq=%pS shost=%pS ata_internal task dq=%d proto=0x%x\n",
+			__func__, rq, task, dq->id, task->task_proto);
+
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
 		dev_info(dev, "task prep: %s port%d not attach device\n",
@@ -580,6 +584,10 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, rq);
+
+	if (task->ata_internal)
+		pr_err("%s1 rq=%pS task=%pS ata_internal task dq=%d rc=%d\n",
+			__func__, rq, task, dq->id, rc);
 
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
@@ -1231,14 +1239,14 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 	return 0;
 }
 
-static void hisi_sas_task_done(struct sas_task *task)
+static __maybe_unused void hisi_sas_task_done(struct sas_task *task)
 {
 //	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
 	complete(&task->slow_task->completion);
 }
 
-static void hisi_sas_tmf_timedout(struct timer_list *t)
+static __maybe_unused void hisi_sas_tmf_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
