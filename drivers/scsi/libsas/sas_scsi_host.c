@@ -933,16 +933,13 @@ static void sas_execute_internal_abort_timedout(struct timer_list *t)
 		complete(&task->slow_task->completion);
 }
 
-int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device, enum sas_abort abort, unsigned int tag)
+int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device,
+			enum sas_abort abort, unsigned int tag)
 {
-//	blk_status_t blk_status;
 	struct sas_task *task;
-	bool rst_to_recover = false;
 	int res;
-	int xxx;
 
 	task = sas_alloc_slow_task2(sha, GFP_KERNEL);
-	//pr_err("%s task=%pS abort=%d tag=%d rq=%pS\n", __func__, task, abort, tag, task->rq);
 	if (!task)
 		return -ENOMEM;
 
@@ -955,57 +952,22 @@ int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *
 	task->abort_task.tag = tag;
 	add_timer(&task->slow_task->timer);
 
-//	pr_err("%s1 task=%pS\n", __func__, task);
 	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
-//	pr_err("%s2 task=%pS\n", __func__, task);
+	wait_for_completion(&task->slow_task->completion);
 
-//	if (blk_status) {
-//		del_timer(&task->slow_task->timer);
-//		pr_err("executing tmf task failed:%d\n", res);
-//		return -EIO;
-//	}
-	
-	xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
-
-	if (xxx == 0)
-		pr_err("%s3 task=%pS xxx=%d\n", __func__, task, xxx);
 	res = TMF_RESP_FUNC_FAILED;
-	
+
 	/* Internal abort timed out */
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {	
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-			pr_err("internal task fdffdffdf: timeout.\n");
-			#ifdef ffdffdf
-			struct hisi_sas_slot *slot = task->lldd_task;
-	
-			set_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags);
-	
-			if (slot) {
-				struct hisi_sas_cq *cq =
-					&hisi_hba->cq[slot->dlvry_queue];
-					/*
-					 * sync irq to avoid free'ing task
-					 * before using task in IO completion
-					 */
-				synchronize_irq(cq->irq_no);
-				slot->task = NULL;
-			}
-			#endif
-			if (rst_to_recover) {
-				pr_err("internal task abort: timeout and not done. Queuing reset.\n");
-			//	queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-			} else {
-				pr_err("internal task abort: timeout and not done.\n");
-			}
-	
+			pr_err("internal task: timeout.\n");
 			res = -EIO;
 			goto exit;
-			
-			pr_err("internal task abort: timeout.\n");
+
 		}
 	}
-	
+
 	if (task->task_status.resp == SAS_TASK_COMPLETE &&
 		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
 		res = TMF_RESP_FUNC_COMPLETE;
@@ -1025,8 +987,7 @@ exit:
 			task->task_status.resp, /* 0 is complete, -1 is undelivered */
 			task->task_status.stat, res);
 	sas_free_task(task);
-	
-	//pr_err("%s10 out res=%d task=%pS\n", __func__, res, task);
+
 	return res;
 }
 

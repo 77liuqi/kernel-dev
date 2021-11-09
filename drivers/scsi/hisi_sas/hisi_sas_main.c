@@ -1868,8 +1868,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			      int tag, struct hisi_sas_dq *dq, bool rst_to_recover)
 {
 	struct sas_ha_struct *sha = &hisi_hba->sha;
-	struct device *dev = hisi_hba->dev;
-	int res;
+
 	/*
 	 * The interface is not realized means this HW don't support internal
 	 * abort, or don't need to do internal abort. Then here, we return
@@ -1882,13 +1881,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	res = sas_execute_internal_abort(sha, device, abort_flag, tag);
-
-	if (res < 0)
-	dev_err(dev, "internal task abort: task to dev %016llx resp: res=%d\n",
- 		SAS_ADDR(device->sas_addr), res);
-
-	return res;
+	return sas_execute_internal_abort(sha, device, abort_flag, tag);
 }
 
 static int
