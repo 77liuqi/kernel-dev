@@ -1670,8 +1670,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 {
 	struct request *req = bd->rq;
 	struct request_queue *q = req->q;
-	struct scsi_device *sdev;
-	struct Scsi_Host *shost;
+	struct scsi_device *sdev = q->queuedata;
+	struct Scsi_Host *shost = sdev->host;
 	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
@@ -1688,7 +1688,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		if (!bd->rq->q->queuedata)
 			pr_err("%s5 queuedata=%pS\n", __func__, bd->rq->q->queuedata);
 
-		shost = bd->rq->q->queuedata;
+		//sdev = bd->rq->q->queuedata;
 
 		res = shost->hostt->queuecommand_internal(shost, req);
 		if (res)
@@ -1696,8 +1696,8 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
-	sdev = q->queuedata;
-	shost = sdev->host;
+	
+	
 	cmd = blk_mq_rq_to_pdu(req);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
