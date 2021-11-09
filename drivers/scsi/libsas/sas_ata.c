@@ -256,11 +256,12 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 			ret = AC_ERR_SYSTEM;
 		}
 	} else {
-		pr_err("%s ata_internal task=%pS rq=%pS\n", __func__, task, task->rq);
+		pr_err("%s ata_internal task=%pS rq=%pS ret=%d\n", __func__, task, task->rq, ret);
 		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 		//	   int at_head, rq_end_io_fn *done)
-	//	blk_execute_rq(NULL, task->rq, true);
-		blk_execute_rq_nowait(NULL, task->rq, true, NULL);
+		blk_execute_rq(NULL, task->rq, true);
+	//	blk_execute_rq_nowait(NULL, task->rq, true, NULL);
+		ret = 0;
 	}
  out:
 	spin_lock(ap->lock);
