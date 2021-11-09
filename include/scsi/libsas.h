@@ -618,8 +618,8 @@ struct sas_task_slow {
 #define SAS_TASK_NEED_DEV_RESET     8
 #define SAS_TASK_AT_INITIATOR       16
 
-extern struct sas_task *sas_alloc_task(gfp_t flags);
-extern struct sas_task *sas_alloc_slow_task(gfp_t flags);
+extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
@@ -689,6 +689,7 @@ int  sas_discover_sata(struct domain_device *);
 int  sas_discover_end_dev(struct domain_device *);
 
 void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
+int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq);
 
 void sas_init_dev(struct domain_device *);
 
@@ -713,5 +714,19 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 			  gfp_t gfp_flags);
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
+
+static inline struct sas_task *sas_rq_to_task(struct request *rq)
+{
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+
+	return (struct sas_task *)(scmd + 1);
+}
+
+static inline struct request *sas_rq_from_task(void *task)
+{
+	struct scsi_cmnd *scmd = task - sizeof(*scmd);
+
+	return blk_mq_rq_from_pdu(scmd);
+}
 
 #endif /* _SASLIB_H_ */
