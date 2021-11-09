@@ -554,6 +554,17 @@ struct sas_ata_task {
 	u8     device_control_reg_update:1;
 };
 
+enum sas_abort {
+	SINGLE,
+	DEVICE,
+};
+
+struct sas_abort_task {
+	enum sas_abort type;
+	unsigned int tag;
+};
+
+
 struct sas_smp_task {
 	struct scatterlist smp_req;
 	struct scatterlist smp_resp;
@@ -588,6 +599,7 @@ struct sas_task {
 		struct sas_ata_task ata_task;
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
+		struct sas_abort_task abort_task;
 	};
 
 	struct scatterlist *scatter;
@@ -671,6 +683,8 @@ extern int sas_slave_configure(struct scsi_device *);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
+extern int sas_execute_internal_abort(struct sas_ha_struct *, 
+			struct domain_device *dev, enum sas_abort, unsigned int tag);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
