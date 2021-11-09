@@ -628,6 +628,7 @@ struct sas_task {
 	//struct hisi_sas_tmf_task *tmf;
 	bool ata_internal;
 	bool is_tmf;
+	u32 hw_unique_tag;
 };
 
 struct sas_task_slow {

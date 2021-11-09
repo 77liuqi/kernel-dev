@@ -171,41 +171,6 @@ static void hisi_sas_slot_index_free(struct hisi_hba *hisi_hba, int slot_idx)
 	}
 }
 
-static void hisi_sas_slot_index_set(struct hisi_hba *hisi_hba, int slot_idx)
-{
-	void *bitmap = hisi_hba->slot_index_tags;
-
-	set_bit(slot_idx, bitmap);
-}
-
-static int hisi_sas_slot_index_alloc(struct hisi_hba *hisi_hba,
-				     struct request *rq)
-{
-	int index;
-	void *bitmap = hisi_hba->slot_index_tags;
-
-	//if (rq)
-	//	return rq->tag;
-//	BUG();
-	spin_lock(&hisi_hba->lock);
-	index = find_next_zero_bit(bitmap, hisi_hba->slot_index_count,
-				   hisi_hba->last_slot_index + 1);
-	if (index >= hisi_hba->slot_index_count) {
-		index = find_next_zero_bit(bitmap,
-				hisi_hba->slot_index_count,
-				HISI_SAS_UNRESERVED_IPTT);
-		if (index >= hisi_hba->slot_index_count) {
-			spin_unlock(&hisi_hba->lock);
-			return -SAS_QUEUE_FULL;
-		}
-	}
-	hisi_sas_slot_index_set(hisi_hba, index);
-	hisi_hba->last_slot_index = index;
-	spin_unlock(&hisi_hba->lock);
-
-	return index;
-}
-
 static void hisi_sas_slot_index_init(struct hisi_hba *hisi_hba)
 {
 	int i;
@@ -488,7 +453,6 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 	struct hisi_hba *hisi_hba;
 	struct hisi_sas_slot *slot;
 	struct device *dev;
-	struct request *rq = sas_rq_from_task(task);
 	int rc;
 
 	if (!sas_port) {
@@ -538,22 +502,8 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 		}
 	}
 #endif
-	if (rq) {
-		unsigned int dq_index;
-		u32 blk_tag;
 
-		blk_tag = blk_mq_unique_tag(rq);
-		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
-		dq = &hisi_hba->dq[dq_index];
-	} else {
-		struct Scsi_Host *shost = hisi_hba->shost;
-		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-		int queue = qmap->mq_map[raw_smp_processor_id()];
-
-		WARN_ON_ONCE(1);
-		BUG();
-		dq = &hisi_hba->dq[queue];
-	}
+	dq = &hisi_hba->dq[blk_mq_unique_tag_to_hwq(task->hw_unique_tag)];
 
 //	if (task->ata_internal)
 //		pr_err("%s rq=%pS shost=%pS ata_internal task dq=%d proto=0x%x\n",
@@ -583,7 +533,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 	if (hisi_hba->hw->slot_index_alloc && (task->task_proto != SAS_PROTOCOL_INTERNAL_ABORT))
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
-		rc = hisi_sas_slot_index_alloc(hisi_hba, rq);
+		rc = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
 
 //	if (task->ata_internal)
 //		pr_err("%s1 rq=%pS task=%pS ata_internal task dq=%d rc=%d\n",
@@ -1104,47 +1054,6 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	up(&hisi_hba->sem);
 }
 
-static int
-hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
-				  struct hisi_sas_internal_abort *abort,
-				  struct sas_task *task,
-				  struct hisi_sas_dq *dq,
-				  struct request *rq);
-
-static __maybe_unused int hisi_sas_internal_abort_task_exe2c_wrapper(struct sas_task *task, gfp_t gfp_flags)
-{
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct hisi_sas_dq *dq = NULL;
-	struct hisi_hba *hisi_hba;
-	struct request *rq = sas_rq_from_task(task);
-	int ret;
-
-	hisi_hba = dev_to_hisi_hba(device);
-
-	if (rq) {
-		unsigned int dq_index;
-		u32 blk_tag;
-
-		blk_tag = blk_mq_unique_tag(rq);
-		dq_index = blk_mq_unique_tag_to_hwq(blk_tag);
-		dq = &hisi_hba->dq[dq_index];
-	} else {
-		struct Scsi_Host *shost = hisi_hba->shost;
-		struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-		int queue = qmap->mq_map[raw_smp_processor_id()];
-
-		WARN_ON_ONCE(1);
-		BUG();
-		dq = &hisi_hba->dq[queue];
-	}
-
-	ret = hisi_sas_internal_abort_task_exec(hisi_hba, sas_dev->device_id,
-						NULL, task, dq, rq);
-	if (ret)
-		pr_err("%s10 out task=%pS ret=%d\n", __func__, task, ret);
-	return ret;
-}
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
@@ -2111,53 +2020,6 @@ static int hisi_sas_query_task(struct sas_task *task)
 	return rc;
 }
 
-static int
-hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
-				  struct hisi_sas_internal_abort *abort,
-				  struct sas_task *task,
-				  struct hisi_sas_dq *dq,
-				  struct request *rq)
-{
-	struct domain_device *device = task->dev;
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct device *dev = hisi_hba->dev;
-	struct hisi_sas_port *port;
-	struct asd_sas_port *sas_port = device->port;
-	struct hisi_sas_slot *slot;
-	int slot_idx;
-
-	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags)))
-		return -EINVAL;
-
-	if (!device->port) {
-		pr_err("%s1 task=%pS\n", __func__, task);
-		return -1;
-	}
-
-	port = to_hisi_sas_port(sas_port);
-
-	/* simply get a slot and send abort command */
-	slot_idx = hisi_sas_slot_index_alloc(hisi_hba, NULL);
-	if (slot_idx < 0) {
-		pr_err("%s2 task=%pS slot_idx=%d\n", __func__, task, slot_idx);
-		BUG();
-		goto err_out;
-	}
-
-	slot = &hisi_hba->slot_info[slot_idx];
-	slot->n_elem = 0;
-	slot->task = task;
-	slot->port = port;
-	slot->is_internal = abort;
-	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev);
-
-	return 0;
-
-err_out:
-	dev_err(dev, "internal abort task prep: failed[%d]!\n", slot_idx);
-
-	return slot_idx;
-}
 
 /**
  * _hisi_sas_internal_task_abort -- execute an internal

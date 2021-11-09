@@ -178,30 +178,11 @@ void sas_hash_addr(u8 *hashed, const u8 *sas_addr)
 	hashed[2] = r & 0xFF;
 }
 
-blk_status_t sas_queue_rq(struct blk_mq_hw_ctx *hctx,
-				 const struct blk_mq_queue_data *bd)
+void sas_set_unique_hw_tag(struct sas_task *task)
 {
-	struct request *rq = bd->rq;
-	struct request_queue *q = hctx->queue;
-	struct sas_ha_struct *ha;
-	struct sas_internal *i;
-	struct sas_task *task;
-	int res;
-	pr_err("%s hctx=%pS bd=%pS rq=%pS q=%pS\n", __func__, hctx, bd, bd->rq, q);
-	ha = q->queuedata;
-	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
+	struct request *rq = sas_rq_from_task(task);
 
-	// dispatch now
-	i = to_sas_internal(ha->core.shost->transportt);
-	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
-	task = sas_rq_to_task(rq);
-//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
-//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
-	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	pr_err("%s4 hctx=%pS bd=%pS rq=%pS res=%d\n", __func__, hctx, bd, bd->rq, res);
-	if (res)
-		return BLK_STS_IOERR;
-	return BLK_STS_OK;
+	task->hw_unique_tag = rq->tag;
 }
 
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
@@ -218,6 +199,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	i = to_sas_internal(ha->core.shost->transportt);
 	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
 	task = sas_rq_to_task(rq);
+	sas_set_unique_hw_tag(task);
 	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
 	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
 	//if (task->ata_internal)
@@ -230,40 +212,12 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	return res;
 }
 
-static int sas_init_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx, unsigned int numa_node)
-{
-//	pr_err_once("%s set=%pS req=%pS hctx_idx=%d numa_node=%d\n",
-//		__func__, set, req, hctx_idx, numa_node);
-	return 0;
-}
-
-static void sas_exit_rq(struct blk_mq_tag_set *set, struct request *req,
-		       unsigned int hctx_idx)
-{
-	pr_err("%s set=%pS req=%pS hctx_idx=%d\n",
-		__func__, set, req, hctx_idx);
-}
-
 static __maybe_unused void sas_complete(struct request *rq)
 {
 	pr_err("%s rq=%pS\n",__func__, rq);
 }
 
-static enum blk_eh_timer_return sas_timeout(struct request *rq, bool val)
-{
-	WARN_ON_ONCE(1);
-	pr_err_once("%s rq=%pS val=%d\n",__func__, rq, val);
-	return BLK_EH_DONE;
-}
 
-static const struct blk_mq_ops sas_mq_ops = {
-	.queue_rq		= sas_queue_rq,
-	.init_request		= sas_init_rq,
-	.exit_request		= sas_exit_rq,
-//	.complete		= sas_complete,
-	.timeout		= sas_timeout,
-};
 #include <linux/debugfs.h>
 extern struct dentry *blk_debugfs_root;
 extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
