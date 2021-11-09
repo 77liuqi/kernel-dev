@@ -102,6 +102,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	/* check if libsas-eh got to the task before us */
 	if (unlikely(!task)) {
 		pr_err("%s2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		BUG();
 		return;
 	}
 
@@ -110,6 +111,7 @@ static void sas_ata_task_done(struct sas_task *task)
 
 	if (!qc) {
 		pr_err("%s2.2 err task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		BUG();
 		goto qc_already_gone;
 	}
 
@@ -130,6 +132,7 @@ static void sas_ata_task_done(struct sas_task *task)
 			 * ata internal abort process has taken responsibility
 			 * for this sas_task
 			 */
+			BUG();
 			return;
 		}
 	}
@@ -156,6 +159,8 @@ static void sas_ata_task_done(struct sas_task *task)
 			}
 		}
 	} else {
+	
+		BUG();
 		ac = sas_to_ata_err(stat);
 		if (ac) {
 			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
