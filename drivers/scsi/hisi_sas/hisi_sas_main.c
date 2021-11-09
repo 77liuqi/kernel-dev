@@ -490,24 +490,8 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 
 		return -ECOMM;
 	}
-#ifdef getridoff
-	if (task->uldd_task) {
-		struct ata_queued_cmd *qc;
-
-		if (dev_is_sata(device)) {
-			qc = task->uldd_task;
-			scmd = qc->scsicmd;
-		} else {
-			scmd = task->uldd_task;
-		}
-	}
-#endif
 
 	dq = &hisi_hba->dq[blk_mq_unique_tag_to_hwq(task->hw_unique_tag)];
-
-//	if (task->ata_internal)
-//		pr_err("%s rq=%pS shost=%pS ata_internal task dq=%d proto=0x%x\n",
-//			__func__, rq, task, dq->id, task->task_proto);
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
@@ -534,10 +518,6 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
 	else
 		rc = blk_mq_unique_tag_to_tag(task->hw_unique_tag);
-
-//	if (task->ata_internal)
-//		pr_err("%s1 rq=%pS task=%pS ata_internal task dq=%d rc=%d\n",
-//			__func__, rq, task, dq->id, rc);
 
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
@@ -1182,175 +1162,22 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 					   void *parameter, u32 para_len,
 					   struct hisi_sas_tmf_task *tmf)
 {
-	#if 0 // stub
-		return 0;
-	#else
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
 	struct sas_ha_struct *sha = &hisi_hba->sha;
 	struct device *dev = hisi_hba->dev;
-	struct sas_task *task;
 	int res, retry;
-	int xxx;
 	
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-#ifdef cfdfurrent	
-#error
-		task = sas_alloc_slow_task(GFP_KERNEL);
-		if (!task)
-			return -ENOMEM;
-
-		task->dev = device;
-		task->task_proto = device->tproto;
-
-		if (dev_is_sata(device)) {
-			task->ata_task.device_control_reg_update = 1;
-			memcpy(&task->ata_task.fis, parameter, para_len);
-		} else {
-			memcpy(&task->ssp_task, parameter, para_len);
-		}
-		task->task_done = hisi_sas_task_done;
-
-		task->slow_task->timer.function = hisi_sas_tmf_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
-
-// <<<<<<< HEAD
-		res = hisi_sas_task_exec(task, GFP_KERNEL, tmf);
-// =======
-		res = hisi_sas_task_exec(task, GFP_KERNEL, 1, tmf);
-// >>>>>>> 5d572887a0bf... hisi sas tmf
-		if (res) {
-			del_timer(&task->slow_task->timer);
-			dev_err(dev, "abort tmf: executing internal task failed: %d\n",
-				res);
-			goto ex_err;
-		}
-#elif defined (newest_way)
-
-//		blk_status_t blk_status;
-#error
-		task = sas_alloc_slow_task2(device->port->ha, GFP_KERNEL);
-		//	pr_err("%s dev=%pS retry=%d task=%pS\n", __func__, dev, retry, task);
-		if (!task) {
-			res = -ENOMEM;
+		res = sas_execute_tmf(sha, device, parameter, para_len,
+						tmf->tmf, tmf->tag_of_task_to_be_managed);
+		if (res == 0)
 			break;
-		}
-
-		task->dev = device;
-		task->task_proto = device->tproto;
-
-		if (dev_is_sata(device)) {
-			task->ata_task.device_control_reg_update = 1;
-			memcpy(&task->ata_task.fis, parameter, para_len);
-		} else {
-			memcpy(&task->ssp_task, parameter, para_len);
-		}
-		task->task_done = hisi_sas_task_done;
-
-		task->slow_task->timer.function = hisi_sas_tmf_timedout;
-		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
-		add_timer(&task->slow_task->timer);
-		//blk_status = blk_execute_rq(NULL, task->slow_task->rq, true);
-		task->tmf = tmf;
-//		pr_err("%s task=%pS tmf=%pS\n", __func__, task, task->tmf);
-		blk_execute_rq_nowait(NULL, blk_mq_rq_from_pdu(task), true, NULL);
-//		pr_err("%s1 task=%pS tmf=%pS\n", __func__, task, task->tmf);
-		
-			//pr_err("%s2 dev=%pS retry=%d task=%pS blk_status=%d\n", __func__, dev, retry, task, blk_status);
-		
-	//	if (blk_status) {
-	//		del_timer(&task->slow_task->timer);
-	//		pr_err("executing tmf task failed:%d\n", res);
-	//		break;222
-	//	}
-#else
-		res = sas_execute_tmf(sha, device, parameter, para_len, tmf->tmf, tmf->tag_of_task_to_be_managed);
-		if (res)
-			pr_err("%s3.2 dev=%pS res=%d\n", __func__, dev, res);
-		return res;
-
-#endif
-		BUG();
-		xxx = wait_for_completion_timeout(&task->slow_task->completion, msecs_to_jiffies(2000));
-		if (xxx == 0)
-			pr_err("%s2 task=%pS xxx=%d\n", __func__, task, xxx);
-		res = TMF_RESP_FUNC_FAILED;
-		/* Even TMF timed out, return direct. */
-		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				struct hisi_sas_slot *slot = task->lldd_task;
-
-				dev_err(dev, "abort tmf: TMF task timeout and not done\n");
-				if (slot) {
-					struct hisi_sas_cq *cq =
-					       &hisi_hba->cq[slot->dlvry_queue];
-					/*
-					 * sync irq to avoid free'ing task
-					 * before using task in IO completion
-					 */
-					synchronize_irq(cq->irq_no);
-					slot->task = NULL;
-				}
-
-				goto ex_err;
-			} else
-				dev_err(dev, "abort tmf: TMF task timeout\n");
-		}
-
-		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		     task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
-			res = TMF_RESP_FUNC_COMPLETE;
-			break;
-		}
-
-		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-			task->task_status.stat == TMF_RESP_FUNC_SUCC) {
-			res = TMF_RESP_FUNC_SUCC;
-			break;
-		}
-
-		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		      task->task_status.stat == SAS_DATA_UNDERRUN) {
-			/* no error, but return the number of bytes of
-			 * underrun
-			 */
-			dev_warn(dev, "abort tmf: task to dev %016llx resp: 0x%x sts 0x%x underrun\n",
-				 SAS_ADDR(device->sas_addr),
-				 task->task_status.resp,
-				 task->task_status.stat);
-			res = task->task_status.residual;
-			break;
-		}
-
-		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-			task->task_status.stat == SAS_DATA_OVERRUN) {
-			dev_warn(dev, "abort tmf: blocked task error\n");
-			res = -EMSGSIZE;
-			break;
-		}
-
-		if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		    task->task_status.stat == SAS_OPEN_REJECT) {
-			dev_warn(dev, "abort tmf: open reject failed\n");
-			res = -EIO;
-		} else {
-			dev_warn(dev, "abort tmf: task to dev %016llx resp: 0x%x status 0x%x\n",
-				 SAS_ADDR(device->sas_addr),
-				 task->task_status.resp,
-				 task->task_status.stat);
-		}
-		sas_free_task(task);
-		task = NULL;
 	}
-ex_err:
+
 	if (retry == TASK_RETRY)
 		dev_warn(dev, "abort tmf: executing internal task failed!\n");
-	sas_free_task(task);
-	if (res)
-		pr_err("%s10 out\n", __func__);
 	return res;
-	#endif //stub
 }
 
 static void hisi_sas_fill_ata_reset_cmd(struct ata_device *dev,

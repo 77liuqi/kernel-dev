@@ -189,48 +189,17 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i;
-	struct sas_task *task;
-	int res;
 
-
-	//pr_err("%s2 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS\n", __func__, hctx, bd, bd->rq, q, ha);
-	
-	// dispatch now
 	i = to_sas_internal(ha->core.shost->transportt);
-	//pr_err("%s3 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS i=%pS\n", __func__, hctx, bd, bd->rq, q, ha, i);
-	task = sas_rq_to_task(rq);
-	sas_set_unique_hw_tag(task);
-	//	pr_err("%s4 hctx=%pS bd=%pS rq=%pS q=%pS ha=%pS lldd_execute_task=%pS task=%pS\n",
-	//		__func__, hctx, bd, bd->rq, q, ha, i->dft->lldd_execute_task, task);
-	//if (task->ata_internal)
-	//	pr_err("%s rq=%pS shost=%pS ha=%pS ata_internal task=%pS req->cmd_flags & REQ_RESV=0x%llx REQ_RESV=0x%llx\n",
-	//		__func__, rq, shost, ha, task, task->rq->cmd_flags & REQ_RESV, REQ_RESV);
-	res = i->dft->lldd_execute_task(task, GFP_KERNEL);
-	if (res)
-		pr_err("%s4 rq=%pS res=%d\n", __func__, rq, res);
 
-	return res;
+	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);;
 }
 
-static __maybe_unused void sas_complete(struct request *rq)
-{
-	pr_err("%s rq=%pS\n",__func__, rq);
-}
-
-
-#include <linux/debugfs.h>
-extern struct dentry *blk_debugfs_root;
-extern int __blk_mq_register_dev(struct device *dev, struct request_queue *q);
-extern void blk_mq_debugfs_register(struct request_queue *q);
 int sas_register_ha(struct sas_ha_struct *sas_ha)
 {
 	char name[64];
 	int error = 0;
 	struct Scsi_Host *shost = sas_ha->core.shost;
-//	struct blk_mq_tag_set *set = &shost->tag_set;
-//	int ret;
-	struct request_queue *q;
-//	struct device *dev = shost->dma_dev;
 
 	pr_err("%s sas_ha=%pS shost=%pS\n", __func__, sas_ha, shost);
 
@@ -273,49 +242,7 @@ int sas_register_ha(struct sas_ha_struct *sas_ha)
 	INIT_LIST_HEAD(&sas_ha->eh_done_q);
 	INIT_LIST_HEAD(&sas_ha->eh_ata_q);
 
-#ifdef dsddsd
-	struct bsg_set *bset;
-	struct blk_mq_tag_set *set;
-	struct request_queue *q;
-	int ret = -ENOMEM;
-	
-	bset = kzalloc(sizeof(*bset), GFP_KERNEL);
-	if (!bset)
-		return ERR_PTR(-ENOMEM);
-	bset->job_fn = job_fn;
-	bset->timeout_fn = timeout;
-#endif
-
-//	set = &sas_ha->tag_set;
-//	set->ops = &sas_mq_ops;
-//	set->nr_hw_queues = shost->nr_hw_queues;
-//	set->queue_depth = 40;
-//	set->numa_node = NUMA_NO_NODE;
-//	set->cmd_size = sizeof(struct sas_task) + 0;
-//	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING | BLK_MQ_F_TAG_HCTX_SHARED;
-//	ret = blk_mq_alloc_tag_set(set);
-//	pr_err("%s2 sas_ha=%pS shost=%pS ret=%d hw queues=%d\n", __func__, sas_ha, shost, ret, shost->nr_hw_queues);
-//	if (ret)
-//		return -ENOMEM;
-	
-	q = shost->sdev->request_queue;
-
 	blk_queue_rq_timeout(shost->sdev->request_queue, BLK_DEFAULT_SG_TIMEOUT);
-
-//	mutex_lock(&q->debugfs_mutex);
-	q->debugfs_dir = debugfs_create_dir("sas_ha", blk_debugfs_root);
-//	mutex_unlock(&q->debugfs_mutex);
-
-//	__blk_mq_register_dev(dev, q);
-//	blk_mq_debugfs_register(q);
-
-#ifdef dsddsd
-	bset->bd = bsg_register_queue(q, dev, name, bsg_transport_sg_io_fn);
-	if (IS_ERR(bset->bd)) {
-		ret = PTR_ERR(bset->bd);
-		goto out_cleanup_queue;
-	}
-#endif
 
 	return 0;
 
