@@ -138,8 +138,10 @@ static void sas_ata_task_done(struct sas_task *task)
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
-			if (unlikely(link->eh_info.err_mask))
+			if (unlikely(link->eh_info.err_mask)) {
+				pr_err("%s3.1 ATA_QCFLAG_FAILED task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
 				qc->flags |= ATA_QCFLAG_FAILED;
+			}
 		}
 	} else {
 		ac = sas_to_ata_err(stat);
@@ -159,14 +161,14 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (task->ata_internal)
-		pr_err("%s4 task=%pS rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+		pr_err("%s4 task=%pS rq=%pS ata_internal qc=%pS err_mask=%d\n", __func__, task, task->rq, qc, qc->err_mask);
 
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
-	pr_err("%s7 task=%pS qc_already_gone rq=%pS ata_internal qc=%pS\n", __func__, task, task->rq, qc);
+	pr_err("%s7 task=%pS qc_already_gone rq=%pS ata_internal qc=%pS task->rq=%pS\n", __func__, task, task->rq, qc, task->rq);
 	sas_free_task(task);
 }
 
