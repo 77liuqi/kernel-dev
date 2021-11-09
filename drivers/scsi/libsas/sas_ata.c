@@ -315,8 +315,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		pr_err("%s ata_internal task=%pS rq=%pS ret=%d qc=%pS\n", __func__, task, task->rq, ret, qc);
 		//void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 		//	   int at_head, rq_end_io_fn *done)
-		blk_execute_rq(NULL, task->rq, true);
-	//	blk_execute_rq_nowait(NULL, task->rq, true, NULL);
+	//	blk_execute_rq(NULL, task->rq, true);
+		blk_execute_rq_nowait(NULL, task->rq, true, NULL);
 		ret = 0;
 	}
 	if (qc->err_mask)
