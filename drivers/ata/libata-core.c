@@ -1579,12 +1579,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
-	pr_err("%s qc=%pS waiting for completion qc->err_mask=%d\n", __func__, qc, qc->err_mask);
+	//pr_err("%s qc=%pS waiting for completion qc->err_mask=%d\n", __func__, qc, qc->err_mask);
 
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	pr_err("%s qc=%pS got completion rc=%d qc->err_mask=%d\n", __func__, qc, rc, qc->err_mask);
+	//pr_err("%s qc=%pS got completion rc=%d qc->err_mask=%d\n", __func__, qc, rc, qc->err_mask);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);

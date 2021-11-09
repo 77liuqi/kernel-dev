@@ -555,9 +555,9 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 		dq = &hisi_hba->dq[queue];
 	}
 
-	if (task->ata_internal)
-		pr_err("%s rq=%pS shost=%pS ata_internal task dq=%d proto=0x%x\n",
-			__func__, rq, task, dq->id, task->task_proto);
+//	if (task->ata_internal)
+//		pr_err("%s rq=%pS shost=%pS ata_internal task dq=%d proto=0x%x\n",
+//			__func__, rq, task, dq->id, task->task_proto);
 
 	port = to_hisi_sas_port(sas_port);
 	if (port && !port->port_attached) {
@@ -585,9 +585,9 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 	else
 		rc = hisi_sas_slot_index_alloc(hisi_hba, rq);
 
-	if (task->ata_internal)
-		pr_err("%s1 rq=%pS task=%pS ata_internal task dq=%d rc=%d\n",
-			__func__, rq, task, dq->id, rc);
+//	if (task->ata_internal)
+//		pr_err("%s1 rq=%pS task=%pS ata_internal task dq=%d rc=%d\n",
+//			__func__, rq, task, dq->id, rc);
 
 	if (rc < 0)
 		goto err_out_dif_dma_unmap;
