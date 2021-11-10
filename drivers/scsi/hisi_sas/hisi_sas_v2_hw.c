@@ -2391,16 +2391,21 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 
 		if (dw0 & CMPLT_HDR_RSPNS_XFRD_MSK) {
 			count++;
-			pr_err("%s count=%d\n", __func__, count);
+		//	pr_err("%s count=%d\n", __func__, count);
 			if (count == 60) {
 				struct ata_queued_cmd *qc = task->uldd_task;
+				struct ata_taskfile *cmd = &qc->tf, *res = &qc->result_tf;
 
 				struct hisi_sas_status_buffer *status_buf = hisi_sas_status_buf_addr_mem(slot);
 				u8 *iu = &status_buf->iu[0];
 				struct dev_to_host_fis *d2h = (struct dev_to_host_fis *)iu;
-				dev_info(dev, "erroneous completion1 iptt=%d tag=%d hw_tag=%d qc scsicmnd=%pS qc=%pS\n", slot->idx, qc->tag, qc->hw_tag, qc->scsicmd, qc);
+				dev_info(dev, "erroneous completion1 iptt=%d tag=%d hw_tag=%d qc scsicmnd=%pS qc=%pS cmd=%pS\n", 
+					slot->idx, qc->tag, qc->hw_tag, qc->scsicmd, qc, cmd);
 				slot->abort = 1;
-	
+				cmd->command = 0x89;
+				cmd->feature = 0x71;
+				res->command = 0x62;
+				res->feature = 0x45;
 				ts->stat = SAS_OPEN_REJECT;
 				ts->open_rej_reason = SAS_OREJ_NO_DEST;
 				hisi_sas_sata_done(task, slot);
