@@ -596,9 +596,12 @@ void sas_ata_task_abort(struct sas_task *task)
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
+		pr_err("%s task=%pS\n", __func__, task);
 		blk_abort_request(scsi_cmd_to_rq(qc->scsicmd));
 		return;
 	}
+	
+	pr_err("%s2 task=%pS\n", __func__, task);
 
 	/* Internal command, fake a timeout and complete. */
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;

@@ -2384,6 +2384,35 @@ static void slot_complete_v2_hw(struct hisi_hba *hisi_hba,
 	default:
 		break;
 	}
+	
+	
+	if (task->task_proto & SAS_PROTOCOL_STP_ALL) {
+		static int count;
+
+		if (dw0 & CMPLT_HDR_RSPNS_XFRD_MSK) {
+			count++;
+			pr_err("%s count=%d\n", __func__, count);
+			if (count == 60) {
+				struct ata_queued_cmd *qc = task->uldd_task;
+
+				struct hisi_sas_status_buffer *status_buf = hisi_sas_status_buf_addr_mem(slot);
+				u8 *iu = &status_buf->iu[0];
+				struct dev_to_host_fis *d2h = (struct dev_to_host_fis *)iu;
+				dev_info(dev, "erroneous completion1 iptt=%d tag=%d hw_tag=%d qc scsicmnd=%pS qc=%pS\n", slot->idx, qc->tag, qc->hw_tag, qc->scsicmd, qc);
+				slot->abort = 1;
+	
+				ts->stat = SAS_OPEN_REJECT;
+				ts->open_rej_reason = SAS_OREJ_NO_DEST;
+				hisi_sas_sata_done(task, slot);
+				dev_info(dev, "erroneous completion2 iptt=%d d2h->status=0x%x d2h->error=0x%x\n",
+					 slot->idx, d2h->status, d2h->error);
+				goto out;
+//				ts->stat = SAS_QUEUE_FULL;
+//				sas_task_abort(task);
+//				return;
+			}
+		}
+	}
 
 	if ((dw0 & CMPLT_HDR_ERX_MSK) && (!(dw0 & CMPLT_HDR_RSPNS_XFRD_MSK))) {
 		u32 err_phase = (dw0 & CMPLT_HDR_ERR_PHASE_MSK)

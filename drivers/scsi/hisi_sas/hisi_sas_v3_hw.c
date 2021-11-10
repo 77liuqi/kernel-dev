@@ -2269,6 +2269,16 @@ static void slot_complete_v3_hw(struct hisi_hba *hisi_hba,
 				 dw0, dw1, complete_hdr->act, dw3,
 				 error_info[0], error_info[1],
 				 error_info[2], error_info[3]);
+
+		if ((dw0 & CMPLT_HDR_RSPNS_XFRD_MSK) && (task->task_proto & SAS_PROTOCOL_STP_ALL)) {
+			struct hisi_sas_status_buffer *status_buf = hisi_sas_status_buf_addr_mem(slot);
+			u8 *iu = &status_buf->iu[0];
+			struct dev_to_host_fis *d2h = (struct dev_to_host_fis *)iu;
+
+			dev_info(dev, "erroneous completion2 iptt=%d d2h->status=0x%x d2h->error=0x%x\n",
+				 slot->idx, d2h->status, d2h->error);
+		}
+
 		if (unlikely(slot->abort)) {
 			sas_task_abort(task);
 			return;

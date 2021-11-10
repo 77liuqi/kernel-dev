@@ -2357,7 +2357,7 @@ static void ata_eh_link_report(struct ata_link *link)
 			"cmd %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "
 			"tag %d%s\n         %s"
 			"res %02x/%02x:%02x:%02x:%02x:%02x/%02x:%02x:%02x:%02x:%02x/%02x "
-			"Emask 0x%x (%s)%s\n",
+			"Emask 0x%x (%s)%s scsicmd=%pS qc=%pS\n",
 			cmd->command, cmd->feature, cmd->nsect,
 			cmd->lbal, cmd->lbam, cmd->lbah,
 			cmd->hob_feature, cmd->hob_nsect,
@@ -2368,7 +2368,7 @@ static void ata_eh_link_report(struct ata_link *link)
 			res->hob_feature, res->hob_nsect,
 			res->hob_lbal, res->hob_lbam, res->hob_lbah,
 			res->device, qc->err_mask, ata_err_string(qc->err_mask),
-			qc->err_mask & AC_ERR_NCQ ? " <F>" : "");
+			qc->err_mask & AC_ERR_NCQ ? " <F>" : "", qc->scsicmd, qc);
 
 #ifdef CONFIG_ATA_VERBOSE_ERROR
 		if (res->command & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ |
