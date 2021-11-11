@@ -150,11 +150,13 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		if (res == 0) {
 			task->task_status.resp = SAS_TASK_COMPLETE;
 			task->task_status.stat = SAS_SAM_STAT_GOOD;
-			task->task_done(task);
 		} else {
 			// allow to timeout
-			BUG();
+			task->task_status.resp = SAS_TASK_COMPLETE;
+			task->task_status.stat = SAS_SAM_STAT_CHECK_CONDITION;
 		}
+		task->task_done(task);
+		return 0;
 	}
 
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
