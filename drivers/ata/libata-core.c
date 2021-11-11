@@ -2947,6 +2947,8 @@ int ata_bus_probe(struct ata_port *ap)
 
 	ata_for_each_dev(dev, &ap->link, ALL)
 		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
+ 
+ 	pr_err("%s ap=%pS \n", __func__, ap);
 
  retry:
 	ata_for_each_dev(dev, &ap->link, ALL) {
@@ -2991,6 +2993,8 @@ int ata_bus_probe(struct ata_port *ap)
 
 		if (!ata_dev_enabled(dev))
 			continue;
+		
+		pr_err("%s1 ap=%pS dev=%pS\n", __func__, ap, dev);
 
 		rc = ata_dev_read_id(dev, &dev->class, ATA_READID_POSTRESET,
 				     dev->id);
