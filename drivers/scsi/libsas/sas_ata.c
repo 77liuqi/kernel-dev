@@ -580,7 +580,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	struct sas_ata_internal_task *ata_internal_task;
 	int res;
 
-	pr_err("%s dev=%pS priv=%pS\n", __func__, dev, dev->private_data);
+	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data);
 
 	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 	if (!task) {
