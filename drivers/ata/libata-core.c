@@ -1756,6 +1756,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 					struct ata_taskfile *tf, u16 *id)
 {
+	pr_err("%s dev=%pS tf=%pS\n", __func__, dev, tf);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
@@ -1793,6 +1794,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	bool is_semb = class == ATA_DEV_SEMB;
 	int may_fallback = 1, tried_spinup = 0;
 	int rc;
+	pr_err("%s dev=%pS ap=%pS\n", __func__, dev, ap);
 
 	if (ata_msg_ctl(ap))
 		ata_dev_dbg(dev, "%s: ENTER\n", __func__);
@@ -3300,6 +3302,8 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	unsigned int err_mask = 0;
 	int rc;
 
+	pr_err("%s dev=%pS ap=%pS\n", __func__, dev, ap);
+
 	dev->flags &= ~ATA_DFLAG_PIO;
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
@@ -3395,6 +3399,8 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 	int rc = 0, used_dma = 0, found = 0;
+
+	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* step 1: calculate xfer_mask */
 	ata_for_each_dev(dev, link, ENABLED) {
@@ -3788,6 +3794,8 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	u64 n_sectors = dev->n_sectors;
 	u64 n_native_sectors = dev->n_native_sectors;
 	int rc;
+
+	pr_err("%s dev=%pS\n", __func__, dev);
 
 	if (!ata_dev_enabled(dev))
 		return -ENODEV;

@@ -852,6 +852,7 @@ EXPORT_SYMBOL_GPL(sas_target_alloc);
 int sas_slave_configure(struct scsi_device *scsi_dev)
 {
 	struct domain_device *dev = sdev_to_domain_dev(scsi_dev);
+	pr_err("%s sdev=%pS request_queue=%pS\n", __func__, scsi_dev, scsi_dev->request_queue);
 
 	BUG_ON(dev->rphy->identify.device_type != SAS_END_DEVICE);
 
