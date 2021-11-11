@@ -1656,6 +1656,9 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
 		ata_internal_cmd_timed_out(dev, command);
 
+
+	pr_err("%s10 exit dev=%pS scsicmd=%pS rc=%pS err_mask=%d\n", __func__, dev, scsicmd, qc, err_mask);
+
 	return err_mask;
 }
 
