@@ -614,12 +614,12 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	wait_for_completion(&task->slow_task->completion);
 
 	pr_err("%s3 got completion task=%pS\n", __func__, task);
-	res = -ECOMM;
+	res = 1;
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		pr_notice("sas ata task  timed out or aborted\n");
 		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
 			pr_notice("sas ata task aborted and not done\n");
-			return -1;
+			return 1;
 		}
 	}
 	if (task->task_status.resp == SAS_TASK_COMPLETE &&
@@ -627,31 +627,9 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		res = 0;
 		goto end;
 	}
-	if (task->task_status.resp == SAS_TASK_COMPLETE &&
-	    task->task_status.stat == SAS_DATA_UNDERRUN) {
-		/* no error, but return the number of bytes of
-		 * underrun */
-		res = task->task_status.residual;
-		goto end;
-	}
-	if (task->task_status.resp == SAS_TASK_COMPLETE &&
-		   task->task_status.stat == SAS_DATA_OVERRUN) {
-		res = -EMSGSIZE;
-		goto end;
-	}
-	if (task->task_status.resp == SAS_TASK_UNDELIVERED &&
-	    task->task_status.stat == SAS_DEVICE_UNKNOWN)
-		goto end;
-	else {
-		pr_notice("%s: response: 0x%x status 0x%x\n",
-			  __func__,
-			  task->task_status.resp,
-			  task->task_status.stat);
-			sas_free_task(task);
-		task = NULL;
-	}
 
 end:
+	sas_free_task(task);
 	pr_err("%s10 out res=%d\n", __func__, res);
 	return res;
 }
