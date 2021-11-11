@@ -132,8 +132,9 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_task *task = sas_rq_to_task(rq);
 	struct sas_ata_internal_task *ata_internal_task = &task->ata_internal_task;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
 
-	pr_err("%s task=%pS\n", __func__, task);
+	pr_err("%s task=%pS ata internal=%d\n", __func__, task, ata_internal);
 
 	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL) {
 		unsigned res;
@@ -145,12 +146,14 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 				ata_internal_task->sgl,
 				ata_internal_task->n_elem,
 				ata_internal_task->timeout);
+		pr_err("%s2 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
 		if (res == 0) {
 			task->task_status.resp = SAS_TASK_COMPLETE;
 			task->task_status.stat = SAS_SAM_STAT_GOOD;
 			task->task_done(task);
 		} else {
 			// allow to timeout
+			BUG();
 		}
 	}
 
