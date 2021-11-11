@@ -917,7 +917,8 @@ struct ata_port {
 extern unsigned ata_exec_internal_sg(struct ata_device *dev,
 				     struct ata_taskfile *tf, const u8 *cdb,
 				     int dma_dir, struct scatterlist *sg,
-				     unsigned int n_elem, unsigned long timeout);
+				     unsigned int n_elem, unsigned long timeout,
+				     struct scsi_cmnd *);
 
 struct ata_port_operations {
 	/*
