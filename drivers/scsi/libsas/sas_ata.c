@@ -170,7 +170,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 //	bool ata_internal = false;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
-	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s qc=%pS ap=%pS dev=%pS\n", __func__, qc, ap, dev);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -604,15 +604,15 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	ata_internal_task->timeout = timeout;
 	ata_internal_task->dev = dev;
 	add_timer(&task->slow_task->timer);
-	pr_err("%s task=%pS dev=%pS\n", __func__, task, dev);
+	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
 
 	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
-	pr_err("%s1 after blk_execute_rq_nowait task=%pS\n", __func__, task);
+	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
 
 	wait_for_completion(&task->slow_task->completion);
 
-	pr_err("%s2 got completion task=%pS\n", __func__, task);
+	pr_err("%s3 got completion task=%pS\n", __func__, task);
 	res = -ECOMM;
 	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 		pr_notice("sas ata task  timed out or aborted\n");
