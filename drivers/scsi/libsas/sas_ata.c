@@ -167,7 +167,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
-	bool ata_internal = false;
+//	bool ata_internal = false;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
 	pr_err("%s qc=%pS\n", __func__, qc);
@@ -187,10 +187,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {
-	
-		BUG();
+
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
-		ata_internal = true;
+	//	ata_internal = true;
 	}
 
 	if (!task)
@@ -238,10 +237,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	sas_set_unique_hw_tag(task);
 
-	if (ata_internal == false) {
+//	if (ata_internal == false) {
+//	if (1) {
 		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
-		BUG();
 		pr_debug("lldd_execute_task returned: %d\n", ret);
 
 		if (qc->scsicmd)
@@ -250,11 +249,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->lldd_task = NULL;
 		ret = AC_ERR_SYSTEM;
 	}
-	} else {
-		/* Broken!!! We should not insert a request with irq disabled (as they are) */
-		blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
-		ret = 0;
-	}
+//	} else {
+//		/* Broken!!! We should not insert a request with irq disabled (as they are) */
+//		blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+//		ret = 0;
+//	}
  out:
 	spin_lock(ap->lock);
 	return ret;
