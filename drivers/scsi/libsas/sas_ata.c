@@ -589,7 +589,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	ata_internal_task = &task->ata_internal_task;
 
-	task->dev = 123; //fixme
+	task->dev = ap->private_data;
 	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
 
 	task->task_done = sas_ata_internal_task_done;
@@ -603,7 +603,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	ata_internal_task->timeout = timeout;
 	ata_internal_task->dev = dev;
 	add_timer(&task->slow_task->timer);
-	pr_err("%s task=%pS\n", __func__, task);
+	pr_err("%s task=%pS dev=%pS\n", __func__, task, dev);
 
 	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
