@@ -141,8 +141,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 				ata_internal_task->dma_dir,
 				ata_internal_task->sgl,
 				ata_internal_task->n_elem,
-				ata_internal_task->timeout,
-				scmd);
+				ata_internal_task->timeout);
 	}
 
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
