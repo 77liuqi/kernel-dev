@@ -1496,8 +1496,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout,
-			      struct scsi_cmnd *scsicmd)
+			      unsigned int n_elem, unsigned long timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1513,7 +1512,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
-	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, scsicmd);
+	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, NULL);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1528,7 +1527,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = scsicmd;
+	qc->scsicmd = NULL;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
@@ -1568,7 +1567,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	qc->private_data = &wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	pr_err("%s2 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, scsicmd, qc);
+	pr_err("%s2 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
 
 	ata_qc_issue(qc);
 
@@ -1586,11 +1585,11 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
 
-	pr_err("%s3 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, scsicmd, qc);
+	pr_err("%s3 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	pr_err("%s4 got completion dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, scsicmd, qc);
+	pr_err("%s4 got completion dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
@@ -1657,7 +1656,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 
-	pr_err("%s10 exit dev=%pS scsicmd=%pS rc=%pS err_mask=%d\n", __func__, dev, scsicmd, qc, err_mask);
+	pr_err("%s10 exit dev=%pS scsicmd=%pS rc=%pS err_mask=%d\n", __func__, dev, NULL, qc, err_mask);
 
 	return err_mask;
 }
@@ -1706,7 +1705,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	pr_err("%s2 ap->ops->exec_internal=%pS\n", __func__, ap->ops->exec_internal);
 	BUG();
 	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
-				    timeout, NULL);
+				    timeout);
 }
 
 /**

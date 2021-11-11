@@ -607,7 +607,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 
-	pr_err("%s1 task=%pS\n", __func__, task);
+	pr_err("%s1 after blk_execute_rq_nowait task=%pS\n", __func__, task);
 
 	wait_for_completion(&task->slow_task->completion);
 
