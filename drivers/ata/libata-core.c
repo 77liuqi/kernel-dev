@@ -1512,7 +1512,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
-	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, NULL);
+	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, cmnd);
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1527,7 +1527,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = cmnd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
