@@ -658,6 +658,8 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 {
 	unsigned long flags;
 
+	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
+
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -3061,6 +3063,8 @@ int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	struct ata_device *dev;
 	int rc;
 
+	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
+
 	/* if data transfer is verified, clear DUBIOUS_XFER on ering top */
 	ata_for_each_dev(dev, link, ENABLED) {
 		if (!(dev->flags & ATA_DFLAG_DUBIOUS_XFER)) {
@@ -3553,6 +3557,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 	DPRINTK("ENTER\n");
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+
 	/* prep for recovery */
 	ata_for_each_link(link, ap, EDGE) {
 		struct ata_eh_context *ehc = &link->eh_context;
@@ -3833,6 +3839,8 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
 
+	pr_err("%s ap=%pS\n", __func__, ap);
+
 	rc = ata_eh_recover(ap, prereset, softreset, hardreset, postreset,
 			    NULL);
 	if (rc) {
@@ -3856,6 +3864,8 @@ void ata_std_error_handler(struct ata_port *ap)
 {
 	struct ata_port_operations *ops = ap->ops;
 	ata_reset_fn_t hardreset = ops->hardreset;
+
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* ignore built-in hardreset if SCR access is not available */
 	if (hardreset == sata_std_hardreset && !sata_scr_valid(&ap->link))
