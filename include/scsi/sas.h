@@ -96,6 +96,7 @@ enum sas_protocol {
 	SAS_PROTOCOL_ALL		= 0x0E,
 	SAS_PROTOCOL_STP_ALL		= SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA,
 	SAS_PROTOCOL_INTERNAL_ABORT = 0x10,
+	SAS_PROTOCOL_ATA_INTERNAL = 0x11,
 };
 
 /* From the spec; local phys only */

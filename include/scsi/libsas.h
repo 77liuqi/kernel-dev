@@ -589,6 +589,16 @@ struct sas_ssp_task {
 	u16 tag_of_task_to_be_managed;
 };
 
+struct sas_ata_internal_task {
+	struct ata_device *dev;
+	struct ata_taskfile *tf;
+	const u8 *cdb;
+	int dma_dir;
+	struct scatterlist *sgl;
+	unsigned int n_elem;
+	unsigned long timeout;
+};
+
 struct sas_task {
 	struct domain_device *dev;
 
@@ -602,6 +612,7 @@ struct sas_task {
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
 		struct sas_abort_task abort_task;
+		struct sas_ata_internal_task ata_internal_task;
 	};
 
 	struct scatterlist *scatter;
