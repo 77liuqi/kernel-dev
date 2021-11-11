@@ -134,14 +134,22 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 
 	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL) {
-		pr_err("%s task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS\n", __func__, task, scmd);
-		return ata_exec_internal_sg(ata_internal_task->dev,
+		unsigned res;
+		pr_err("%s task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS\n", __func__, task, scmd, task->task_done);
+		res = ata_exec_internal_sg(ata_internal_task->dev,
 				ata_internal_task->tf,
 				ata_internal_task->cdb,
 				ata_internal_task->dma_dir,
 				ata_internal_task->sgl,
 				ata_internal_task->n_elem,
 				ata_internal_task->timeout);
+		if (res == 0) {
+			task->task_status.resp = SAS_TASK_COMPLETE;
+			task->task_status.stat = SAS_SAM_STAT_GOOD;
+			task->task_done(task);
+		} else {
+			// allow to timeout
+		}
 	}
 
 	return i->dft->lldd_execute_task(task, GFP_KERNEL);
