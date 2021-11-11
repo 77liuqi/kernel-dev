@@ -2934,6 +2934,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	ata_for_each_dev(dev, link, ALL_REVERSE) {
 		unsigned int action = ata_eh_dev_action(dev);
 		unsigned int readid_flags = 0;
+		
+		pr_err("%s0 ap=%pS dev=%pS\n", __func__, ap, dev);
 
 		if (ehc->i.flags & ATA_EHI_DID_RESET)
 			readid_flags |= ATA_READID_POSTRESET;
