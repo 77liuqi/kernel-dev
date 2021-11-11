@@ -549,6 +549,7 @@ static void sas_ata_internal_task_timedout(struct timer_list *t)
 	struct sas_task *task = slow->task;
 	unsigned long flags;
 
+	BUG();
 	pr_err("%s task=%pS\n", __func__, task);
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
