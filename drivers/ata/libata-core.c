@@ -1527,7 +1527,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = cmnd;
+	qc->scsicmd = NULL;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);

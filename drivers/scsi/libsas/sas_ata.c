@@ -167,6 +167,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
+
+	void   (*task_done)(struct sas_task *);
 //	bool ata_internal = false;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
@@ -185,10 +187,15 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	pr_err("%s1 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
-		task = sas_alloc_task(GFP_ATOMIC, scmd);
+		struct request *rq = blk_mq_rq_from_pdu(scmd);
+		struct sas_task *taskb = sas_rq_to_task(rq);
+		task_done = taskb->task_done;
+		pr_err("%s1.1 qc=%pS scmd=%pS task_done=%pS\n", __func__, qc, scmd, task_done);
+		
+		task = sas_alloc_task(GFP_ATOMIC, scmd); //manipulates sas_task from scmd
 	} else {
-
-		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
+		BUG();
+		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC); //alloc request
 	//	ata_internal = true;
 	}
 
@@ -239,7 +246,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 //	if (ata_internal == false) {
 //	if (1) {
-		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
+	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
 

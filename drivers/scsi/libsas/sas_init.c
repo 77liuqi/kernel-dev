@@ -146,7 +146,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 				ata_internal_task->sgl,
 				ata_internal_task->n_elem,
 				ata_internal_task->timeout,
-				NULL);
+				scmd);
 		pr_err("%s2 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
 		if (res == 0) {
 			task->task_status.resp = SAS_TASK_COMPLETE;
