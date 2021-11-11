@@ -1171,6 +1171,7 @@ EXPORT_SYMBOL_GPL(ata_sas_port_stop);
  */
 void ata_sas_async_probe(struct ata_port *ap)
 {
+	pr_err("%s1 ap=%pS\n", __func__, ap);
 	__ata_port_probe(ap);
 }
 EXPORT_SYMBOL_GPL(ata_sas_async_probe);

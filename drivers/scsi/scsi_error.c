@@ -2194,6 +2194,7 @@ static void scsi_unjam_host(struct Scsi_Host *shost)
 int scsi_error_handler(void *data)
 {
 	struct Scsi_Host *shost = data;
+	pr_err("%s shost=%pS\n", __func__, shost);
 
 	/*
 	 * We use TASK_INTERRUPTIBLE so that the thread is not
