@@ -182,11 +182,13 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	scmd = qc->scsicmd;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
-	pr_err("%s qc=%pS scmd=%pS\n", __func__, qc, scmd);
+	pr_err("%s1 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
 	} else {
+	
+		BUG();
 		task = sas_alloc_slow_task(sas_ha, GFP_ATOMIC);
 		ata_internal = true;
 	}
@@ -239,6 +241,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (ata_internal == false) {
 		ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
+		BUG();
 		pr_debug("lldd_execute_task returned: %d\n", ret);
 
 		if (qc->scsicmd)

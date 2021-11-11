@@ -1494,7 +1494,8 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout)
+			      unsigned int n_elem, unsigned long timeout,
+			      struct scsi_cmnd *scsicmd)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1525,7 +1526,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	qc->tag = ATA_TAG_INTERNAL;
 	qc->hw_tag = 0;
-	qc->scsicmd = NULL;
+	qc->scsicmd = scsicmd;
 	qc->ap = ap;
 	qc->dev = dev;
 	ata_qc_reinit(qc);
@@ -1691,7 +1692,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		return ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
 
 	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
-				    timeout);
+				    timeout, NULL);
 }
 
 /**
