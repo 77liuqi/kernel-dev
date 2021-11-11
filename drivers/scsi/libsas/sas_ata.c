@@ -860,6 +860,7 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
+	pr_err("%s dev=%pS\n", __func__, dev);
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 

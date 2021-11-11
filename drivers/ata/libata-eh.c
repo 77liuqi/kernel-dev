@@ -2916,6 +2916,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	int rc = 0;
 
 	DPRINTK("ENTER\n");
+	
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* For PATA drive side cable detection to work, IDENTIFY must
 	 * be done backwards such that PDIAG- is released by the slave
@@ -2964,9 +2966,11 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 
 			if (dev->class == ATA_DEV_PMP)
 				rc = sata_pmp_attach(dev);
-			else
+			else {
+				pr_err("%s1 ap=%pS dev=%pS\n", __func__, ap, dev);
 				rc = ata_dev_read_id(dev, &dev->class,
 						     readid_flags, dev->id);
+			}
 
 			/* read_id might have changed class, store and reset */
 			ehc->classes[dev->devno] = dev->class;
