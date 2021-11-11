@@ -3785,6 +3785,7 @@ int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 	unsigned int class = dev->class;
 	u16 *id = (void *)dev->link->ap->sector_buf;
 	int rc;
+	pr_err("%s ata_device=%pS\n", __func__, dev);
 
 	/* read ID data */
 	rc = ata_dev_read_id(dev, &class, readid_flags, id);
