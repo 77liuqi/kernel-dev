@@ -1690,7 +1690,10 @@ unsigned ata_exec_internal(struct ata_device *dev,
 
 	if (ap && ap->ops->exec_internal)
 		return ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
-
+	pr_err("%s ap=%pS\n", __func__, ap);
+	pr_err("%s1 ap->ops=%pS\n", __func__, ap->ops);
+	pr_err("%s2 ap->ops->exec_internal=%pS\n", __func__, ap->ops->exec_internal);
+	BUG();
 	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
 				    timeout, NULL);
 }
