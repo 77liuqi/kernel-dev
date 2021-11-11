@@ -590,7 +590,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	ata_internal_task = &task->ata_internal_task;
 
-	task->dev = NULL;//ap->private_data;
+	task->dev = ap->private_data;
 	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
 
 	task->task_done = sas_ata_internal_task_done;
