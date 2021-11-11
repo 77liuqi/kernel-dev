@@ -169,6 +169,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct scsi_cmnd *scmd;
 	bool ata_internal = false;
 
+//	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
+	pr_err("%s qc=%pS\n", __func__, qc);
+
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
 
@@ -177,6 +180,9 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		goto out;
 
 	scmd = qc->scsicmd;
+
+//	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
+	pr_err("%s qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
 		task = sas_alloc_task(GFP_ATOMIC, scmd);
@@ -535,6 +541,78 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 	return res;
 }
 
+static void sas_ata_internal_task_timedout(struct timer_list *t)
+{
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
+	unsigned long flags;
+
+	pr_err("%s task=%pS\n", __func__, task);
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		complete(&task->slow_task->completion);
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+}
+
+static void sas_ata_internal_task_done(struct sas_task *task)
+{
+	pr_err("%s task=%pS\n", __func__, task);
+	del_timer(&task->slow_task->timer);
+	complete(&task->slow_task->completion);
+}
+#define SMP_TIMEOUT 10
+
+static unsigned sas_ata_exec_internal(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout)
+{
+	struct sas_task *task;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct Scsi_Host *shost = ap->scsi_host;
+	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+	struct sas_ata_internal_task *ata_internal_task;
+	int res;
+
+	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
+	if (!task) {
+		res = -ENOMEM;
+		return -1;
+	}
+
+	ata_internal_task = &task->ata_internal_task;
+
+	task->dev = NULL; //fixme
+	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
+
+	task->task_done = sas_ata_internal_task_done;
+	task->slow_task->timer.function = sas_ata_internal_task_timedout;
+	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
+	ata_internal_task->tf = tf;
+	ata_internal_task->cdb = cdb;
+	ata_internal_task->dma_dir = dma_dir;
+	ata_internal_task->sgl = sgl;
+	ata_internal_task->n_elem = n_elem;
+	ata_internal_task->timeout = timeout;
+	ata_internal_task->dev = dev;
+	add_timer(&task->slow_task->timer);
+	pr_err("%s task=%pS\n", __func__, task);
+
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+
+	pr_err("%s1 task=%pS\n", __func__, task);
+
+	wait_for_completion(&task->slow_task->completion);
+
+	pr_err("%s2 got completion task=%pS\n", __func__, task);
+
+	return 0;
+}
+
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= sas_ata_prereset,
 	.hardreset		= sas_ata_hard_reset,
@@ -549,6 +627,7 @@ static struct ata_port_operations sas_sata_ops = {
 	.set_dmamode		= sas_ata_set_dmamode,
 	.sched_eh		= sas_ata_sched_eh,
 	.end_eh			= sas_ata_end_eh,
+	.exec_internal = sas_ata_exec_internal,
 };
 
 static struct ata_port_info sata_port_info = {

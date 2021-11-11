@@ -129,8 +129,20 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
+	struct sas_task *task = sas_rq_to_task(rq);
+	struct sas_ata_internal_task *ata_internal_task = &task->ata_internal_task;
 
-	return i->dft->lldd_execute_task(sas_rq_to_task(rq), GFP_KERNEL);
+	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL) {
+		return ata_exec_internal_sg(ata_internal_task->dev,
+				ata_internal_task->tf,
+				ata_internal_task->cdb,
+				ata_internal_task->dma_dir,
+				ata_internal_task->sgl,
+				ata_internal_task->n_elem,
+				ata_internal_task->timeout);
+	}
+
+	return i->dft->lldd_execute_task(task, GFP_KERNEL);
 }
 
 int sas_register_ha(struct sas_ha_struct *sas_ha)

@@ -1510,6 +1510,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	unsigned int err_mask;
 	int rc;
 
+	pr_err("%s dev=%pS\n", __func__, dev);
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
@@ -1674,6 +1676,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 {
 	struct scatterlist *psg = NULL, sg;
 	unsigned int n_elem = 0;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
@@ -1681,6 +1686,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		psg = &sg;
 		n_elem++;
 	}
+
+	if (ap && ap->ops->exec_internal)
+		return ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
 
 	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
 				    timeout);
@@ -4897,6 +4905,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+	pr_err("%s qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
@@ -4944,8 +4953,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sys_err:
+	pr_err("%s8 sys_err qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s9 err qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 	ata_qc_complete(qc);
 }
 

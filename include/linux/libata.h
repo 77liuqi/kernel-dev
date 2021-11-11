@@ -915,6 +915,11 @@ struct ata_port {
  */
 #define ATA_OP_NULL		(void *)(unsigned long)(-ENOENT)
 
+extern unsigned ata_exec_internal_sg(struct ata_device *dev,
+				     struct ata_taskfile *tf, const u8 *cdb,
+				     int dma_dir, struct scatterlist *sg,
+				     unsigned int n_elem, unsigned long timeout);
+
 struct ata_port_operations {
 	/*
 	 * Command execution
@@ -1007,6 +1012,10 @@ struct ata_port_operations {
 				     enum sw_activity val);
 	ssize_t (*transmit_led_message)(struct ata_port *ap, u32 state,
 					ssize_t size);
+	unsigned (*exec_internal)(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout);
 
 	/*
 	 * Obsolete
