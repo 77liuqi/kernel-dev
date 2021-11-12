@@ -1275,6 +1275,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 	u64 sectors = ata_id_n_sectors(dev->id);
 	u64 native_sectors;
 	int rc;
+	pr_err("%s dev=%pS sectors=%lld\n", __func__, dev, sectors);
 
 	/* do we need to do it? */
 	if ((dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ZAC) ||
@@ -1302,6 +1303,8 @@ static int ata_hpa_resize(struct ata_device *dev)
 	}
 	dev->n_native_sectors = native_sectors;
 
+	pr_err("%s2 dev=%pS native_sectors=%lld unlock_hpa=%d sectors=%lld\n", __func__, dev, native_sectors, unlock_hpa, sectors);
+
 	/* nothing to do? */
 	if (native_sectors <= sectors || !unlock_hpa) {
 		if (!print_info || native_sectors == sectors)
@@ -1312,13 +1315,17 @@ static int ata_hpa_resize(struct ata_device *dev)
 				"HPA detected: current %llu, native %llu\n",
 				(unsigned long long)sectors,
 				(unsigned long long)native_sectors);
-		else if (native_sectors < sectors)
+		else if (native_sectors < sectors) {
 			ata_dev_warn(dev,
 				"native sectors (%llu) is smaller than sectors (%llu)\n",
 				(unsigned long long)native_sectors,
 				(unsigned long long)sectors);
+			BUG();
+		}
 		return 0;
 	}
+
+	pr_err("%s3 dev=%pS\n", __func__, dev);
 
 	/* let's unlock HPA */
 	rc = ata_set_max_sectors(dev, native_sectors);
@@ -1654,6 +1661,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      unsigned int n_elem, unsigned long timeout)
 {
 	unsigned res;
+	static int count;
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
@@ -1662,6 +1670,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 	if (cdb)
 		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+
+	count++;
+
+	BUG_ON(count == 3);
 
 	return res;
 }
@@ -1774,6 +1786,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 unsigned int ata_do_dev_read_id(struct ata_device *dev,
 					struct ata_taskfile *tf, u16 *id)
 {
+	pr_err("%s ata_device=%pS tf=%pS\n", __func__, dev, tf);
 	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
 				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 }
