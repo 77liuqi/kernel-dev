@@ -1599,7 +1599,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 
 	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
-	//pr_err("%s4 got completion dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
+	pr_err("%s4 got completion dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
 
 	if (ap->ops->error_handler)
 		ata_eh_acquire(ap);
