@@ -130,7 +130,6 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct sas_task *task = sas_rq_to_task(rq);
-	struct sas_ata_internal_task *ata_internal_task = &task->ata_internal_task;
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	//bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
 	
@@ -143,9 +142,10 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		int sg_cnt;
 		struct scatterlist sg_list;
 		struct request_queue *q = rq->q;
-
+		struct sas_internal_commds *internal;
+		struct sas_libata_internal *libata_internal;
 		
-		pr_err("%s1 task=%pS  scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d\n", __func__, task, scmd, task->task_done, scmd, rq->nr_phys_segments);
+		pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d\n", __func__,  scmd, task->task_done, scmd, rq->nr_phys_segments);
 
 		sg_init_table(&sg_list, rq->nr_phys_segments);
 
@@ -153,15 +153,26 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		payload_len = blk_rq_bytes(rq);
 
 		
-		pr_err("%s2 task=%pS  scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, task, scmd, task->task_done, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
+		pr_err("%s2   scmd=%pS nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
 
-		res = ata_exec_internal_sg(ata_internal_task->dev,
-				ata_internal_task->tf,
-				ata_internal_task->cdb,
-				ata_internal_task->dma_dir,
-				ata_internal_task->sgl,
-				ata_internal_task->n_elem,
-				ata_internal_task->timeout,
+		internal = sg_virt(&sg_list);
+
+		pr_err("%s3 scmd=%pS internal=%pS\n", __func__, scmd,  internal);
+
+		pr_err("%s4  scmd=%pS  type=%d\n",
+			__func__, scmd, internal->type);
+
+		libata_internal = &internal->libata_internal;
+
+		pr_err("%s5  scmd=%pS internal=%pS libata_internal=%pS tf=%pS\n", __func__, scmd, internal, libata_internal, libata_internal->tf);
+
+		res = ata_exec_internal_sg(libata_internal->dev,
+				libata_internal->tf,
+				libata_internal->cdb,
+				libata_internal->dma_dir,
+				libata_internal->sgl,
+				libata_internal->n_elem,
+				libata_internal->timeout,
 				scmd);
 		pr_err("%s2 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
 		if (res == 0) {
