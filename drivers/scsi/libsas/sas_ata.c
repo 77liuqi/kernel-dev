@@ -127,6 +127,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	/* check if we lost the race with libata/sas_ata_post_internal() */
 	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN)) {
 		spin_unlock_irqrestore(ap->lock, flags);
+		pr_err("%s1 qc=%pS\n", __func__, qc);
 		if (qc->scsicmd)
 			goto qc_already_gone;
 		else {
@@ -143,15 +144,19 @@ static void sas_ata_task_done(struct sas_task *task)
 	    (stat->stat == SAS_SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.class == ATA_DEV_ATAPI)) {
 		memcpy(dev->sata_dev.fis, resp->ending_fis, ATA_RESP_FIS_SIZE);
-
+		pr_err("%s2 qc=%pS stat->stat=%d\n", __func__, qc, stat->stat);
 		if (!link->sactive) {
+
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
+			pr_err("%s3 qc=%pS err_mask=%d\n", __func__, qc, qc->err_mask);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask))
 				qc->flags |= ATA_QCFLAG_FAILED;
+			pr_err("%s4 qc=%pS flags=%ld\n", __func__, qc, qc->flags);
 		}
 	} else {
+		pr_err("%s5 qc=%pS\n", __func__, qc);
 		ac = sas_to_ata_err(stat);
 		if (ac) {
 			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
@@ -173,7 +178,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 end:
-	pr_err("%s9 end qc=%pS\n", __func__, qc);
+	pr_err("%s9 end qc=%pS err_mask=%d flags=%ld\n", __func__, qc, qc->err_mask, qc->flags);
 
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
