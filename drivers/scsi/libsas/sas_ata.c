@@ -576,7 +576,7 @@ static __maybe_unused void sas_ata_internal_task_done(struct sas_task *task)
 #define SMP_TIMEOUT 10
 
 
-
+struct request *special_req;
 
 static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
@@ -591,14 +591,17 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	struct sas_ata_internal_task *ata_internal_task;
 	struct request *rq;
 //	int res;
-	struct libata_internal internal = {
-		dev,
-		tf,
-		cdb,
-		dma_dir,
-		sgl,
-		n_elem,
-		timeout
+	struct sas_internal_commds internal = {
+		.type = SAS_INTERNAL_LIBATA,
+		.libata_internal = {
+			dev,
+			tf,
+			cdb,
+			dma_dir,
+			sgl,
+			n_elem,
+			timeout
+		},
 	};
 	int res;
 
@@ -616,7 +619,13 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		BUG();
 		return -1;
 	}
-	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct libata_internal), GFP_KERNEL);
+	if (!special_req)
+		special_req = rq;
+#define SD_TIMEOUT		(30 * HZ)
+
+	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
+		RQF_PM, NULL);
+//	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
 	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res);
 	if (res)
 		return res;
