@@ -1312,11 +1312,13 @@ static int ata_hpa_resize(struct ata_device *dev)
 				"HPA detected: current %llu, native %llu\n",
 				(unsigned long long)sectors,
 				(unsigned long long)native_sectors);
-		else if (native_sectors < sectors)
+		else if (native_sectors < sectors) {
 			ata_dev_warn(dev,
 				"native sectors (%llu) is smaller than sectors (%llu)\n",
 				(unsigned long long)native_sectors,
 				(unsigned long long)sectors);
+			BUG();
+		}
 		return 0;
 	}
 
