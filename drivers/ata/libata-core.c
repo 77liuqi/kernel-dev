@@ -1858,6 +1858,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	bool is_semb = class == ATA_DEV_SEMB;
 	int may_fallback = 1, tried_spinup = 0;
 	int rc;
+	pr_err("%s ata_device=%pS ap=%pS\n", __func__, dev, ap);
 
 	if (ata_msg_ctl(ap))
 		ata_dev_dbg(dev, "%s: ENTER\n", __func__);
@@ -2117,6 +2118,7 @@ static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err, i;
 
+	pr_err("%s ata_device=%pS\n", __func__, dev);
 	if (!ata_log_supported(dev, ATA_LOG_IDENTIFY_DEVICE)) {
 		ata_dev_warn(dev, "ATA Identify Device Log not supported\n");
 		return false;
@@ -2615,6 +2617,7 @@ int ata_dev_configure(struct ata_device *dev)
 	char modelbuf[ATA_ID_PROD_LEN+1];
 	int rc;
 
+	pr_err("%s ata_device=%pS\n", __func__, dev);
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
 		ata_dev_info(dev, "%s: ENTER/EXIT -- nodev\n", __func__);
 		return 0;
@@ -2974,6 +2977,7 @@ int ata_bus_probe(struct ata_port *ap)
 
 	ata_for_each_dev(dev, &ap->link, ALL)
 		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
+ 	pr_err("%s ap=%pS \n", __func__, ap);
 
  retry:
 	ata_for_each_dev(dev, &ap->link, ALL) {
@@ -3018,6 +3022,7 @@ int ata_bus_probe(struct ata_port *ap)
 
 		if (!ata_dev_enabled(dev))
 			continue;
+		pr_err("%s1 ap=%pS dev=%pS\n", __func__, ap, dev);
 
 		rc = ata_dev_read_id(dev, &dev->class, ATA_READID_POSTRESET,
 				     dev->id);
@@ -3365,6 +3370,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	unsigned int err_mask = 0;
 	int rc;
 
+	pr_err("%s ata_device=%pS ap=%pS\n", __func__, dev, ap);
 	dev->flags &= ~ATA_DFLAG_PIO;
 	if (dev->xfer_shift == ATA_SHIFT_PIO)
 		dev->flags |= ATA_DFLAG_PIO;
@@ -3818,6 +3824,7 @@ int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 	unsigned int class = dev->class;
 	u16 *id = (void *)dev->link->ap->sector_buf;
 	int rc;
+	pr_err("%s ata_device=%pS\n", __func__, dev);
 
 	/* read ID data */
 	rc = ata_dev_read_id(dev, &class, readid_flags, id);
@@ -3853,6 +3860,7 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	u64 n_sectors = dev->n_sectors;
 	u64 n_native_sectors = dev->n_native_sectors;
 	int rc;
+	pr_err("%s ata_device=%pS\n", __func__, dev);
 
 	if (!ata_dev_enabled(dev))
 		return -ENODEV;
@@ -4940,6 +4948,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * request ATAPI sense.
 	 */
 	WARN_ON_ONCE(ap->ops->error_handler && ata_tag_valid(link->active_tag));
+	pr_err("%s qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 
 	if (ata_is_ncq(prot)) {
 		WARN_ON_ONCE(link->sactive & (1 << qc->hw_tag));
@@ -4987,8 +4996,10 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sys_err:
+	pr_err("%s8 sys_err qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
+	pr_err("%s9 err qc=%pS ap=%pS link=%pS\n", __func__, qc, ap, link);
 	ata_qc_complete(qc);
 }
 

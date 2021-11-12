@@ -84,6 +84,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_link *link;
 	struct ata_port *ap;
 
+	pr_err("%s qc=%pS\n", __func__, qc);
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
@@ -105,6 +106,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	/* check if we lost the race with libata/sas_ata_post_internal() */
 	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN)) {
 		spin_unlock_irqrestore(ap->lock, flags);
+		pr_err("%s1 qc=%pS\n", __func__, qc);
 		if (qc->scsicmd)
 			goto qc_already_gone;
 		else {
@@ -121,15 +123,19 @@ static void sas_ata_task_done(struct sas_task *task)
 	    (stat->stat == SAS_SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.class == ATA_DEV_ATAPI)) {
 		memcpy(dev->sata_dev.fis, resp->ending_fis, ATA_RESP_FIS_SIZE);
-
+		pr_err("%s2 qc=%pS stat->stat=%d\n", __func__, qc, stat->stat);
 		if (!link->sactive) {
+		
 			qc->err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
+			pr_err("%s3 qc=%pS err_mask=%d\n", __func__, qc, qc->err_mask);
 		} else {
 			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.fis[2]);
 			if (unlikely(link->eh_info.err_mask))
 				qc->flags |= ATA_QCFLAG_FAILED;
+			pr_err("%s4 qc=%pS flags=%ld\n", __func__, qc, qc->flags);
 		}
 	} else {
+		pr_err("%s5 qc=%pS\n", __func__, qc);
 		ac = sas_to_ata_err(stat);
 		if (ac) {
 			pr_warn("%s: SAS error 0x%x\n", __func__, stat->stat);
@@ -146,11 +152,15 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
+	pr_err("%s9 end qc=%pS err_mask=%d flags=%ld\n", __func__, qc, qc->err_mask, qc->flags);
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
+	
+	pr_err("%s9 qc_already_gone qc=%pS\n", __func__, qc);
+
 	sas_free_task(task);
 }
 
@@ -169,6 +179,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	/* If the device fell off, no sense in issuing commands */
 	if (test_bit(SAS_DEV_GONE, &dev->state))
@@ -180,6 +191,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	task->dev = dev;
 	task->task_proto = SAS_PROTOCOL_STP;
 	task->task_done = sas_ata_task_done;
+	pr_err("%s1 qc=%pS command=%d\n", __func__, qc, qc->tf.command);
 
 	if (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
 	    qc->tf.command == ATA_CMD_FPDMA_READ ||
@@ -193,27 +205,34 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	ata_tf_to_fis(&qc->tf, qc->dev->link->pmp, 1, (u8 *)&task->ata_task.fis);
 	task->uldd_task = qc;
 	if (ata_is_atapi(qc->tf.protocol)) {
+		pr_err("%s2 qc=%pS\n", __func__, qc);
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes;
 		task->num_scatter = qc->n_elem;
 		task->data_dir = qc->dma_dir;
 	} else if (qc->tf.protocol == ATA_PROT_NODATA) {
+		pr_err("%s3 qc=%pS\n", __func__, qc);
 		task->data_dir = DMA_NONE;
 	} else {
-		for_each_sg(qc->sg, sg, qc->n_elem, si)
+		for_each_sg(qc->sg, sg, qc->n_elem, si) {
+			pr_err("%s4 qc=%pS xfer=%d\n", __func__, qc, xfer);
 			xfer += sg_dma_len(sg);
+		}
 
 		task->total_xfer_len = xfer;
 		task->num_scatter = si;
 		task->data_dir = qc->dma_dir;
 	}
 	task->scatter = qc->sg;
+	pr_err("%s5 qc=%pS scatter=%pS\n", __func__, qc, task->scatter);
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
 	qc->lldd_task = task;
 
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
+	pr_err("%s56 qc=%pS use_ncq=%d\n", __func__, qc, task->ata_task.use_ncq);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
+	pr_err("%s7 qc=%pS use_ncq=%d\n", __func__, qc, task->ata_task.dma_xfer);
 
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
@@ -228,9 +247,11 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		qc->lldd_task = NULL;
 		ret = AC_ERR_SYSTEM;
 	}
+	pr_err("%s8 qc=%pS ret=%d\n", __func__, qc, ret);
 
  out:
 	spin_lock(ap->lock);
+	pr_err("%s10 out qc=%pS ret=%d\n", __func__, qc, ret);
 	return ret;
 }
 
