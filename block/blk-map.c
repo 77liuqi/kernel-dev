@@ -623,6 +623,8 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *    buffers.
  */
  extern struct request *special_req;
+void *special_kbuf;
+
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
 {
@@ -632,6 +634,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	int ret;
 
 	if (special_req == rq) {
+		special_kbuf = kbuf;
 		pr_err("%s rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
 		print_hex_dump(KERN_ERR, "blk_rq_map_kern1 ", DUMP_PREFIX_NONE, 16, 1,
 			   kbuf, len, true);
@@ -649,7 +652,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf) ||  blk_queue_may_bounce(q)) {
 
 		if (special_req == rq)
-			pr_err("%s3 rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
+			pr_err("%s3 rq=%pS kbuf=%pS len=%d reading=%d\n", __func__, rq, kbuf, len, reading);
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
 	} else {
 
