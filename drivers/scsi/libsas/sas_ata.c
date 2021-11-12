@@ -206,7 +206,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 //	bool ata_internal = false;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
-	pr_err("%s qc=%pS ap=%pS dev=%pS\n", __func__, qc, ap, dev);
+	//pr_err("%s qc=%pS ap=%pS dev=%pS\n", __func__, qc, ap, dev);
 
 	/* TODO: we should try to remove that unlock */
 	spin_unlock(ap->lock);
@@ -218,7 +218,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	scmd = qc->scsicmd;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
-	pr_err("%s1 qc=%pS scmd=%pS\n", __func__, qc, scmd);
+//	pr_err("%s1 qc=%pS scmd=%pS\n", __func__, qc, scmd);
 
 	if (scmd) {
 		struct request *rq = blk_mq_rq_from_pdu(scmd);
@@ -655,8 +655,8 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		BUG();
 		return -1;
 	}
-	if (!special_req)
-		special_req = rq;
+//	if (!special_req)
+//		special_req = rq;
 #define SD_TIMEOUT		(30 * HZ)
 
 //	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
@@ -666,8 +666,10 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
 //	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 //		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
-	if (res)
+	if (res) {
+		BUG();
 		return res;
+	}
 
 	if (rq->bio) {
 	//	void * virt = bio_data(rq->bio);
