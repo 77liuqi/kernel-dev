@@ -623,9 +623,9 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		special_req = rq;
 #define SD_TIMEOUT		(30 * HZ)
 
-	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
-		RQF_PM, NULL);
-//	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
+//	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
+//		RQF_PM, NULL);
+	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
 	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res);
 	if (res)
 		return res;
