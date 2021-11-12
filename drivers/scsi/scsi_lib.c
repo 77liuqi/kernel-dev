@@ -55,7 +55,7 @@
 
 static struct kmem_cache *scsi_sense_cache;
 static DEFINE_MUTEX(scsi_sense_cache_mutex);
-
+extern struct request *special_req;
 static void scsi_mq_uninit_cmd(struct scsi_cmnd *cmd);
 
 int scsi_init_sense_cache(struct Scsi_Host *shost)
