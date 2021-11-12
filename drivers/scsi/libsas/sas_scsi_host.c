@@ -916,6 +916,7 @@ static void sas_execute_internal_abort_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
+	BUG();
 
 	unsigned long flags;
 	bool is_completed = true;
@@ -998,6 +999,7 @@ static void sas_execute_tmf_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
+	BUG();
 
 	unsigned long flags;
 	bool is_completed = true;
