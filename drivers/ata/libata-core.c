@@ -1491,7 +1491,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-unsigned ata_exec_internal_sg(struct ata_device *dev,
+unsigned __ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout)
@@ -1646,6 +1646,24 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		ata_internal_cmd_timed_out(dev, command);
 
 	return err_mask;
+}
+
+unsigned ata_exec_internal_sg(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout)
+{
+	unsigned res;
+
+	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
+	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
+
+	if (tf)
+		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+	if (cdb)
+		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+
+	return res;
 }
 
 /**
