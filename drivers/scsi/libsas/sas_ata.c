@@ -202,7 +202,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scsi_cmnd *scmd;
 
-	void   (*task_done)(struct sas_task *);
+//	void   (*task_done)(struct sas_task *);
 //	bool ata_internal = false;
 
 //	if (task->task_proto == SAS_PROTOCOL_ATA_INTERNAL)
@@ -223,8 +223,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (scmd) {
 		struct request *rq = blk_mq_rq_from_pdu(scmd);
 		struct sas_task *taskb = sas_rq_to_task(rq);
-		task_done = taskb->task_done;
-		pr_err("%s1.1 qc=%pS scmd=%pS task_done=%pS\n", __func__, qc, scmd, task_done);
+	
+		pr_err("%s1.1 qc=%pS scmd=%pS taskb=%pS\n", __func__, qc, scmd, taskb);
 		
 		task = sas_alloc_task(GFP_ATOMIC, scmd); //manipulates sas_task from scmd
 	} else {
