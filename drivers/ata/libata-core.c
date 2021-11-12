@@ -1697,6 +1697,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	unsigned int n_elem = 0;
 	static int count;
 	unsigned res;
+	tf->hob_lbah = 0x45;
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
