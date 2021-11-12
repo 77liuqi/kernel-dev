@@ -85,11 +85,11 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct ata_port *ap;
 	struct scsi_cmnd *scsicmd = qc->scsicmd; 
 	struct request *rq = blk_mq_rq_from_pdu(scsicmd);
+	struct bio *bio = NULL;
 
 	if (rq->cmd_flags & REQ_RESV) {
 		pr_err("%s task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
-
-			
+		bio = rq->bio;
 	}
 
 	spin_lock_irqsave(&dev->done_lock, flags);
@@ -100,26 +100,29 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
-	if (unlikely(!task))
+	if (unlikely(!task)) {
+		BUG();
 		return;
+	}
 
 	if (rq->cmd_flags & REQ_RESV) {
 		pr_err("%s2 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
-
-			
 	}
 
-	if (!qc)
+	if (!qc) {
+		BUG();
 		goto qc_already_gone;
+	}
 
 	if (rq->cmd_flags & REQ_RESV) {
 		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS qc=%pS err_mask=%d\n", __func__, task, rq, scsicmd, rq->bio, qc, qc->err_mask);
-
-			
 	}
 
 	ap = qc->ap;
 	link = &ap->link;
+
+	if (bio)
+		goto end;
 
 	spin_lock_irqsave(ap->lock, flags);
 	/* check if we lost the race with libata/sas_ata_post_internal() */
@@ -170,6 +173,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		pr_err("%s4 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 	}
 
+end:
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
