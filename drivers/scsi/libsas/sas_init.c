@@ -177,10 +177,10 @@ dma_addr_t	dma_address;
 		libata_internal2 = &internal2->libata_internal;
 
 
-		print_hex_dump(KERN_ERR, "snake1 ", DUMP_PREFIX_NONE, 16, 1,
-				   internal, 64, true);
-		print_hex_dump(KERN_ERR, "snake2 ", DUMP_PREFIX_NONE, 16, 1,
-				   internal2, 64, true);
+	//	print_hex_dump(KERN_ERR, "snake1 ", DUMP_PREFIX_NONE, 16, 1,
+	//			   internal, 64, true);
+	//	print_hex_dump(KERN_ERR, "snake2 ", DUMP_PREFIX_NONE, 16, 1,
+	//			   internal2, 64, true);
 
 		pr_err("%s5  scmd=%pS internal=%pS libata_internal=%pS tf=%pS\n", __func__, scmd, internal, libata_internal, libata_internal->tf);
 

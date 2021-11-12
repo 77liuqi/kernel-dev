@@ -103,8 +103,20 @@ static void sas_ata_task_done(struct sas_task *task)
 	if (unlikely(!task))
 		return;
 
+	if (rq->cmd_flags & REQ_RESV) {
+		pr_err("%s2 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+
+			
+	}
+
 	if (!qc)
 		goto qc_already_gone;
+
+	if (rq->cmd_flags & REQ_RESV) {
+		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+
+			
+	}
 
 	ap = qc->ap;
 	link = &ap->link;
@@ -154,11 +166,21 @@ static void sas_ata_task_done(struct sas_task *task)
 		}
 	}
 
+	if (rq->cmd_flags & REQ_RESV) {
+		pr_err("%s4 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+	}
+
 	qc->lldd_task = NULL;
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
 qc_already_gone:
+	
+	if (rq->cmd_flags & REQ_RESV) {
+		pr_err("%s5 qc_already_gone task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+
+			
+	}
 	sas_free_task(task);
 }
 
@@ -647,10 +669,10 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
 			__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
 
-		print_hex_dump(KERN_ERR, "dave1 ", DUMP_PREFIX_NONE, 16, 1,
-			   virt, 64, true);
-		print_hex_dump(KERN_ERR, "dave2 ", DUMP_PREFIX_NONE, 16, 1,
-			   &internal, 64, true);
+	//	print_hex_dump(KERN_ERR, "dave1 ", DUMP_PREFIX_NONE, 16, 1,
+	//		   virt, 64, true);
+	//	print_hex_dump(KERN_ERR, "dave2 ", DUMP_PREFIX_NONE, 16, 1,
+	//		   &internal, 64, true);
 
 	}
 
