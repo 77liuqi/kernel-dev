@@ -139,7 +139,22 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 
 	if (rq->bio) {
 		unsigned res;
-		pr_err("%s1 task=%pS SAS_PRO7TOCOL_ATA_INTERNAL scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d\n", __func__, task, scmd, task->task_done, scmd, rq->nr_phys_segments);
+		unsigned int payload_len;
+		int sg_cnt;
+		struct scatterlist sg_list;
+		struct request_queue *q = rq->q;
+
+		
+		pr_err("%s1 task=%pS  scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d\n", __func__, task, scmd, task->task_done, scmd, rq->nr_phys_segments);
+
+		sg_init_table(&sg_list, rq->nr_phys_segments);
+
+		sg_cnt = blk_rq_map_sg(q, rq, &sg_list);
+		payload_len = blk_rq_bytes(rq);
+
+		
+		pr_err("%s2 task=%pS  scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, task, scmd, task->task_done, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
+
 		res = ata_exec_internal_sg(ata_internal_task->dev,
 				ata_internal_task->tf,
 				ata_internal_task->cdb,
