@@ -1495,7 +1495,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	RETURNS:
  *	Zero on success, AC_ERR_* mask on failure
  */
-unsigned ata_exec_internal_sg(struct ata_device *dev,
+unsigned __ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
@@ -1684,6 +1684,26 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	return err_mask;
 }
 
+
+unsigned ata_exec_internal_sg(struct ata_device *dev,
+			      struct ata_taskfile *tf, const u8 *cdb,
+			      int dma_dir, struct scatterlist *sgl,
+			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
+{
+	unsigned res;
+
+	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
+	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
+
+	if (tf)
+		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+	if (cdb)
+		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+
+	return res;
+}
+
+
 /**
  *	ata_exec_internal - execute libata internal command
  *	@dev: Device to which the command is sent
@@ -1712,7 +1732,6 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	unsigned int n_elem = 0;
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
-
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
