@@ -610,7 +610,7 @@ struct sas_libata_internal {
 };
 
 enum sas_internal_type {
-	SAS_INTERNAL_LIBATA,
+	SAS_INTERNAL_LIBATA = 0x87,
 };
 
 struct sas_internal_commds {

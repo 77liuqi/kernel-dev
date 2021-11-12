@@ -605,7 +605,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	};
 	int res;
 
-	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal);
+	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf);
 
 //	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 //	if (!task) {
@@ -626,7 +626,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
 //		RQF_PM, NULL);
 	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
-	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res);
+	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds));
 	if (res)
 		return res;
 
