@@ -1550,6 +1550,9 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 
 	/* prepare & issue qc */
 	qc->tf = *tf;
+	
+	if (tf)
+		print_hex_dump(KERN_ERR, "__ata_exec_internal_sg qc->tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
 
@@ -1662,6 +1665,8 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	spin_lock_irqsave(ap->lock, flags);
 
 	*tf = qc->result_tf;
+	if (tf)
+		print_hex_dump(KERN_ERR, "__ata_exec_internal_sg after *tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 //	if (err_mask ||qc->err_mask)
 //		pr_err("%s4.5 dev=%pS scsicmd=%pS rc=%pS err_mask=%d qc->err_mask=%d\n", __func__, dev, NULL, qc, err_mask, qc->err_mask);
 	err_mask = qc->err_mask;
