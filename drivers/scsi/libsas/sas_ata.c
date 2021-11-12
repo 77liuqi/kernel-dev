@@ -550,7 +550,7 @@ static int sas_ata_prereset(struct ata_link *link, unsigned long deadline)
 	return res;
 }
 
-static void sas_ata_internal_task_timedout(struct timer_list *t)
+static __maybe_unused void sas_ata_internal_task_timedout(struct timer_list *t)
 {
 	struct sas_task_slow *slow = from_timer(slow, t, timer);
 	struct sas_task *task = slow->task;
@@ -567,7 +567,7 @@ static void sas_ata_internal_task_timedout(struct timer_list *t)
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 }
 
-static void sas_ata_internal_task_done(struct sas_task *task)
+static __maybe_unused void sas_ata_internal_task_done(struct sas_task *task)
 {
 	pr_err("%s task=%pS\n", __func__, task);
 	del_timer(&task->slow_task->timer);
@@ -575,70 +575,98 @@ static void sas_ata_internal_task_done(struct sas_task *task)
 }
 #define SMP_TIMEOUT 10
 
+
+
+
 static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout)
 {
-	struct sas_task *task;
+//	struct sas_task *task;
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *shost = ap->scsi_host;
-	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
-	struct sas_ata_internal_task *ata_internal_task;
+//	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
+//	struct sas_ata_internal_task *ata_internal_task;
+	struct request *rq;
+//	int res;
+	struct libata_internal internal = {
+		dev,
+		tf,
+		cdb,
+		dma_dir,
+		sgl,
+		n_elem,
+		timeout
+	};
 	int res;
 
 	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data);
 
-	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
-	if (!task) {
-		res = -ENOMEM;
+//	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
+//	if (!task) {
+//		res = -ENOMEM;
+//		return -1;
+//	}
+
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	if (IS_ERR(rq)) {
+		pr_err("%s1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, rq);
+		BUG();
 		return -1;
 	}
+	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct libata_internal), GFP_KERNEL);
+	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res);
+	if (res)
+		return res;
 
-	ata_internal_task = &task->ata_internal_task;
 
-	task->dev = ap->private_data;
-	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
+//	ata_internal_task = &task->ata_internal_task;
 
-	task->task_done = sas_ata_internal_task_done;
-	task->slow_task->timer.function = sas_ata_internal_task_timedout;
-	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-	ata_internal_task->tf = tf;
-	ata_internal_task->cdb = cdb;
-	ata_internal_task->dma_dir = dma_dir;
-	ata_internal_task->sgl = sgl;
-	ata_internal_task->n_elem = n_elem;
-	ata_internal_task->timeout = timeout;
-	ata_internal_task->dev = dev;
-	add_timer(&task->slow_task->timer);
-	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
+//	task->dev = ap->private_data;
+//	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
 
-	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+//	task->task_done = sas_ata_internal_task_done;
+//	task->slow_task->timer.function = sas_ata_internal_task_timedout;
+//	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
+//	ata_internal_task->tf = tf;
+//	ata_internal_task->cdb = cdb;
+//	ata_internal_task->dma_dir = dma_dir;
+//	ata_internal_task->sgl = sgl;
+//	ata_internal_task->n_elem = n_elem;
+//	ata_internal_task->timeout = timeout;
+//	ata_internal_task->dev = dev;
+//	add_timer(&task->slow_task->timer);
+//	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
 
-	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
+	blk_execute_rq(NULL, rq, true);
 
-	wait_for_completion(&task->slow_task->completion);
+//	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
+	pr_err("%s2 after blk_execute_rq rq=%pS\n", __func__, rq);
 
-	pr_err("%s3 got completion task=%pS\n", __func__, task);
-	res = 1;
-	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-		pr_notice("sas ata task  timed out or aborted\n");
-		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-			pr_notice("sas ata task aborted and not done\n");
-			return 1;
-		}
-	}
-	if (task->task_status.resp == SAS_TASK_COMPLETE &&
-	    task->task_status.stat == SAS_SAM_STAT_GOOD) {
-		res = 0;
-		goto end;
-	}
 
-end:
-	sas_free_task(task);
-	pr_err("%s10 out res=%d\n", __func__, res);
-	return res;
+//	wait_for_completion(&task->slow_task->completion);
+
+//	pr_err("%s3 got completion task=%pS\n", __func__, task);
+//	res = 1;
+//	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+//		pr_notice("sas ata task  timed out or aborted\n");
+//		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+//			pr_notice("sas ata task aborted and not done\n");
+//			return 1;
+//		}
+//	}
+//	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+//	    task->task_status.stat == SAS_SAM_STAT_GOOD) {
+//		res = 0;
+//		goto end;
+//	}
+
+//end:
+//	sas_free_task(task);
+//	pr_err("%s10 out res=%d\n", __func__, res);
+	return 0;
 }
 
 static struct ata_port_operations sas_sata_ops = {
