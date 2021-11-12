@@ -238,7 +238,12 @@ static bool sas_ata_qc_fill_rtf(struct ata_queued_cmd *qc)
 {
 	struct domain_device *dev = qc->ap->private_data;
 
+	print_hex_dump(KERN_ERR, "sas_ata_qc_fill_rtf  result_tf before  ", DUMP_PREFIX_NONE, 16, 1, &qc->result_tf, sizeof(&qc->result_tf), true);
+
 	ata_tf_from_fis(dev->sata_dev.fis, &qc->result_tf);
+
+	print_hex_dump(KERN_ERR, "sas_ata_qc_fill_rtf  result_tf after  ", DUMP_PREFIX_NONE, 16, 1, &qc->result_tf, sizeof(&qc->result_tf), true);
+	
 	return true;
 }
 
