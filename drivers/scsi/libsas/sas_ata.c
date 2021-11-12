@@ -83,6 +83,14 @@ static void sas_ata_task_done(struct sas_task *task)
 	unsigned long flags;
 	struct ata_link *link;
 	struct ata_port *ap;
+	struct scsi_cmnd *scsicmd = qc->scsicmd; 
+	struct request *rq = blk_mq_rq_from_pdu(scsicmd);
+
+	if (rq->cmd_flags & REQ_RESV) {
+		pr_err("%s task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+
+			
+	}
 
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))

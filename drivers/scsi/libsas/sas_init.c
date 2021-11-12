@@ -171,7 +171,7 @@ dma_addr_t	dma_address;
 		pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad internal2=%pS\n", __func__, scmd,  internal,
 			sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address, internal2);
 
-		pr_err("%s4  scmd=%pS  type=%d type2=%d\n", __func__, scmd, internal->type, internal2->type);
+		pr_err("%s4  scmd=%pS  type=0x%x type2=0x%x\n", __func__, scmd, internal->type, internal2->type);
 
 		libata_internal = &internal->libata_internal;
 		libata_internal2 = &internal2->libata_internal;
@@ -192,16 +192,8 @@ dma_addr_t	dma_address;
 				libata_internal->n_elem,
 				libata_internal->timeout,
 				scmd);
-		pr_err("%s2 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
-		if (res == 0) {
-			task->task_status.resp = SAS_TASK_COMPLETE;
-			task->task_status.stat = SAS_SAM_STAT_GOOD;
-		} else {
-			// allow to timeout
-			task->task_status.resp = SAS_TASK_COMPLETE;
-			task->task_status.stat = SAS_SAM_STAT_CHECK_CONDITION;
-		}
-		task->task_done(task);
+		pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
+
 		return 0;
 	}
 
