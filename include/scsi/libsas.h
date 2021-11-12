@@ -635,7 +635,7 @@ struct sas_task_slow {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
-extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags, int hctx_idx);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
@@ -688,7 +688,7 @@ extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
 extern int sas_execute_internal_abort(struct sas_ha_struct *, 
-			struct domain_device *dev, enum sas_abort, unsigned int tag);
+			struct domain_device *dev, enum sas_abort, unsigned int tag, int hctx_idx);
 extern int sas_execute_tmf(struct sas_ha_struct *, struct domain_device *dev,
 		void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed);
 extern struct scsi_transport_template *

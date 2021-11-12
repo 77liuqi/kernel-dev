@@ -37,15 +37,22 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags,
+				     int hctx_idx)
 {
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN,
-					BLK_MQ_REQ_RESERVED);
+	if (hctx_idx == -1)
+		rq = blk_mq_alloc_request(shost->sdev->request_queue,
+					  REQ_OP_DRV_IN,
+					  BLK_MQ_REQ_RESERVED);
+	else
+		rq = blk_mq_alloc_request_hctx(shost->sdev->request_queue,
+					       REQ_OP_DRV_IN,
+					       BLK_MQ_REQ_RESERVED, hctx_idx);
 	if (IS_ERR(rq))
 		return NULL;
 

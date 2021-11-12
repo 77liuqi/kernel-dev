@@ -1867,7 +1867,7 @@ _hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 	if (test_bit(HISI_SAS_HW_FAULT_BIT, &hisi_hba->flags))
 		return -EIO;
 
-	return sas_execute_internal_abort(sas_ha, device, abort_flag, tag);
+	return sas_execute_internal_abort(sas_ha, device, abort_flag, tag, dq->id);
 }
 
 static int

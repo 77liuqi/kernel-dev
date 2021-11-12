@@ -928,12 +928,12 @@ static void sas_execute_internal_abort_timedout(struct timer_list *t)
 }
 
 int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device,
-			enum sas_abort abort, unsigned int tag)
+			enum sas_abort abort, unsigned int tag, int hctx_idx)
 {
 	struct sas_task *task;
 	int res;
 
-	task = sas_alloc_slow_task(sha, GFP_KERNEL);
+	task = sas_alloc_slow_task(sha, GFP_KERNEL, hctx_idx);
 	if (!task)
 		return -ENOMEM;
 
@@ -1018,7 +1018,7 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	int res, retry;
 
 	for (retry = 0; retry < TASK_RETRY; retry++) {
-		task = sas_alloc_slow_task(sha, GFP_KERNEL);
+		task = sas_alloc_slow_task(sha, GFP_KERNEL, -1);
 		if (!task)
 			return -ENOMEM;
 
