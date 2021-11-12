@@ -602,7 +602,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	};
 	int res;
 
-	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data);
+	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal);
 
 //	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 //	if (!task) {
