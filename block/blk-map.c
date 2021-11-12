@@ -642,11 +642,25 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf) ||
-	    blk_queue_may_bounce(q))
+
+	if (special_req == rq) 
+		pr_err("%s2 rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
+
+	if (!blk_rq_aligned(q, addr, len) || object_is_on_stack(kbuf) ||  blk_queue_may_bounce(q)) {
+
+		if (special_req == rq)
+			pr_err("%s3 rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
-	else
+	} else {
+
+		if (special_req == rq)
+			pr_err("%s4 rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
 		bio = bio_map_kern(q, kbuf, len, gfp_mask);
+	}
+
+
+	if (special_req == rq)
+		pr_err("%s5 rq=%pS kbuf=%pS len=%d bio=%pS\n", __func__, rq, kbuf, len, bio);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
