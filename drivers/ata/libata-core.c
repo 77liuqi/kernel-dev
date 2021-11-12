@@ -1771,7 +1771,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		if (buf)
 			print_hex_dump(KERN_ERR, "ata_exec_internal buf2	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
 		
-//		BUG_ON(count == 3);
+		BUG_ON(count == 3);
 
 		return res;
 	}
