@@ -113,7 +113,7 @@ static void sas_ata_task_done(struct sas_task *task)
 		goto qc_already_gone;
 
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS qc=%pS err_mask=%d\n", __func__, task, rq, scsicmd, rq->bio, qc, qc->err_mask);
 
 			
 	}
