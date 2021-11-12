@@ -125,6 +125,7 @@ void sas_set_unique_hw_tag(struct sas_task *task)
 	task->hw_unique_tag = rq->tag;
 }
 
+
 int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 {
 	struct sas_ha_struct *ha = SHOST_TO_SAS_HA(shost);
@@ -152,15 +153,21 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		sg_cnt = blk_rq_map_sg(q, rq, &sg_list);
 		payload_len = blk_rq_bytes(rq);
 
-		
+	#ifdef fdff
+	unsigned long	page_link;
+unsigned int	offset;
+unsigned int	length;
+dma_addr_t	dma_address;
+	#endif
+	
 		pr_err("%s2   scmd=%pS nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
 
 		internal = sg_virt(&sg_list);
 
-		pr_err("%s3 scmd=%pS internal=%pS\n", __func__, scmd,  internal);
+		pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad\n", __func__, scmd,  internal,
+			sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address);
 
-		pr_err("%s4  scmd=%pS  type=%d\n",
-			__func__, scmd, internal->type);
+		pr_err("%s4  scmd=%pS  type=%d\n", __func__, scmd, internal->type);
 
 		libata_internal = &internal->libata_internal;
 
