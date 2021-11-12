@@ -662,16 +662,27 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	}
 
 
-	if (special_req == rq)
-		pr_err("%s5 rq=%pS kbuf=%pS len=%d bio=%pS\n", __func__, rq, kbuf, len, bio);
+	if (special_req == rq) {
+		pr_err("%s5 rq=%pS kbuf=%pS len=%d bio=%pS \n", __func__, rq, kbuf, len, bio);
+	}
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
+	if (special_req == rq) {
+		pr_err("%s6 rq=%pS kbuf=%pS len=%d bio=%pS has data=%d bio_op(bio)=%d\n", __func__, rq, kbuf, len, bio, bio_has_data(bio), bio_op(bio));
+	}
+
 	bio->bi_opf &= ~REQ_OP_MASK;
 	bio->bi_opf |= req_op(rq);
+	if (special_req == rq) {
+		pr_err("%s7 rq=%pS kbuf=%pS len=%d bio=%pS has data=%d bio_op(bio)=%d\n", __func__, rq, kbuf, len, bio, bio_has_data(bio), bio_op(bio));
+	}
 
 	ret = blk_rq_append_bio(rq, bio);
+	if (special_req == rq) {
+		pr_err("%s8 rq=%pS kbuf=%pS len=%d bio=%pS has data=%d bio_op(bio)=%d\n", __func__, rq, kbuf, len, bio, bio_has_data(bio), bio_op(bio));
+	}
 	if (unlikely(ret))
 		bio_put(bio);
 	return ret;
