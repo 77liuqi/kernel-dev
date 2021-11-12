@@ -1738,7 +1738,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	static int count;
-
+	might_sleep();
 	tf->hob_lbah = 0x45;
 
 	if (dma_dir != DMA_NONE) {
@@ -2096,7 +2096,7 @@ unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
 	struct ata_taskfile tf;
 	unsigned int err_mask;
 	bool dma = false;
-
+	might_sleep();
 	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
 
 	/*
@@ -2652,7 +2652,7 @@ int ata_dev_configure(struct ata_device *dev)
 	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
 	char modelbuf[ATA_ID_PROD_LEN+1];
 	int rc;
-
+	might_sleep();
 	pr_err("%s ata_device=%pS\n", __func__, dev);
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
@@ -3902,7 +3902,7 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	u64 n_sectors = dev->n_sectors;
 	u64 n_native_sectors = dev->n_native_sectors;
 	int rc;
-
+	might_sleep();
 	pr_err("%s ata_device=%pS\n", __func__, dev);
 
 	if (!ata_dev_enabled(dev))
