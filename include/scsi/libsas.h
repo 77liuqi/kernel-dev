@@ -599,7 +599,7 @@ struct sas_ata_internal_task {
 	unsigned long timeout;
 };
 
-struct libata_internal {
+struct sas_libata_internal {
 	struct ata_device *dev;
 	struct ata_taskfile *tf;
 	const u8 *cdb;
@@ -607,6 +607,18 @@ struct libata_internal {
 	struct scatterlist *sgl;
 	unsigned int n_elem;
 	unsigned long timeout;
+};
+
+enum sas_internal_type {
+	SAS_INTERNAL_LIBATA,
+};
+
+struct sas_internal_commds {
+	enum sas_internal_type type;
+	union {
+		struct sas_libata_internal libata_internal;
+
+	};
 };
 
 struct sas_task {
