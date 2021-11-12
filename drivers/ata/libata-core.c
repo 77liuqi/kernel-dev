@@ -1696,19 +1696,15 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
 {
 	unsigned res;
-	static int count;
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
 
-	if (tf)
-		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
-	if (cdb)
-		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+//	if (tf)
+//		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+//	if (cdb)
+//		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
 
-	count++;
-
-	BUG_ON(count == 3);
 
 	return res;
 }
@@ -1742,6 +1738,9 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	unsigned int n_elem = 0;
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
+	static int count;
+
+	tf->hob_lbah = 0x45;
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
@@ -1750,8 +1749,35 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		n_elem++;
 	}
 
-	if (ap && ap->ops->exec_internal)
-		return ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
+	if (ap && ap->ops->exec_internal) {
+		unsigned res;
+
+		count ++;
+		
+		if (tf)
+			print_hex_dump(KERN_ERR, "ata_exec_internal tf1  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+		if (cdb)
+			print_hex_dump(KERN_ERR, "ata_exec_internal cdb1	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+		if (buf)
+			print_hex_dump(KERN_ERR, "ata_exec_internal buf1	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+
+	
+		res = ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
+		
+		
+		if (tf)
+			print_hex_dump(KERN_ERR, "ata_exec_internal tf2  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+		if (cdb)
+			print_hex_dump(KERN_ERR, "ata_exec_internal cdb2	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+		if (buf)
+			print_hex_dump(KERN_ERR, "ata_exec_internal buf2	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+		
+		BUG_ON(count == 3);
+
+		return res;
+	}
+
+
 	pr_err("%s ap=%pS\n", __func__, ap);
 	pr_err("%s1 ap->ops=%pS\n", __func__, ap->ops);
 	pr_err("%s2 ap->ops->exec_internal=%pS\n", __func__, ap->ops->exec_internal);
