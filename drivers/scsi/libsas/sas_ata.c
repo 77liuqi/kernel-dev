@@ -635,6 +635,10 @@ static __maybe_unused void sas_ata_internal_task_done(struct sas_task *task)
 
 
 struct request *special_req;
+static void sas_ata_exec_internal_end(struct request *req, blk_status_t status)
+{
+	pr_err("%s req=%pS status=%d\n", __func__, req, status);
+}
 
 static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
@@ -649,8 +653,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	struct sas_ata_internal_task *ata_internal_task;
 	struct request *rq;
 	blk_status_t sts;
-
-	might_sleep();
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 //	int res;
 	struct sas_internal_commds internal = {
@@ -666,6 +669,8 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		},
 	};
 	int res;
+
+	might_sleep();
 
 	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf);
 
@@ -697,42 +702,16 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		return res;
 	}
 
-	if (rq->bio) {
-	//	void * virt = bio_data(rq->bio);
-		
-	//	pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
-	//		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
-
-	//	print_hex_dump(KERN_ERR, "dave1 ", DUMP_PREFIX_NONE, 16, 1,
-	//		   virt, 64, true);
-	//	print_hex_dump(KERN_ERR, "dave2 ", DUMP_PREFIX_NONE, 16, 1,
-	//		   &internal, 64, true);
-
-	}
 
 
-//	ata_internal_task = &task->ata_internal_task;
 
-//	task->dev = ap->private_data;
-//	task->task_proto = SAS_PROTOCOL_ATA_INTERNAL;
+	blk_execute_rq_nowait(NULL, rq, true, sas_ata_exec_internal_end);
 
-//	task->task_done = sas_ata_internal_task_done;
-//	task->slow_task->timer.function = sas_ata_internal_task_timedout;
-//	task->slow_task->timer.expires = jiffies + SMP_TIMEOUT*HZ;
-//	ata_internal_task->tf = tf;
-//	ata_internal_task->cdb = cdb;
-//	ata_internal_task->dma_dir = dma_dir;
-//	ata_internal_task->sgl = sgl;
-//	ata_internal_task->n_elem = n_elem;
-//	ata_internal_task->timeout = timeout;
-//	ata_internal_task->dev = dev;
-//	add_timer(&task->slow_task->timer);
-//	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
+	
 
-	sts = blk_execute_rq(NULL, rq, true);
-
-//	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
-//	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
+	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS\n", __func__, rq);
+	wait_for_completion(&wait);
+	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
 
 
 //	wait_for_completion(&task->slow_task->completion);
