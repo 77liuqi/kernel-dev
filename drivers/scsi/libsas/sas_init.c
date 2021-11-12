@@ -192,7 +192,7 @@ dma_addr_t	dma_address;
 				libata_internal->n_elem,
 				libata_internal->timeout,
 				scmd);
-		pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d\n", __func__, task, scmd, task->task_done, res);
+		pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
 
 		return 0;
 	}
