@@ -1661,19 +1661,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      unsigned int n_elem, unsigned long timeout)
 {
 	unsigned res;
-	static int count;
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout);
 
-	if (tf)
-		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
-	if (cdb)
-		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
-
-	count++;
-
-	BUG_ON(count == 3);
 
 	return res;
 }
@@ -1704,6 +1695,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 {
 	struct scatterlist *psg = NULL, sg;
 	unsigned int n_elem = 0;
+	static int count;
+	unsigned res;
 
 	if (dma_dir != DMA_NONE) {
 		WARN_ON(!buf);
@@ -1712,8 +1705,31 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		n_elem++;
 	}
 
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
+
+	count ++;
+		
+	if (tf)
+		print_hex_dump(KERN_ERR, "ata_exec_internal tf1  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+	if (cdb)
+		print_hex_dump(KERN_ERR, "ata_exec_internal cdb1	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+	if (buf)
+		print_hex_dump(KERN_ERR, "ata_exec_internal buf1	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+
+	
+	res =  ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
 				    timeout);
+
+		
+	if (tf)
+		print_hex_dump(KERN_ERR, "ata_exec_internal tf2  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+	if (cdb)
+		print_hex_dump(KERN_ERR, "ata_exec_internal cdb2	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+	if (buf)
+		print_hex_dump(KERN_ERR, "ata_exec_internal buf2	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+	
+	BUG_ON(count == 3);
+
+	return res;
 }
 
 /**
