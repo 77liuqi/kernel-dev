@@ -1275,6 +1275,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 	u64 sectors = ata_id_n_sectors(dev->id);
 	u64 native_sectors;
 	int rc;
+	pr_err("%s dev=%pS sectors=%lld\n", __func__, dev, sectors);
 
 	/* do we need to do it? */
 	if ((dev->class != ATA_DEV_ATA && dev->class != ATA_DEV_ZAC) ||
@@ -1302,6 +1303,8 @@ static int ata_hpa_resize(struct ata_device *dev)
 	}
 	dev->n_native_sectors = native_sectors;
 
+	pr_err("%s2 dev=%pS native_sectors=%lld unlock_hpa=%d sectors=%lld\n", __func__, dev, native_sectors, unlock_hpa, sectors);
+
 	/* nothing to do? */
 	if (native_sectors <= sectors || !unlock_hpa) {
 		if (!print_info || native_sectors == sectors)
@@ -1321,6 +1324,8 @@ static int ata_hpa_resize(struct ata_device *dev)
 		}
 		return 0;
 	}
+
+	pr_err("%s3 dev=%pS\n", __func__, dev);
 
 	/* let's unlock HPA */
 	rc = ata_set_max_sectors(dev, native_sectors);
@@ -1691,6 +1696,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
 {
 	unsigned res;
+	static int count;
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
@@ -1699,6 +1705,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 		print_hex_dump(KERN_ERR, "tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 	if (cdb)
 		print_hex_dump(KERN_ERR, "cdb  ", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
+
+	count++;
+
+	BUG_ON(count == 3);
 
 	return res;
 }
