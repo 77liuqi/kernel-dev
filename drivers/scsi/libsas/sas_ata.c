@@ -613,7 +613,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //		return -1;
 //	}
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_OUT, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq)) {
 		pr_err("%s1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, rq);
 		BUG();
