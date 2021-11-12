@@ -88,7 +88,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct bio *bio = NULL;
 
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+//		pr_err("%s task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 		bio = rq->bio;
 	}
 
@@ -106,7 +106,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s2 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+//		pr_err("%s2 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 	}
 
 	if (!qc) {
@@ -115,7 +115,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS qc=%pS err_mask=%d\n", __func__, task, rq, scsicmd, rq->bio, qc, qc->err_mask);
+//		pr_err("%s3 task=%pS rq=%pS scsicmd=%pS bio=%pS qc=%pS err_mask=%d\n", __func__, task, rq, scsicmd, rq->bio, qc, qc->err_mask);
 	}
 
 	ap = qc->ap;
@@ -170,7 +170,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	}
 
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s4 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+	//	pr_err("%s4 task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 	}
 
 end:
@@ -181,7 +181,7 @@ end:
 qc_already_gone:
 	
 	if (rq->cmd_flags & REQ_RESV) {
-		pr_err("%s5 qc_already_gone task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
+	//	pr_err("%s5 qc_already_gone task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 
 			
 	}
@@ -641,7 +641,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	};
 	int res;
 
-	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf);
+//	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf);
 
 //	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 //	if (!task) {
@@ -651,7 +651,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_OUT, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq)) {
-		pr_err("%s1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, rq);
+	//	pr_err("%s1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, rq);
 		BUG();
 		return -1;
 	}
@@ -661,19 +661,19 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 //	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
 //		RQF_PM, NULL);
-	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS just alloc'ed rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
-		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
+//	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS just alloc'ed rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
+//		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
 	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
-	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
-		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
+//	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
+//		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
 	if (res)
 		return res;
 
 	if (rq->bio) {
-		void * virt = bio_data(rq->bio);
+	//	void * virt = bio_data(rq->bio);
 		
-		pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
-			__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
+	//	pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
+	//		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
 
 	//	print_hex_dump(KERN_ERR, "dave1 ", DUMP_PREFIX_NONE, 16, 1,
 	//		   virt, 64, true);
@@ -704,7 +704,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	sts = blk_execute_rq(NULL, rq, true);
 
 //	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
-	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
+//	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
 
 
 //	wait_for_completion(&task->slow_task->completion);

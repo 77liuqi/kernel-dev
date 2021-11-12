@@ -154,8 +154,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		struct sas_internal_commds *internal2;
 		struct sas_libata_internal *libata_internal2;
 		
-		pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d bio_data=%pS bio_has_data=%d\n",
-			__func__,  scmd, task->task_done, scmd, rq->nr_phys_segments, bio_data(rq->bio), bio_has_data(rq->bio));
+		//pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d bio_data=%pS bio_has_data=%d\n",
+		//	__func__,  scmd, task->task_done, scmd, rq->nr_phys_segments, bio_data(rq->bio), bio_has_data(rq->bio));
 
 		sg_init_table(&sg_list, rq->nr_phys_segments);
 
@@ -169,15 +169,15 @@ unsigned int	length;
 dma_addr_t	dma_address;
 	#endif
 	
-		pr_err("%s2 scmd=%pS nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
+	//	pr_err("%s2 scmd=%pS nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
 
 		internal = sg_virt(&sg_list);
 		internal2 = bio_data(rq->bio);
 
-		pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad internal2=%pS\n", __func__, scmd,  internal,
-			sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address, internal2);
+	//	pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad internal2=%pS\n", __func__, scmd,  internal,
+	//	sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address, internal2);
 
-		pr_err("%s4  scmd=%pS  type=0x%x type2=0x%x\n", __func__, scmd, internal->type, internal2->type);
+	//	pr_err("%s4  scmd=%pS  type=0x%x type2=0x%x\n", __func__, scmd, internal->type, internal2->type);
 
 		libata_internal = &internal->libata_internal;
 		libata_internal2 = &internal2->libata_internal;
@@ -188,7 +188,7 @@ dma_addr_t	dma_address;
 	//	print_hex_dump(KERN_ERR, "snake2 ", DUMP_PREFIX_NONE, 16, 1,
 	//			   internal2, 64, true);
 
-		pr_err("%s5  scmd=%pS internal=%pS libata_internal=%pS tf=%pS\n", __func__, scmd, internal, libata_internal, libata_internal->tf);
+	//	pr_err("%s5  scmd=%pS internal=%pS libata_internal=%pS tf=%pS\n", __func__, scmd, internal, libata_internal, libata_internal->tf);
 
 		res = ata_exec_internal_sg(libata_internal->dev,
 				libata_internal->tf,
@@ -198,7 +198,7 @@ dma_addr_t	dma_address;
 				libata_internal->n_elem,
 				libata_internal->timeout,
 				scmd);
-		pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
+	//	pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
 
 		__blk_mq_end_request(rq, res);
 
