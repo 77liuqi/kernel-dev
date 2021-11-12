@@ -626,9 +626,20 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
 //		RQF_PM, NULL);
 	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
-	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu\n", __func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds));
+	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS\n",
+		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio);
 	if (res)
 		return res;
+
+	if (rq->bio) {
+		void * virt = bio_data(rq->bio);
+		
+		pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
+			__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
+
+		print_hex_dump(KERN_ERR, "dave1", DUMP_PREFIX_NONE, 16, 1,
+			   virt, 64, true);
+	}
 
 
 //	ata_internal_task = &task->ata_internal_task;
