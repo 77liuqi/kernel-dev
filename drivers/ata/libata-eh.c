@@ -660,6 +660,8 @@ void ata_scsi_port_error_handler(struct Scsi_Host *host, struct ata_port *ap)
 
 	pr_err("%s host=%pS ap=%pS\n", __func__, host, ap);
 
+	might_sleep();
+
 	/* invoke error handler */
 	if (ap->ops->error_handler) {
 		struct ata_link *link;
@@ -3068,7 +3070,7 @@ int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	struct ata_port *ap = link->ap;
 	struct ata_device *dev;
 	int rc;
-
+	might_sleep();
 	pr_err("%s link=%pS ap=%pS\n", __func__, link, ap);
 
 	/* if data transfer is verified, clear DUBIOUS_XFER on ering top */
@@ -3562,7 +3564,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 	unsigned long flags, deadline;
 
 	DPRINTK("ENTER\n");
-
+	might_sleep();
 	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* prep for recovery */
@@ -3841,7 +3843,7 @@ void ata_do_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 {
 	struct ata_device *dev;
 	int rc;
-
+	might_sleep();
 	ata_eh_autopsy(ap);
 	ata_eh_report(ap);
 
@@ -3871,6 +3873,7 @@ void ata_std_error_handler(struct ata_port *ap)
 	struct ata_port_operations *ops = ap->ops;
 	ata_reset_fn_t hardreset = ops->hardreset;
 
+	might_sleep();
 	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* ignore built-in hardreset if SCR access is not available */

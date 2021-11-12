@@ -650,6 +650,8 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	struct request *rq;
 	blk_status_t sts;
 
+	might_sleep();
+
 //	int res;
 	struct sas_internal_commds internal = {
 		.type = SAS_INTERNAL_LIBATA,
