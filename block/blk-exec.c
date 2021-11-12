@@ -47,7 +47,7 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 void blk_execute_rq_nowait(struct gendisk *bd_disk, struct request *rq,
 			   int at_head, rq_end_io_fn *done)
 {
-	WARN_ON(irqs_disabled());
+//	WARN_ON(irqs_disabled());
 	WARN_ON(!blk_rq_is_passthrough(rq));
 
 	rq->rq_disk = bd_disk;
