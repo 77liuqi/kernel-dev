@@ -620,6 +620,8 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 //	struct sas_ata_internal_task *ata_internal_task;
 	struct request *rq;
+	blk_status_t sts;
+
 //	int res;
 	struct sas_internal_commds internal = {
 		.type = SAS_INTERNAL_LIBATA,
@@ -695,10 +697,10 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	add_timer(&task->slow_task->timer);
 //	pr_err("%s1 task=%pS dev=%pS\n", __func__, task, dev);
 
-	blk_execute_rq(NULL, rq, true);
+	sts = blk_execute_rq(NULL, rq, true);
 
 //	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
-	pr_err("%s2 after blk_execute_rq rq=%pS\n", __func__, rq);
+	pr_err("%s2 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
 
 
 //	wait_for_completion(&task->slow_task->completion);
