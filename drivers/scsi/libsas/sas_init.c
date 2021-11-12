@@ -80,14 +80,20 @@ void sas_free_task(struct sas_task *task)
 	if (task) {
 		bool reserved = false;
 		struct request *rq = sas_rq_from_task(task);
+		struct bio *bio = rq->bio;
 
 		if (rq->cmd_flags & REQ_RESV)
 			reserved = true;
 
 		kfree(task->slow_task);
 
-		if (reserved)
-			__blk_mq_end_request(rq, BLK_STS_OK);
+		if (reserved) {
+			if (bio) {
+
+			} else {
+				__blk_mq_end_request(rq, BLK_STS_OK);
+			}
+		}
 	}
 }
 EXPORT_SYMBOL_GPL(sas_free_task);
@@ -135,7 +141,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	//bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
 	
 
-	pr_err("%s task=%pS rq=%pS bio=%pS\n", __func__, task, rq, rq->bio);
+//	pr_err("%s task=%pS rq=%pS bio=%pS\n", __func__, task, rq, rq->bio);
 
 	if (rq->bio) {
 		unsigned res;
@@ -193,6 +199,8 @@ dma_addr_t	dma_address;
 				libata_internal->timeout,
 				scmd);
 		pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
+
+		__blk_mq_end_request(rq, res);
 
 		return 0;
 	}
