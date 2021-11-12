@@ -21,6 +21,10 @@ static void blk_end_sync_rq(struct request *rq, blk_status_t error)
 {
 	struct completion *waiting = rq->end_io_data;
 
+	if (rq->cmd_flags & REQ_RESV) {
+		WARN_ON_ONCE(1);
+	}
+
 	rq->end_io_data = (void *)(uintptr_t)error;
 
 	/*
