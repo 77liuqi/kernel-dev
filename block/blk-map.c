@@ -622,6 +622,7 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *    buffer is used. Can be called multiple times to append multiple
  *    buffers.
  */
+ extern struct request *special_req;
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
 {
@@ -629,6 +630,12 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	unsigned long addr = (unsigned long) kbuf;
 	struct bio *bio;
 	int ret;
+
+	if (special_req == rq) {
+		pr_err("%s rq=%pS kbuf=%pS len=%d\n", __func__, rq, kbuf, len);
+		print_hex_dump(KERN_ERR, "blk_rq_map_kern1 ", DUMP_PREFIX_NONE, 16, 1,
+			   kbuf, len, true);
+	}
 
 	if (len > (queue_max_hw_sectors(q) << 9))
 		return -EINVAL;

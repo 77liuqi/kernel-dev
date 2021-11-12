@@ -639,9 +639,9 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		pr_err("%s2.1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS virt=%pS\n",
 			__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, virt);
 
-		print_hex_dump(KERN_ERR, "dave1", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump(KERN_ERR, "dave1 ", DUMP_PREFIX_NONE, 16, 1,
 			   virt, 64, true);
-		print_hex_dump(KERN_ERR, "dave2", DUMP_PREFIX_NONE, 16, 1,
+		print_hex_dump(KERN_ERR, "dave2 ", DUMP_PREFIX_NONE, 16, 1,
 			   &internal, 64, true);
 
 	}
