@@ -657,7 +657,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 //	res = scsi_execute(shost->sdev, cdb, DMA_TO_DEVICE, &internal, sizeof(struct sas_internal_commds), NULL, NULL, SD_TIMEOUT, 1, 0,
 //		RQF_PM, NULL);
-	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
+	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS just alloc'ed rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
 	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
 	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
