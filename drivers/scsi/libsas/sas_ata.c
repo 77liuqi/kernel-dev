@@ -700,7 +700,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	sts = blk_execute_rq(NULL, rq, true);
 
 //	pr_err("%s2 after blk_execute_rq_nowait task=%pS\n", __func__, task);
-	pr_err("%s2 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
+	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
 
 
 //	wait_for_completion(&task->slow_task->completion);
@@ -723,7 +723,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //end:
 //	sas_free_task(task);
 //	pr_err("%s10 out res=%d\n", __func__, res);
-	return 0;
+	return sts;
 }
 
 static struct ata_port_operations sas_sata_ops = {
