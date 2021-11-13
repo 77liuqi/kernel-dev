@@ -473,8 +473,10 @@ static void  mvs_post_sas_ha_init(struct Scsi_Host *shost,
 		can_queue = MVS_CHIP_SLOT_SZ;
 
 	shost->sg_tablesize = min_t(u16, SG_ALL, MVS_MAX_SG);
-	shost->can_queue = can_queue;
+	/* Fix me: not sure how many IOs can be reserved */
+	shost->can_queue = can_queue - 10;
 	mvi->shost->cmd_per_lun = MVS_QUEUE_SIZE;
+	shost->nr_reserved_cmds = 10;
 	sha->core.shost = mvi->shost;
 }
 
