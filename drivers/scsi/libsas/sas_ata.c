@@ -124,12 +124,12 @@ static void sas_ata_task_done(struct sas_task *task)
 	link = &ap->link;
 
 	if (bio) {
-		struct sas_internal_commds *internal = rq->end_io_data;
-		struct sas_libata_internal *libata_internal = &internal->libata_internal;
-		*libata_internal->qc = qc;
+//		struct sas_internal_commds *internal = rq->end_io_data;
+//		struct sas_libata_internal *libata_internal = &internal->libata_internal;
+//		*libata_internal->qc = qc;
 //		unsigned int err_mask = __ata_exec_internal_sg2(qc);
 		
-		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS libata_internal->qc=%pS\n", __func__, qc, internal, libata_internal, libata_internal->qc);
+//		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS libata_internal->qc=%pS\n", __func__, qc, internal, libata_internal, libata_internal->qc);
 //		err_mask = __ata_exec_internal_sg2(qc);
 //		pr_err("%s9.2 qc=%pS err_mask=%d &err_mask=%pS\n", __func__, qc, err_mask, libata_internal->err_mask);
 
@@ -674,8 +674,11 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	unsigned int err_mask;
 	struct scsi_cmnd *scmd;
 	struct ata_queued_cmd *qc;
+	struct sas_request *sas_request;
+	struct sas_task *task;
 
 //	int res;
+#ifdef dfdf
 	struct sas_internal_commds internal = {
 		.type = SAS_INTERNAL_LIBATA,
 		.libata_internal = {
@@ -690,12 +693,13 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		},
 		&wait,
 	};
+#endif
 	int res;
 
 	might_sleep();
 
-	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS &qc=%pS\n",
-		__func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf, &qc);
+	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS dev=%pS tf=%pS &qc=%pS\n",
+		__func__, dev, dev->private_data, ap, ap->private_data, dev, tf, &qc);
 
 //	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 //	if (!task) {
@@ -710,6 +714,18 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		return -1;
 	}
 	scmd = blk_mq_rq_to_pdu(rq);
+	task = sas_rq_to_task(rq);
+	sas_request = (struct sas_request *)(task + 1);
+	sas_request->type = SAS_INTERNAL_LIBATA;
+	sas_request->libata_internal = (struct sas_libata_internal){
+		dev,
+		tf,
+		cdb,
+		dma_dir,
+		sgl,
+		n_elem,
+		timeout,
+		&qc};
 //	if (!special_req)
 //		special_req = rq;
 #define SD_TIMEOUT		(30 * HZ)
@@ -718,7 +734,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //		RQF_PM, NULL);
 //	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS just alloc'ed rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 //		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
-	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &internal, sizeof(struct sas_internal_commds), GFP_KERNEL);
+	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &sas_request->libata_internal, sizeof(struct sas_libata_internal), GFP_KERNEL);
 //	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 //		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
 	if (res) {
@@ -728,7 +744,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 
 
-	rq->end_io_data = &internal;
+//	rq->end_io_data = &internal;
 
 	blk_execute_rq_nowait(NULL, rq, true, NULL);// sas_ata_exec_internal_end);
 
@@ -738,7 +754,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	wait_for_completion(&wait);
 //	task = TO_SAS_TASK(scmd);
 	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
-	qc = *internal.libata_internal.qc;
+	qc = *(sas_request->libata_internal.qc);
 	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS qc=%pS\n", __func__, rq, &wait, qc);
 	err_mask = __ata_exec_internal_sgx(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);

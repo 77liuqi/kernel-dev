@@ -3096,7 +3096,7 @@ static irqreturn_t fatal_axi_int_v2_hw(int irq_no, void *p)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t  cq_thread_v2_hw(int irq_no, void *p)
+static irqreturn_t cq_thread_v2_hw(int irq_no, void *p)
 {
 	struct hisi_sas_cq *cq = p;
 	struct hisi_hba *hisi_hba = cq->hisi_hba;
@@ -3580,7 +3580,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.host_reset		= hisi_sas_host_reset,
 	.map_queues		= map_queues_v2_hw,
 	.host_tagset		= 1,
-	.cmd_size = sizeof(struct sas_task),
+	.cmd_size = sizeof(struct sas_task) + sizeof(struct sas_request),
 };
 
 static const struct hisi_sas_hw hisi_sas_v2_hw = {

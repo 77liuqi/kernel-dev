@@ -610,12 +610,12 @@ struct sas_libata_internal {
 	struct ata_queued_cmd **qc;
 };
 
-enum sas_internal_type {
-	SAS_INTERNAL_LIBATA = 0x87,
+enum sas_request_type {
+	SAS_INTERNAL_LIBATA = 0,
 };
 
-struct sas_internal_commds {
-	enum sas_internal_type type;
+struct sas_request {
+	enum sas_request_type type;
 	union {
 		struct sas_libata_internal libata_internal;
 	};

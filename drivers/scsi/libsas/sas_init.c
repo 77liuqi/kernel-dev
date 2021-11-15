@@ -138,6 +138,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_internal *i = to_sas_internal(ha->core.shost->transportt);
 	struct sas_task *task = sas_rq_to_task(rq);
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
+	struct sas_request *sas_request = sas_request = (struct sas_request *)(task + 1);
 	//bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
 	//might_sleep();
 
@@ -149,10 +150,11 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		int sg_cnt;
 		struct scatterlist sg_list;
 		struct request_queue *q = rq->q;
-		struct sas_internal_commds *internal;
-		struct sas_libata_internal *libata_internal;
-		struct sas_internal_commds *internal2;
-		struct sas_libata_internal *libata_internal2;
+	//	struct sas_internal_commds *internal;
+	//	struct sas_libata_internal *libata_internal;
+	//	struct sas_internal_commds *internal2;
+	//	struct sas_libata_internal *libata_internal2;
+		struct sas_libata_internal *libata_internal = &sas_request->libata_internal;
 		struct completion *wait;
 		bool update_rq_res;
 		
@@ -173,16 +175,16 @@ dma_addr_t	dma_address;
 	
 	//	pr_err("%s2 scmd=%pS nr_phys_segments=%d sg_cnt=%d payload_len=%d\n", __func__, scmd, rq->nr_phys_segments, sg_cnt, payload_len);
 
-		internal = sg_virt(&sg_list);
-		internal2 = bio_data(rq->bio);
+	//	internal = sg_virt(&sg_list);
+	//	internal2 = bio_data(rq->bio);
 //		might_sleep();
 	//	pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad internal2=%pS\n", __func__, scmd,  internal,
 	//	sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address, internal2);
 
 	//	pr_err("%s4  scmd=%pS  type=0x%x type2=0x%x\n", __func__, scmd, internal->type, internal2->type);
 
-		libata_internal = &internal->libata_internal;
-		libata_internal2 = &internal2->libata_internal;
+	//	libata_internal = &internal->libata_internal;
+	//	libata_internal2 = &internal2->libata_internal;
 
 
 	//	print_hex_dump(KERN_ERR, "snake1 ", DUMP_PREFIX_NONE, 16, 1,
@@ -199,7 +201,7 @@ dma_addr_t	dma_address;
 				libata_internal->sgl,
 				libata_internal->n_elem,
 				libata_internal->timeout,
-				scmd, internal->wait);
+				scmd, sas_request->wait);
 	//	pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
 	//	update_rq_res = blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
 		pr_err("%s7 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS update_rq_res =%d\n", __func__, task, scmd, task->task_done, res, rq, update_rq_res);
