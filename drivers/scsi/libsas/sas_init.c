@@ -80,7 +80,7 @@ void sas_free_task(struct sas_task *task)
 	if (task) {
 		bool reserved = false;
 		struct request *rq = sas_rq_from_task(task);
-		struct bio *bio = rq->bio;
+		//struct bio *bio = rq->bio;
 
 		if (rq->cmd_flags & REQ_RESV)
 			reserved = true;
@@ -88,11 +88,11 @@ void sas_free_task(struct sas_task *task)
 		kfree(task->slow_task);
 
 		if (reserved) {
-			if (bio) {
+		//	if (bio) {
 
-			} else {
+		//	} else {
 				__blk_mq_end_request(rq, BLK_STS_OK);
-			}
+		//	}
 		}
 	}
 }

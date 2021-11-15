@@ -637,7 +637,7 @@ static __maybe_unused void sas_ata_internal_task_done(struct sas_task *task)
 
 
 struct request *special_req;
-static void sas_ata_exec_internal_end(struct request *req, blk_status_t status)
+static __maybe_unused void sas_ata_exec_internal_end(struct request *req, blk_status_t status)
 {
 	pr_err("%s req=%pS status=%d\n", __func__, req, status);
 }
@@ -653,7 +653,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	struct sas_ha_struct *sas_ha = SHOST_TO_SAS_HA(shost);
 //	struct sas_ata_internal_task *ata_internal_task;
 	struct request *rq;
-	blk_status_t sts;
+//	blk_status_t sts;
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned int err_mask;
 	struct scsi_cmnd *scmd;
@@ -712,7 +712,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	rq->end_io_data = &wait;
 
-	blk_execute_rq_nowait(NULL, rq, true, sas_ata_exec_internal_end);
+	blk_execute_rq_nowait(NULL, rq, true, NULL);// sas_ata_exec_internal_end);
 
 	
 
@@ -725,7 +725,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	err_mask = __ata_exec_internal_sg2(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 
-	BUG();
+//BUG();
 
 //	wait_for_completion(&task->slow_task->completion);
 
@@ -747,7 +747,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //end:
 //	sas_free_task(task);
 //	pr_err("%s10 out res=%d\n", __func__, res);
-	return sts;
+	return err_mask;
 }
 
 static struct ata_port_operations sas_sata_ops = {
