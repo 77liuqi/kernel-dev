@@ -479,6 +479,10 @@ static int pm8001_task_exec(struct sas_task *task,
 					t->abort_task.type, t->abort_task.tag,
 					tag);
 			break;
+		case SAS_PROTOCOL_INTERNAL_OTHER:
+			atomic_inc(&pm8001_dev->running_req);
+			rc = PM8001_CHIP_DISP->other_req(pm8001_ha, pm8001_dev,
+					t->other_task.opcode, ccb);
 		default:
 			dev_printk(KERN_ERR, pm8001_ha->dev,
 				"unknown sas_task proto: 0x%x\n", task_proto);
@@ -736,7 +740,7 @@ pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
 {
 	struct sas_ha_struct *sha = dev->port->ha;
 
-	return sas_execute_internal_abort(sha, dev, flag, task_tag);
+	return sas_execute_internal_abort(sha, dev, flag, task_tag, -1);
 }
 
 /**

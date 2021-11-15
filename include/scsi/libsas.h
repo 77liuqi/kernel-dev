@@ -564,6 +564,9 @@ struct sas_abort_task {
 	unsigned int tag;
 };
 
+struct sas_other_task {
+	unsigned int opcode;
+};
 
 struct sas_smp_task {
 	struct scatterlist smp_req;
@@ -602,6 +605,7 @@ struct sas_task {
 		struct sas_smp_task smp_task;
 		struct sas_ssp_task ssp_task;
 		struct sas_abort_task abort_task;
+		struct sas_other_task other_task;
 	};
 
 	struct scatterlist *scatter;
@@ -691,6 +695,8 @@ extern int sas_execute_internal_abort(struct sas_ha_struct *,
 			struct domain_device *dev, enum sas_abort, unsigned int tag, int hctx_idx);
 extern int sas_execute_tmf(struct sas_ha_struct *, struct domain_device *dev,
 		void *parameter, u32 para_len, u8 tmf, u16 tag_of_task_to_be_managed);
+extern int sas_execute_other(struct sas_ha_struct *, struct domain_device *device,
+				unsigned int opcode);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;

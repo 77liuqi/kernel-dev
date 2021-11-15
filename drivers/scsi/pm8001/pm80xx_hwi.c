@@ -1767,131 +1767,19 @@ pm80xx_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 static void pm80xx_send_abort_all(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_device *pm8001_ha_dev)
 {
-	int res;
-	u32 ccb_tag;
-	struct pm8001_ccb_info *ccb;
-	struct sas_task *task = NULL;
-	struct task_abort_req task_abort;
-	struct inbound_queue_table *circularQ;
-	u32 opc = OPC_INB_SATA_ABORT;
-	int ret;
+	struct domain_device *dev = pm8001_ha_dev->sas_device;
+	struct sas_ha_struct *sha = dev->port->ha;
 
-	if (!pm8001_ha_dev) {
-		pm8001_dbg(pm8001_ha, FAIL, "dev is null\n");
-		return;
-	}
-
-	task = sas_alloc_slow_task(GFP_ATOMIC);
-
-	if (!task) {
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task\n");
-		return;
-	}
-
-	task->task_done = pm8001_task_done;
-
-	res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);
-	if (res) {
-		sas_free_task(task);
-		return;
-	}
-
-	ccb = &pm8001_ha->ccb_info[ccb_tag];
-	ccb->device = pm8001_ha_dev;
-	ccb->ccb_tag = ccb_tag;
-	ccb->task = task;
-
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-
-	memset(&task_abort, 0, sizeof(task_abort));
-	task_abort.abort_all = cpu_to_le32(1);
-	task_abort.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	task_abort.tag = cpu_to_le32(ccb_tag);
-
-	ret = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &task_abort,
-			sizeof(task_abort), 0);
-	pm8001_dbg(pm8001_ha, FAIL, "Executing abort task end\n");
-	if (ret) {
-		sas_free_task(task);
-		pm8001_tag_free(pm8001_ha, ccb_tag);
-	}
+	sas_execute_internal_abort(sha, dev, DEVICE, -1, -1);
 }
 
 static void pm80xx_send_read_log(struct pm8001_hba_info *pm8001_ha,
 		struct pm8001_device *pm8001_ha_dev)
 {
-	struct sata_start_req sata_cmd;
-	int res;
-	u32 ccb_tag;
-	struct pm8001_ccb_info *ccb;
-	struct sas_task *task = NULL;
-	struct host_to_dev_fis fis;
-	struct domain_device *dev;
-	struct inbound_queue_table *circularQ;
-	u32 opc = OPC_INB_SATA_HOST_OPSTART;
+	struct domain_device *dev = pm8001_ha_dev->sas_device;
+	struct sas_ha_struct *sha = dev->port->ha;
 
-	task = sas_alloc_slow_task(GFP_ATOMIC);
-
-	if (!task) {
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate task !!!\n");
-		return;
-	}
-	task->task_done = pm8001_task_done;
-
-	res = pm8001_tag_alloc(pm8001_ha, &ccb_tag);
-	if (res) {
-		sas_free_task(task);
-		pm8001_dbg(pm8001_ha, FAIL, "cannot allocate tag !!!\n");
-		return;
-	}
-
-	/* allocate domain device by ourselves as libsas
-	 * is not going to provide any
-	*/
-	dev = kzalloc(sizeof(struct domain_device), GFP_ATOMIC);
-	if (!dev) {
-		sas_free_task(task);
-		pm8001_tag_free(pm8001_ha, ccb_tag);
-		pm8001_dbg(pm8001_ha, FAIL,
-			   "Domain device cannot be allocated\n");
-		return;
-	}
-
-	task->dev = dev;
-	task->dev->lldd_dev = pm8001_ha_dev;
-
-	ccb = &pm8001_ha->ccb_info[ccb_tag];
-	ccb->device = pm8001_ha_dev;
-	ccb->ccb_tag = ccb_tag;
-	ccb->task = task;
-	ccb->n_elem = 0;
-	pm8001_ha_dev->id |= NCQ_READ_LOG_FLAG;
-	pm8001_ha_dev->id |= NCQ_2ND_RLE_FLAG;
-
-	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	circularQ = &pm8001_ha->inbnd_q_tbl[0];
-
-	/* construct read log FIS */
-	memset(&fis, 0, sizeof(struct host_to_dev_fis));
-	fis.fis_type = 0x27;
-	fis.flags = 0x80;
-	fis.command = ATA_CMD_READ_LOG_EXT;
-	fis.lbal = 0x10;
-	fis.sector_count = 0x1;
-
-	sata_cmd.tag = cpu_to_le32(ccb_tag);
-	sata_cmd.device_id = cpu_to_le32(pm8001_ha_dev->device_id);
-	sata_cmd.ncqtag_atap_dir_m_dad |= ((0x1 << 7) | (0x5 << 9));
-	memcpy(&sata_cmd.sata_fis, &fis, sizeof(struct host_to_dev_fis));
-
-	res = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &sata_cmd,
-			sizeof(sata_cmd), 0);
-	pm8001_dbg(pm8001_ha, FAIL, "Executing read log end\n");
-	if (res) {
-		sas_free_task(task);
-		pm8001_tag_free(pm8001_ha, ccb_tag);
-		kfree(dev);
-	}
+	sas_execute_other(sha, dev, OPC_INB_SATA_HOST_OPSTART);
 }
 
 /**
@@ -5051,6 +4939,7 @@ const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.dereg_dev_req		= pm8001_chip_dereg_dev_req,
 	.phy_ctl_req		= pm80xx_chip_phy_ctl_req,
 	.task_abort		= pm8001_chip_abort_task,
+	.other_req		= pm8001_chip_other_req,
 	.ssp_tm_req		= pm8001_chip_ssp_tm_req,
 	.get_nvmd_req		= pm8001_chip_get_nvmd_req,
 	.set_nvmd_req		= pm8001_chip_set_nvmd_req,

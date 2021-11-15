@@ -216,6 +216,7 @@ struct pm8001_dispatch {
 		u32 state);
 	int (*sas_re_init_req)(struct pm8001_hba_info *pm8001_ha);
 	int (*fatal_errors)(struct pm8001_hba_info *pm8001_ha);
+	int (*other_req)(struct pm8001_hba_info *pm8001_ha, struct pm8001_device *pm8001_dev, unsigned int opcode, struct pm8001_ccb_info *ccb);
 };
 
 struct pm8001_chip_info {
@@ -689,6 +690,9 @@ int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 				struct pm8001_device *pm8001_dev,
 				u8 flag, u32 task_tag, u32 cmd_tag);
+int pm8001_chip_other_req(struct pm8001_hba_info *pm8001_ha,
+	struct pm8001_device *pm8001_ha_dev, unsigned int opcode,
+	struct pm8001_ccb_info *ccb);
 int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha, u32 device_id);
 void pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd);
 void pm8001_work_fn(struct work_struct *work);

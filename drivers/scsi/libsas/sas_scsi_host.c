@@ -977,6 +977,61 @@ exit:
 	return res;
 }
 
+int sas_execute_other(struct sas_ha_struct *sha, struct domain_device *device,
+			unsigned int opcode)
+{
+	struct sas_task *task;
+	int res;
+
+	task = sas_alloc_slow_task(sha, GFP_KERNEL, -1);
+	if (!task)
+		return -ENOMEM;
+
+	task->dev = device;
+	task->task_proto = SAS_PROTOCOL_INTERNAL_OTHER;
+	task->task_done = sas_execute_internal_abort_done;
+	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
+	task->slow_task->timer.expires = jiffies + (6 * HZ);
+	task->other_task.opcode = opcode;
+	add_timer(&task->slow_task->timer);
+
+	blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
+
+	wait_for_completion(&task->slow_task->completion);
+
+	res = TMF_RESP_FUNC_FAILED;
+
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal other task: timeout.\n");
+			res = -EIO;
+			goto exit;
+		}
+	}
+
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+
+exit:
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(device->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
+	sas_free_task(task);
+
+	return res;
+}
 static void sas_execute_tmf_done(struct sas_task *task)
 {
 	del_timer(&task->slow_task->timer);
