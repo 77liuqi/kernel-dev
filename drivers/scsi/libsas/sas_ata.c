@@ -124,9 +124,12 @@ static void sas_ata_task_done(struct sas_task *task)
 	link = &ap->link;
 
 	if (bio) {
-//		struct sas_internal_commds *internal = rq->end_io_data;
-//		struct sas_libata_internal *libata_internal = &internal->libata_internal;
-//		*libata_internal->qc = qc;
+
+		struct sas_request *sas_request = (struct sas_request *)(task + 1);
+		struct sas_libata_internal *libata_internal = &sas_request->libata_internal;
+	
+		*libata_internal->qc = qc;
+		
 //		unsigned int err_mask = __ata_exec_internal_sg2(qc);
 		
 //		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS libata_internal->qc=%pS\n", __func__, qc, internal, libata_internal, libata_internal->qc);
