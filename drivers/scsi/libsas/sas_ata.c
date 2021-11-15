@@ -706,6 +706,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 
 
+	rq->end_io_data = &wait;
 
 	blk_execute_rq_nowait(NULL, rq, true, sas_ata_exec_internal_end);
 

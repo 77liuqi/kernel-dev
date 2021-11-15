@@ -1503,7 +1503,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 unsigned __ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
+			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd, struct completion *wait)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1514,7 +1514,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	u32 preempted_sactive;
 	u64 preempted_qc_active;
 	int preempted_nr_active_links;
-	DECLARE_COMPLETION_ONSTACK(wait);
+	//DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
 	unsigned int err_mask;
 	int rc;
@@ -1584,7 +1584,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-
+#ifdef fdfdffdff
 	if (!timeout) {
 		if (ata_probe_timeout)
 			timeout = ata_probe_timeout * 1000;
@@ -1688,18 +1688,22 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s10 exit dev=%pS scsicmd=%pS rc=%pS err_mask=%d\n", __func__, dev, NULL, qc, err_mask);
 
 	return err_mask;
+#else
+	return 0;
+#endif
 }
 
 
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
-			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
+			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd,
+			      struct completion *wait)
 {
 	unsigned res;
 	might_sleep();
 
-	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
+	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd, wait);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
 
 //	if (tf)
@@ -1785,7 +1789,7 @@ unsigned ata_exec_internal(struct ata_device *dev,
 	pr_err("%s2 ap->ops->exec_internal=%pS\n", __func__, ap->ops->exec_internal);
 	BUG();
 	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
-				    timeout, NULL);
+				    timeout, NULL, NULL);
 }
 
 /**
