@@ -740,7 +740,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
 	qc = *internal.libata_internal.qc;
 	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS qc=%pS\n", __func__, rq, &wait, qc);
-//	err_mask = __ata_exec_internal_sg2(qc);
+	err_mask = __ata_exec_internal_sgx(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 
 //BUG();

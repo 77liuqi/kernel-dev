@@ -1694,7 +1694,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 #endif
 }
 
-unsigned __ata_exec_internal_sg2(struct ata_queued_cmd *qc)
+unsigned __ata_exec_internal_sgx(struct ata_queued_cmd *qc)
 {
 	struct ata_device *dev = qc->dev;
 	struct ata_link *link = dev->link;
