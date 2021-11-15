@@ -201,7 +201,8 @@ dma_addr_t	dma_address;
 				libata_internal->sgl,
 				libata_internal->n_elem,
 				libata_internal->timeout,
-				scmd, sas_request->wait);
+				scmd,
+				&sas_request->wait);
 	//	pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
 	//	update_rq_res = blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
 		pr_err("%s7 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS update_rq_res =%d\n", __func__, task, scmd, task->task_done, res, rq, update_rq_res);

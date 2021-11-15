@@ -670,7 +670,6 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //	struct sas_ata_internal_task *ata_internal_task;
 	struct request *rq;
 //	blk_status_t sts;
-	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned int err_mask;
 	struct scsi_cmnd *scmd;
 	struct ata_queued_cmd *qc;
@@ -726,6 +725,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		n_elem,
 		timeout,
 		&qc};
+	init_completion(&sas_request->wait);
 //	if (!special_req)
 //		special_req = rq;
 #define SD_TIMEOUT		(30 * HZ)
@@ -750,12 +750,12 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	
 
-	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS wait=%pS\n", __func__, rq, &wait);
-	wait_for_completion(&wait);
+	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS\n", __func__, rq);
+	wait_for_completion(&sas_request->wait);
 //	task = TO_SAS_TASK(scmd);
-	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
+	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS\n", __func__, rq);
 	qc = *(sas_request->libata_internal.qc);
-	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS qc=%pS\n", __func__, rq, &wait, qc);
+	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS qc=%pS\n", __func__, rq, qc);
 	err_mask = __ata_exec_internal_sgx(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 

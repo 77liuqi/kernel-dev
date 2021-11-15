@@ -619,7 +619,7 @@ struct sas_request {
 	union {
 		struct sas_libata_internal libata_internal;
 	};
-	struct completion *wait;
+	struct completion wait;
 };
 
 struct sas_task {
