@@ -97,8 +97,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
-//	else if (qc && qc->scsicmd)
-//		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+	else if (qc && qc->scsicmd)
+		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
