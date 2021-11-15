@@ -607,6 +607,7 @@ struct sas_libata_internal {
 	struct scatterlist *sgl;
 	unsigned int n_elem;
 	unsigned long timeout;
+	unsigned int *err_mask;
 };
 
 enum sas_internal_type {
@@ -617,8 +618,8 @@ struct sas_internal_commds {
 	enum sas_internal_type type;
 	union {
 		struct sas_libata_internal libata_internal;
-
 	};
+	struct completion *wait;
 };
 
 struct sas_task {

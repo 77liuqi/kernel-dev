@@ -153,7 +153,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		struct sas_libata_internal *libata_internal;
 		struct sas_internal_commds *internal2;
 		struct sas_libata_internal *libata_internal2;
-		struct completion *wait = rq->end_io_data;
+		struct completion *wait;
 		bool update_rq_res;
 		
 		pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d bio_data=%pS bio_has_data=%d wait=%pS\n",
@@ -199,7 +199,7 @@ dma_addr_t	dma_address;
 				libata_internal->sgl,
 				libata_internal->n_elem,
 				libata_internal->timeout,
-				scmd, wait);
+				scmd, internal->wait);
 	//	pr_err("%s6 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS\n", __func__, task, scmd, task->task_done, res, rq);
 	//	update_rq_res = blk_update_request(rq, BLK_STS_OK, blk_rq_bytes(rq));
 		pr_err("%s7 task=%pS SAS_PROTOCOL_ATA_INTERNAL scmd=%pS done=%pS res=%d rq=%pS update_rq_res =%d\n", __func__, task, scmd, task->task_done, res, rq, update_rq_res);

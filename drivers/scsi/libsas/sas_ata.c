@@ -181,6 +181,17 @@ end:
 	pr_err("%s9 end qc=%pS err_mask=%d flags=%ld\n", __func__, qc, qc->err_mask, qc->flags);
 
 	qc->lldd_task = NULL;
+	if (bio) {
+		struct sas_internal_commds *internal = rq->end_io_data;
+		struct sas_libata_internal *libata_internal = &internal->libata_internal;
+		unsigned int err_mask = __ata_exec_internal_sg2(qc);
+		
+		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS\n", __func__, qc, internal, libata_internal);
+		err_mask = __ata_exec_internal_sg2(qc);
+		pr_err("%s9.2 qc=%pS err_mask=%d &err_mask=%pS\n", __func__, qc, err_mask, libata_internal->err_mask);
+
+		*libata_internal->err_mask = err_mask;
+	}
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
@@ -642,6 +653,9 @@ static __maybe_unused void sas_ata_exec_internal_end(struct request *req, blk_st
 	pr_err("%s req=%pS status=%d\n", __func__, req, status);
 }
 
+struct sas_ata_internal_struct {
+};
+
 static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sgl,
@@ -657,8 +671,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned int err_mask;
 	struct scsi_cmnd *scmd;
-	struct ata_queued_cmd *qc;
-	struct sas_task *task;
+//	struct ata_queued_cmd *qc;
 
 //	int res;
 	struct sas_internal_commds internal = {
@@ -670,14 +683,17 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			dma_dir,
 			sgl,
 			n_elem,
-			timeout
+			timeout,
+			&err_mask,
 		},
+		&wait,
 	};
 	int res;
 
 	might_sleep();
 
-	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf);
+	pr_err("%s dev=%pS priv=%pS ap=%pS private_data=%pS intenal=%pS dev=%pS tf=%pS &err_mask=%pS\n",
+		__func__, dev, dev->private_data, ap, ap->private_data, &internal, dev, tf, &err_mask);
 
 //	task = sas_alloc_slow_task(sas_ha, GFP_KERNEL);
 //	if (!task) {
@@ -710,7 +726,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 
 
-	rq->end_io_data = &wait;
+	rq->end_io_data = &internal;
 
 	blk_execute_rq_nowait(NULL, rq, true, NULL);// sas_ata_exec_internal_end);
 
@@ -718,11 +734,11 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS wait=%pS\n", __func__, rq, &wait);
 	wait_for_completion(&wait);
-	task = TO_SAS_TASK(scmd);
-	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS task=%pS\n", __func__, rq, &wait, task);
-	qc = task->uldd_task;
-	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS task=%pS qc=%pS\n", __func__, rq, &wait, task, qc);
-	err_mask = __ata_exec_internal_sg2(qc);
+//	task = TO_SAS_TASK(scmd);
+	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
+//	qc = task->uldd_task;
+	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
+//	err_mask = __ata_exec_internal_sg2(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 
 //BUG();
