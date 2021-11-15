@@ -1025,6 +1025,8 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 	struct sas_task *task;
 	int res, retry;
 
+	might_sleep();
+
 	for (retry = 0; retry < TASK_RETRY; retry++) {
 		task = sas_alloc_slow_task(sha, GFP_KERNEL);
 		if (!task)
@@ -1050,6 +1052,8 @@ int sas_execute_tmf(struct sas_ha_struct *sha, struct domain_device *dev, void *
 		task->slow_task->timer.function = sas_execute_tmf_timedout;
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
+		
+		might_sleep();
 
 		blk_execute_rq_nowait(NULL, sas_rq_from_task(task), true, NULL);
 

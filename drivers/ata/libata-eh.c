@@ -2469,7 +2469,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	unsigned long flags;
 	u32 sstatus;
 	int nr_unknown, rc;
-
+	might_sleep();
 	/*
 	 * Prepare to reset
 	 */

@@ -1521,6 +1521,8 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 
 	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, cmnd);
 
+	might_sleep();
+
 	spin_lock_irqsave(ap->lock, flags);
 
 	/* no internal command while frozen */
@@ -1695,6 +1697,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      unsigned int n_elem, unsigned long timeout, struct scsi_cmnd *cmnd)
 {
 	unsigned res;
+	might_sleep();
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
