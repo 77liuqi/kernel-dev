@@ -607,7 +607,7 @@ struct sas_libata_internal {
 	struct scatterlist *sgl;
 	unsigned int n_elem;
 	unsigned long timeout;
-	unsigned int *err_mask;
+	struct ata_queued_cmd **qc;
 };
 
 enum sas_internal_type {
