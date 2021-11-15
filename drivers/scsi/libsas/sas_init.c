@@ -158,8 +158,8 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 		struct completion *wait;
 		bool update_rq_res;
 		
-		pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d bio_data=%pS bio_has_data=%d wait=%pS\n",
-			__func__,  scmd, task->task_done, scmd, rq->nr_phys_segments, bio_data(rq->bio), bio_has_data(rq->bio), wait);
+		pr_err("%s1 scmd=%pS done=%pS ata_internal scmd=%pS req->nr_phys_segments=%d bio_data=%pS bio_has_data=%d wait=%pS rq=%pS\n",
+			__func__,  scmd, task->task_done, scmd, rq->nr_phys_segments, bio_data(rq->bio), bio_has_data(rq->bio), wait, rq);
 
 		sg_init_table(&sg_list, rq->nr_phys_segments);
 
