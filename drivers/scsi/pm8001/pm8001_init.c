@@ -610,8 +610,10 @@ static int pm8001_prep_sas_ha_init(struct Scsi_Host *shost,
 	shost->max_channel = 0;
 	shost->unique_id = pm8001_id;
 	shost->max_cmd_len = 16;
-	shost->can_queue = PM8001_CAN_QUEUE;
+	/* Fix me, not sure how much reserved commands */
+	shost->can_queue = PM8001_CAN_QUEUE - 5;
 	shost->cmd_per_lun = 32;
+	shost->nr_reserved_cmds = 5;
 	return 0;
 exit_free1:
 	kfree(arr_port);
