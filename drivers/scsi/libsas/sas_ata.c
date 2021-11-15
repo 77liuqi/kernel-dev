@@ -643,6 +643,8 @@ void sas_probe_sata(struct asd_sas_port *port)
 {
 	struct domain_device *dev, *n;
 
+	pr_err("%s port=%pS\n", __func__, port);
+
 	mutex_lock(&port->ha->disco_mutex);
 	list_for_each_entry(dev, &port->disco_list, disco_list_node) {
 		if (!dev_is_sata(dev))
@@ -765,6 +767,8 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 	ASYNC_DOMAIN_EXCLUSIVE(async);
 	int i;
 
+	pr_err("%s shost=%pS\n", __func__, shost);
+
 	/* it's ok to defer revalidation events during ata eh, these
 	 * disks are in one of three states:
 	 * 1/ present for initial domain discovery, and these
@@ -784,6 +788,8 @@ void sas_ata_strategy_handler(struct Scsi_Host *shost)
 		list_for_each_entry(dev, &port->dev_list, dev_list_node) {
 			if (!dev_is_sata(dev))
 				continue;
+			
+			pr_err("%s1 async_sas_ata_eh shost=%pS dev=%pS\n", __func__, shost, dev);
 
 			/* hold a reference over eh since we may be
 			 * racing with final remove once all commands

@@ -2054,6 +2054,7 @@ static bool ata_identify_page_supported(struct ata_device *dev, u8 page)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err, i;
 
+	pr_err("%s dev=%pS\n", __func__, dev);
 	if (dev->horkage & ATA_HORKAGE_NO_ID_DEV_LOG)
 		return false;
 
@@ -2562,6 +2563,8 @@ int ata_dev_configure(struct ata_device *dev)
 	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
 	char modelbuf[ATA_ID_PROD_LEN+1];
 	int rc;
+
+	pr_err("%s dev=%pS\n", __func__, dev);
 
 	if (!ata_dev_enabled(dev) && ata_msg_info(ap)) {
 		ata_dev_info(dev, "%s: ENTER/EXIT -- nodev\n", __func__);
@@ -5762,6 +5765,8 @@ void __ata_port_probe(struct ata_port *ap)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned long flags;
+
+	pr_err("%s ap=%pS\n", __func__, ap);
 
 	/* kick EH for boot probing */
 	spin_lock_irqsave(ap->lock, flags);
