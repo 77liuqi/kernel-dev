@@ -97,8 +97,8 @@ static void sas_ata_task_done(struct sas_task *task)
 	spin_lock_irqsave(&dev->done_lock, flags);
 	if (test_bit(SAS_HA_FROZEN, &sas_ha->state))
 		task = NULL;
-	else if (qc && qc->scsicmd)
-		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
+//	else if (qc && qc->scsicmd)
+//		ASSIGN_SAS_TASK(qc->scsicmd, NULL);
 	spin_unlock_irqrestore(&dev->done_lock, flags);
 
 	/* check if libsas-eh got to the task before us */
@@ -647,7 +647,6 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 			      int dma_dir, struct scatterlist *sgl,
 			      unsigned int n_elem, unsigned long timeout)
 {
-//	struct sas_task *task;
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct Scsi_Host *shost = ap->scsi_host;
@@ -656,6 +655,10 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	struct request *rq;
 	blk_status_t sts;
 	DECLARE_COMPLETION_ONSTACK(wait);
+	unsigned int err_mask;
+	struct scsi_cmnd *scmd;
+	struct ata_queued_cmd *qc;
+	struct sas_task *task;
 
 //	int res;
 	struct sas_internal_commds internal = {
@@ -688,6 +691,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 		BUG();
 		return -1;
 	}
+	scmd = blk_mq_rq_to_pdu(rq);
 //	if (!special_req)
 //		special_req = rq;
 #define SD_TIMEOUT		(30 * HZ)
@@ -714,8 +718,14 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS wait=%pS\n", __func__, rq, &wait);
 	wait_for_completion(&wait);
-	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
+	task = TO_SAS_TASK(scmd);
+	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS task=%pS\n", __func__, rq, &wait, task);
+	qc = task->uldd_task;
+	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS task=%pS qc=%pS\n", __func__, rq, &wait, task, qc);
+	err_mask = __ata_exec_internal_sg2(qc);
+	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 
+	BUG();
 
 //	wait_for_completion(&task->slow_task->completion);
 

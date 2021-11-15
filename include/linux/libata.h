@@ -921,6 +921,7 @@ extern unsigned ata_exec_internal_sg(struct ata_device *dev,
 				     unsigned int n_elem, unsigned long timeout,
 				     struct scsi_cmnd *,
 				     struct completion *);
+extern unsigned __ata_exec_internal_sg2(struct ata_queued_cmd *qc);
 
 struct ata_port_operations {
 	/*

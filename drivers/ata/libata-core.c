@@ -1516,8 +1516,8 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	int preempted_nr_active_links;
 	//DECLARE_COMPLETION_ONSTACK(wait);
 	unsigned long flags;
-	unsigned int err_mask;
-	int rc;
+//	unsigned int err_mask;
+//	int rc;
 
 	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, cmnd);
 
@@ -1579,12 +1579,11 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	qc->private_data = wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
-	pr_err("%s2 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
+	pr_err("%s2 dev=%pS scsicmd=%pS qc=%pS\n", __func__, dev, cmnd, qc);
 
 	ata_qc_issue(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
-#ifdef fdfdffdff
 	if (!timeout) {
 		if (ata_probe_timeout)
 			timeout = ata_probe_timeout * 1000;
@@ -1596,6 +1595,8 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 
 	if (ap->ops->error_handler)
 		ata_eh_release(ap);
+	
+#ifdef fdfdffdff
 
 	pr_err("%s3 dev=%pS scsicmd=%pS rc=%pS err_mask=%d qc->err mask=%d\n", __func__, dev, NULL, qc, err_mask, qc->err_mask);
 
@@ -1691,6 +1692,121 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 #else
 	return 0;
 #endif
+}
+
+unsigned __ata_exec_internal_sg2(struct ata_queued_cmd *qc)
+{
+	struct ata_device *dev = qc->dev;
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	struct ata_taskfile *tf = &qc->tf;
+	u8 command = tf->command;
+	int auto_timeout = 0;
+	#ifdef fixme
+	unsigned int preempted_tag;
+	u32 preempted_sactive;
+	u64 preempted_qc_active;
+	int preempted_nr_active_links;
+	//DECLARE_COMPLETION_ONSTACK(wait);
+	#endif
+	unsigned long flags;
+	unsigned int err_mask;
+	int rc = 0;
+	struct scsi_cmnd *cmnd = qc->scsicmd;
+
+	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, cmnd);
+
+
+//	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
+
+	//pr_err("%s4 got completion dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
+
+	if (ap->ops->error_handler)
+		ata_eh_acquire(ap);
+
+	ata_sff_flush_pio_task(ap);
+
+	pr_err("%s4.1 dev=%pS scsicmd=%pS rc=%pS qc err_mask=%d\n", __func__, dev, NULL, qc, qc->err_mask);
+
+	if (!rc) {
+		spin_lock_irqsave(ap->lock, flags);
+
+		/* We're racing with irq here.  If we lose, the
+		 * following test prevents us from completing the qc
+		 * twice.  If we win, the port is frozen and will be
+		 * cleaned up by ->post_internal_cmd().
+		 */
+		pr_err("%s4.20 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
+		if (qc->flags & ATA_QCFLAG_ACTIVE) {
+			qc->err_mask |= AC_ERR_TIMEOUT;
+			
+			pr_err("%s4.21 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
+
+			if (ap->ops->error_handler)
+				ata_port_freeze(ap);
+			else
+				ata_qc_complete(qc);
+
+			if (ata_msg_warn(ap))
+				ata_dev_warn(dev, "qc timeout (cmd 0x%x)\n",
+					     -1);
+		}
+
+		spin_unlock_irqrestore(ap->lock, flags);
+	}
+
+	/* do post_internal_cmd */
+	if (ap->ops->post_internal_cmd)
+		ap->ops->post_internal_cmd(qc);
+
+	/* perform minimal error analysis */
+	if (qc->flags & ATA_QCFLAG_FAILED) {
+		if (qc->result_tf.command & (ATA_ERR | ATA_DF))
+			qc->err_mask |= AC_ERR_DEV;
+		
+		
+		pr_err("%s4.3 dev=%pS scsicmd=%pS rc=%pS qc err_mask=%d\n", __func__, dev, NULL, qc, qc->err_mask);
+
+		if (!qc->err_mask)
+			qc->err_mask |= AC_ERR_OTHER;
+
+		if (qc->err_mask & ~AC_ERR_OTHER)
+			qc->err_mask &= ~AC_ERR_OTHER;
+	} else if (qc->tf.command == ATA_CMD_REQ_SENSE_DATA) {
+		qc->result_tf.command |= ATA_SENSE;
+	}
+	
+	pr_err("%s4.4 dev=%pS scsicmd=%pS rc=%pS qc err_mask=%d\n", __func__, dev, NULL, qc, qc->err_mask);
+
+	/* finish up */
+	spin_lock_irqsave(ap->lock, flags);
+
+	*tf = qc->result_tf;
+	if (tf)
+		print_hex_dump(KERN_ERR, "__ata_exec_internal_sg after *tf  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
+	pr_err("%s4.5 dev=%pS scsicmd=%pS rc=%pS qc->err_mask=%d\n", __func__, dev, NULL, qc, qc->err_mask);
+	err_mask = qc->err_mask;
+
+	pr_err("%s4.6 dev=%pS scsicmd=%pS rc=%pS err_mask=%d qc->err_mask=%d\n", __func__, dev, NULL, qc, err_mask, qc->err_mask);
+
+	ata_qc_free(qc);
+#ifdef fixme
+	link->active_tag = preempted_tag;
+	link->sactive = preempted_sactive;
+	ap->qc_active = preempted_qc_active;
+	ap->nr_active_links = preempted_nr_active_links;
+#endif
+	pr_err("%s4.7 dev=%pS scsicmd=%pS rc=%pS err_mask=%d qc->err_mask=%d\n", __func__, dev, NULL, qc, err_mask, qc->err_mask);
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	if ((err_mask & AC_ERR_TIMEOUT) && auto_timeout)
+		ata_internal_cmd_timed_out(dev, command);
+
+
+	pr_err("%s10 exit dev=%pS scsicmd=%pS rc=%pS err_mask=%d\n", __func__, dev, NULL, qc, err_mask);
+
+	return err_mask;
 }
 
 
