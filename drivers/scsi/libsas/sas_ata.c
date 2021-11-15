@@ -123,6 +123,18 @@ static void sas_ata_task_done(struct sas_task *task)
 	ap = qc->ap;
 	link = &ap->link;
 
+	if (bio) {
+		struct sas_internal_commds *internal = rq->end_io_data;
+		struct sas_libata_internal *libata_internal = &internal->libata_internal;
+		unsigned int err_mask = __ata_exec_internal_sg2(qc);
+		
+		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS\n", __func__, qc, internal, libata_internal);
+		err_mask = __ata_exec_internal_sg2(qc);
+		pr_err("%s9.2 qc=%pS err_mask=%d &err_mask=%pS\n", __func__, qc, err_mask, libata_internal->err_mask);
+
+		*libata_internal->err_mask = err_mask;
+	}
+
 	spin_lock_irqsave(ap->lock, flags);
 	/* check if we lost the race with libata/sas_ata_post_internal() */
 	if (unlikely(ap->pflags & ATA_PFLAG_FROZEN)) {
@@ -181,17 +193,6 @@ end:
 	pr_err("%s9 end qc=%pS err_mask=%d flags=%ld\n", __func__, qc, qc->err_mask, qc->flags);
 
 	qc->lldd_task = NULL;
-	if (bio) {
-		struct sas_internal_commds *internal = rq->end_io_data;
-		struct sas_libata_internal *libata_internal = &internal->libata_internal;
-		unsigned int err_mask = __ata_exec_internal_sg2(qc);
-		
-		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS\n", __func__, qc, internal, libata_internal);
-		err_mask = __ata_exec_internal_sg2(qc);
-		pr_err("%s9.2 qc=%pS err_mask=%d &err_mask=%pS\n", __func__, qc, err_mask, libata_internal->err_mask);
-
-		*libata_internal->err_mask = err_mask;
-	}
 	ata_qc_complete(qc);
 	spin_unlock_irqrestore(ap->lock, flags);
 
