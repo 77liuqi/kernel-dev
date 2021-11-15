@@ -1147,9 +1147,7 @@ static int hisi_sas_exec_internal_tmf_task(struct domain_device *device,
 					   void *parameter, u32 para_len,
 					   struct hisi_sas_tmf_task *tmf)
 {
-	struct hisi_sas_device *sas_dev = device->lldd_dev;
-	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
-	struct sas_ha_struct *sha = &hisi_hba->sha;
+	struct sas_ha_struct *sha = device->port->ha;
 
 	if (tmf)
 		return sas_execute_tmf(sha, device, parameter, para_len,
