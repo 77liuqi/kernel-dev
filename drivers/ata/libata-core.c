@@ -1473,7 +1473,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 {
 	struct completion *waiting = qc->private_data;
 
-//	pr_err("%s qc=%pS\n", __func__, qc);
+	pr_err("%s qc=%pS\n", __func__, qc);
 
 	complete(waiting);
 }
@@ -1521,7 +1521,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 
 	pr_err("%s dev=%pS scsicmd=%pS\n", __func__, dev, cmnd);
 
-	might_sleep();
+	//might_sleep();
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -1576,7 +1576,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 		qc->nbytes = buflen;
 	}
 
-	qc->private_data = &wait;
+	qc->private_data = wait;
 	qc->complete_fn = ata_qc_complete_internal;
 
 	pr_err("%s2 dev=%pS scsicmd=%pS rc=%pS\n", __func__, dev, NULL, qc);
@@ -1701,7 +1701,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct completion *wait)
 {
 	unsigned res;
-	might_sleep();
+	//might_sleep();
 
 	res = __ata_exec_internal_sg(dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd, wait);
 	pr_err("%s res=%d dev=%pS tf=%pS cdb=%pS dma_dir=%d sg;=%pS n_elem=%d timeout=%ld cmnd=%pS\n", __func__, res, dev, tf, cdb, dma_dir, sgl, n_elem, timeout, cmnd);
@@ -1764,8 +1764,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 			print_hex_dump(KERN_ERR, "ata_exec_internal tf1  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 		if (cdb)
 			print_hex_dump(KERN_ERR, "ata_exec_internal cdb1	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
-		if (buf)
-			print_hex_dump(KERN_ERR, "ata_exec_internal buf1	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+	//	if (buf)
+	//		print_hex_dump(KERN_ERR, "ata_exec_internal buf1	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
 
 	
 		res = ap->ops->exec_internal(dev, tf, cdb, dma_dir, psg, n_elem, timeout);
@@ -1775,8 +1775,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 			print_hex_dump(KERN_ERR, "ata_exec_internal tf2  ", DUMP_PREFIX_NONE, 16, 1, tf, sizeof(*tf), true);
 		if (cdb)
 			print_hex_dump(KERN_ERR, "ata_exec_internal cdb2	", DUMP_PREFIX_NONE, 16, 1, cdb, ATAPI_CDB_LEN, true);
-		if (buf)
-			print_hex_dump(KERN_ERR, "ata_exec_internal buf2	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
+	//	if (buf)
+	//		print_hex_dump(KERN_ERR, "ata_exec_internal buf2	", DUMP_PREFIX_NONE, 16, 1, buf, buflen, true);
 		
 		BUG_ON(count == 40);
 

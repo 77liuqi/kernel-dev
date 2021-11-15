@@ -139,7 +139,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct sas_task *task = sas_rq_to_task(rq);
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	//bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
-	might_sleep();
+	//might_sleep();
 
 //	pr_err("%s task=%pS rq=%pS bio=%pS\n", __func__, task, rq, rq->bio);
 
@@ -175,7 +175,7 @@ dma_addr_t	dma_address;
 
 		internal = sg_virt(&sg_list);
 		internal2 = bio_data(rq->bio);
-		might_sleep();
+//		might_sleep();
 	//	pr_err("%s3 scmd=%pS internal=%pS page_link=0x%lx offset=0x%x length=0x%x dma_address=%pad internal2=%pS\n", __func__, scmd,  internal,
 	//	sg_list.page_link, sg_list.offset, sg_list.length, &sg_list.dma_address, internal2);
 

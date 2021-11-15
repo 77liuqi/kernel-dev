@@ -712,9 +712,9 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 
 	
 
-	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS\n", __func__, rq);
+	pr_err("%s2 after blk_execute_rq_nowait, waiting for completion rq=%pS wait=%pS\n", __func__, rq, &wait);
 	wait_for_completion(&wait);
-	pr_err("%s3 after blk_execute_rq rq=%pS sts=%d\n", __func__, rq, sts);
+	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS wait=%pS\n", __func__, rq, &wait);
 
 
 //	wait_for_completion(&task->slow_task->completion);
