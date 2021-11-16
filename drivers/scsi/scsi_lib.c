@@ -1668,6 +1668,23 @@ static int scsi_mq_get_rq_budget_token(struct request *req)
 	return cmd->budget_token;
 }
 
+static blk_status_t scsi_queue_rq_resv(struct blk_mq_hw_ctx *hctx,
+			 const struct blk_mq_queue_data *bd)
+{
+	struct request *req = bd->rq;
+	struct request_queue *q = req->q;
+	struct blk_mq_tag_set *tag_set = q->tag_set;
+	struct Scsi_Host *shost = container_of(tag_set, struct Scsi_Host, tag_set);
+	blk_status_t res;
+
+	blk_mq_start_request(bd->rq);
+	
+	res = shost->hostt->queuecommand_internal(shost, req);
+	if (res)
+		return BLK_STS_IOERR;
+	return BLK_STS_OK;
+}
+
 static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
@@ -1678,7 +1695,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct scsi_cmnd *cmd;
 	blk_status_t ret;
 	int reason;
-
+#ifdef olddie
 	if (req->cmd_flags & REQ_RESV) {
 		int res;
 
@@ -1689,7 +1706,7 @@ static blk_status_t scsi_queue_rq(struct blk_mq_hw_ctx *hctx,
 			return BLK_STS_IOERR;
 		return BLK_STS_OK;
 	}
-
+#endif
 	cmd = blk_mq_rq_to_pdu(req);
 
 	WARN_ON_ONCE(cmd->budget_token < 0);
@@ -1900,6 +1917,7 @@ static const struct blk_mq_ops scsi_mq_ops_no_commit = {
 	.get_budget	= scsi_mq_get_budget,
 	.put_budget	= scsi_mq_put_budget,
 	.queue_rq	= scsi_queue_rq,
+	.queue_rq_resv = scsi_queue_rq_resv,
 	.complete	= scsi_complete,
 	.timeout	= scsi_timeout,
 #ifdef CONFIG_BLK_DEBUG_FS
@@ -1928,6 +1946,7 @@ static const struct blk_mq_ops scsi_mq_ops = {
 	.get_budget	= scsi_mq_get_budget,
 	.put_budget	= scsi_mq_put_budget,
 	.queue_rq	= scsi_queue_rq,
+	.queue_rq_resv = scsi_queue_rq_resv,
 	.commit_rqs	= scsi_commit_rqs,
 	.complete	= scsi_complete,
 	.timeout	= scsi_timeout,

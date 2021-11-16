@@ -1610,6 +1610,20 @@ static void blk_mq_release_budgets(struct request_queue *q,
 	}
 }
 
+static inline int blk_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
+		const struct blk_mq_queue_data *bd)
+{
+	struct request *req = bd->rq;
+	struct request_queue *q = req->q;
+	const struct blk_mq_ops *mq_ops = q->mq_ops;
+
+	if (req->cmd_flags & REQ_RESV) {
+		if (mq_ops->queue_rq_resv)
+			return mq_ops->queue_rq_resv(hctx, bd);
+	}
+	return mq_ops->queue_rq(hctx, bd);
+}
+
 /*
  * Returns true if we did some work AND can potentially do more.
  */
@@ -1662,7 +1676,7 @@ bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list,
 		 */
 		if (nr_budgets)
 			nr_budgets--;
-		ret = q->mq_ops->queue_rq(hctx, &bd);
+		ret = blk_mq_queue_rq(hctx, &bd);
 		switch (ret) {
 		case BLK_STS_OK:
 			queued++;
@@ -2318,7 +2332,6 @@ static void blk_mq_bio_to_request(struct request *rq, struct bio *bio,
 static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 					    struct request *rq, bool last)
 {
-	struct request_queue *q = rq->q;
 	struct blk_mq_queue_data bd = {
 		.rq = rq,
 		.last = last,
@@ -2330,7 +2343,7 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	 * Any other error (busy), just add it to our list as we
 	 * previously would have done.
 	 */
-	ret = q->mq_ops->queue_rq(hctx, &bd);
+	ret = blk_mq_queue_rq(hctx, &bd);
 	switch (ret) {
 	case BLK_STS_OK:
 		blk_mq_update_dispatch_busy(hctx, false);

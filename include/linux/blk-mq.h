@@ -494,6 +494,9 @@ struct blk_mq_ops {
 	blk_status_t (*queue_rq)(struct blk_mq_hw_ctx *,
 				 const struct blk_mq_queue_data *);
 
+	blk_status_t (*queue_rq_resv)(struct blk_mq_hw_ctx *,
+				 const struct blk_mq_queue_data *);
+
 	/**
 	 * @commit_rqs: If a driver uses bd->last to judge when to submit
 	 * requests to hardware, it must define this function. In case of errors
