@@ -637,6 +637,8 @@ void queue_iova(struct iova_domain *iovad,
 	unsigned long flags;
 	unsigned idx;
 
+	pr_err("%s iovad=%pS pfn=%lu pages=%lu data=%lu\n", __func__, iovad, pfn, pages, data);
+
 	/*
 	 * Order against the IOMMU driver's pagetable update from unmapping
 	 * @pte, to guarantee that iova_domain_flush() observes that if called
