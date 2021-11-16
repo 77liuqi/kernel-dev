@@ -709,7 +709,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //		return -1;
 //	}
 
-	rq = blk_mq_alloc_request(shost->sdev->request_queue, REQ_OP_DRV_OUT, BLK_MQ_REQ_RESERVED);
+	rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_OUT, BLK_MQ_REQ_RESERVED);
 	if (IS_ERR(rq)) {
 	//	pr_err("%s1 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS\n", __func__, dev, dev->private_data, ap, ap->private_data, rq);
 		BUG();
@@ -737,7 +737,7 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 //		RQF_PM, NULL);
 //	pr_err("%s2 dev=%pS priv=%pS ap=%pS private_data=%pS just alloc'ed rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 //		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
-	res = blk_rq_map_kern(shost->sdev->request_queue, rq, &sas_request->libata_internal, sizeof(struct sas_libata_internal), GFP_KERNEL);
+	res = blk_rq_map_kern(shost->q, rq, &sas_request->libata_internal, sizeof(struct sas_libata_internal), GFP_KERNEL);
 //	pr_err("%s2.0 dev=%pS priv=%pS ap=%pS private_data=%pS rq=%pS res=%d sz=%zu rq->bio=%pS bio_has_data=%d\n",
 //		__func__, dev, dev->private_data, ap, ap->private_data, rq, res, sizeof(struct sas_internal_commds), rq->bio, bio_has_data(rq->bio));
 	if (res) {

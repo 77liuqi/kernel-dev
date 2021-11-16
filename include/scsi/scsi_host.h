@@ -731,7 +731,7 @@ struct Scsi_Host {
 	 */
 	struct device *dma_dev;
 
-	struct scsi_device *sdev;
+	struct request_queue *q;
 
 	/*
 	 * We should ensure that this is aligned, both for better performance
