@@ -54,8 +54,11 @@ static void sas_end_task(struct scsi_cmnd *sc, struct sas_task *task)
 			break;
 		case SAS_DATA_UNDERRUN:
 			scsi_set_resid(sc, ts->residual);
-			if (scsi_bufflen(sc) - scsi_get_resid(sc) < sc->underflow)
+			pr_err("%s task=%pS bufflen=%d resid=%d underflow=%d\n", __func__, task, scsi_bufflen(sc), scsi_get_resid(sc), sc->underflow);
+			if (scsi_bufflen(sc) - scsi_get_resid(sc) < sc->underflow) {
+				pr_err("%s2 task=%pS bufflen=%d resid=%d underflow=%d\n", __func__, task, scsi_bufflen(sc), scsi_get_resid(sc), sc->underflow);
 				hs = DID_ERROR;
+			}
 			break;
 		case SAS_DATA_OVERRUN:
 			hs = DID_ERROR;
