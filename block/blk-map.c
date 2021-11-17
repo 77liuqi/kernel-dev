@@ -622,7 +622,7 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *    buffer is used. Can be called multiple times to append multiple
  *    buffers.
  */
- extern struct request *special_req;
+struct request *special_req;
 void *special_kbuf;
 
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,

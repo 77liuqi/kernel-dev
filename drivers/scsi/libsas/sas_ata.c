@@ -202,7 +202,7 @@ end:
 
 qc_already_gone:
 	
-	pr_err("%s9 qc_already_gone qc=%pS\n", __func__, qc);
+	pr_err("%s10 qc_already_gone qc=%pS\n", __func__, qc);
 	if (rq->cmd_flags & REQ_RESV) {
 	//	pr_err("%s5 qc_already_gone task=%pS rq=%pS scsicmd=%pS bio=%pS\n", __func__, task, rq, scsicmd, rq->bio);
 
@@ -302,7 +302,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	qc->lldd_task = task;
 
 	task->ata_task.use_ncq = ata_is_ncq(qc->tf.protocol);
-	pr_err("%s56 qc=%pS use_ncq=%d\n", __func__, qc, task->ata_task.use_ncq);
+	pr_err("%s6 qc=%pS use_ncq=%d\n", __func__, qc, task->ata_task.use_ncq);
 	task->ata_task.dma_xfer = ata_is_dma(qc->tf.protocol);
 	pr_err("%s7 qc=%pS use_ncq=%d\n", __func__, qc, task->ata_task.dma_xfer);
 
@@ -652,7 +652,7 @@ static __maybe_unused void sas_ata_internal_task_done(struct sas_task *task)
 #define SMP_TIMEOUT 10
 
 
-struct request *special_req;
+extern struct request *special_req;
 static __maybe_unused void sas_ata_exec_internal_end(struct request *req, blk_status_t status)
 {
 	pr_err("%s req=%pS status=%d\n", __func__, req, status);
