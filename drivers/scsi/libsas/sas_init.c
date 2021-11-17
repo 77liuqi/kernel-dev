@@ -140,7 +140,7 @@ int sas_queuecommand_internal(struct Scsi_Host *shost, struct request *rq)
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	struct sas_request *sas_request = sas_request = (struct sas_request *)(task + 1);
 	//bool ata_internal = task->task_proto == SAS_PROTOCOL_ATA_INTERNAL;
-	//might_sleep();
+	might_sleep();
 
 //	pr_err("%s task=%pS rq=%pS bio=%pS\n", __func__, task, rq, rq->bio);
 

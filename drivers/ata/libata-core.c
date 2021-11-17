@@ -1522,7 +1522,7 @@ unsigned __ata_exec_internal_sg(struct ata_device *dev,
 	pr_err("%s dev=%pS scsicmd=%pS tf=%pS\n",
 	__func__, dev, cmnd, tf);
 
-	//might_sleep();
+	might_sleep();
 
 	spin_lock_irqsave(ap->lock, flags);
 
