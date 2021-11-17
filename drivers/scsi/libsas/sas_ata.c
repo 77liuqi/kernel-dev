@@ -129,7 +129,9 @@ static void sas_ata_task_done(struct sas_task *task)
 		struct sas_libata_internal *libata_internal = &sas_request->libata_internal;
 	
 		*libata_internal->qc = qc;
-		
+
+
+		complete(&sas_request->wait);
 //		unsigned int err_mask = __ata_exec_internal_sg2(qc);
 		
 //		pr_err("%s9.1 qc=%pS internal=%pS libata_internal=%pS libata_internal->qc=%pS\n", __func__, qc, internal, libata_internal, libata_internal->qc);
@@ -208,7 +210,7 @@ qc_already_gone:
 
 			
 	}
-	sas_free_task(task);
+	//sas_free_task(task);
 }
 
 static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
@@ -757,9 +759,9 @@ static unsigned sas_ata_exec_internal(struct ata_device *dev,
 	wait_for_completion(&sas_request->wait);
 //	task = TO_SAS_TASK(scmd);
 	pr_err("%s4 after blk_execute_rq_nowait, got completion rq=%pS\n", __func__, rq);
-	qc = *(sas_request->libata_internal.qc);
+//	qc = *(sas_request->libata_internal.qc);
 	pr_err("%s4.1 after blk_execute_rq_nowait, got completion rq=%pS qc=%pS\n", __func__, rq, qc);
-	err_mask = __ata_exec_internal_sgx(qc);
+//	err_mask = __ata_exec_internal_sgx(qc);
 	pr_err("%s5  after __ata_exec_internal_sg2, got completion err_mask=%d\n", __func__, err_mask);
 
 //BUG();
