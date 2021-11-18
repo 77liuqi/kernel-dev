@@ -730,6 +730,8 @@ struct Scsi_Host {
 	 */
 	struct device *dma_dev;
 
+	struct request_queue *q;
+
 	/*
 	 * We should ensure that this is aligned, both for better performance
 	 * and also because some compilers (m68k) don't automatically force

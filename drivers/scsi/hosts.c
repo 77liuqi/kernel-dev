@@ -291,6 +291,12 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 
 	scsi_proc_host_add(shost);
 	scsi_autopm_put_host(shost);
+	shost->q = blk_mq_init_queue(&shost->tag_set);
+	if (IS_ERR(shost->q))
+		goto fail;
+
+	__scsi_init_queue(shost, shost->q);
+
 	return error;
 
 	/*

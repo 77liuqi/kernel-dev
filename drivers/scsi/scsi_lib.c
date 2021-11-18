@@ -1608,13 +1608,21 @@ static void scsi_mq_put_budget(struct request_queue *q, int budget_token)
 {
 	struct scsi_device *sdev = q->queuedata;
 
+	if (!sdev)
+		return;
+
 	sbitmap_put(&sdev->budget_map, budget_token);
 }
 
 static int scsi_mq_get_budget(struct request_queue *q)
 {
 	struct scsi_device *sdev = q->queuedata;
-	int token = scsi_dev_queue_ready(q, sdev);
+	int token;
+
+	if (!sdev)
+		return 0;
+
+	token = scsi_dev_queue_ready(q, sdev);
 
 	if (token >= 0)
 		return token;
