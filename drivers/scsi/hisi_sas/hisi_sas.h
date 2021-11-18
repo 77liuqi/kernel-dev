@@ -107,11 +107,6 @@ enum dev_status {
 	HISI_SAS_DEV_NORMAL,
 };
 
-enum {
-	HISI_SAS_INT_ABT_CMD = 0,
-	HISI_SAS_INT_ABT_DEV = 1,
-};
-
 enum hisi_sas_dev_type {
 	HISI_SAS_DEV_TYPE_STP = 0,
 	HISI_SAS_DEV_TYPE_SSP,
@@ -132,11 +127,6 @@ struct hisi_sas_rst {
 	struct completion *completion;
 	struct work_struct work;
 	bool done;
-};
-
-struct hisi_sas_internal_abort {
-	int flag;
-	int tag;
 };
 
 #define HISI_SAS_RST_WORK_INIT(r, c) \

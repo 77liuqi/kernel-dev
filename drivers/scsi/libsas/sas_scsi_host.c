@@ -893,6 +893,7 @@ int sas_bios_param(struct scsi_device *scsi_dev,
 }
 EXPORT_SYMBOL_GPL(sas_bios_param);
 
+
 enum blk_eh_timer_return sas_timeout(struct request *req, bool reserved)
 {
 	struct sas_task *task = sas_rq_to_task(req);
@@ -903,6 +904,88 @@ enum blk_eh_timer_return sas_timeout(struct request *req, bool reserved)
 	BUG();
 	return BLK_EH_DONE;
 }
+
+static void sas_execute_internal_abort_done(struct sas_task *task)
+{
+	__blk_mq_end_request(sas_rq_from_task(task), BLK_STS_OK);
+}
+
+static void sas_execute_internal_abort_timedout(struct timer_list *t)
+{
+	struct sas_task_slow *slow = from_timer(slow, t, timer);
+	struct sas_task *task = slow->task;
+
+	unsigned long flags;
+	bool is_completed = true;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+		task->task_state_flags |= SAS_TASK_STATE_ABORTED;
+		is_completed = false;
+	}
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (!is_completed)
+		complete(&task->slow_task->completion);
+}
+
+int sas_execute_internal_abort(struct sas_ha_struct *sha, struct domain_device *device,
+			enum sas_abort type, unsigned int tag, unsigned int qid)
+{
+	struct sas_task *task;
+	blk_status_t sts;
+	int res;
+
+	task = sas_alloc_slow_task_hctx(sha, GFP_KERNEL, qid);
+	if (!task)
+		return -ENOMEM;
+
+	task->dev = device;
+	task->task_proto = SAS_PROTOCOL_INTERNAL_ABORT;
+	task->task_done = sas_execute_internal_abort_done;
+	task->slow_task->timer.function = sas_execute_internal_abort_timedout;
+	task->slow_task->timer.expires = jiffies + (6 * HZ);
+	task->abort_task.type = type;
+	task->abort_task.tag = tag;
+	task->abort_task.hw_idx = qid;
+
+	sts = blk_execute_rq(NULL, sas_rq_from_task(task), true);
+
+
+	res = TMF_RESP_FUNC_FAILED;
+
+	/* Internal abort timed out */
+	if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+		if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+			pr_err("internal task: timeout.\n");
+			res = -EIO;
+			goto exit;
+		}
+	}
+
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+		res = TMF_RESP_FUNC_COMPLETE;
+		goto exit;
+	}
+
+	if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+		res = TMF_RESP_FUNC_SUCC;
+		goto exit;
+	}
+
+exit:
+	if (res < 0  || res == TMF_RESP_FUNC_FAILED)
+		pr_err("internal task abort: task to dev %016llx task=%pK resp: 0x%x sts 0x%x res=%d\n",
+			SAS_ADDR(device->sas_addr), task,
+			task->task_status.resp, /* 0 is complete, -1 is undelivered */
+			task->task_status.stat, res);
+	sas_free_task(task);
+
+	return res;
+}
+
 
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
