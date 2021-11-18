@@ -232,6 +232,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		// We don't sent this through the block layer
 		blk_mq_start_request(sas_rq_from_task(task));
 	}
+	sas_set_unique_hw_tag(task);
 	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
