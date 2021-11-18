@@ -1937,7 +1937,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 						     type, tag, dq,
 						     rst_to_recover);
 	case SAS_ABORT_DEV:
-		for (i = 0; i < hisi_hba->cq_nvecs; i++) {
+		for (i = 0; i < 16 /* hisi_hba->cq_nvecs */; i++) {
 			struct hisi_sas_cq *cq = &hisi_hba->cq[i];
 			const struct cpumask *mask = cq->irq_mask;
 

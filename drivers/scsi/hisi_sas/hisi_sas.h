@@ -201,6 +201,7 @@ struct hisi_sas_cq {
 	int	rd_point;
 	int	id;
 	int	irq_no;
+	spinlock_t lock;
 };
 
 struct hisi_sas_dq {
@@ -485,6 +486,8 @@ struct hisi_hba {
 	struct dentry *debugfs_dump_dentry;
 	struct dentry *debugfs_bist_dentry;
 	struct dentry *debugfs_fifo_dentry;
+
+	int iopoll_q_count;
 };
 
 /* Generic HW DMA host memory structures */
