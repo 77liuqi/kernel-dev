@@ -586,6 +586,8 @@ struct sas_ssp_task {
 	enum   task_attribute task_attr;
 	u8     task_prio;
 	struct scsi_cmnd *cmd;
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
 };
 
 struct sas_task {
@@ -614,6 +616,7 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
+	bool is_tmf;
 };
 
 struct sas_task_slow {
@@ -690,6 +693,9 @@ extern int sas_bios_param(struct scsi_device *, struct block_device *,
 extern int sas_execute_internal_abort(struct sas_ha_struct *,
 			struct domain_device *dev, enum sas_abort,
 			unsigned int tag, unsigned int hw_idx);
+extern int sas_execute_tmf(struct sas_ha_struct *, struct domain_device *dev,
+			void *parameter, u32 para_len, u8 tmf,
+			u16 tag_of_task_to_be_managed);
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
