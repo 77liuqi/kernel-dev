@@ -952,8 +952,6 @@ static int sas_execute_tmf(struct domain_device *device,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		task->is_tmf = true;
-
 		res = i->dft->lldd_execute_task(task, GFP_KERNEL, tmf);
 		if (res) {
 			del_timer(&task->slow_task->timer);

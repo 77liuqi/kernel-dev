@@ -607,7 +607,7 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
-	bool	is_tmf;
+//	bool	is_tmf;
 };
 
 struct sas_task_slow {

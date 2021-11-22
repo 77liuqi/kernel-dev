@@ -591,7 +591,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	slot->n_elem_dif = n_elem_dif;
 	slot->task = task;
 	slot->port = port;
-	slot->is_internal = task->is_tmf;
+	slot->is_internal = tmf;
 
 	/* protect task_prep and start_delivery sequence */
 	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, tmf, NULL);
