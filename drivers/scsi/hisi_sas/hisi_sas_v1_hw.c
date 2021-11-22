@@ -958,8 +958,8 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-//	struct hisi_sas_tmf_task *tmf = slot->tmf;
-	int has_data = 0, priority = task->is_tmf;
+	struct sas_tmf_task *tmf = slot->tmf;
+	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd, fburst = 0;
 	u32 dw1, dw2;
 
@@ -973,7 +973,7 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 
 	dw1 = 1 << CMD_HDR_VERIFY_DTL_OFF;
 
-	if (task->is_tmf) {
+	if (tmf) {
 		dw1 |= 3 << CMD_HDR_SSP_FRAME_TYPE_OFF;
 	} else {
 		switch (scsi_cmnd->sc_data_direction) {
@@ -994,7 +994,7 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	dw1 |= sas_dev->device_id << CMD_HDR_DEVICE_ID_OFF;
 	hdr->dw1 = cpu_to_le32(dw1);
 
-	if (task->is_tmf) {
+	if (tmf) {
 		dw2 = ((sizeof(struct ssp_tmf_iu) +
 			sizeof(struct ssp_frame_hdr)+3)/4) <<
 			CMD_HDR_CFL_OFF;
@@ -1025,20 +1025,20 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	hdr->dw2 = cpu_to_le32(dw2);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
-	if (!task->is_tmf) {
+	if (!tmf) {
 		buf_cmd[9] = fburst | task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
 		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
 				task->ssp_task.cmd->cmd_len);
 	} else {
-		buf_cmd[10] = ssp_task->tmf;
-		switch (ssp_task->tmf) {
+		buf_cmd[10] = tmf->tmf;
+		switch (tmf->tmf) {
 		case TMF_ABORT_TASK:
 		case TMF_QUERY_TASK:
 			buf_cmd[12] =
-				(ssp_task->tag_of_task_to_be_managed >> 8) & 0xff;
+				(tmf->tag >> 8) & 0xff;
 			buf_cmd[13] =
-				ssp_task->tag_of_task_to_be_managed & 0xff;
+				tmf->tag & 0xff;
 			break;
 		default:
 			break;

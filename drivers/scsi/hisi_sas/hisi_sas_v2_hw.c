@@ -1742,8 +1742,8 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-//	struct hisi_sas_tmf_task *tmf = slot->tmf;
-	int has_data = 0, priority = task->is_tmf;
+	struct sas_tmf_task *tmf = slot->tmf;
+	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd;
 	u32 dw1 = 0, dw2 = 0;
 
@@ -1754,7 +1754,7 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 			       (1 << CMD_HDR_CMD_OFF)); /* ssp */
 
 	dw1 = 1 << CMD_HDR_VDTL_OFF;
-	if (task->is_tmf) {
+	if (tmf) {
 		dw1 |= 2 << CMD_HDR_FRAME_TYPE_OFF;
 		dw1 |= DIR_NO_DATA << CMD_HDR_DIR_OFF;
 	} else {
@@ -1797,20 +1797,20 @@ static void prep_ssp_v2_hw(struct hisi_hba *hisi_hba,
 		sizeof(struct ssp_frame_hdr);
 
 	memcpy(buf_cmd, &task->ssp_task.LUN, 8);
-	if (!task->is_tmf) {
+	if (!tmf) {
 		buf_cmd[9] = task->ssp_task.task_attr |
 				(task->ssp_task.task_prio << 3);
 		memcpy(buf_cmd + 12, task->ssp_task.cmd->cmnd,
 				task->ssp_task.cmd->cmd_len);
 	} else {
-		buf_cmd[10] = ssp_task->tmf;
-		switch (ssp_task->tmf) {
+		buf_cmd[10] = tmf->tmf;
+		switch (tmf->tmf) {
 		case TMF_ABORT_TASK:
 		case TMF_QUERY_TASK:
 			buf_cmd[12] =
-				(ssp_task->tag_of_task_to_be_managed >> 8) & 0xff;
+				(tmf->tag >> 8) & 0xff;
 			buf_cmd[13] =
-				ssp_task->tag_of_task_to_be_managed & 0xff;
+				tmf->tag & 0xff;
 			break;
 		default:
 			break;
@@ -2493,7 +2493,7 @@ static void prep_ata_v2_hw(struct hisi_hba *hisi_hba,
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
 	struct sas_ata_task *ata_task = &task->ata_task;
-//	struct hisi_sas_tmf_task *tmf = slot->tmf;
+//	struct sas_tmf_task *tmf = slot->tmf;
 	u8 *buf_cmd;
 	int has_data = 0, hdr_tag = 0;
 	u32 dw0, dw1 = 0, dw2 = 0;
