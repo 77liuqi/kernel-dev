@@ -1778,6 +1778,15 @@ out_put_budget:
 static enum blk_eh_timer_return scsi_timeout(struct request *req,
 		bool reserved)
 {
+	struct request_queue *q = req->q;
+	struct blk_mq_tag_set *tag_set = q->tag_set;
+	struct Scsi_Host *shost = container_of(tag_set, struct Scsi_Host, tag_set);
+
+	if (req->cmd_flags & REQ_RESV) {
+
+		return shost->hostt->internal_timeout(req, reserved);
+	}
+
 	if (reserved)
 		return BLK_EH_RESET_TIMER;
 	return scsi_times_out(req);

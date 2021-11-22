@@ -76,6 +76,8 @@ struct scsi_host_template {
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
 	int (* queuecommand_internal)(struct Scsi_Host *, struct request *);
 
+	enum blk_eh_timer_return (*internal_timeout)(struct request *req, bool reserved);
+
 	/*
 	 * The commit_rqs function is used to trigger a hardware
 	 * doorbell after some requests have been queued with

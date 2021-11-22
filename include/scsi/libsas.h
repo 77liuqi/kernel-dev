@@ -715,6 +715,8 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
 
+enum blk_eh_timer_return sas_timeout(struct request *req, bool reserved);
+
 static inline struct sas_task *sas_rq_to_task(struct request *rq)
 {
 	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);

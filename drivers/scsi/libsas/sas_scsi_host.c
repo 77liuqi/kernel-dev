@@ -893,6 +893,17 @@ int sas_bios_param(struct scsi_device *scsi_dev,
 }
 EXPORT_SYMBOL_GPL(sas_bios_param);
 
+enum blk_eh_timer_return sas_timeout(struct request *req, bool reserved)
+{
+	struct sas_task *task = sas_rq_to_task(req);
+
+	pr_err("%s task=%pS rq=%pS proto=%d\n", __func__, task, req, task->task_proto);
+
+	panic("sdds\n");
+	BUG();
+	return BLK_EH_DONE;
+}
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.

@@ -3564,6 +3564,7 @@ static struct scsi_host_template sht_v2_hw = {
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
 	.queuecommand_internal = sas_queuecommand_internal,
+	.internal_timeout = sas_timeout,
 	.dma_need_drain		= ata_scsi_dma_need_drain,
 	.target_alloc		= sas_target_alloc,
 	.slave_configure	= hisi_sas_slave_configure,
