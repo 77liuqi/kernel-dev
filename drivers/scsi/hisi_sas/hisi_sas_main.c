@@ -10,10 +10,6 @@
 #define DEV_IS_GONE(dev) \
 	((!dev) || (dev->dev_type == SAS_PHY_UNUSED))
 
-
-static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
-				u8 *lun, struct sas_tmf_task *tmf);
-
 static int
 hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 			     struct domain_device *device,
@@ -705,7 +701,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 		tmf_task.tmf = TMF_CLEAR_TASK_SET;
 		while (retry-- > 0) {
-			rc = hisi_sas_debug_issue_ssp_tmf(device, lun.scsi_lun,
+			rc = sas_execute_ssp_tmf(device, lun.scsi_lun,
 							  &tmf_task);
 			if (rc == TMF_RESP_FUNC_COMPLETE) {
 				hisi_sas_release_task(hisi_hba, device);
@@ -1400,12 +1396,6 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 	return rc;
 }
 
-static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
-				u8 *lun, struct sas_tmf_task *tmf)
-{
-	return sas_execute_ssp_tmf(device, lun, tmf);
-}
-
 static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
 {
 	u32 state = hisi_hba->hw->get_phys_state(hisi_hba);
@@ -1694,7 +1684,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag = tag;
 
-		rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
+		rc = sas_execute_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
 
 		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
 						   HISI_SAS_INT_ABT_CMD, tag,
@@ -1770,7 +1760,7 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	hisi_sas_dereg_device(hisi_hba, device);
 
 	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
+	rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
 
 	if (rc == TMF_RESP_FUNC_COMPLETE)
 		hisi_sas_release_task(hisi_hba, device);
@@ -1784,7 +1774,7 @@ static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 	int rc;
 
 	tmf_task.tmf = TMF_CLEAR_ACA;
-	rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
+	rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
 
 	return rc;
 }
@@ -1924,7 +1914,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	} else {
 		struct sas_tmf_task tmf_task = { .tmf =  TMF_LU_RESET };
 
-		rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
+		rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
 		if (rc == TMF_RESP_FUNC_COMPLETE)
 			hisi_sas_release_task(hisi_hba, device);
 	}
@@ -1993,7 +1983,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 		tmf_task.tmf = TMF_QUERY_TASK;
 		tmf_task.tag = tag;
 
-		rc = hisi_sas_debug_issue_ssp_tmf(device,
+		rc = sas_execute_ssp_tmf(device,
 						  lun.scsi_lun,
 						  &tmf_task);
 		switch (rc) {
