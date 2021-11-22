@@ -575,8 +575,11 @@ struct sas_ssp_task {
 	enum   task_attribute task_attr;
 	u8     task_prio;
 	struct scsi_cmnd *cmd;
-	u8     tmf;
-	u16    tag_of_task_to_be_managed;
+};
+
+struct sas_tmf_task {
+	u8 tmf;
+	u16 tag;
 };
 
 struct sas_task {
@@ -635,7 +638,7 @@ struct sas_domain_function_template {
 	int  (*lldd_dev_found)(struct domain_device *);
 	void (*lldd_dev_gone)(struct domain_device *);
 
-	int (*lldd_execute_task)(struct sas_task *, gfp_t gfp_flags);
+	int (*lldd_execute_task)(struct sas_task *, gfp_t gfp_flags, struct sas_tmf_task *tmf);
 
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);
@@ -719,7 +722,7 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
 
 int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
-			u8 tmf, u16 tag_of_task_to_be_managed);
+			struct sas_tmf_task *tmf);
 
 int sas_execute_stp_tmf(struct domain_device *device, struct host_to_dev_fis *fis,
 			int force_phy_id);

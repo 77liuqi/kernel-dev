@@ -184,7 +184,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (!task)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	res = i->dft->lldd_execute_task(task, GFP_ATOMIC);
+	res = i->dft->lldd_execute_task(task, GFP_ATOMIC, NULL);
 	if (res)
 		goto out_free_task;
 	return 0;
@@ -922,7 +922,8 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_RETRY			3
 
 static int sas_execute_tmf(struct domain_device *device,
-			   void *parameter, int para_len, int force_phy_id)
+			   void *parameter, int para_len, int force_phy_id,
+			   struct sas_tmf_task *tmf)
 {
 	struct sas_task *task;
 	struct sas_internal *i =
@@ -953,7 +954,7 @@ static int sas_execute_tmf(struct domain_device *device,
 
 		task->is_tmf = true;
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL, tmf);
 		if (res) {
 			del_timer(&task->slow_task->timer);
 			pr_notice("executing SMP task failed:%d\n", res);
@@ -994,26 +995,23 @@ exit:
 }
 
 int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
-			u8 tmf, u16 tag_of_task_to_be_managed)
+			struct sas_tmf_task *tmf)
 {
 	struct sas_ssp_task ssp_task;
 
 	if (!(device->tproto & SAS_PROTOCOL_SSP))
 		return TMF_RESP_FUNC_ESUPP;
 
-	ssp_task.tmf = tmf;
-	ssp_task.tag_of_task_to_be_managed = tag_of_task_to_be_managed;
-
 	memcpy(ssp_task.LUN, lun, 8);
 
-	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1);
+	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1, tmf);
 }
 EXPORT_SYMBOL_GPL(sas_execute_ssp_tmf);
 
 int sas_execute_stp_tmf(struct domain_device *device, struct host_to_dev_fis *fis,
 			int force_phy_id)
 {
-	return sas_execute_tmf(device, fis, sizeof(*fis), force_phy_id);
+	return sas_execute_tmf(device, fis, sizeof(*fis), force_phy_id, NULL);
 }
 EXPORT_SYMBOL_GPL(sas_execute_stp_tmf);
 

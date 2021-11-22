@@ -899,7 +899,7 @@ void pm8001_dev_gone(struct domain_device *dev)
 {
 	pm8001_dev_gone_notify(dev);
 }
-
+#idef fef
 static int pm8001_issue_ssp_tmf(struct domain_device *dev,
 	u8 *lun, struct pm8001_tmf_task *tmf)
 {
@@ -911,6 +911,7 @@ static int pm8001_issue_ssp_tmf(struct domain_device *dev,
 	return pm8001_exec_internal_tmf_task(dev, &ssp_task, sizeof(ssp_task),
 		tmf);
 }
+#endif
 
 /* retry commands by ha, by task and/or by device */
 void pm8001_open_reject_retry(
@@ -1119,7 +1120,8 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 		wait_for_completion(&completion_setstate);
 	} else {
 		tmf_task.tmf = TMF_LU_RESET;
-		rc = pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	//	rc = pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_LU_RESET, 0);
 	}
 	/* If failed, fall-through I_T_Nexus reset */
 	pm8001_dbg(pm8001_ha, EH, "for device[%x]:rc=%d\n",
@@ -1153,7 +1155,8 @@ int pm8001_query_task(struct sas_task *task)
 		tmf_task.tmf = 	TMF_QUERY_TASK;
 		tmf_task.tag_of_task_to_be_managed = tag;
 
-		rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+	//	rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_QUERY_TASK, tag);
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
@@ -1181,7 +1184,7 @@ int pm8001_abort_task(struct sas_task *task)
 	struct pm8001_hba_info *pm8001_ha;
 	struct scsi_lun lun;
 	struct pm8001_device *pm8001_dev;
-	struct pm8001_tmf_task tmf_task;
+	//struct pm8001_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED, ret;
 	u32 phy_id;
 	struct sas_task_slow slow_task;
@@ -1219,9 +1222,10 @@ int pm8001_abort_task(struct sas_task *task)
 	if (task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		int_to_scsilun(cmnd->device->lun, &lun);
-		tmf_task.tmf = TMF_ABORT_TASK;
-		tmf_task.tag_of_task_to_be_managed = tag;
-		rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+	//	tmf_task.tmf = TMF_ABORT_TASK;
+	//	tmf_task.tag_of_task_to_be_managed = tag;
+		//rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_ABORT_TASK, tag);
 		pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
 			pm8001_dev->sas_device, 0, tag);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||

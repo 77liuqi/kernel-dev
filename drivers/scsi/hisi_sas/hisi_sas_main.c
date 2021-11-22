@@ -1099,9 +1099,9 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	up(&hisi_hba->sem);
 }
 
-static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
+static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
 {
-	return hisi_sas_task_exec(task, gfp_flags);
+	return hisi_sas_task_exec(task, gfp_flags, tmf);
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
