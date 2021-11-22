@@ -579,7 +579,7 @@ struct sas_ssp_task {
 
 struct sas_tmf_task {
 	u8 tmf;
-	u16 tag;
+	u32 tag;
 };
 
 struct sas_task {
