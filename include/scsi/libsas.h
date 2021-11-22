@@ -552,6 +552,7 @@ struct sas_ata_task {
 	u8     stp_affil_pol:1;
 
 	u8     device_control_reg_update:1;
+	int		force_phy_id; /* -1 means no forcing */
 };
 
 struct sas_smp_task {
@@ -719,4 +720,8 @@ int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 
 int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
 			u8 tmf, u16 tag_of_task_to_be_managed);
+
+int sas_execute_stp_tmf(struct domain_device *device, struct host_to_dev_fis *fis,
+			int force_phy_id);
+
 #endif /* _SASLIB_H_ */

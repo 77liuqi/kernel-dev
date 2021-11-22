@@ -922,7 +922,7 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_RETRY			3
 
 static int sas_execute_tmf(struct domain_device *device,
-			   void *parameter, int para_len)
+			   void *parameter, int para_len, int force_phy_id)
 {
 	struct sas_task *task;
 	struct sas_internal *i =
@@ -938,6 +938,9 @@ static int sas_execute_tmf(struct domain_device *device,
 		task->task_proto = device->tproto;
 
 		if (dev_is_sata(device)) {
+			task->ata_task.device_control_reg_update = 1;
+			task->ata_task.force_phy_id = force_phy_id;
+			memcpy(&task->ata_task.fis, parameter, para_len);
 		} else {
 			memcpy(&task->ssp_task, parameter, para_len);
 		}
@@ -1003,9 +1006,16 @@ int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
 
 	memcpy(ssp_task.LUN, lun, 8);
 
-	return sas_execute_tmf(device, lun, &ssp_task, sizeof(ssp_task));
+	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1);
 }
 EXPORT_SYMBOL_GPL(sas_execute_ssp_tmf);
+
+int sas_execute_stp_tmf(struct domain_device *device, struct host_to_dev_fis *fis,
+			int force_phy_id)
+{
+	return sas_execute_tmf(device, fis, sizeof(*fis), force_phy_id);
+}
+EXPORT_SYMBOL_GPL(sas_execute_stp_tmf);
 
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
