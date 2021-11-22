@@ -335,7 +335,7 @@ static int pm8001_task_prep_ata(struct pm8001_hba_info *pm8001_ha,
   * @tmf: the task management IU
   */
 static int pm8001_task_prep_ssp_tm(struct pm8001_hba_info *pm8001_ha,
-	struct pm8001_ccb_info *ccb, struct pm8001_tmf_task *tmf)
+	struct pm8001_ccb_info *ccb, struct sas_tmf_task *tmf)
 {
 	return PM8001_CHIP_DISP->ssp_tm_req(pm8001_ha, ccb, tmf);
 }
@@ -378,7 +378,7 @@ static int sas_find_local_port_id(struct domain_device *dev)
   * @tmf: the task management IU
   */
 static int pm8001_task_exec(struct sas_task *task,
-	gfp_t gfp_flags, int is_tmf, struct pm8001_tmf_task *tmf)
+	gfp_t gfp_flags, int is_tmf, struct sas_tmf_task *tmf)
 {
 	struct domain_device *dev = task->dev;
 	struct pm8001_hba_info *pm8001_ha;
@@ -512,9 +512,9 @@ out_done:
   * @task: the task to be execute.
   * @gfp_flags: gfp_flags
   */
-int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
+int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
 {
-	return pm8001_task_exec(task, gfp_flags, 0, NULL);
+	return pm8001_task_exec(task, gfp_flags, 0, tmf);
 }
 
 /**
@@ -703,6 +703,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
 }
 
 #define PM8001_TASK_TIMEOUT 20
+#ifdef fdffdf
 /**
   * pm8001_exec_internal_tmf_task - execute some task management commands.
   * @dev: the wanted device.
@@ -715,7 +716,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
   * this function, note it is also with the task execute interface.
   */
 static int pm8001_exec_internal_tmf_task(struct domain_device *dev,
-	void *parameter, u32 para_len, struct pm8001_tmf_task *tmf)
+	void *parameter, u32 para_len, struct sas_tmf_task *tmf)
 {
 	int res, retry;
 	struct sas_task *task = NULL;
@@ -792,6 +793,7 @@ ex_err:
 	sas_free_task(task);
 	return res;
 }
+#endif
 
 static int
 pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
@@ -899,9 +901,9 @@ void pm8001_dev_gone(struct domain_device *dev)
 {
 	pm8001_dev_gone_notify(dev);
 }
-#idef fef
+#ifdef fef
 static int pm8001_issue_ssp_tmf(struct domain_device *dev,
-	u8 *lun, struct pm8001_tmf_task *tmf)
+	u8 *lun, struct sas_tmf_task *tmf)
 {
 	struct sas_ssp_task ssp_task;
 	if (!(dev->tproto & SAS_PROTOCOL_SSP))
@@ -1104,7 +1106,7 @@ out:
 int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 {
 	int rc = TMF_RESP_FUNC_FAILED;
-	struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 	DECLARE_COMPLETION_ONSTACK(completion_setstate);
@@ -1121,7 +1123,7 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 	} else {
 		tmf_task.tmf = TMF_LU_RESET;
 	//	rc = pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_LU_RESET, 0);
+		rc = sas_execute_ssp_tmf(dev, lun, &tmf_task);
 	}
 	/* If failed, fall-through I_T_Nexus reset */
 	pm8001_dbg(pm8001_ha, EH, "for device[%x]:rc=%d\n",
@@ -1134,7 +1136,7 @@ int pm8001_query_task(struct sas_task *task)
 {
 	u32 tag = 0xdeadbeef;
 	struct scsi_lun lun;
-	struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED;
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return rc;
@@ -1152,11 +1154,11 @@ int pm8001_query_task(struct sas_task *task)
 			return rc;
 		}
 		pm8001_dbg(pm8001_ha, EH, "Query:[%16ph]\n", cmnd->cmnd);
-		tmf_task.tmf = 	TMF_QUERY_TASK;
-		tmf_task.tag_of_task_to_be_managed = tag;
+		tmf_task.tmf = TMF_QUERY_TASK;
+		tmf_task.tag = tag;
 
 	//	rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_QUERY_TASK, tag);
+		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
@@ -1184,7 +1186,7 @@ int pm8001_abort_task(struct sas_task *task)
 	struct pm8001_hba_info *pm8001_ha;
 	struct scsi_lun lun;
 	struct pm8001_device *pm8001_dev;
-	//struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 	int rc = TMF_RESP_FUNC_FAILED, ret;
 	u32 phy_id;
 	struct sas_task_slow slow_task;
@@ -1222,10 +1224,10 @@ int pm8001_abort_task(struct sas_task *task)
 	if (task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		int_to_scsilun(cmnd->device->lun, &lun);
-	//	tmf_task.tmf = TMF_ABORT_TASK;
-	//	tmf_task.tag_of_task_to_be_managed = tag;
+		tmf_task.tmf = TMF_ABORT_TASK;
+		tmf_task.tag = tag;
 		//rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, TMF_ABORT_TASK, tag);
+		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 		pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
 			pm8001_dev->sas_device, 0, tag);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
@@ -1334,30 +1336,33 @@ out:
 
 int pm8001_abort_task_set(struct domain_device *dev, u8 *lun)
 {
-	struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
+	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 int pm8001_clear_aca(struct domain_device *dev, u8 *lun)
 {
-	struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_CLEAR_ACA;
-	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
+	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
 {
-	struct pm8001_tmf_task tmf_task;
+	struct sas_tmf_task tmf_task;
 	struct pm8001_device *pm8001_dev = dev->lldd_dev;
 	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
 
 	pm8001_dbg(pm8001_ha, EH, "I_T_L_Q clear task set[%x]\n",
 		   pm8001_dev->device_id);
 	tmf_task.tmf = TMF_CLEAR_TASK_SET;
-	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
+	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 void pm8001_port_formed(struct asd_sas_phy *sas_phy)
