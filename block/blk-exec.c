@@ -69,17 +69,25 @@ static bool blk_rq_is_poll(struct request *rq)
 		return false;
 	if (rq->mq_hctx->type != HCTX_TYPE_POLL)
 		return false;
-	if (WARN_ON_ONCE(!rq->bio))
-		return false;
+//	if (WARN_ON_ONCE(!rq->bio))
+//		return false;
 	return true;
 }
+extern int no_bio_poll(struct request *rq, struct io_comp_batch *iob, unsigned int flags);
 
 static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
 {
-	do {
-		bio_poll(rq->bio, NULL, 0);
-		cond_resched();
-	} while (!completion_done(wait));
+	if (rq->bio) {
+		do {
+			bio_poll(rq->bio, NULL, 0);
+			cond_resched();
+		} while (!completion_done(wait));
+	} else {
+		do {
+			no_bio_poll(rq, NULL, 0);
+			cond_resched();
+		} while (!completion_done(wait));
+	}
 }
 
 /**

@@ -83,7 +83,7 @@ static inline struct request *blk_qc_to_rq(struct blk_mq_hw_ctx *hctx,
 	return blk_mq_tag_to_rq(hctx->tags, tag);
 }
 
-static inline blk_qc_t blk_rq_to_qc(struct request *rq)
+blk_qc_t blk_rq_to_qc(struct request *rq)
 {
 	return (rq->mq_hctx->queue_num << BLK_QC_T_SHIFT) |
 		(rq->tag != -1 ?

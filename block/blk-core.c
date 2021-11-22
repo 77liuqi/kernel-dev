@@ -1012,6 +1012,28 @@ void submit_bio(struct bio *bio)
 }
 EXPORT_SYMBOL(submit_bio);
 
+extern blk_qc_t blk_rq_to_qc(struct request *rq);
+
+int no_bio_poll(struct request *rq, struct io_comp_batch *iob, unsigned int flags)
+{
+	struct request_queue *q = rq->q;
+	blk_qc_t cookie = blk_rq_to_qc(rq);
+	int ret;
+	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+		return 0;
+
+	if (current->plug)
+		blk_flush_plug(current->plug, false);
+
+	if (blk_queue_enter(q, BLK_MQ_REQ_NOWAIT))
+		return 0;
+	if (WARN_ON_ONCE(!queue_is_mq(q)))
+		ret = 0;	/* not yet implemented, should not happen */
+	else
+		ret = blk_mq_poll(q, cookie, iob, flags);
+	blk_queue_exit(q);
+	return ret;
+}
 /**
  * bio_poll - poll for BIO completions
  * @bio: bio to poll for
