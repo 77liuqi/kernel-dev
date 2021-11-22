@@ -38,14 +38,18 @@ struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd)
 }
 EXPORT_SYMBOL_GPL(sas_alloc_task);
 
-struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
+static struct sas_task *_sas_alloc_slow_task(struct sas_ha_struct *sas_ha,
+					    gfp_t flags, unsigned int qid)
 {
 	struct request *rq;
 	struct sas_task *task;
 	struct sas_task_slow *slow;
 	struct Scsi_Host *shost = sas_ha->core.shost;
 
-	rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	if (qid == -1U)
+		rq = blk_mq_alloc_request(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED);
+	else
+		rq = blk_mq_alloc_request_hctx(shost->q, REQ_OP_DRV_IN, BLK_MQ_REQ_RESERVED, qid);
 	if (IS_ERR(rq))
 		return NULL;
 
@@ -72,7 +76,19 @@ struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
 	init_completion(&slow->completion);
 	return task;
 }
+
+struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *sas_ha, gfp_t flags)
+{
+	return _sas_alloc_slow_task(sas_ha, flags, -1U);
+}
 EXPORT_SYMBOL_GPL(sas_alloc_slow_task);
+
+struct sas_task *sas_alloc_slow_task_hctx(struct sas_ha_struct *sas_ha,
+						gfp_t flags, unsigned int qid)
+{
+	return _sas_alloc_slow_task(sas_ha, flags, qid);
+}
+EXPORT_SYMBOL_GPL(sas_alloc_slow_task_hctx);
 
 void sas_free_task(struct sas_task *task)
 {

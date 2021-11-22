@@ -619,7 +619,10 @@ struct sas_task_slow {
 #define SAS_TASK_AT_INITIATOR       16
 
 extern struct sas_task *sas_alloc_task(gfp_t flags, struct scsi_cmnd *cmnd);
-extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *, gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task(struct sas_ha_struct *,
+					    gfp_t flags);
+extern struct sas_task *sas_alloc_slow_task_hctx(struct sas_ha_struct *,
+					    gfp_t flags, unsigned int qid);
 extern void sas_free_task(struct sas_task *task);
 
 struct sas_domain_function_template {
