@@ -918,6 +918,75 @@ void sas_task_internal_timedout(struct timer_list *t)
 		complete(&task->slow_task->completion);
 }
 
+#define TASK_TIMEOUT			(20 * HZ)
+#define TASK_RETRY			3
+
+__maybe_unused
+static int sas_execute_tmf(struct domain_device *device,
+			   void *parameter, int para_len, u8 tmf,
+			   u16 tag_of_task_to_be_managed)
+{
+	struct sas_task *task;
+	struct sas_internal *i =
+		to_sas_internal(device->port->ha->core.shost->transportt);
+	int res, retry;
+
+	for (retry = 0; retry < TASK_RETRY; retry++) {
+		task = sas_alloc_slow_task(GFP_KERNEL);
+		if (!task)
+			return -ENOMEM;
+
+		task->dev = device;
+		task->task_proto = device->tproto;
+
+		task->task_done = sas_task_internal_done;
+
+		task->slow_task->timer.function = sas_task_internal_timedout;
+		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
+		add_timer(&task->slow_task->timer);
+
+		task->is_tmf = true;
+
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
+		if (res) {
+			del_timer(&task->slow_task->timer);
+			pr_notice("executing SMP task failed:%d\n", res);
+			break;
+		}
+
+		wait_for_completion(&task->slow_task->completion);
+		res = -ECOMM;
+
+		/* Internal abort timed out */
+		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
+				pr_err("internal task tmf: timeout.\n");
+
+				res = -EIO;
+				goto exit;
+			}
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+			task->task_status.stat == TMF_RESP_FUNC_COMPLETE) {
+			res = TMF_RESP_FUNC_COMPLETE;
+			goto exit;
+		}
+
+		if (task->task_status.resp == SAS_TASK_COMPLETE &&
+			task->task_status.stat == TMF_RESP_FUNC_SUCC) {
+			res = TMF_RESP_FUNC_SUCC;
+			goto exit;
+		}
+	}
+exit:
+	if (retry == TASK_RETRY)
+		pr_warn("abort tmf: executing internal task failed!\n");
+	sas_free_task(task);
+
+	return res;
+}
+
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
  * This should only ever be called by an LLDD.
