@@ -1397,15 +1397,7 @@ static int hisi_sas_softreset_ata_disk(struct domain_device *device)
 static int hisi_sas_debug_issue_ssp_tmf(struct domain_device *device,
 				u8 *lun, struct hisi_sas_tmf_task *tmf)
 {
-	struct sas_ssp_task ssp_task;
-
-	if (!(device->tproto & SAS_PROTOCOL_SSP))
-		return TMF_RESP_FUNC_ESUPP;
-
-	memcpy(ssp_task.LUN, lun, 8);
-
-	return hisi_sas_exec_internal_tmf_task(device, &ssp_task,
-				sizeof(ssp_task), tmf);
+	return sas_execute_ssp_tmf(device, lun, tmf->tmf, tmf->tag_of_task_to_be_managed);
 }
 
 static void hisi_sas_refresh_port_id(struct hisi_hba *hisi_hba)
@@ -1696,8 +1688,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag_of_task_to_be_managed = tag;
 
-		rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun,
-						  &tmf_task);
+		rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
 
 		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
 						   HISI_SAS_INT_ABT_CMD, tag,
@@ -1783,10 +1774,12 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 
 static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 {
-	struct hisi_sas_tmf_task tmf_task;
+	struct hisi_sas_tmf_task tmf_task =
+		{
+			.tmf = TMF_CLEAR_ACA
+		};
 	int rc;
 
-	tmf_task.tmf = TMF_CLEAR_ACA;
 	rc = hisi_sas_debug_issue_ssp_tmf(device, lun, &tmf_task);
 
 	return rc;

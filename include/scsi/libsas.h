@@ -574,6 +574,8 @@ struct sas_ssp_task {
 	enum   task_attribute task_attr;
 	u8     task_prio;
 	struct scsi_cmnd *cmd;
+	u8     tmf;
+	u16    tag_of_task_to_be_managed;
 };
 
 struct sas_task {
@@ -715,4 +717,6 @@ int sas_notify_port_event(struct asd_sas_phy *phy, enum port_event event,
 int sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 			 gfp_t gfp_flags);
 
+int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
+			u8 tmf, u16 tag_of_task_to_be_managed);
 #endif /* _SASLIB_H_ */
