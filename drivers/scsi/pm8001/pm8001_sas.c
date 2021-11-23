@@ -702,6 +702,7 @@ static void pm8001_tmf_timedout(struct timer_list *t)
 	spin_unlock_irqrestore(&task->task_state_lock, flags);
 }
 
+#define PM8001_TASK_TIMEOUT 20
 
 static int
 pm8001_exec_internal_task_abort(struct pm8001_hba_info *pm8001_ha,
@@ -808,6 +809,28 @@ static void pm8001_dev_gone_notify(struct domain_device *dev)
 void pm8001_dev_gone(struct domain_device *dev)
 {
 	pm8001_dev_gone_notify(dev);
+}
+
+static void pm8001_setds_completion(struct domain_device *dev)
+{
+	struct pm8001_hba_info *pm8001_ha = pm8001_find_ha_by_dev(dev);
+	struct pm8001_device *pm8001_dev = dev->lldd_dev;
+	DECLARE_COMPLETION_ONSTACK(completion_setstate);
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		pm8001_dev->setds_completion = &completion_setstate;
+		PM8001_CHIP_DISP->set_dev_state_req(pm8001_ha,
+			pm8001_dev, DS_OPERATIONAL);
+		wait_for_completion(&completion_setstate);
+	}
+}
+
+static int pm8001_issue_ssp_tmf(struct domain_device *dev,
+	u8 *lun, struct sas_tmf_task *tmf)
+{
+	tmf->pm8001_setds_completion = pm8001_setds_completion;
+		
+	return sas_execute_ssp_tmf(dev, lun, tmf);
 }
 
 /* retry commands by ha, by task and/or by device */
@@ -1017,8 +1040,7 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun)
 		wait_for_completion(&completion_setstate);
 	} else {
 		tmf_task.tmf = TMF_LU_RESET;
-	//	rc = pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun, &tmf_task);
+		rc = pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 	}
 	/* If failed, fall-through I_T_Nexus reset */
 	pm8001_dbg(pm8001_ha, EH, "for device[%x]:rc=%d\n",
@@ -1052,8 +1074,7 @@ int pm8001_query_task(struct sas_task *task)
 		tmf_task.tmf = TMF_QUERY_TASK;
 		tmf_task.tag = tag;
 
-	//	rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 		switch (rc) {
 		/* The task is still in Lun, release it then */
 		case TMF_RESP_FUNC_SUCC:
@@ -1121,8 +1142,7 @@ int pm8001_abort_task(struct sas_task *task)
 		int_to_scsilun(cmnd->device->lun, &lun);
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag = tag;
-		//rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
-		rc = sas_execute_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
+		rc = pm8001_issue_ssp_tmf(dev, lun.scsi_lun, &tmf_task);
 		pm8001_exec_internal_task_abort(pm8001_ha, pm8001_dev,
 			pm8001_dev->sas_device, 0, tag);
 	} else if (task->task_proto & SAS_PROTOCOL_SATA ||
@@ -1234,8 +1254,7 @@ int pm8001_abort_task_set(struct domain_device *dev, u8 *lun)
 	struct sas_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
-	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 int pm8001_clear_aca(struct domain_device *dev, u8 *lun)
@@ -1243,8 +1262,7 @@ int pm8001_clear_aca(struct domain_device *dev, u8 *lun)
 	struct sas_tmf_task tmf_task;
 
 	tmf_task.tmf = TMF_CLEAR_ACA;
-	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
-	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
@@ -1256,8 +1274,7 @@ int pm8001_clear_task_set(struct domain_device *dev, u8 *lun)
 	pm8001_dbg(pm8001_ha, EH, "I_T_L_Q clear task set[%x]\n",
 		   pm8001_dev->device_id);
 	tmf_task.tmf = TMF_CLEAR_TASK_SET;
-	return sas_execute_ssp_tmf(dev, lun, &tmf_task);
-	//return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
+	return pm8001_issue_ssp_tmf(dev, lun, &tmf_task);
 }
 
 void pm8001_port_formed(struct asd_sas_phy *sas_phy)

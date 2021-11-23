@@ -684,6 +684,35 @@ static struct hisi_sas_device *hisi_sas_alloc_dev(struct domain_device *device)
 	return sas_dev;
 }
 
+static void hisi_sas_tmf_abort_handler(struct sas_task *task)
+{
+	struct hisi_sas_slot *slot = task->lldd_task;
+	struct domain_device *device = task->dev;
+	struct hisi_sas_device *sas_dev = device->lldd_dev;
+	struct hisi_hba *hisi_hba = sas_dev->hisi_hba;
+
+	pr_err("abort tmf: TMF task timeout and not done %016llx\n", SAS_ADDR(device->sas_addr));
+
+	if (slot) {
+		struct hisi_sas_cq *cq =
+			   &hisi_hba->cq[slot->dlvry_queue];
+		/*
+		 * sync irq to avoid free'ing task
+		 * before using task in IO completion
+		 */
+		synchronize_irq(cq->irq_no);
+		slot->task = NULL;
+	}
+}
+
+static int hisi_sas_execute_ssp_tmf(struct domain_device *device,
+				u8 *lun, struct sas_tmf_task *tmf)
+{
+	tmf->hisi_sas_abort_handler = hisi_sas_tmf_abort_handler;
+
+	return hisi_sas_execute_ssp_tmf(device, lun, tmf);
+}
+
 #define HISI_SAS_DISK_RECOVER_CNT 3
 static int hisi_sas_init_device(struct domain_device *device)
 {
@@ -701,7 +730,7 @@ static int hisi_sas_init_device(struct domain_device *device)
 
 		tmf_task.tmf = TMF_CLEAR_TASK_SET;
 		while (retry-- > 0) {
-			rc = sas_execute_ssp_tmf(device, lun.scsi_lun,
+			rc = hisi_sas_execute_ssp_tmf(device, lun.scsi_lun,
 							  &tmf_task);
 			if (rc == TMF_RESP_FUNC_COMPLETE) {
 				hisi_sas_release_task(hisi_hba, device);
@@ -1569,7 +1598,7 @@ static int hisi_sas_abort_task(struct sas_task *task)
 		tmf_task.tmf = TMF_ABORT_TASK;
 		tmf_task.tag = tag;
 
-		rc = sas_execute_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
+		rc = hisi_sas_execute_ssp_tmf(task->dev, lun.scsi_lun, &tmf_task);
 
 		rc2 = hisi_sas_internal_task_abort(hisi_hba, device,
 						   HISI_SAS_INT_ABT_CMD, tag,
@@ -1645,7 +1674,7 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 	hisi_sas_dereg_device(hisi_hba, device);
 
 	tmf_task.tmf = TMF_ABORT_TASK_SET;
-	rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
+	rc = hisi_sas_execute_ssp_tmf(device, lun, &tmf_task);
 
 	if (rc == TMF_RESP_FUNC_COMPLETE)
 		hisi_sas_release_task(hisi_hba, device);
@@ -1656,12 +1685,10 @@ static int hisi_sas_abort_task_set(struct domain_device *device, u8 *lun)
 static int hisi_sas_clear_aca(struct domain_device *device, u8 *lun)
 {
 	struct sas_tmf_task tmf_task;
-	int rc;
 
 	tmf_task.tmf = TMF_CLEAR_ACA;
-	rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
 
-	return rc;
+	return hisi_sas_execute_ssp_tmf(device, lun, &tmf_task);
 }
 
 #define I_T_NEXUS_RESET_PHYUP_TIMEOUT  (2 * HZ)
@@ -1799,7 +1826,7 @@ static int hisi_sas_lu_reset(struct domain_device *device, u8 *lun)
 	} else {
 		struct sas_tmf_task tmf_task = { .tmf =  TMF_LU_RESET };
 
-		rc = sas_execute_ssp_tmf(device, lun, &tmf_task);
+		rc = hisi_sas_execute_ssp_tmf(device, lun, &tmf_task);
 		if (rc == TMF_RESP_FUNC_COMPLETE)
 			hisi_sas_release_task(hisi_hba, device);
 	}
@@ -1868,7 +1895,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 		tmf_task.tmf = TMF_QUERY_TASK;
 		tmf_task.tag = tag;
 
-		rc = sas_execute_ssp_tmf(device,
+		rc = hisi_sas_execute_ssp_tmf(device,
 						  lun.scsi_lun,
 						  &tmf_task);
 		switch (rc) {

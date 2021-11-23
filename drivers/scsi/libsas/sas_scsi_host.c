@@ -960,16 +960,21 @@ static int sas_execute_tmf(struct domain_device *device,
 		}
 
 		wait_for_completion(&task->slow_task->completion);
-		res = -ECOMM;
+		if (tmf->pm8001_setds_completion)
+			tmf->pm8001_setds_completion(device);
+
+		res = TMF_RESP_FUNC_FAILED;
 
 		/* Internal abort timed out */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				pr_err("internal task tmf: timeout.\n");
-
-				res = -EIO;
+				if (tmf->hisi_sas_abort_handler)
+					tmf->hisi_sas_abort_handler(task);
+				else
+					pr_err("abort tmf: TMF (%d) task timeout %016llx\n", tmf->tmf, SAS_ADDR(device->sas_addr));
 				goto exit;
-			}
+			} else
+				pr_err("abort tmf: TMF (%d) task timeout %016llx and done\n", tmf->tmf, SAS_ADDR(device->sas_addr));
 		}
 
 		if (task->task_status.resp == SAS_TASK_COMPLETE &&
@@ -986,7 +991,7 @@ static int sas_execute_tmf(struct domain_device *device,
 	}
 exit:
 	if (retry == TASK_RETRY)
-		pr_warn("abort tmf: executing internal task failed!\n");
+		pr_warn("abort tmf: executing internal task failed!  %016llx\n", SAS_ADDR(device->sas_addr));
 	sas_free_task(task);
 
 	return res;

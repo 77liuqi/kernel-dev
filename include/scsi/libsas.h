@@ -577,11 +577,6 @@ struct sas_ssp_task {
 	struct scsi_cmnd *cmd;
 };
 
-struct sas_tmf_task {
-	u8 tmf;
-	u32 tag;
-};
-
 struct sas_task {
 	struct domain_device *dev;
 
@@ -608,6 +603,13 @@ struct sas_task {
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
 //	bool	is_tmf;
+};
+
+struct sas_tmf_task {
+	u8 tmf;
+	u32 tag;
+	void (*pm8001_setds_completion)(struct domain_device *dev);
+	void (*hisi_sas_abort_handler)(struct sas_task *task);
 };
 
 struct sas_task_slow {
