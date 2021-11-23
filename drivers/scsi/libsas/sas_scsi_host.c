@@ -921,7 +921,6 @@ void sas_task_internal_timedout(struct timer_list *t)
 #define TASK_TIMEOUT			(20 * HZ)
 #define TASK_RETRY			3
 
-__maybe_unused
 int sas_execute_tmf(struct domain_device *device, void *parameter,
 		    int para_len, int force_phy_id,
 		    struct sas_tmf_task *tmf)
@@ -938,6 +937,11 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 
 		task->dev = device;
 		task->task_proto = device->tproto;
+
+		if (dev_is_sata(device)) {
+		} else {
+			memcpy(&task->ssp_task, parameter, para_len);
+		}
 
 		task->task_done = sas_task_internal_done;
 		task->tmf = tmf;
@@ -991,6 +995,20 @@ exit:
 
 	return res;
 }
+
+int sas_execute_ssp_tmf(struct domain_device *device, u8 *lun,
+			struct sas_tmf_task *tmf)
+{
+	struct sas_ssp_task ssp_task;
+
+	if (!(device->tproto & SAS_PROTOCOL_SSP))
+		return TMF_RESP_FUNC_ESUPP;
+
+	memcpy(ssp_task.LUN, lun, 8);
+
+	return sas_execute_tmf(device, &ssp_task, sizeof(ssp_task), -1, tmf);
+}
+EXPORT_SYMBOL_GPL(sas_execute_ssp_tmf);
 
 /*
  * Tell an upper layer that it needs to initiate an abort for a given task.
