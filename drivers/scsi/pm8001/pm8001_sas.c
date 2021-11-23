@@ -374,11 +374,9 @@ static int sas_find_local_port_id(struct domain_device *dev)
   * pm8001_task_exec - queue the task(ssp, smp && ata) to the hardware.
   * @task: the task to be execute.
   * @gfp_flags: gfp_flags.
-  * @is_tmf: if it is task management task.
-  * @tmf: the task management IU
   */
 static int pm8001_task_exec(struct sas_task *task,
-	gfp_t gfp_flags, int is_tmf, struct sas_tmf_task *tmf)
+	gfp_t gfp_flags)
 {
 	struct domain_device *dev = task->dev;
 	struct pm8001_hba_info *pm8001_ha;
@@ -389,6 +387,8 @@ static int pm8001_task_exec(struct sas_task *task,
 	u32 tag = 0xdeadbeef, rc = 0, n_elem = 0;
 	unsigned long flags = 0;
 	enum sas_protocol task_proto = t->task_proto;
+	struct sas_tmf_task *tmf = task->tmf;
+	int is_tmf = !!tmf; 
 
 	if (!dev->port) {
 		struct task_status_struct *tsm = &t->task_status;
@@ -512,9 +512,9 @@ out_done:
   * @task: the task to be execute.
   * @gfp_flags: gfp_flags
   */
-int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
+int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	return pm8001_task_exec(task, gfp_flags, 0, tmf);
+	return pm8001_task_exec(task, gfp_flags);
 }
 
 /**

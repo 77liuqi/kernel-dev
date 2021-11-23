@@ -690,14 +690,15 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 }
 
 #define	DEV_IS_GONE(mvi_dev)	((!mvi_dev || (mvi_dev->dev_type == SAS_PHY_UNUSED)))
-static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int is_tmf,
-				struct sas_tmf_task *tmf, int *pass)
+static int mvs_task_prep(struct sas_task *task, struct mvs_info *mvi, int *pass)
 {
 	struct domain_device *dev = task->dev;
 	struct mvs_device *mvi_dev = dev->lldd_dev;
 	struct mvs_task_exec_info tei;
 	struct mvs_slot_info *slot;
 	u32 tag = 0xdeadbeef, n_elem = 0;
+	struct sas_tmf_task *tmf = task->tmf;
+	int is_tmf = !!task->tmf;
 	int rc = 0;
 
 	if (!dev->port) {
@@ -835,9 +836,7 @@ prep_out:
 	return rc;
 }
 
-static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
-				struct completion *completion, int is_tmf,
-				struct sas_tmf_task *tmf)
+static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags)
 {
 	struct mvs_info *mvi = NULL;
 	u32 rc = 0;
@@ -847,7 +846,7 @@ static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	mvi = ((struct mvs_device *)task->dev->lldd_dev)->mvi_info;
 
 	spin_lock_irqsave(&mvi->lock, flags);
-	rc = mvs_task_prep(task, mvi, is_tmf, tmf, &pass);
+	rc = mvs_task_prep(task, mvi, &pass);
 	if (rc)
 		dev_printk(KERN_ERR, mvi->dev, "mvsas exec failed[%d]!\n", rc);
 
@@ -859,9 +858,9 @@ static int mvs_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	return rc;
 }
 
-int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
+int mvs_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	return mvs_task_exec(task, gfp_flags, NULL, 0, tmf);
+	return mvs_task_exec(task, gfp_flags);
 }
 
 static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)

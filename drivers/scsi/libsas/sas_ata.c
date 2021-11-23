@@ -218,7 +218,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	if (qc->scsicmd)
 		ASSIGN_SAS_TASK(qc->scsicmd, task);
 
-	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC, NULL);
+	ret = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (ret) {
 		pr_debug("lldd_execute_task returned: %d\n", ret);
 

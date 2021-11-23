@@ -184,7 +184,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	if (!task)
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	res = i->dft->lldd_execute_task(task, GFP_ATOMIC, NULL);
+	res = i->dft->lldd_execute_task(task, GFP_ATOMIC);
 	if (res)
 		goto out_free_task;
 	return 0;
@@ -952,7 +952,7 @@ static int sas_execute_tmf(struct domain_device *device,
 		task->slow_task->timer.expires = jiffies + TASK_TIMEOUT;
 		add_timer(&task->slow_task->timer);
 
-		res = i->dft->lldd_execute_task(task, GFP_KERNEL, tmf);
+		res = i->dft->lldd_execute_task(task, GFP_KERNEL);
 		if (res) {
 			del_timer(&task->slow_task->timer);
 			pr_notice("executing SMP task failed:%d\n", res);

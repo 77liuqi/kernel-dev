@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 
 struct block_device;
+struct sas_task;
 
 enum sas_class {
 	SAS,
@@ -577,6 +578,13 @@ struct sas_ssp_task {
 	struct scsi_cmnd *cmd;
 };
 
+struct sas_tmf_task {
+	u8 tmf;
+	u32 tag;
+	void (*pm8001_setds_completion)(struct domain_device *dev);
+	void (*hisi_sas_abort_handler)(struct sas_task *task);
+};
+
 struct sas_task {
 	struct domain_device *dev;
 
@@ -602,15 +610,9 @@ struct sas_task {
 	void   *lldd_task;	  /* for use by LLDDs */
 	void   *uldd_task;
 	struct sas_task_slow *slow_task;
-//	bool	is_tmf;
+	struct sas_tmf_task *tmf;
 };
 
-struct sas_tmf_task {
-	u8 tmf;
-	u32 tag;
-	void (*pm8001_setds_completion)(struct domain_device *dev);
-	void (*hisi_sas_abort_handler)(struct sas_task *task);
-};
 
 struct sas_task_slow {
 	/* standard/extra infrastructure for slow path commands (SMP and
@@ -640,7 +642,7 @@ struct sas_domain_function_template {
 	int  (*lldd_dev_found)(struct domain_device *);
 	void (*lldd_dev_gone)(struct domain_device *);
 
-	int (*lldd_execute_task)(struct sas_task *, gfp_t gfp_flags, struct sas_tmf_task *tmf);
+	int (*lldd_execute_task)(struct sas_task *, gfp_t gfp_flags);
 
 	/* Task Management Functions. Must be called from process context. */
 	int (*lldd_abort_task)(struct sas_task *);

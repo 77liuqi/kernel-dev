@@ -525,7 +525,7 @@ static int asd_can_queue(struct asd_ha_struct *asd_ha, int num)
 	return res;
 }
 
-int asd_execute_task(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
+int asd_execute_task(struct sas_task *task, gfp_t gfp_flags)
 {
 	int res = 0;
 	LIST_HEAD(alist);

@@ -406,12 +406,12 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 			   struct hisi_sas_slot *slot,
 			   struct hisi_sas_dq *dq,
 			   struct hisi_sas_device *sas_dev,
-			   struct sas_tmf_task *tmf,
 			   struct hisi_sas_internal_abort *abort)
 {
 	struct hisi_sas_cmd_hdr *cmd_hdr_base;
 	int dlvry_queue_slot, dlvry_queue;
 	struct sas_task *task = slot->task;
+	struct sas_tmf_task *tmf = task->tmf;
 	unsigned long flags;
 	int wr_q_index;
 
@@ -476,8 +476,7 @@ void hisi_sas_task_deliver(struct hisi_hba *hisi_hba,
 	spin_unlock(&dq->lock);
 }
 
-static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
-			      struct sas_tmf_task *tmf)
+static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags)
 {
 	int n_elem = 0, n_elem_dif = 0, n_elem_req = 0;
 	struct domain_device *device = task->dev;
@@ -587,10 +586,10 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	slot->n_elem_dif = n_elem_dif;
 	slot->task = task;
 	slot->port = port;
-	slot->is_internal = tmf;
+	slot->is_internal = task->tmf;
 
 	/* protect task_prep and start_delivery sequence */
-	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, tmf, NULL);
+	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, NULL);
 
 	return 0;
 
@@ -1127,9 +1126,9 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	up(&hisi_hba->sem);
 }
 
-static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags, struct sas_tmf_task *tmf)
+static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
 {
-	return hisi_sas_task_exec(task, gfp_flags, tmf);
+	return hisi_sas_task_exec(task, gfp_flags);
 }
 
 static int hisi_sas_phy_set_linkrate(struct hisi_hba *hisi_hba, int phy_no,
@@ -1945,7 +1944,7 @@ hisi_sas_internal_abort_task_exec(struct hisi_hba *hisi_hba, int device_id,
 	slot->task = task;
 	slot->port = port;
 
-	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, NULL, abort);
+	hisi_sas_task_deliver(hisi_hba, slot, dq, sas_dev, abort);
 
 	return 0;
 
