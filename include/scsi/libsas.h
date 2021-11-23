@@ -584,9 +584,6 @@ struct sas_tmf_task {
 
 	void (*hisi_sas_abort_handler)(struct sas_task *task);
 	void (*pm8001_setds_completion)(struct domain_device *dev);
-	/* Temp */
-	int force_phy;
-	int phy_id;
 };
 
 struct sas_task {
