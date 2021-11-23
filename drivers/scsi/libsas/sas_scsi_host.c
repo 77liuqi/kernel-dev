@@ -965,10 +965,12 @@ int sas_execute_tmf(struct domain_device *device, void *parameter,
 		/* Internal abort timed out */
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				pr_err("TMF (%d) task timeout for %016llx\n",
-				       tmf->tmf, SAS_ADDR(device->sas_addr));
+				if (tmf->hisi_sas_abort_handler)
+					tmf->hisi_sas_abort_handler(task);
+				else
+					pr_err("TMF (%d) task timeout for %016llx\n",
+					       tmf->tmf, SAS_ADDR(device->sas_addr));
 
-				res = -EIO;
 				goto exit;
 			} else
 				pr_err("TMF (%d) task timeout for %016llx and done\n",

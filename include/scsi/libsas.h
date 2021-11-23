@@ -22,6 +22,7 @@
 #include <linux/slab.h>
 
 struct block_device;
+struct sas_task;
 
 enum sas_class {
 	SAS,
@@ -580,6 +581,7 @@ struct sas_tmf_task {
 	u8 tmf;
 	u16 tag;
 
+	void (*hisi_sas_abort_handler)(struct sas_task *task);
 	/* Temp */
 	int force_phy;
 	int phy_id;
