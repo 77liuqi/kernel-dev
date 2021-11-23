@@ -856,3 +856,11 @@ void sas_ata_wait_eh(struct domain_device *dev)
 	ap = dev->sata_dev.ap;
 	ata_port_wait_eh(ap);
 }
+
+int sas_execute_ata_cmd(struct domain_device *device, u8 *fis,
+			struct sas_tmf_task *tmf, int force_phy_id)
+{
+	return sas_execute_tmf(device, fis, sizeof(struct host_to_dev_fis),
+			       force_phy_id, tmf);
+}
+EXPORT_SYMBOL_GPL(sas_execute_ata_cmd);
