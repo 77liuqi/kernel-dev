@@ -958,7 +958,7 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 	struct hisi_sas_port *port = slot->port;
 	struct sas_ssp_task *ssp_task = &task->ssp_task;
 	struct scsi_cmnd *scsi_cmnd = ssp_task->cmd;
-	struct hisi_sas_tmf_task *tmf = slot->tmf;
+	struct sas_tmf_task *tmf = slot->tmf;
 	int has_data = 0, priority = !!tmf;
 	u8 *buf_cmd, fburst = 0;
 	u32 dw1, dw2;
@@ -1036,9 +1036,9 @@ static void prep_ssp_v1_hw(struct hisi_hba *hisi_hba,
 		case TMF_ABORT_TASK:
 		case TMF_QUERY_TASK:
 			buf_cmd[12] =
-				(tmf->tag_of_task_to_be_managed >> 8) & 0xff;
+				(tmf->tag >> 8) & 0xff;
 			buf_cmd[13] =
-				tmf->tag_of_task_to_be_managed & 0xff;
+				tmf->tag & 0xff;
 			break;
 		default:
 			break;
