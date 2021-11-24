@@ -4242,7 +4242,9 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	u32 opc;
 	struct inbound_queue_table *circularQ;
 	dma_addr_t req_dma_addr;
+	char *preq_dma_addr = NULL;
 	u32 i, length;
+	__le64 tmp_addr1;
 
 	pr_err("%s\n", __func__);
 
@@ -4285,8 +4287,10 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 
 
 	req_dma_addr = sg_dma_address(&task->smp_task.smp_req);
-
-	pr_err("%s5 req_dma_addr=%pad\n", __func__, &req_dma_addr);
+	tmp_addr1 = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
+	preq_dma_addr = (char *)phys_to_virt(tmp_addr1);
+	pr_err("%s5 req_dma_addr=%pad preq_dma_addr=%pS tmp_addr1=0x%llx\n", 
+	__func__, &req_dma_addr, preq_dma_addr, tmp_addr1);
 
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
@@ -4294,6 +4298,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		/* for SPCv indirect mode. Place the top 4 bytes of
 		 * SMP Request header here. */
 		pr_err("%s6\n", __func__);
+		BUG();
 		//for (i = 0; i < 4; i++)
 		//	smp_cmd.smp_req16[i] = *(preq_dma_addr + i);
 		/* exclude top 4 bytes for SMP req header */
