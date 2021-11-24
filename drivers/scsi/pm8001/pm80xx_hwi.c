@@ -4241,10 +4241,10 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	struct smp_req smp_cmd;
 	u32 opc;
 	struct inbound_queue_table *circularQ;
-	dma_addr_t req_dma_addr;
 	char *preq_dma_addr = NULL;
-	u32 i, length;
 	__le64 tmp_addr;
+	u32 i, length;
+	dma_addr_t req_dma_addr; //new
 
 	pr_err("%s\n", __func__);
 
@@ -4337,16 +4337,20 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST DIRECT MODE\n");
 		for (i = 0; i < length; i++)
 			if (i < 16) {
+				pr_err("%s8.10 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
+				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
 				smp_cmd.smp_req16[i] = *(preq_dma_addr+i);
-				pr_err("%s8.1 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n", 
-				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
+				pr_err("%s8.11 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
+				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req16[i],
 					   *(preq_dma_addr));
 			} else {
+				pr_err("%s8.20 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
+				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
 				smp_cmd.smp_req[i] = *(preq_dma_addr+i);
-				pr_err("%s8.2 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
+				pr_err("%s8.21 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
 				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
