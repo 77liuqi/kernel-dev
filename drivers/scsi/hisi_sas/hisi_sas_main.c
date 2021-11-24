@@ -1172,6 +1172,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 	u8 sts = phy->phy_attached;
 	int ret = 0;
 
+	down(&hisi_hba->sem);
 	phy->reset_completion = &completion;
 
 	switch (func) {
@@ -1215,6 +1216,7 @@ static int hisi_sas_control_phy(struct asd_sas_phy *sas_phy, enum phy_func func,
 out:
 	phy->reset_completion = NULL;
 
+	up(&hisi_hba->sem);
 	return ret;
 }
 
