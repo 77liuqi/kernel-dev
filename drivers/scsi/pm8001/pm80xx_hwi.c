@@ -3080,7 +3080,6 @@ mpi_smp_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		if (pm8001_dev)
 			atomic_dec(&pm8001_dev->running_req);
 		if (pm8001_ha->smp_exp_mode == SMP_DIRECT) {
-			BUG();
 			pm8001_dbg(pm8001_ha, IO,
 				   "DIRECT RESPONSE Length:%d\n",
 				   param);
@@ -4291,7 +4290,6 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
-		BUG();
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST INDIRECT MODE\n");
 		/* for SPCv indirect mode. Place the top 4 bytes of
 		 * SMP Request header here. */
