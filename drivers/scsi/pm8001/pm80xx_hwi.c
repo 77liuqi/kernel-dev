@@ -4244,7 +4244,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	char *preq_dma_addr = NULL;
 	__le64 tmp_addr;
 	u32 i, length;
-	dma_addr_t req_dma_addr; //new
+//	dma_addr_t req_dma_addr; //new
 
 	pr_err("%s\n", __func__);
 
@@ -4289,9 +4289,11 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
 	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
 
-	req_dma_addr = sg_dma_address(&task->smp_task.smp_req);
-	pr_err("%s5 req_dma_addr=%pad preq_dma_addr=%pS tmp_addr=0x%llx\n", 
-	__func__, &req_dma_addr, preq_dma_addr, tmp_addr);
+//	req_dma_addr = sg_dma_address(&task->smp_task.smp_req);
+//	pr_err("%s5 req_dma_addr=%pad preq_dma_addr=%pS tmp_addr=0x%llx\n", 
+//	__func__, &req_dma_addr, preq_dma_addr, tmp_addr);
+	pr_err("%s5 preq_dma_addr=%pS tmp_addr=0x%llx\n", 
+	__func__, preq_dma_addr, tmp_addr);
 
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
@@ -4329,29 +4331,31 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 			((u32)sg_dma_len(&task->smp_task.smp_resp)-4);
 	}
 	if (pm8001_ha->smp_exp_mode == SMP_DIRECT) {
-		__le64 tmp_addr1 = cpu_to_le64(req_dma_addr);
-		u8 *preq_dma_addr1 = (u8 *)&tmp_addr1;
+//		__le64 tmp_addr1 = cpu_to_le64(req_dma_addr);
+//		u8 *preq_dma_addr1 = (u8 *)&tmp_addr1;
 
-		pr_err("%s8 tmp_addr=0x%llx tmp_addr1=0x%llx length=%d preq_dma_addr=%pS preq_dma_addr1=%pS\n", 
-		__func__, tmp_addr, tmp_addr1, length, preq_dma_addr, preq_dma_addr1);
+//		pr_err("%s8 tmp_addr=0x%llx tmp_addr1=0x%llx length=%d preq_dma_addr=%pS preq_dma_addr1=%pS\n", 
+//		__func__, tmp_addr, tmp_addr1, length, preq_dma_addr, preq_dma_addr1);
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST DIRECT MODE\n");
 		for (i = 0; i < length; i++)
 			if (i < 16) {
-				pr_err("%s8.10 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
-				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
+		//		pr_err("%s8.10 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
+		//		__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
+				pr_err("%s8.10 tmp_addr=0x%llx\n", __func__, tmp_addr);
+				pr_err("%s8.11 preq_dma_addr=%pS\n", __func__, preq_dma_addr);
 				smp_cmd.smp_req16[i] = *(preq_dma_addr+i);
-				pr_err("%s8.11 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
-				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
+		//		pr_err("%s8.11 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr+i)=0x%x *(preq_dma_addr1+i)=0x%x\n", 
+	//			__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr+i), *(preq_dma_addr1+i));
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req16[i],
 					   *(preq_dma_addr));
 			} else {
-				pr_err("%s8.20 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
-				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
+	//			pr_err("%s8.20 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
+//				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
 				smp_cmd.smp_req[i] = *(preq_dma_addr+i);
-				pr_err("%s8.21 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
-				__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
+	//			pr_err("%s8.21 smp_cmd.smp_req16[%d]=0x%x *(preq_dma_addr1+i)=0x%x\n",
+	//			__func__, i, smp_cmd.smp_req16[i], *(preq_dma_addr1+i));
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req[i],
