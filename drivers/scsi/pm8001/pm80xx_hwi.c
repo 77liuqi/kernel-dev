@@ -4241,8 +4241,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	struct smp_req smp_cmd;
 	u32 opc;
 	struct inbound_queue_table *circularQ;
-	char *preq_dma_addr = NULL;
-	__le64 tmp_addr;
+	dma_addr_t req_dma_addr;
 	u32 i, length;
 
 	pr_err("%s\n", __func__);
@@ -4285,19 +4284,19 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		pm8001_ha->smp_exp_mode = SMP_INDIRECT;
 
 
-	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
-	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
+	req_dma_addr = sg_dma_address(&task->smp_task.smp_req);
 
-	pr_err("%s5 tmp_addr=0x%llx preq_dma_addr=%pS\n", __func__, tmp_addr, preq_dma_addr);
+	pr_err("%s5 req_dma_addr=%pad\n", __func__, &req_dma_addr);
 
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
+		BUG();
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST INDIRECT MODE\n");
 		/* for SPCv indirect mode. Place the top 4 bytes of
 		 * SMP Request header here. */
 		pr_err("%s6\n", __func__);
-		for (i = 0; i < 4; i++)
-			smp_cmd.smp_req16[i] = *(preq_dma_addr + i);
+		//for (i = 0; i < 4; i++)
+		//	smp_cmd.smp_req16[i] = *(preq_dma_addr + i);
 		/* exclude top 4 bytes for SMP req header */
 		smp_cmd.long_smp_req.long_req_addr =
 			cpu_to_le64((u64)sg_dma_address
@@ -4326,18 +4325,22 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 			((u32)sg_dma_len(&task->smp_task.smp_resp)-4);
 	}
 	if (pm8001_ha->smp_exp_mode == SMP_DIRECT) {
-		pr_err("%s8\n", __func__);
+		__le64 tmp_addr = cpu_to_le64(req_dma_addr);
+		u8 *preq_dma_addr = (u8 *)&tmp_addr;
+
+		pr_err("%s8 tmp_addr=0x%llx length=%d preq_dma_addr=%pS\n", __func__, tmp_addr, length, preq_dma_addr);
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST DIRECT MODE\n");
 		for (i = 0; i < length; i++)
 			if (i < 16) {
-				pr_err("%s8.1 preq_dma_addr\n", __func__);
 				smp_cmd.smp_req16[i] = *(preq_dma_addr+i);
+				pr_err("%s8.1 smp_cmd.smp_req16[%d]=0x%x\n", __func__, i, smp_cmd.smp_req16[i]);
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req16[i],
 					   *(preq_dma_addr));
 			} else {
 				smp_cmd.smp_req[i] = *(preq_dma_addr+i);
+				pr_err("%s8.2 smp_cmd.smp_req16[%d]=0x%x\n", __func__, i, smp_cmd.smp_req16[i]);
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
 					   i, smp_cmd.smp_req[i],
