@@ -4245,6 +4245,8 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	__le64 tmp_addr;
 	u32 i, length;
 
+	pr_err("%s\n", __func__);
+
 	memset(&smp_cmd, 0, sizeof(smp_cmd));
 	/*
 	 * DMA-map SMP request, response buffers
@@ -4255,12 +4257,14 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		return -ENOMEM;
 	req_len = sg_dma_len(sg_req);
 
+	pr_err("%s2\n", __func__);
 	sg_resp = &task->smp_task.smp_resp;
 	elem = dma_map_sg(pm8001_ha->dev, sg_resp, 1, DMA_FROM_DEVICE);
 	if (!elem) {
 		rc = -ENOMEM;
 		goto err_out;
 	}
+	pr_err("%s3\n", __func__);
 	resp_len = sg_dma_len(sg_resp);
 	/* must be in dwords */
 	if ((req_len & 0x3) || (resp_len & 0x3)) {
@@ -4268,6 +4272,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 		goto err_out_2;
 	}
 
+	pr_err("%s4\n", __func__);
 	opc = OPC_INB_SMP_REQUEST;
 	circularQ = &pm8001_ha->inbnd_q_tbl[0];
 	smp_cmd.tag = cpu_to_le32(ccb->ccb_tag);
@@ -4283,11 +4288,14 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 	tmp_addr = cpu_to_le64((u64)sg_dma_address(&task->smp_task.smp_req));
 	preq_dma_addr = (char *)phys_to_virt(tmp_addr);
 
+	pr_err("%s5 tmp_addr=0x%llx preq_dma_addr=%pS\n", __func__, tmp_addr, preq_dma_addr);
+
 	/* INDIRECT MODE command settings. Use DMA */
 	if (pm8001_ha->smp_exp_mode == SMP_INDIRECT) {
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST INDIRECT MODE\n");
 		/* for SPCv indirect mode. Place the top 4 bytes of
 		 * SMP Request header here. */
+		pr_err("%s6\n", __func__);
 		for (i = 0; i < 4; i++)
 			smp_cmd.smp_req16[i] = *(preq_dma_addr + i);
 		/* exclude top 4 bytes for SMP req header */
@@ -4304,6 +4312,7 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 				cpu_to_le32((u32)sg_dma_len
 					(&task->smp_task.smp_resp)-4);
 	} else { /* DIRECT MODE */
+		pr_err("%s7\n", __func__);
 		smp_cmd.long_smp_req.long_req_addr =
 			cpu_to_le64((u64)sg_dma_address
 					(&task->smp_task.smp_req));
@@ -4317,9 +4326,11 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 			((u32)sg_dma_len(&task->smp_task.smp_resp)-4);
 	}
 	if (pm8001_ha->smp_exp_mode == SMP_DIRECT) {
+		pr_err("%s8\n", __func__);
 		pm8001_dbg(pm8001_ha, IO, "SMP REQUEST DIRECT MODE\n");
 		for (i = 0; i < length; i++)
 			if (i < 16) {
+				pr_err("%s8.1 preq_dma_addr\n", __func__);
 				smp_cmd.smp_req16[i] = *(preq_dma_addr+i);
 				pm8001_dbg(pm8001_ha, IO,
 					   "Byte[%d]:%x (DMA data:%x)\n",
@@ -4334,18 +4345,22 @@ static int pm80xx_chip_smp_req(struct pm8001_hba_info *pm8001_ha,
 			}
 	}
 
+	pr_err("%s9\n", __func__);
 	build_smp_cmd(pm8001_dev->device_id, smp_cmd.tag,
 				&smp_cmd, pm8001_ha->smp_exp_mode, length);
 	rc = pm8001_mpi_build_cmd(pm8001_ha, circularQ, opc, &smp_cmd,
 			sizeof(smp_cmd), 0);
 	if (rc)
 		goto err_out_2;
+	pr_err("%s10 out\n", __func__);
 	return 0;
 
 err_out_2:
+	pr_err("%s err_out_2 out\n", __func__);
 	dma_unmap_sg(pm8001_ha->dev, &ccb->task->smp_task.smp_resp, 1,
 			DMA_FROM_DEVICE);
 err_out:
+	pr_err("%s err_out out\n", __func__);
 	dma_unmap_sg(pm8001_ha->dev, &ccb->task->smp_task.smp_req, 1,
 			DMA_TO_DEVICE);
 	return rc;
