@@ -285,25 +285,28 @@ unlock:
 }
 
 static dma_addr_t
-vduse_domain_alloc_iova(struct iova_domain *iovad,
+vduse_domain_alloc_iova(struct iova_caching_domain *rcached,
 			unsigned long size, unsigned long limit)
 {
+	struct iova_domain *iovad = &rcached->iovad;
 	unsigned long shift = iova_shift(iovad);
 	unsigned long iova_len = iova_align(iovad, size) >> shift;
 	unsigned long iova_pfn;
 
-	iova_pfn = alloc_iova_fast(iovad, iova_len, limit >> shift, true);
+	iova_pfn = alloc_iova_fast(rcached, iova_len, limit >> shift, true);
 
 	return iova_pfn << shift;
 }
 
-static void vduse_domain_free_iova(struct iova_domain *iovad,
+static void vduse_domain_free_iova(struct iova_caching_domain *rcached,
 				   dma_addr_t iova, size_t size)
 {
+	struct iova_domain *iovad = &rcached->iovad;
+
 	unsigned long shift = iova_shift(iovad);
 	unsigned long iova_len = iova_align(iovad, size) >> shift;
 
-	free_iova_fast(iovad, iova >> shift, iova_len);
+	free_iova_fast(rcached, iova >> shift, iova_len);
 }
 
 dma_addr_t vduse_domain_map_page(struct vduse_iova_domain *domain,
@@ -311,10 +314,10 @@ dma_addr_t vduse_domain_map_page(struct vduse_iova_domain *domain,
 				 size_t size, enum dma_data_direction dir,
 				 unsigned long attrs)
 {
-	struct iova_domain *iovad = &domain->stream_iovad;
+	struct iova_caching_domain *rcached = &domain->stream_iovad;
 	unsigned long limit = domain->bounce_size - 1;
 	phys_addr_t pa = page_to_phys(page) + offset;
-	dma_addr_t iova = vduse_domain_alloc_iova(iovad, size, limit);
+	dma_addr_t iova = vduse_domain_alloc_iova(rcached, size, limit);
 
 	if (!iova)
 		return DMA_MAPPING_ERROR;
@@ -330,7 +333,7 @@ dma_addr_t vduse_domain_map_page(struct vduse_iova_domain *domain,
 
 	return iova;
 err:
-	vduse_domain_free_iova(iovad, iova, size);
+	vduse_domain_free_iova(rcached, iova, size);
 	return DMA_MAPPING_ERROR;
 }
 
@@ -338,22 +341,22 @@ void vduse_domain_unmap_page(struct vduse_iova_domain *domain,
 			     dma_addr_t dma_addr, size_t size,
 			     enum dma_data_direction dir, unsigned long attrs)
 {
-	struct iova_domain *iovad = &domain->stream_iovad;
+	struct iova_caching_domain *rcached = &domain->stream_iovad;
 
 	if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
 		vduse_domain_bounce(domain, dma_addr, size, DMA_FROM_DEVICE);
 
 	vduse_domain_unmap_bounce_page(domain, (u64)dma_addr, (u64)size);
-	vduse_domain_free_iova(iovad, dma_addr, size);
+	vduse_domain_free_iova(rcached, dma_addr, size);
 }
 
 void *vduse_domain_alloc_coherent(struct vduse_iova_domain *domain,
 				  size_t size, dma_addr_t *dma_addr,
 				  gfp_t flag, unsigned long attrs)
 {
-	struct iova_domain *iovad = &domain->consistent_iovad;
+	struct iova_caching_domain *rcached = &domain->consistent_iovad;
 	unsigned long limit = domain->iova_limit;
-	dma_addr_t iova = vduse_domain_alloc_iova(iovad, size, limit);
+	dma_addr_t iova = vduse_domain_alloc_iova(rcached, size, limit);
 	void *orig = alloc_pages_exact(size, flag);
 
 	if (!iova || !orig)
@@ -376,7 +379,7 @@ err:
 	if (orig)
 		free_pages_exact(orig, size);
 	if (iova)
-		vduse_domain_free_iova(iovad, iova, size);
+		vduse_domain_free_iova(rcached, iova, size);
 
 	return NULL;
 }
@@ -385,7 +388,7 @@ void vduse_domain_free_coherent(struct vduse_iova_domain *domain, size_t size,
 				void *vaddr, dma_addr_t dma_addr,
 				unsigned long attrs)
 {
-	struct iova_domain *iovad = &domain->consistent_iovad;
+	struct iova_caching_domain *rcached = &domain->consistent_iovad;
 	struct vhost_iotlb_map *map;
 	struct vdpa_map_file *map_file;
 	phys_addr_t pa;
@@ -404,7 +407,7 @@ void vduse_domain_free_coherent(struct vduse_iova_domain *domain, size_t size,
 	vhost_iotlb_map_free(domain->iotlb, map);
 	spin_unlock(&domain->iotlb_lock);
 
-	vduse_domain_free_iova(iovad, dma_addr, size);
+	vduse_domain_free_iova(rcached, dma_addr, size);
 	free_pages_exact(phys_to_virt(pa), size);
 }
 
@@ -453,8 +456,8 @@ static int vduse_domain_release(struct inode *inode, struct file *file)
 	vduse_iotlb_del_range(domain, 0, ULLONG_MAX);
 	vduse_domain_free_bounce_pages(domain);
 	spin_unlock(&domain->iotlb_lock);
-	put_iova_domain(&domain->stream_iovad);
-	put_iova_domain(&domain->consistent_iovad);
+	put_iova_caching_domain(&domain->stream_iovad);
+	put_iova_caching_domain(&domain->consistent_iovad);
 	vhost_iotlb_free(domain->iotlb);
 	vfree(domain->bounce_maps);
 	kfree(domain);
@@ -480,6 +483,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	struct file *file;
 	struct vduse_bounce_map *map;
 	unsigned long pfn, bounce_pfns;
+	int ret;
 
 	bounce_pfns = PAGE_ALIGN(bounce_size) >> PAGE_SHIFT;
 	if (iova_limit <= bounce_size)
@@ -511,12 +515,21 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 
 	domain->file = file;
 	spin_lock_init(&domain->iotlb_lock);
-	init_iova_domain(&domain->stream_iovad,
-			PAGE_SIZE, IOVA_START_PFN);
-	init_iova_domain(&domain->consistent_iovad,
-			PAGE_SIZE, bounce_pfns);
+	ret = init_iova_caching_domain(&domain->stream_iovad,
+				       PAGE_SIZE, IOVA_START_PFN);
+	if (ret)
+		goto err_stream_domain;
+	ret = init_iova_caching_domain(&domain->consistent_iovad,
+				       PAGE_SIZE, bounce_pfns);
+	if (ret)
+		goto err_consistent_domain;
 
 	return domain;
+
+err_consistent_domain:
+	put_iova_caching_domain(&domain->stream_iovad);
+err_stream_domain:
+	fput(domain->file);
 err_file:
 	vfree(domain->bounce_maps);
 err_map:

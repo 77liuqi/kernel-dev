@@ -25,8 +25,8 @@ struct vduse_bounce_map {
 };
 
 struct vduse_iova_domain {
-	struct iova_domain stream_iovad;
-	struct iova_domain consistent_iovad;
+	struct iova_caching_domain stream_iovad;
+	struct iova_caching_domain consistent_iovad;
 	struct vduse_bounce_map *bounce_maps;
 	size_t bounce_size;
 	unsigned long iova_limit;
