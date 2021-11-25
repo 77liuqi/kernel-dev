@@ -148,11 +148,14 @@ static u64 fq_flush_iotlb(struct iommu_dma_cookie *cookie)
 	return atomic64_inc_return(&cookie->fq_flush_finish_cnt);
 }
 
+atomic64_t fq_timeout;
 static void fq_flush_timeout(struct timer_list *t)
 {
 	struct iommu_dma_cookie *cookie = from_timer(cookie, t, fq_timer);
 	u64 flush_finish_cnt;
 	int cpu;
+
+	atomic64_inc(&fq_timeout);
 
 	atomic_set(&cookie->fq_timer_on, 0);
 	flush_finish_cnt = fq_flush_iotlb(cookie);
@@ -167,7 +170,8 @@ static void fq_flush_timeout(struct timer_list *t)
 		spin_unlock_irqrestore(&fq->lock, flags);
 	}
 }
-
+atomic64_t queue_iova_count;
+atomic64_t queue_iova_count_fq_full;
 static void queue_iova(struct iommu_dma_cookie *cookie,
 		unsigned long pfn, unsigned long pages,
 		struct list_head *freelist)
@@ -175,6 +179,13 @@ static void queue_iova(struct iommu_dma_cookie *cookie,
 	struct iova_fq *fq;
 	unsigned long flags;
 	unsigned int idx;
+	u64 _queue_iova_count = atomic64_inc_return(&queue_iova_count);
+
+	if ((_queue_iova_count % 1000000) == 0)
+		pr_err("%s queue_iova_count=%lld queue_iova_count_fq_full=%lld fq_timeout=%lld\n",
+			__func__, atomic64_read(&queue_iova_count),
+			atomic64_read(&queue_iova_count_fq_full),
+			atomic64_read(&fq_timeout));
 
 	/*
 	 * Order against the IOMMU driver's pagetable update from unmapping
@@ -195,8 +206,10 @@ static void queue_iova(struct iommu_dma_cookie *cookie,
 	 */
 	fq_ring_free(cookie, fq, atomic64_read(&cookie->fq_flush_finish_cnt));
 
-	if (fq_full(fq))
+	if (fq_full(fq)) {
+		atomic64_inc(&queue_iova_count_fq_full);
 		fq_ring_free(cookie, fq, fq_flush_iotlb(cookie));
+	}
 
 	idx = fq_ring_add(fq);
 
